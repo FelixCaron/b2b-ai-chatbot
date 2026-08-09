@@ -119,22 +119,22 @@ export default function ClientOnboarding({
       if (siteObj) {
         setLocalCreatedSite(siteObj);
 
-        // 3. Trigger initial scan
-        onTriggerScan(siteObj.id, formattedUrl).catch(() => null);
+        // 3. Trigger initial scan & wait for indexing to complete
+        await onTriggerScan(siteObj.id, formattedUrl).catch(() => null);
 
-        // 4. Non-blocking background crawling
+        // 4. Background crawling of discovered pages
         fetch(`${window.location.origin}/api/crawl-site`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url: formattedUrl })
         })
           .then((r) => r.json())
-          .then((crawlData) => {
+          .then(async (crawlData) => {
             if (crawlData.pages && crawlData.pages.length > 0) {
               setDiscoveredPages(crawlData.pages);
               setSelectedUrls(new Set(crawlData.pages.map((p) => p.url)));
               for (const p of crawlData.pages) {
-                onTriggerScan(siteObj.id, p.url).catch(() => null);
+                await onTriggerScan(siteObj.id, p.url).catch(() => null);
               }
             }
           })
