@@ -231,6 +231,19 @@ export default function ClientOnboarding({
             if (dataStr === '[DONE]') break;
             try {
               const parsed = JSON.parse(dataStr);
+              if (parsed.tool_call) {
+                setPreviewMessages((prev) => {
+                  // Insert tool message before the empty assistant message placeholder
+                  const updated = [...prev];
+                  const lastMsg = updated[updated.length - 1];
+                  if (lastMsg && lastMsg.role === 'assistant' && !lastMsg.text) {
+                    updated.splice(updated.length - 1, 0, { role: 'tool', tool_call: parsed.tool_call });
+                  } else {
+                    updated.push({ role: 'tool', tool_call: parsed.tool_call });
+                  }
+                  return updated;
+                });
+              }
               if (parsed.text) {
                 // Clear the loading string once we get the first chunk
                 if (previewStreaming) setPreviewStreaming(false);
@@ -639,22 +652,47 @@ export default function ClientOnboarding({
 
                     {/* Messages Feed */}
                     <div className="flex-1 p-4 overflow-y-auto space-y-3 text-xs">
-                      {previewMessages.map((m, idx) => (
-                        <div
-                          key={idx}
-                          className={`max-w-[85%] p-3 rounded-xl leading-relaxed ${
-                            m.role === 'user'
-                              ? 'ml-auto bg-gradient-to-r from-brand-600 to-indigo-600 text-white rounded-br-none shadow-md'
-                              : 'mr-auto bg-dark-800 text-gray-200 border border-white/5 rounded-bl-none shadow-md prose prose-invert prose-sm max-w-none'
-                          }`}
-                        >
-                          {m.role === 'user' ? m.text : (
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                              {m.text}
-                            </ReactMarkdown>
-                          )}
-                        </div>
-                      ))}
+                      {previewMessages.map((m, idx) => {
+                        if (m.role === 'tool') {
+                          return (
+                            <div key={idx} className="mr-auto my-1.5 p-3 rounded-xl bg-indigo-950/80 border border-brand-500/30 font-mono text-[11px] text-brand-300 space-y-1 shadow-inner animate-in fade-in">
+                              <div className="flex items-center gap-1.5 font-bold text-brand-400">
+                                <span>🛠️ Tool Call:</span>
+                                <span className="bg-brand-500/20 px-1.5 py-0.5 rounded text-white">{m.tool_call.name}</span>
+                              </div>
+                              {m.tool_call.name === 'search_knowledge_base' && (
+                                <div className="space-y-0.5">
+                                  <div>🔍 Requête RAG : "{m.tool_call.query}"</div>
+                                  <div className="text-[10px] text-gray-400">📄 {m.tool_call.matched_chunks} blocs trouvés ({m.tool_call.sources?.length || 0} sources)</div>
+                                </div>
+                              )}
+                              {m.tool_call.name === 'capture_lead' && (
+                                <div className="space-y-0.5">
+                                  <div>👤 Lead extrait : {m.tool_call.lead?.name || m.tool_call.lead?.email || m.tool_call.lead?.phone || 'Prospect'}</div>
+                                  <div className="text-[10px] text-emerald-400">✓ Enregistré dans Supabase</div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div
+                            key={idx}
+                            className={`max-w-[85%] p-3 rounded-xl leading-relaxed ${
+                              m.role === 'user'
+                                ? 'ml-auto bg-gradient-to-r from-brand-600 to-indigo-600 text-white rounded-br-none shadow-md'
+                                : 'mr-auto bg-dark-800 text-gray-200 border border-white/5 rounded-bl-none shadow-md prose prose-invert prose-sm max-w-none'
+                            }`}
+                          >
+                            {m.role === 'user' ? m.text : (
+                              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                {m.text}
+                              </ReactMarkdown>
+                            )}
+                          </div>
+                        );
+                      })}
 
                       {/* Typing indicator dots when AI is thinking */}
                       {previewStreaming && (

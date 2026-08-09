@@ -147,7 +147,22 @@ ${isLeadCaptureEnabled ? "3. CAPTURE DE PROSPECTS : Dès que le client s'intére
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
-        // Stream out in smooth visual chunks
+        // 1. Stream tool_call event for Knowledge Base Search
+        const sources = Array.from(new Set(docs.map((d) => d.url)));
+        controller.enqueue(
+          encoder.encode(
+            `data: ${JSON.stringify({
+              tool_call: {
+                name: 'search_knowledge_base',
+                query: message,
+                matched_chunks: docs.length,
+                sources: sources
+              }
+            })}\n\n`
+          )
+        );
+
+        // Stream out assistant response in smooth visual chunks
         const words = finalReply.split(' ');
         let accumulated = '';
 
@@ -176,6 +191,18 @@ ${isLeadCaptureEnabled ? "3. CAPTURE DE PROSPECTS : Dès que le client s'intére
             const leadData = await extractLeadInfo({ messagesHistory: historyForExtraction, apiKey });
             
             if (leadData && (leadData.email || leadData.phone)) {
+              // Stream tool_call event for Lead Capture
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({
+                    tool_call: {
+                      name: 'capture_lead',
+                      lead: leadData
+                    }
+                  })}\n\n`
+                )
+              );
+
               // Ensure we don't insert duplicate leads per session
               const { data: existingLead } = await supabase.from('leads')
                 .select('id')
