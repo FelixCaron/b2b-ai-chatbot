@@ -55,61 +55,6 @@ export default async function handler(req) {
       content: message
     });
 
-    // Extract clean domain keywords by filtering French conversational stop words
-    const STOP_WORDS = new Set([
-      'cest', 'cétait', 'quoi', 'quel', 'quelle', 'quels', 'quelles', 
-      'comment', 'pourquoi', 'quand', 'combien', 'est-ce', 'qu\'est-ce',
-      'avez', 'vous', 'nous', 'avec', 'pour', 'dans', 'sur', 'savoir', 
-      'veux', 'faire', 'plus', 'gros', 'tout', 'tous', 'toute', 'toutes', 
-      'aussi', 'être', 'avoir', 'votre', 'notre', 'leurs', 'leur',
-      'cette', 'ceci', 'cela', 'donc', 'mais', 'bien', 'encore', 'dire'
-    ]);
-    const rawWords = message.toLowerCase().replace(/[^a-z0-9éèàâêîôûùç]/g, ' ').split(/\s+/);
-    const keywords = rawWords.filter(w => w.length > 2 && !STOP_WORDS.has(w));
-    const cleanSearchQuery = keywords.length > 0 ? keywords.join(' ') : message;
-
-    // 1. Vector / Hybrid query document knowledge base using clean search query
-    const mockQueryEmbedding = Array(768).fill(0).map((_, i) => (i % 2 === 0 ? 0.05 : -0.05));
-    let { data: docs } = await supabase.rpc('match_documents_hybrid', {
-      query_text: cleanSearchQuery,
-      query_embedding: mockQueryEmbedding,
-      match_tenant_id: tenantId,
-      match_count: 5
-    });
-
-    docs = docs || [];
-
-    // 2. Direct domain keyword search for exact case studies & terms
-    if (keywords.length > 0) {
-      try {
-        const filterStr = keywords.slice(0, 3).map(k => `content.ilike.%${k}%`).join(',');
-        const { data: kwDocs } = await supabase
-          .from('documents')
-          .select('id, content, url')
-          .eq('tenant_id', tenantId)
-          .or(filterStr)
-          .limit(5);
-
-        if (kwDocs && kwDocs.length > 0) {
-          const existingIds = new Set(docs.map(d => d.id));
-          const newKwDocs = kwDocs.filter(d => !existingIds.has(d.id));
-          docs = [...newKwDocs, ...docs].slice(0, 6);
-        }
-      } catch (_e) {}
-    }
-
-    // 3. Fallback: If still no docs, fetch any docs for this tenant
-    if (docs.length === 0) {
-      const { data: fallbackDocs } = await supabase
-        .from('documents')
-        .select('id, content, url')
-        .eq('tenant_id', tenantId)
-        .limit(5);
-      docs = fallbackDocs || [];
-    }
-
-    const contextText = docs.map((d) => d.content).join('\n---\n');
-
     const apiKey = process.env.OPENROUTER_API_KEY;
 
     // Build system prompt
@@ -120,16 +65,16 @@ DOMAINE & TERMINOLOGIE :
 - "pica", "pi.ca", "pi2", "pieds carrés" désignent la superficie en pieds carrés.
 
 INFORMATIONS DE CONNAISSANCE SUR L'ENTREPRISE :
-${contextText || `Nous sommes l'équipe officielle du site ${site.domain}.`}
+Nous sommes l'équipe officielle du site ${site.domain}. Tu as accès à l'outil "search_knowledge_base" pour trouver les informations précises sur notre entreprise. N'hésite pas à l'utiliser dès qu'on te pose une question spécifique.
 
 INTERDICTIONS ABSOLUES (NE JAMAIS PRONONCER CES MOTS OU EXPRESSIONS) :
-- INTERDIT d'utiliser les mots : "base de connaissances", "base de données", "informations fournies", "contexte", "système", "documentation", "dans mes données".
+- INTERDIT d'utiliser les mots : "base de connaissances", "base de données", "informations fournies", "contexte", "système", "documentation", "dans mes données", "selon mes outils".
 - INTERDIT de parler à la 3ème personne ("ils", "leur site"). Utilise TOUJOURS "nous", "notre équipe", "notre entreprise".
 - INTERDIT de répéter les fautes de frappe ou argots de l'utilisateur (ex: si l'utilisateur écrit "pica", réponds naturellement en parlant de "superficie" ou de "pieds carrés").
 
 RÈGLES DE RÉPONSE :
 1. TON : Chaleureux, humain, naturel et professionnel.
-2. PROJETS & CHIFFRES : Si l'utilisateur demande la superficie exacte ou des détails sur un projet spécifique (ex: un bâtiment ou une résidence particulière) qui n'est pas précisé dans tes connaissances, réponds naturellement : "Nous avons réalisé de nombreux projets d'envergure en polyaspartique et époxy, mais je n'ai pas les chiffres exacts de ce chantier sous la main. Si vous le souhaitez, je peux vous mettre en relation avec l'un de nos experts pour vous transmettre les détails !"
+2. PROJETS & CHIFFRES : Si l'utilisateur demande la superficie exacte ou des détails sur un projet spécifique qui n'est pas précisé dans tes connaissances, réponds naturellement que tu peux le mettre en relation avec un expert.
 ${isLeadCaptureEnabled ? "3. CAPTURE DE PROSPECTS : Dès que le client s'intéresse à un devis, un prix ou un projet particulier, propose-lui naturellement de laisser son nom et son courriel (ou téléphone) pour qu'un expert puisse le recontacter." : ""}`;
 
     // Fetch conversation history (last 10 messages)
@@ -143,99 +88,176 @@ ${isLeadCaptureEnabled ? "3. CAPTURE DE PROSPECTS : Dès que le client s'intére
     // Re-order to chronological
     const fullHistory = historyData ? historyData.reverse() : [];
 
-    let finalReply = '';
-
-    try {
-      const { generateChatResponse } = await import('./lib/llm.js');
-      finalReply = await generateChatResponse({ systemPrompt, messagesHistory: fullHistory, apiKey });
-    } catch (_gErr) {
-      console.error('OpenRouter API call error:', _gErr);
-      finalReply = `⚠️ [Erreur Inattendue Backend] ${_gErr.message}`;
-    }
+    const tools = [
+      {
+        type: "function",
+        function: {
+          name: "search_knowledge_base",
+          description: "Recherche dans la base de connaissances et la documentation de l'entreprise. Utilise cet outil dès qu'un utilisateur pose une question sur un service, un prix, une caractéristique ou une information spécifique de l'entreprise.",
+          parameters: {
+            type: "object",
+            properties: {
+              query: {
+                type: "string",
+                description: "Les mots-clés spécifiques à rechercher."
+              }
+            },
+            required: ["query"]
+          }
+        }
+      }
+    ];
 
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
-        // 1. Stream tool_call event for Knowledge Base Search with extracted keywords
-        const sources = Array.from(new Set(docs.map((d) => d.url)));
-        controller.enqueue(
-          encoder.encode(
-            `data: ${JSON.stringify({
-              tool_call: {
-                name: 'search_knowledge_base',
-                keywords: keywords.join(', ') || message,
-                matched_chunks: docs.length,
-                sources: sources
-              }
-            })}\n\n`
-          )
-        );
+        try {
+          const { generateChatResponse, extractLeadInfo } = await import('./lib/llm.js');
+          
+          // FIRST LLM CALL (Agentic Loop)
+          let responseData = await generateChatResponse({ 
+            systemPrompt, 
+            messagesHistory: fullHistory, 
+            apiKey, 
+            tools 
+          });
 
-        // Stream out assistant response in smooth visual chunks
-        const words = finalReply.split(' ');
-        let accumulated = '';
+          if (responseData.error) {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: responseData.error })}\n\n`));
+            controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+            controller.close();
+            return;
+          }
 
-        for (let i = 0; i < words.length; i++) {
-          accumulated += (i === 0 ? '' : ' ') + words[i];
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: accumulated })}\n\n`));
-          // Brief pause for realistic streaming feel
-          await new Promise((r) => setTimeout(r, 20));
-        }
+          const llmMessage = responseData.message;
+          let finalReply = llmMessage?.content || '';
 
-        // Save assistant message to Supabase
-        await supabase.from('messages').insert({
-          tenant_id: tenantId,
-          session_id,
-          role: 'assistant',
-          content: finalReply
-        });
-
-        await supabase.rpc('increment_usage', { target_tenant_id: tenantId });
-
-        // Lead Extraction Process
-        if (isLeadCaptureEnabled) {
-          try {
-            const { extractLeadInfo } = await import('./lib/llm.js');
-            const historyForExtraction = [...fullHistory, { role: 'assistant', content: finalReply }];
-            const leadData = await extractLeadInfo({ messagesHistory: historyForExtraction, apiKey });
+          // If the LLM wants to call a tool
+          if (llmMessage?.tool_calls && llmMessage.tool_calls.length > 0) {
+            const toolCall = llmMessage.tool_calls[0];
             
-            if (leadData && (leadData.email || leadData.phone)) {
-              // Stream tool_call event for Lead Capture
+            if (toolCall.function.name === 'search_knowledge_base') {
+              const toolArgs = JSON.parse(toolCall.function.arguments || '{}');
+              const toolQuery = toolArgs.query || message;
+
+              // Execute Supabase RAG
+              const mockQueryEmbedding = Array(768).fill(0).map((_, i) => (i % 2 === 0 ? 0.05 : -0.05));
+              let { data: docs } = await supabase.rpc('match_documents_hybrid', {
+                query_text: toolQuery,
+                query_embedding: mockQueryEmbedding,
+                match_tenant_id: tenantId,
+                match_count: 5
+              });
+              docs = docs || [];
+
+              // Stream tool badge to user
+              const sources = Array.from(new Set(docs.map((d) => d.url)));
               controller.enqueue(
                 encoder.encode(
                   `data: ${JSON.stringify({
                     tool_call: {
-                      name: 'capture_lead',
-                      lead: leadData
+                      name: 'search_knowledge_base',
+                      keywords: toolQuery,
+                      matched_chunks: docs.length,
+                      sources: sources
                     }
                   })}\n\n`
                 )
               );
 
-              // Ensure we don't insert duplicate leads per session
-              const { data: existingLead } = await supabase.from('leads')
-                .select('id')
-                .eq('tenant_id', tenantId)
-                .eq('email', leadData.email)
-                .maybeSingle();
+              const contextText = docs.map((d) => d.content).join('\n---\n');
+              const toolResponseContent = contextText || "Aucune information trouvée pour cette requête.";
 
-              if (!existingLead) {
-                await supabase.from('leads').insert({
-                  tenant_id: tenantId,
-                  name: leadData.name || null,
-                  email: leadData.email || null,
-                  phone: leadData.phone || null,
-                  summary: leadData.summary || null
-                });
+              // Add tool call and tool response to history for the SECOND LLM CALL
+              const secondPassHistory = [
+                ...fullHistory,
+                { role: 'assistant', content: "", tool_calls: llmMessage.tool_calls },
+                { role: 'tool', content: toolResponseContent, tool_call_id: toolCall.id }
+              ];
+
+              const secondResponseData = await generateChatResponse({ 
+                systemPrompt, 
+                messagesHistory: secondPassHistory, 
+                apiKey, 
+                tools: null // Don't allow nested tool calls to prevent infinite loops
+              });
+
+              if (secondResponseData.error) {
+                finalReply = secondResponseData.error;
+              } else {
+                finalReply = secondResponseData.message?.content || "⚠️ Je ne peux pas répondre pour le moment.";
               }
             }
-          } catch (e) {
-            console.error('Lead extraction failed:', e);
           }
-        }
 
-        controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-        controller.close();
+          // Stream out assistant response in smooth visual chunks
+          const words = finalReply.split(' ');
+          let accumulated = '';
+
+          for (let i = 0; i < words.length; i++) {
+            accumulated += (i === 0 ? '' : ' ') + words[i];
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: accumulated })}\n\n`));
+            await new Promise((r) => setTimeout(r, 20));
+          }
+
+          // Save assistant message to Supabase
+          await supabase.from('messages').insert({
+            tenant_id: tenantId,
+            session_id,
+            role: 'assistant',
+            content: finalReply
+          });
+
+          await supabase.rpc('increment_usage', { target_tenant_id: tenantId });
+
+          // Lead Extraction Process
+          if (isLeadCaptureEnabled) {
+            try {
+              const historyForExtraction = [...fullHistory, { role: 'assistant', content: finalReply }];
+              const leadData = await extractLeadInfo({ messagesHistory: historyForExtraction, apiKey });
+              
+              if (leadData && (leadData.email || leadData.phone)) {
+                // Stream tool_call event for Lead Capture
+                controller.enqueue(
+                  encoder.encode(
+                    `data: ${JSON.stringify({
+                      tool_call: {
+                        name: 'capture_lead',
+                        lead: leadData
+                      }
+                    })}\n\n`
+                  )
+                );
+
+                const { data: existingLead } = await supabase.from('leads')
+                  .select('id')
+                  .eq('tenant_id', tenantId)
+                  .eq('email', leadData.email)
+                  .maybeSingle();
+
+                if (!existingLead) {
+                  await supabase.from('leads').insert({
+                    tenant_id: tenantId,
+                    name: leadData.name || null,
+                    email: leadData.email || null,
+                    phone: leadData.phone || null,
+                    summary: leadData.summary || null
+                  });
+                }
+              }
+            } catch (e) {
+              console.error('Lead extraction failed:', e);
+            }
+          }
+
+          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+          controller.close();
+        } catch (_innerErr) {
+          console.error(_innerErr);
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: '⚠️ [Erreur Interne] ' + _innerErr.message })}\n\n`));
+          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+          controller.close();
+        }
       }
     });
 

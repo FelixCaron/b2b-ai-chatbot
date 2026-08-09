@@ -4,21 +4,36 @@
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const DEFAULT_OPENROUTER_MODEL = 'openrouter/free';
 
-export async function generateChatResponse({ systemPrompt, messagesHistory, apiKey }) {
+export async function generateChatResponse({ systemPrompt, messagesHistory, apiKey, tools = null }) {
   const openRouterKey = process.env.OPENROUTER_API_KEY || apiKey;
 
   if (!openRouterKey) {
-    return "⚠️ [Erreur Système IA] Aucune clé d'environnement (OPENROUTER_API_KEY) n'est configurée.";
+    return { error: "⚠️ [Erreur Système IA] Aucune clé d'environnement (OPENROUTER_API_KEY) n'est configurée." };
   }
 
   try {
-    const openAiMessages = [
-      { role: 'system', content: systemPrompt },
-      ...messagesHistory.map(m => ({
-        role: m.role === 'assistant' ? 'assistant' : 'user',
-        content: m.content
-      }))
-    ];
+    const openAiMessages = systemPrompt ? [{ role: 'system', content: systemPrompt }] : [];
+    
+    // Map existing history correctly (including tool messages)
+    for (const m of messagesHistory) {
+      if (m.role === 'assistant') {
+        openAiMessages.push({ role: 'assistant', content: m.content || "", tool_calls: m.tool_calls });
+      } else if (m.role === 'tool') {
+        openAiMessages.push({ role: 'tool', content: m.content, tool_call_id: m.tool_call_id });
+      } else {
+        openAiMessages.push({ role: 'user', content: m.content });
+      }
+    }
+
+    const reqBody = {
+      model: DEFAULT_OPENROUTER_MODEL,
+      messages: openAiMessages,
+      temperature: 0.7
+    };
+
+    if (tools && tools.length > 0) {
+      reqBody.tools = tools;
+    }
 
     const res = await fetch(OPENROUTER_BASE_URL, {
       method: 'POST',
@@ -28,26 +43,21 @@ export async function generateChatResponse({ systemPrompt, messagesHistory, apiK
         'X-Title': 'B2B AI Chatbot',
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        model: DEFAULT_OPENROUTER_MODEL,
-        messages: openAiMessages,
-        temperature: 0.7
-      })
+      body: JSON.stringify(reqBody)
     });
 
     if (res.ok) {
       const data = await res.json();
-      const text = data.choices?.[0]?.message?.content;
-      if (text) return text;
+      return { message: data.choices?.[0]?.message };
     } else {
       const errText = await res.text();
-      return `⚠️ [Erreur OpenRouter ${res.status}]\n${errText}`;
+      return { error: `⚠️ [Erreur OpenRouter ${res.status}]\n${errText}` };
     }
   } catch (err) {
-    return `⚠️ [Erreur Connexion OpenRouter] ${err.message}`;
+    return { error: `⚠️ [Erreur Connexion OpenRouter] ${err.message}` };
   }
 
-  return "⚠️ [Erreur IA] Impossible d'obtenir une réponse de l'IA.";
+  return { error: "⚠️ [Erreur IA] Impossible d'obtenir une réponse de l'IA." };
 }
 
 export async function extractLeadInfo({ messagesHistory, apiKey }) {
