@@ -15,7 +15,7 @@ const MAX_MESSAGES_PER_PLAN: Record<string, number> = {
 };
 
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1/chat/completions";
-const DEFAULT_MODEL = "google/gemini-2.0-flash-lite:free";
+const DEFAULT_MODEL = "openrouter/free";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {

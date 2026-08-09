@@ -2,7 +2,7 @@
 // OpenRouter Provider Integration
 
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1/chat/completions';
-const DEFAULT_OPENROUTER_MODEL = 'google/gemini-2.0-flash-lite:free';
+const DEFAULT_OPENROUTER_MODEL = 'openrouter/free';
 
 export async function generateChatResponse({ systemPrompt, messagesHistory, apiKey }) {
   const openRouterKey = process.env.OPENROUTER_API_KEY || apiKey;
