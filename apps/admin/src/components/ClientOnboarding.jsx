@@ -131,7 +131,7 @@ export default function ClientOnboarding({
         setLocalCreatedSite(siteObj);
 
         // 3. Trigger initial scan & wait for indexing to complete
-        const scanRes = await onTriggerScan(siteObj.id, formattedUrl).catch(err => ({ success: false, error: err.message }));
+        const scanRes = await onTriggerScan(siteObj.id, formattedUrl, siteObj.tenant_id).catch(err => ({ success: false, error: err.message }));
         const scanOk = scanRes && scanRes.success;
         if (!scanOk) {
           console.error('Initial scan failed:', scanRes?.error || scanRes?.data);
@@ -149,7 +149,7 @@ export default function ClientOnboarding({
               setDiscoveredPages(crawlData.pages);
               setSelectedUrls(new Set(crawlData.pages.map((p) => p.url)));
               for (const p of crawlData.pages) {
-                await onTriggerScan(siteObj.id, p.url).catch(() => null);
+                await onTriggerScan(siteObj.id, p.url, siteObj.tenant_id).catch(() => null);
               }
             }
           })
@@ -190,7 +190,7 @@ export default function ClientOnboarding({
     } else {
       next.add(pageUrl);
       if (primarySite) {
-        await onTriggerScan(primarySite.id, pageUrl);
+        await onTriggerScan(primarySite.id, pageUrl, primarySite.tenant_id);
       }
     }
     setSelectedUrls(next);

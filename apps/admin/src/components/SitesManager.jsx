@@ -84,7 +84,7 @@ export default function SitesManager({ sites, tenant, onAddSite, onTriggerScan }
     let queued = 0;
 
     for (const url of Array.from(selectedUrls)) {
-      const result = await onTriggerScan(selectedSiteForScan, url);
+      const result = await onTriggerScan(selectedSiteForScan, url, tenant?.id);
       if (result?.success) queued++;
     }
 

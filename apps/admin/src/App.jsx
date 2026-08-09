@@ -165,13 +165,14 @@ export default function App() {
   };
 
   // Handler: Trigger Scan Job
-  const handleTriggerScan = async (siteId, url) => {
-    if (!selectedTenant) return { success: false, error: 'No tenant selected' };
+  const handleTriggerScan = async (siteId, url, optionalTenantId = null) => {
+    const tId = optionalTenantId || selectedTenant?.id;
+    if (!tId) return { success: false, error: 'No tenant selected' };
     try {
       const res = await fetch(`${window.location.origin}/api/start-scan`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ site_id: siteId, tenant_id: selectedTenant.id, url: url })
+        body: JSON.stringify({ site_id: siteId, tenant_id: tId, url: url })
       });
       const data = await res.json();
       return { success: res.ok, data };
