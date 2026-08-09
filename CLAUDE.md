@@ -28,6 +28,11 @@ Multi-tenant B2B AI Chatbot SaaS built with Supabase (pgvector, pgmq, RLS, Raw S
 - Strict RLS enabled on `tenants`, `sites`, `documents`, `messages`, `leads`.
 - Service role key used in Edge Functions with manual tenant isolation (`tenant_id`).
 
+## ⚠️ Core Engineering & Bug Fixing Guidelines
+1. **General Solutions Only**: When addressing bugs or user feedback, ALWAYS fix the underlying system architecture, crawler pipelines, RLS queries, or code logic. NEVER write one-off scratch scripts to populate specific domains, mutate tenant data manually, or create domain-specific hardcoded fallbacks.
+2. **Seamless User Flow**: The onboarding and crawling pipeline must work automatically for ANY URL entered by ANY user without manual intervention.
+3. **Strict Tenant Data Isolation**: Ensure `documents` queries in Supabase ALWAYS enforce strict matching by `tenant_id` AND `site_id` so data from one domain never bleeds into another tenant.
+
 ## 📦 GitHub Deployment Instructions
 To publish and deploy this repository on GitHub:
 

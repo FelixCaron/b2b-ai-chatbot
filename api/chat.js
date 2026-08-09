@@ -78,6 +78,7 @@ export default async function handler(req) {
           .from('documents')
           .select('id, content, url')
           .eq('tenant_id', tenantId)
+          .eq('site_id', site.id)
           .or(filterStr)
           .limit(5);
 
@@ -89,12 +90,13 @@ export default async function handler(req) {
       } catch (_e) {}
     }
 
-    // 3. Fallback: If still no docs, fetch any docs for tenant
+    // 3. Fallback: If still no docs, fetch any docs for this specific site
     if (docs.length === 0) {
       const { data: fallbackDocs } = await supabase
         .from('documents')
         .select('id, content, url')
         .eq('tenant_id', tenantId)
+        .eq('site_id', site.id)
         .limit(5);
       docs = fallbackDocs || [];
     }
