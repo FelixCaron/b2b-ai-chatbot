@@ -33,14 +33,6 @@ export default function App() {
       if (savedEmail) {
         await handleLogin(savedEmail);
       } else {
-        const guestId = localStorage.getItem('b2b_guest_tenant_id');
-        if (guestId) {
-          const { data } = await supabase.from('tenants').select('*').eq('id', guestId).single();
-          if (data) {
-            setTenants([data]);
-            setSelectedTenant(data);
-          }
-        }
         setLoading(false);
       }
     }
@@ -76,7 +68,6 @@ export default function App() {
       setSelectedTenant(finalTenant);
       setSessionEmail(email);
       localStorage.setItem('b2b_session_email', email);
-      localStorage.removeItem('b2b_guest_tenant_id');
       setShowLoginModal(false);
     }
     setLoading(false);
@@ -120,7 +111,6 @@ export default function App() {
         tId = guestTenant.id;
         setTenants([guestTenant]);
         setSelectedTenant(guestTenant);
-        localStorage.setItem('b2b_guest_tenant_id', guestTenant.id);
       } else {
         return null;
       }
