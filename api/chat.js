@@ -81,18 +81,16 @@ DIRECTIVES :
 3. Si l'information exacte n'est pas présente, réponds poliment en restant en lien avec l'activité générale du site ${site.domain}.
 ${isLeadCaptureEnabled ? "4. CRUCIAL: Si l'utilisateur pose une question complexe, exprime un besoin spécifique ou souhaite un devis, refuse poliment de donner une réponse définitive et demande-lui naturellement son nom et son adresse email (ou téléphone) pour qu'un expert puisse le recontacter rapidement avec une solution sur-mesure." : ""}`;
 
-    // Fetch conversation history
+    // Fetch conversation history (last 10 messages)
     const { data: historyData } = await supabase
       .from('messages')
       .select('role, content')
       .eq('session_id', session_id)
-      .order('created_at', { ascending: true })
+      .order('created_at', { ascending: false })
       .limit(10);
 
-    const pastMessages = historyData || [];
-    
-    // Add current message to history for LLM
-    const fullHistory = [...pastMessages, { role: 'user', content: message }];
+    // Re-order to chronological
+    const fullHistory = historyData ? historyData.reverse() : [];
 
     let finalReply = '';
 

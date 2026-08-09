@@ -39,6 +39,15 @@ export default async function handler(req) {
       throw error;
     }
 
+    // Wake up the worker asynchronously so it processes the queue
+    fetch(`${SUPABASE_URL}/functions/v1/ingestion-worker`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
+        'Content-Type': 'application/json'
+      }
+    }).catch(e => console.error('Worker wakeup error:', e));
+
     return new Response(
       JSON.stringify({ success: true, message: 'Ingestion job enqueued into PGMQ', msg_id: data }),
       {
