@@ -131,7 +131,10 @@ export default function ClientOnboarding({
         setLocalCreatedSite(siteObj);
 
         // 3. Trigger initial scan & wait for indexing to complete
-        await onTriggerScan(siteObj.id, formattedUrl).catch(() => null);
+        const scanRes = await onTriggerScan(siteObj.id, formattedUrl).catch(err => ({ success: false, error: err.message }));
+        if (!scanRes || !scanRes.success) {
+          console.error("Start scan failed:", scanRes?.error || scanRes?.data);
+        }
 
         // 4. Background crawling of discovered pages
         fetch(`${window.location.origin}/api/crawl-site`, {

@@ -7,7 +7,13 @@ export const config = {
 const SUPABASE_URL = "https://xuvueegdokgiyedwvmkm.supabase.co";
 const SERVICE_ROLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh1dnVlZWdkb2tnaXllZHd2bWttIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NjE0ODAxNCwiZXhwIjoyMTAxNzI0MDE0fQ.Z9CsCniLkOuPJZajLzUMfN2FUTbZsvwZC8KD5CXh-7E";
 
-const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+    detectSessionInUrl: false
+  }
+});
 
 function chunkText(text, maxLength = 800) {
   const words = text.split(' ');
