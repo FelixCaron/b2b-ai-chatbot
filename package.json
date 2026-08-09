@@ -1,0 +1,21 @@
+{
+  "name": "b2b-ai-chatbot-monorepo",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Multi-tenant B2B AI Chatbot SaaS Monorepo",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "supabase/functions/*"
+  ],
+  "scripts": {
+    "supabase:start": "supabase start",
+    "supabase:stop": "supabase stop",
+    "test": "node scripts/test-pipeline.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.8",
+    "ws": "^8.21.3"
+  }
+}

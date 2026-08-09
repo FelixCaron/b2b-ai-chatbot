@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Next.js / Vite build outputs
+.next/
+dist/
+build/
+out/
+
+# Environment files and secrets
+.env
+.env.local
+.env.*.local
+
+# Vercel & temp files
+.vercel/
+.temp/
+
+# Logs
+*.log
