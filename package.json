@@ -10,7 +10,7 @@
     "supabase/functions/*"
   ],
   "scripts": {
-    "build": "npm run build --workspaces --if-present",
+    "build": "npm run build --workspace=@b2b-ai-chatbot/admin",
     "dev": "npm run dev --workspaces --if-present",
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",
