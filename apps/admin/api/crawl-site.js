@@ -2,6 +2,18 @@ export const config = {
   runtime: 'edge',
 };
 
+function isValidPage(urlStr) {
+  try {
+    const u = new URL(urlStr);
+    const p = u.pathname.toLowerCase();
+    if (/\.(png|jpg|jpeg|gif|svg|pdf|zip|css|js|ico|xml|json|woff|woff2|ttf|eot)$/i.test(p)) return false;
+    if (p.includes('/feed') || p.includes('/wp-json') || p.includes('/wp-content') || p.includes('/wp-includes') || p.includes('xmlrpc')) return false;
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
 export default async function handler(req) {
   if (req.method === 'OPTIONS') {
     return new Response('ok', {
@@ -63,14 +75,16 @@ export default async function handler(req) {
                   let subMatch;
                   while ((subMatch = locRegex.exec(subXml)) !== null) {
                     const subLoc = subMatch[1].trim();
-                    if (!subLoc.endsWith('.xml')) {
+                    if (!subLoc.endsWith('.xml') && isValidPage(subLoc)) {
                       discoveredUrls.add(subLoc);
                     }
                   }
                 }
               } catch (_subErr) {}
             } else {
-              discoveredUrls.add(loc);
+              if (isValidPage(loc)) {
+                discoveredUrls.add(loc);
+              }
             }
           }
           if (discoveredUrls.size > 5) break; // Successfully populated from sitemap
@@ -100,14 +114,7 @@ export default async function handler(req) {
       let match;
       while ((match = hrefRegex.exec(html)) !== null) {
         const link = match[1];
-        if (
-          !link ||
-          link.startsWith('#') ||
-          link.startsWith('mailto:') ||
-          link.startsWith('tel:') ||
-          link.startsWith('javascript:') ||
-          /\.(png|jpg|jpeg|gif|svg|pdf|zip|css|js)$/i.test(link)
-        ) {
+        if (!link || link.startsWith('#') || link.startsWith('mailto:') || link.startsWith('tel:') || link.startsWith('javascript:')) {
           continue;
         }
 
@@ -117,7 +124,10 @@ export default async function handler(req) {
           if (linkHost === cleanHost) {
             resolved.hash = '';
             resolved.search = '';
-            discoveredUrls.add(resolved.href);
+            
+            if (isValidPage(resolved.href)) {
+              discoveredUrls.add(resolved.href);
+            }
           }
         } catch (_e) {}
       }

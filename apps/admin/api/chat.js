@@ -149,14 +149,17 @@ ${isLeadCaptureEnabled ? "3. CAPTURE DE PROSPECTS : Dès que le client s'intére
               const toolArgs = JSON.parse(toolCall.function.arguments || '{}');
               const toolQuery = toolArgs.query || message;
 
-              // Execute Supabase RAG
-              const mockQueryEmbedding = Array(768).fill(0).map((_, i) => (i % 2 === 0 ? 0.05 : -0.05));
-              let { data: docs } = await supabase.rpc('match_documents_hybrid', {
-                query_text: toolQuery,
-                query_embedding: mockQueryEmbedding,
-                match_tenant_id: tenantId,
-                match_count: 5
-              });
+              // Execute Supabase RAG (pure keyword search via PostgREST since embeddings are disabled)
+              let { data: docs, error: searchErr } = await supabase
+                .from('documents')
+                .select('id, url, content')
+                .eq('tenant_id', tenantId)
+                .textSearch('fts', toolQuery, { type: 'websearch', config: 'french' })
+                .limit(5);
+
+              if (searchErr) {
+                console.error("RAG search error:", searchErr);
+              }
               docs = docs || [];
 
               // Stream tool badge to user
