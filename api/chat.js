@@ -55,7 +55,7 @@ export default async function handler(req) {
       content: message
     });
 
-    // Vector query document knowledge base
+    // 1. Vector / Hybrid query document knowledge base
     const mockQueryEmbedding = Array(768).fill(0).map((_, i) => (i % 2 === 0 ? 0.05 : -0.05));
     let { data: docs } = await supabase.rpc('match_documents_hybrid', {
       query_text: message,
@@ -64,8 +64,33 @@ export default async function handler(req) {
       match_count: 5
     });
 
-    // Fallback: If hybrid match returns no results, fetch recent documents for this tenant
-    if (!docs || docs.length === 0) {
+    docs = docs || [];
+
+    // 2. Direct domain keyword search for exact case studies & terms
+    const STOP_WORDS = new Set(['combien', 'plus', 'gros', 'avec', 'pour', 'votre', 'notre', 'dans', 'sur', 'savoir', 'veux', 'faire', 'cest', 'cétait', 'quel', 'quelle', 'est', 'est-ce']);
+    const rawWords = message.toLowerCase().replace(/[^a-z0-9éèàâêîôûùç]/g, ' ').split(/\s+/);
+    const keywords = rawWords.filter(w => w.length > 3 && !STOP_WORDS.has(w));
+
+    if (keywords.length > 0) {
+      try {
+        const filterStr = keywords.slice(0, 3).map(k => `content.ilike.%${k}%`).join(',');
+        const { data: kwDocs } = await supabase
+          .from('documents')
+          .select('id, content, url')
+          .eq('tenant_id', tenantId)
+          .or(filterStr)
+          .limit(5);
+
+        if (kwDocs && kwDocs.length > 0) {
+          const existingIds = new Set(docs.map(d => d.id));
+          const newKwDocs = kwDocs.filter(d => !existingIds.has(d.id));
+          docs = [...newKwDocs, ...docs].slice(0, 6);
+        }
+      } catch (_e) {}
+    }
+
+    // 3. Fallback: If still no docs, fetch any docs for tenant
+    if (docs.length === 0) {
       const { data: fallbackDocs } = await supabase
         .from('documents')
         .select('id, content, url')
@@ -74,7 +99,7 @@ export default async function handler(req) {
       docs = fallbackDocs || [];
     }
 
-    const contextText = (docs || []).map((d) => d.content).join('\n---\n');
+    const contextText = docs.map((d) => d.content).join('\n---\n');
 
     const apiKey = process.env.OPENROUTER_API_KEY;
 
