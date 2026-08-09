@@ -132,8 +132,9 @@ export default function ClientOnboarding({
 
         // 3. Trigger initial scan & wait for indexing to complete
         const scanRes = await onTriggerScan(siteObj.id, formattedUrl).catch(err => ({ success: false, error: err.message }));
-        if (!scanRes || !scanRes.success) {
-          console.error("Start scan failed:", scanRes?.error || scanRes?.data);
+        const scanOk = scanRes && scanRes.success;
+        if (!scanOk) {
+          console.error('Initial scan failed:', scanRes?.error || scanRes?.data);
         }
 
         // 4. Background crawling of discovered pages
@@ -152,11 +153,14 @@ export default function ClientOnboarding({
               }
             }
           })
-          .catch(() => null);
+          .catch((err) => console.error('Background crawl error:', err));
 
-        setStatusMsg('✓ Assistant configuré avec succès !');
+        setStatusMsg(scanOk
+          ? '✓ Assistant configuré avec succès !'
+          : '⚠️ L\'indexation initiale a échoué. Vérifiez que le site est accessible et réessayez.'
+        );
         setStep('dashboard');
-        setShowPreviewModal(true); // Open live full-screen preview immediately!
+        if (scanOk) setShowPreviewModal(true);
       } else {
         setStatusMsg('Erreur : Impossible d\'ajouter ce site.');
       }

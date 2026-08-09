@@ -4,8 +4,8 @@ export const config = {
   runtime: 'edge',
 };
 
-const SUPABASE_URL = "https://xuvueegdokgiyedwvmkm.supabase.co";
-const SERVICE_ROLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh1dnVlZWdkb2tnaXllZHd2bWttIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NjE0ODAxNCwiZXhwIjoyMTAxNzI0MDE0fQ.Z9CsCniLkOuPJZajLzUMfN2FUTbZsvwZC8KD5CXh-7E";
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
@@ -45,6 +45,15 @@ export default async function handler(req) {
     }
 
     const tenantId = site.tenant_id;
+    // Domain locking: verify request origin matches site domain
+    const origin = req.headers.get('origin') || req.headers.get('referer') || '';
+    const isAdminOrigin = origin.includes('vercel.app') || origin.includes('localhost');
+    if (!isAdminOrigin && !origin.includes(site.domain)) {
+      return new Response(JSON.stringify({ error: 'Origin mismatch' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
     const isLeadCaptureEnabled = site.enable_lead_capture || false;
 
     // Save user message

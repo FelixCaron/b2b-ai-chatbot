@@ -6,8 +6,7 @@
   "description": "Multi-tenant B2B AI Chatbot SaaS Monorepo",
   "workspaces": [
     "apps/*",
-    "packages/*",
-    "supabase/functions/*"
+    "packages/*"
   ],
   "scripts": {
     "build": "npm run build --workspace=@b2b-ai-chatbot/admin",
