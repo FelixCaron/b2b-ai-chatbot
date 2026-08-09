@@ -67,6 +67,7 @@ export default function ClientOnboarding({
   const [copiedScriptKey, setCopiedScriptKey] = useState(null);
 
   // Live Preview Chatbot State
+  const [previewSessionId, setPreviewSessionId] = useState(() => 'preview_sess_' + Date.now());
   const [previewChatOpen, setPreviewChatOpen] = useState(true); // Open chatbot by default in preview!
   const [previewMessages, setPreviewMessages] = useState([
     { role: 'assistant', text: 'Bonjour! Je suis l\'assistant virtuel de votre site. Posez-moi une question pour tester mes réponses en direct!' }
@@ -74,6 +75,16 @@ export default function ClientOnboarding({
   const [previewInput, setPreviewInput] = useState('');
   const [previewStreaming, setPreviewStreaming] = useState(false);
   const chatMessagesEndRef = useRef(null);
+
+  // Reset session and welcome message whenever activeSite changes
+  useEffect(() => {
+    if (activeSite) {
+      setPreviewSessionId('preview_sess_' + Date.now());
+      setPreviewMessages([
+        { role: 'assistant', text: `Bonjour! Je suis l'assistant virtuel de ${activeSite.domain}. Posez-moi une question pour tester mes réponses en direct!` }
+      ]);
+    }
+  }, [activeSite?.id]);
 
   useEffect(() => {
     if (chatMessagesEndRef.current) {
@@ -194,7 +205,7 @@ export default function ClientOnboarding({
         body: JSON.stringify({
           message: userText,
           tenant_public_key: activeSite.public_key,
-          session_id: 'preview_sess_' + Date.now()
+          session_id: previewSessionId
         })
       });
 
