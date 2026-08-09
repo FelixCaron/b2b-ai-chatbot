@@ -57,12 +57,22 @@ export default async function handler(req) {
 
     // Vector query document knowledge base
     const mockQueryEmbedding = Array(768).fill(0).map((_, i) => (i % 2 === 0 ? 0.05 : -0.05));
-    const { data: docs } = await supabase.rpc('match_documents_hybrid', {
+    let { data: docs } = await supabase.rpc('match_documents_hybrid', {
       query_text: message,
       query_embedding: mockQueryEmbedding,
       match_tenant_id: tenantId,
-      match_count: 4
+      match_count: 5
     });
+
+    // Fallback: If hybrid match returns no results, fetch recent documents for this tenant
+    if (!docs || docs.length === 0) {
+      const { data: fallbackDocs } = await supabase
+        .from('documents')
+        .select('id, content, url')
+        .eq('tenant_id', tenantId)
+        .limit(5);
+      docs = fallbackDocs || [];
+    }
 
     const contextText = (docs || []).map((d) => d.content).join('\n---\n');
 
