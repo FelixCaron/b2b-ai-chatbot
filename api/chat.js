@@ -55,10 +55,23 @@ export default async function handler(req) {
       content: message
     });
 
-    // 1. Vector / Hybrid query document knowledge base
+    // Extract clean domain keywords by filtering French conversational stop words
+    const STOP_WORDS = new Set([
+      'cest', 'cétait', 'quoi', 'quel', 'quelle', 'quels', 'quelles', 
+      'comment', 'pourquoi', 'quand', 'combien', 'est-ce', 'qu\'est-ce',
+      'avez', 'vous', 'nous', 'avec', 'pour', 'dans', 'sur', 'savoir', 
+      'veux', 'faire', 'plus', 'gros', 'tout', 'tous', 'toute', 'toutes', 
+      'aussi', 'être', 'avoir', 'votre', 'notre', 'leurs', 'leur',
+      'cette', 'ceci', 'cela', 'donc', 'mais', 'bien', 'encore', 'dire'
+    ]);
+    const rawWords = message.toLowerCase().replace(/[^a-z0-9éèàâêîôûùç]/g, ' ').split(/\s+/);
+    const keywords = rawWords.filter(w => w.length > 2 && !STOP_WORDS.has(w));
+    const cleanSearchQuery = keywords.length > 0 ? keywords.join(' ') : message;
+
+    // 1. Vector / Hybrid query document knowledge base using clean search query
     const mockQueryEmbedding = Array(768).fill(0).map((_, i) => (i % 2 === 0 ? 0.05 : -0.05));
     let { data: docs } = await supabase.rpc('match_documents_hybrid', {
-      query_text: message,
+      query_text: cleanSearchQuery,
       query_embedding: mockQueryEmbedding,
       match_tenant_id: tenantId,
       match_count: 5
@@ -67,10 +80,6 @@ export default async function handler(req) {
     docs = docs || [];
 
     // 2. Direct domain keyword search for exact case studies & terms
-    const STOP_WORDS = new Set(['combien', 'plus', 'gros', 'avec', 'pour', 'votre', 'notre', 'dans', 'sur', 'savoir', 'veux', 'faire', 'cest', 'cétait', 'quel', 'quelle', 'est', 'est-ce']);
-    const rawWords = message.toLowerCase().replace(/[^a-z0-9éèàâêîôûùç]/g, ' ').split(/\s+/);
-    const keywords = rawWords.filter(w => w.length > 3 && !STOP_WORDS.has(w));
-
     if (keywords.length > 0) {
       try {
         const filterStr = keywords.slice(0, 3).map(k => `content.ilike.%${k}%`).join(',');
@@ -147,14 +156,14 @@ ${isLeadCaptureEnabled ? "3. CAPTURE DE PROSPECTS : Dès que le client s'intére
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
-        // 1. Stream tool_call event for Knowledge Base Search
+        // 1. Stream tool_call event for Knowledge Base Search with extracted keywords
         const sources = Array.from(new Set(docs.map((d) => d.url)));
         controller.enqueue(
           encoder.encode(
             `data: ${JSON.stringify({
               tool_call: {
                 name: 'search_knowledge_base',
-                query: message,
+                keywords: keywords.join(', ') || message,
                 matched_chunks: docs.length,
                 sources: sources
               }

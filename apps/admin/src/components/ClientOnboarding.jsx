@@ -662,7 +662,7 @@ export default function ClientOnboarding({
                               </div>
                               {m.tool_call.name === 'search_knowledge_base' && (
                                 <div className="space-y-0.5">
-                                  <div>🔍 Requête RAG : "{m.tool_call.query}"</div>
+                                  <div>🔍 Mots-clés RAG : "{m.tool_call.keywords || m.tool_call.query}"</div>
                                   <div className="text-[10px] text-gray-400">📄 {m.tool_call.matched_chunks} blocs trouvés ({m.tool_call.sources?.length || 0} sources)</div>
                                 </div>
                               )}
