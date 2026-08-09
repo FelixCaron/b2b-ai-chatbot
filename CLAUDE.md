@@ -12,13 +12,14 @@ Multi-tenant B2B AI Chatbot SaaS built with Supabase (pgvector, pgmq, RLS, Raw S
 ## 🚀 Status & Advancement
 - **LLM Integration**: Migrated from direct Google GenAI SDK to **OpenRouter API**.
   - Default Model: `google/gemini-2.0-flash-lite:free` (no API cost).
-  - Vercel Serverless API (`apps/admin/api/lib/llm.js`): Refactored to pure OpenRouter endpoints.
+  - Vercel Serverless API (`api/lib/llm.js`): Moved from `apps/admin` to monorepo root to resolve Error 405 (Method Not Allowed) and ensure correct Vercel Monorepo Edge Functions deployment.
   - Supabase Edge Functions (`supabase/functions/chat/index.ts` & `ingestion-worker/index.ts`): Refactored to fetch OpenRouter chat completions & embeddings.
 - **Backend & Database**:
   - Raw SQL migrations created for multi-tenant isolation, RLS rules, and usage RPCs (`increment_usage`, `increment_lead_usage`).
   - Vector hybrid search RPC `match_documents_hybrid` active with pgvector.
 - **Frontend & Deployment**:
   - Admin dashboard on Vercel (`admin-seven-alpha-37.vercel.app`).
+  - API Routes properly exposed natively through Vercel's root `/api` routing.
   - Chat Widget embed script configured for dynamic tenant loading.
 
 ## Database & RLS Rules
