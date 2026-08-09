@@ -44,7 +44,6 @@ export default async function handler(req) {
 
     let res = null;
     let successfulUrl = targetUrl;
-    let fetchErrorMsg = '';
 
     for (const candidate of uniqueCandidates) {
       try {
@@ -59,9 +58,7 @@ export default async function handler(req) {
           successfulUrl = candidate;
           break;
         }
-      } catch (e) {
-        fetchErrorMsg = e.message;
-      }
+      } catch (_e) {}
     }
 
     if (!res || !res.ok) {

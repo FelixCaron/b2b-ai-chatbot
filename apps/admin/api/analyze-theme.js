@@ -61,7 +61,6 @@ export default async function handler(req) {
       } catch (_e) {}
     }
 
-    const parsedTarget = new URL(successfulUrl);
     let detectedOrgName = cleanHost.charAt(0).toUpperCase() + cleanHost.slice(1);
 
     let primaryColor = '#6366f1';
