@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { generateEmbedding } from './lib/llm.js';
 
 export const config = {
   runtime: 'edge',
@@ -205,18 +206,66 @@ ${isLeadCaptureEnabled ? "4. CAPTURE DE PROSPECTS : Dès que le client s'intére
               const toolArgs = JSON.parse(toolCall.function.arguments || '{}');
               const toolQuery = toolArgs.query || message;
 
-              // Execute Supabase RAG (pure keyword search via PostgREST since embeddings are disabled)
-              let { data: docs, error: searchErr } = await supabase
-                .from('documents')
-                .select('id, url, content')
-                .eq('tenant_id', tenantId)
-                .textSearch('fts', toolQuery, { type: 'websearch', config: 'french' })
-                .limit(5);
+              // ── HYBRID SEARCH: Embedding sémantique + FTS bilingue ───────────────
+              // 1. Générer l'embedding de la query (retrieval.query task pour Jina)
+              // 2. Appeler match_documents_hybrid (RRF: cosine + FTS FR/EN)
+              // 3. Fallback sur search_documents_fts si pas d'embedding
+              // 4. Fallback textSearch basique si RPC indisponible
+              let docs = [];
+              let searchErr = null;
+              let searchMethod = 'unknown';
 
-              if (searchErr) {
-                console.error("RAG search error:", searchErr);
+              const queryEmbedding = await generateEmbedding(toolQuery, 'retrieval.query');
+
+              if (queryEmbedding) {
+                // Path A: Hybrid (semantic + FTS)
+                const { data: hybridDocs, error: hybridErr } = await supabase.rpc('match_documents_hybrid', {
+                  query_text: toolQuery,
+                  query_embedding: queryEmbedding,
+                  match_tenant_id: tenantId,
+                  match_count: 5
+                });
+                if (!hybridErr) {
+                  docs = hybridDocs || [];
+                  searchMethod = 'hybrid (semantic + FTS)';
+                } else {
+                  console.warn('[chat] match_documents_hybrid failed, falling back to FTS:', hybridErr.message);
+                  // Fallback B: FTS bilingue seul
+                  const { data: ftsDocs, error: ftsErr } = await supabase.rpc('search_documents_fts', {
+                    query_text: toolQuery,
+                    match_tenant_id: tenantId,
+                    match_count: 5
+                  });
+                  docs = ftsDocs || [];
+                  searchErr = ftsErr;
+                  searchMethod = 'FTS bilingue (fallback)';
+                }
+              } else {
+                // Path B: FTS bilingue seul (pas d'embedding dispo)
+                const { data: ftsDocs, error: ftsErr } = await supabase.rpc('search_documents_fts', {
+                  query_text: toolQuery,
+                  match_tenant_id: tenantId,
+                  match_count: 5
+                });
+                if (!ftsErr) {
+                  docs = ftsDocs || [];
+                  searchMethod = 'FTS bilingue';
+                } else {
+                  // Path C: textSearch basique (dernier recours)
+                  console.warn('[chat] search_documents_fts unavailable:', ftsErr.message);
+                  const { data: fallbackDocs, error: fallbackErr } = await supabase
+                    .from('documents')
+                    .select('id, url, content')
+                    .eq('tenant_id', tenantId)
+                    .textSearch('fts', toolQuery, { type: 'websearch', config: 'french' })
+                    .limit(5);
+                  docs = fallbackDocs || [];
+                  searchErr = fallbackErr;
+                  searchMethod = 'textSearch basique (fallback)';
+                }
               }
-              docs = docs || [];
+
+              console.log(`[chat] RAG search via ${searchMethod}: ${docs.length} docs`);
 
               // Stream tool badge to user
               const sources = Array.from(new Set(docs.map((d) => d.url)));

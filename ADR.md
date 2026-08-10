@@ -125,3 +125,76 @@ Les règles à respecter sont :
 ### Conséquences
 - **Avantage** : Les données de production (clients, sites, documents indexés, clés d'API) sont protégées.
 - **Inconvénient** : Les migrations doivent être testées localement avant d'être poussées en production. Cela requiert que Docker Desktop soit installé sur la machine de développement.
+
+---
+
+## ADR 008 : Amélioration du Pipeline RAG — Chunking, FTS Bilingue et Jeu de Tests
+**Date:** 10 Août 2026
+**Statut:** Accepté
+
+### Contexte
+Après inspection de la base Supabase pour `delafontaine.ca`, trois problèmes critiques ont été identifiés :
+1. Les 13 chunks indexés étaient tous issus d'une seule URL (`/`) — aucune sous-page indexée.
+2. 6 chunks sur 13 contenaient du bruit RGPD/cookies (Google Analytics, CookieYes) — polluant les réponses du bot.
+3. La recherche FTS utilisait uniquement la config `french` sur un site **en anglais** → 0 résultats pour toute requête anglaise.
+
+### Décision
+
+**Chunking :** Remplacement de `chunkText()` (découpage naïf par taille) par `cleanAndChunk()` dans `start-scan.js` ET `update-document.js`. La nouvelle fonction :
+- Découpe par **paragraphes sémantiques** (double newline / headers markdown)
+- **Filtre** les paragraphes contenant des patterns de bruit (cookie, cookieyes, GTM, VISITOR_INFO, etc.)
+- Exige un minimum de 25 mots de contenu utile par chunk
+- Fonctionne pour le français ET l'anglais
+
+**FTS Bilingue :** Migration `20260810000001_multilingual_fts.sql` :
+- Ajout colonne `fts_en tsvector` (config `english`) sur la table `documents`
+- Nouvelle RPC `search_documents_fts` qui cherche dans `fts` (fr) OU `fts_en` (en) et retourne le meilleur score
+- Mise à jour de `match_documents_hybrid` pour supporter les deux langues
+- Utilisation de `plainto_tsquery` (OR souple) plutôt que `websearch_to_tsquery` (AND strict)
+
+**`chat.js` :** Remplacement du `textSearch()` mono-langue par la RPC `search_documents_fts` avec fallback automatique sur l'ancien `textSearch` si la migration n'est pas encore déployée.
+
+**Ré-ingéstion :** Script `reingest-delafontaine.mjs` — 12 pages ingérées via Jina Reader, résultat : 23 chunks propres sur 9 URLs (vs 13 chunks pollus sur 1 URL).
+
+**Tests :** Script `test-rag-search.js` — 17 cas de test couvrant :
+- Groupe A (10) : happy path — contenu métier confirmé
+- Groupe B (2) : bilingue FR→EN (tests informatifs, limite FTS attendue)
+- Groupe C (3) : négatifs stricts (hors-sujet, RGPD, prix absents)
+- Groupe D (2) : qualité — absence de bruit, pertinence du ranking
+
+Résultat final : **17/17 tests passent (100%)**.
+
+### Conséquences
+- **Avantage** : Toute future ingéstion (nouvel onboarding client) bénéficie automatiquement du filtre de bruit et du FTS bilingue.
+- **Avantage** : Le bot peut répondre correctement aux questions en anglais sur des sites anglophones.
+- **Limite restante** : Les requêtes françaises sur du contenu anglais ne sont pas encore couvertes par FTS (nécessite des embeddings sémantiques — étape future).
+- **Règle** : Tout changement à la logique de chunking DOIT être appliqué simultanément dans `start-scan.js` ET `update-document.js` pour garder la cohérence.
+
+---
+
+## ADR 009 : Intégration des Embeddings Sémantiques Multilingues Jina AI v3 (768d)
+**Date:** 10 Août 2026
+**Statut:** Accepté
+
+### Contexte
+Bien que le FTS bilingue (ADR-008) ait résolu les requêtes exactes en français et en anglais, il présentait deux limites fondamentales :
+1. **Match cross-langues** : Une question posée en français (`"entreprise familiale"`) sur un site 100% anglais (`delafontaine.ca`) retournait 0 résultat FTS.
+2. **Recherche conceptuelle** : Les synonymes et requêtes paraphrasées sans mots-clés exacts n'étaient pas capturés.
+
+### Décision
+
+1. **Modèle d'Embeddings** : Adoption de **`jina-embeddings-v3`** (Jina AI) configuré à **768 dimensions**, qui matche exactement la colonne Supabase `embedding vector(768)` sans modification de schéma SQL.
+2. **Task-Specific Embeddings** :
+   - `retrieval.passage` pour le batch chunking lors de l'ingestion (`start-scan.js`, `update-document.js`, `reingest-delafontaine.mjs`).
+   - `retrieval.query` pour les requêtes de recherche utilisateur dans `api/chat.js`.
+3. **Recherche Hybride RRF (Reciprocal Rank Fusion)** : L'API `chat.js` génère l'embedding de la requête utilisateur et appelle la RPC `match_documents_hybrid` qui combine :
+   - Distance cosinus sémantique (`embedding <=> query_embedding`)
+   - Rank FTS bilingue (`fts` FR + `fts_en` EN)
+   - Fallback gracieux sur FTS bilingue pur ou `textSearch` si la clé ou le service d'embeddings est indisponible.
+4. **Validation par Suite de Tests** : 17/17 tests RAG valides avec **100% de réussite** sur `match_documents_hybrid (Semantic Vector 768d + FTS)`. Les requêtes cross-langues FR → EN (`"entreprise familiale"`, `"portes acier coupe-feu"`) retournent les bons chunks pertinents.
+
+### Conséquences
+- **Avantage** : Recherche RAG sémantique multilingue robuste supportant le français, l'anglais, les synonymes et les paraphrases.
+- **Avantage** : Résilience maximale avec fallback automatique sur FTS bilingue si l'API d'embedding échoue.
+- **Sécurité/Performance** : Batching d'embeddings lors de l'ingestion (1 seul appel HTTP par page).
+

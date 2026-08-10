@@ -4,6 +4,61 @@
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const DEFAULT_OPENROUTER_MODEL = 'openrouter/free';
 
+// Jina Embeddings — jina-embeddings-v3
+// Multilingue SOTA (FR, EN, ES, ...), 768 dimensions demandées explicitement
+const JINA_EMBEDDINGS_URL = 'https://api.jina.ai/v1/embeddings';
+const JINA_EMBEDDINGS_MODEL = 'jina-embeddings-v3';
+
+/**
+ * Génère un embedding vectoriel pour un texte ou un batch de textes.
+ * @param {string|string[]} input - texte(s) à encoder
+ * @param {'retrieval.passage'|'retrieval.query'} task - 'retrieval.passage' pour l'ingestion, 'retrieval.query' pour la recherche
+ * @param {string} [apiKey] - clé Jina (sinon JINA_API_KEY depuis l'env)
+ * @returns {Promise<number[]|number[][]|null>} vecteur(s) 768 dims ou null si erreur
+ */
+export async function generateEmbedding(input, task = 'retrieval.passage', apiKey = null) {
+  const jinaKey = process.env.JINA_API_KEY || apiKey;
+  if (!jinaKey) {
+    console.warn('[Embedding] JINA_API_KEY manquante — embedding désactivé.');
+    return null;
+  }
+
+  const isArray = Array.isArray(input);
+  const inputs = isArray ? input : [input];
+
+  try {
+    const res = await fetch(JINA_EMBEDDINGS_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${jinaKey}`
+      },
+      body: JSON.stringify({
+        model: JINA_EMBEDDINGS_MODEL,
+        task,
+        dimensions: 768,
+        input: inputs
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.text();
+      console.error(`[Embedding] Jina API error ${res.status}:`, err);
+      return null;
+    }
+
+    const data = await res.json();
+    const embeddings = data.data?.map(d => d.embedding) || [];
+
+    if (embeddings.length === 0) return null;
+    return isArray ? embeddings : embeddings[0];
+  } catch (err) {
+    console.error('[Embedding] Jina fetch error:', err.message);
+    return null;
+  }
+}
+
+
 export async function generateChatResponse({ systemPrompt, messagesHistory, apiKey, tools = null }) {
   const openRouterKey = process.env.OPENROUTER_API_KEY || apiKey;
 
