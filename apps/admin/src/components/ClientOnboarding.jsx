@@ -39,6 +39,8 @@ export default function ClientOnboarding({
   const [isIndexing, setIsIndexing] = useState(false);
   const [statusMsg, setStatusMsg] = useState('');
   const [showIntegrationModal, setShowIntegrationModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [editingPage, setEditingPage] = useState(null);
 
   // Auto-fetch indexed pages when site changes
   useEffect(() => {
@@ -104,7 +106,7 @@ export default function ClientOnboarding({
     }
 
     setIsAnalyzing(true);
-    setStatusMsg('Analyse du site web et apprentissage des connaissances...');
+    setStatusMsg('Analyse de la charte graphique...');
 
     try {
       let currentDomain = formattedUrl.replace('https://', '').replace('http://', '').replace('www.', '').split('/')[0];
@@ -124,12 +126,14 @@ export default function ClientOnboarding({
         }
       } catch (_tErr) {}
 
+      setStatusMsg('Création de votre environnement...');
       // 2. Add or fetch site in database
       const siteObj = await onAddSite(currentDomain, brandColor);
 
       if (siteObj) {
         setLocalCreatedSite(siteObj);
 
+        setStatusMsg('Lecture & apprentissage du site...');
         // 3. Trigger initial scan & wait for indexing to complete
         const scanRes = await onTriggerScan(siteObj.id, formattedUrl, siteObj.tenant_id).catch(err => ({ success: false, error: err.message }));
         const scanOk = scanRes && scanRes.success;
@@ -137,6 +141,7 @@ export default function ClientOnboarding({
           console.error('Initial scan failed:', scanRes?.error || scanRes?.data);
         }
 
+        setStatusMsg('Découverte des autres pages...');
         // 4. Background crawling of discovered pages
         fetch(`${window.location.origin}/api/crawl-site`, {
           method: 'POST',
@@ -194,6 +199,41 @@ export default function ClientOnboarding({
       }
     }
     setSelectedUrls(next);
+  };
+
+  const handleEditPage = async (pageUrl, e) => {
+    e.stopPropagation();
+    setEditingPage({ url: pageUrl, content: 'Chargement...', saving: false });
+    try {
+      const { data, error } = await supabase.from('documents').select('content').eq('site_id', activeSite.id).eq('url', pageUrl);
+      if (error) throw error;
+      const fullContent = data ? data.map(d => d.content).join('\n\n') : '';
+      setEditingPage({ url: pageUrl, content: fullContent, saving: false });
+    } catch (err) {
+      setEditingPage({ url: pageUrl, content: 'Erreur de chargement.', saving: false });
+    }
+  };
+
+  const handleSavePageContent = async () => {
+    if (!editingPage) return;
+    setEditingPage(prev => ({ ...prev, saving: true }));
+    try {
+      await fetch(`${window.location.origin}/api/update-document`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          site_id: activeSite.id,
+          tenant_id: activeSite.tenant_id,
+          url: editingPage.url,
+          content: editingPage.content
+        })
+      });
+      setSelectedUrls(prev => new Set(prev).add(editingPage.url));
+      setEditingPage(null);
+    } catch (e) {
+      alert("Erreur lors de la sauvegarde.");
+      setEditingPage(prev => ({ ...prev, saving: false }));
+    }
   };
 
   // Send test message directly to live /api/chat inside preview modal
@@ -285,20 +325,17 @@ export default function ClientOnboarding({
     <div className="space-y-8">
       {/* HERO ONBOARDING (When no site exists) */}
       {(!activeSite || step !== 'dashboard') ? (
-        <div className="relative max-w-2xl mx-auto">
-          {/* Animated Glow Backdrop */}
-          <div className="absolute -inset-1 rounded-3xl bg-gradient-to-r from-brand-600 via-indigo-500 to-emerald-500 opacity-30 blur-2xl animate-glow pointer-events-none"></div>
-
-          <div className="relative glass-card p-8 rounded-3xl border border-brand-500/20 text-center shadow-2xl overflow-hidden">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-brand-600 to-indigo-400 flex items-center justify-center mx-auto mb-6 text-white shadow-xl shadow-brand-500/30">
-              <Sparkles className="w-8 h-8" />
+        <div className="relative max-w-2xl mx-auto mt-12">
+          <div className="relative bg-dark-800/50 backdrop-blur-sm p-10 rounded-2xl border border-white/10 text-center shadow-lg overflow-hidden">
+            <div className="w-16 h-16 rounded-2xl bg-dark-700 border border-white/10 flex items-center justify-center mx-auto mb-6 text-brand-400 shadow-sm">
+              <Globe className="w-8 h-8" />
             </div>
             
-            <h2 className="text-2xl font-extrabold text-white tracking-tight mb-2">
-              Configurez votre Assistant IA en 30 secondes
+            <h2 className="text-3xl font-bold text-white tracking-tight mb-3">
+              Déployez votre IA en 30 secondes
             </h2>
-            <p className="text-sm text-gray-400 mb-8">
-              Entrez l'adresse de votre site web. Nous analysons automatiquement son contenu et sa charte graphique pour vous.
+            <p className="text-base text-gray-400 mb-10 max-w-lg mx-auto">
+              Entrez l'adresse de votre site. Notre système analysera automatiquement son contenu pour configurer votre assistant sur mesure.
             </p>
 
             {step === 'input' && (
@@ -318,7 +355,7 @@ export default function ClientOnboarding({
                 <button
                   type="submit"
                   disabled={!siteUrl || isAnalyzing}
-                  className="w-full max-w-lg mx-auto bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white font-semibold py-3.5 rounded-2xl text-sm flex items-center justify-center gap-2 shadow-lg transition-all"
+                  className="w-full max-w-lg mx-auto bg-brand-600 hover:bg-brand-500 text-white font-medium py-3.5 rounded-xl text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isAnalyzing ? (
                     <span className="flex items-center gap-2">
@@ -369,16 +406,21 @@ export default function ClientOnboarding({
               </div>
             )}
 
-            {statusMsg && <div className="mt-4 text-xs text-indigo-300 font-medium">{statusMsg}</div>}
+            {statusMsg && (
+              <div className="mt-6 flex items-center justify-center gap-3 text-sm text-brand-400 font-medium bg-brand-500/10 p-3 rounded-xl border border-brand-500/20">
+                {isAnalyzing && <RefreshCw className="w-4 h-4 animate-spin" />}
+                {statusMsg}
+              </div>
+            )}
           </div>
         </div>
       ) : (
         /* MAIN DASHBOARD CLIENT VIEW */
         <div className="space-y-8">
           {/* Active Site Header & Fullscreen Preview Button */}
-          <div className="glass-card p-6 rounded-3xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-emerald-500/20 shadow-xl">
+          <div className="bg-dark-800/80 p-6 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-white/5 shadow-sm">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold shadow-md" style={{ backgroundColor: themeColor }}>
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold shadow-sm" style={{ backgroundColor: themeColor }}>
                 <Globe className="w-6 h-6" />
               </div>
               <div>
@@ -398,7 +440,7 @@ export default function ClientOnboarding({
             <div className="flex items-center gap-3 w-full sm:w-auto">
               <button
                 onClick={() => setShowPreviewModal(true)}
-                className="flex-1 sm:flex-initial bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white font-semibold px-5 py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 shadow-lg transition-all"
+                className="flex-1 sm:flex-initial bg-brand-600 hover:bg-brand-500 text-white font-medium px-5 py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 shadow-sm transition-colors"
               >
                 <Eye className="w-4 h-4" /> Aperçu Plein Écran & Test Live
               </button>
@@ -427,13 +469,13 @@ export default function ClientOnboarding({
           {/* Feature Toggles */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Feature 1: Prospect Capture Toggle (Opt-in) */}
-            <div className="glass-card p-6 rounded-2xl flex items-center justify-between">
+            <div className="bg-dark-800/50 p-6 rounded-xl border border-white/5 flex items-center justify-between">
               <div>
                 <h3 className="text-base font-bold text-white flex items-center gap-2 mb-1">
-                  <ShieldCheck className="w-4 h-4 text-brand-400" /> Capture Automatique des Prospects
+                  <ShieldCheck className="w-4 h-4 text-brand-400" /> Capture de Prospects
                 </h3>
                 <p className="text-xs text-gray-400">
-                  Propose au client de transmettre son email ou téléphone en fin d'échange.
+                  Propose au client de transmettre son email.
                 </p>
               </div>
 
@@ -450,12 +492,12 @@ export default function ClientOnboarding({
             </div>
 
             {/* Feature 2: Brand Color Preference */}
-            <div className="glass-card p-6 rounded-2xl flex items-center justify-between">
+            <div className="bg-dark-800/50 p-6 rounded-xl border border-white/5 flex items-center justify-between">
               <div>
                 <h3 className="text-base font-bold text-white flex items-center gap-2 mb-1">
-                  <Settings2 className="w-4 h-4 text-indigo-400" /> Couleur de Marque du Widget
+                  <Settings2 className="w-4 h-4 text-indigo-400" /> Couleur du Widget
                 </h3>
-                <p className="text-xs text-gray-400">Personnalisez la couleur du bouton de chat.</p>
+                <p className="text-xs text-gray-400">Personnalisez la couleur du bouton.</p>
               </div>
 
               <div className="flex items-center gap-2">
@@ -467,10 +509,48 @@ export default function ClientOnboarding({
                 />
               </div>
             </div>
+
+            {/* Feature 3: Bot Goal */}
+            <div className="bg-dark-800/50 p-6 rounded-xl border border-white/5 flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-white flex items-center gap-2 mb-1">
+                  <Sparkles className="w-4 h-4 text-emerald-400" /> Objectif Principal
+                </h3>
+                <p className="text-xs text-gray-400">Comportement du bot.</p>
+              </div>
+
+              <select
+                value={activeSite.bot_goal || 'support'}
+                onChange={(e) => onUpdateSiteSettings(activeSite.id, { bot_goal: e.target.value })}
+                className="bg-dark-900 border border-white/10 text-white text-xs rounded-lg px-3 py-2 outline-none"
+              >
+                <option value="support">Information & Support</option>
+                <option value="lead">Génération de Leads</option>
+              </select>
+            </div>
+
+            {/* Feature 4: Bot Tone */}
+            <div className="bg-dark-800/50 p-6 rounded-xl border border-white/5 flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-white flex items-center gap-2 mb-1">
+                  <Sparkles className="w-4 h-4 text-emerald-400" /> Ton de la Voix
+                </h3>
+                <p className="text-xs text-gray-400">Personnalité du bot.</p>
+              </div>
+
+              <select
+                value={activeSite.bot_tone || 'professionnel'}
+                onChange={(e) => onUpdateSiteSettings(activeSite.id, { bot_tone: e.target.value })}
+                className="bg-dark-900 border border-white/10 text-white text-xs rounded-lg px-3 py-2 outline-none"
+              >
+                <option value="professionnel">Professionnel & Courtois</option>
+                <option value="amical">Chaleureux & Amical</option>
+              </select>
+            </div>
           </div>
 
           {/* Collapsible Page Selection Drawer */}
-          <div className="glass-card p-6 rounded-2xl">
+          <div className="bg-dark-800/50 p-6 rounded-xl border border-white/5">
             <button
               onClick={() => setShowPageManager(!showPageManager)}
               className="w-full flex items-center justify-between text-left"
@@ -510,6 +590,15 @@ export default function ClientOnboarding({
                     </button>
                   </div>
                 ) : (
+                    <div className="mb-4">
+                      <input
+                        type="text"
+                        placeholder="Rechercher une page par URL ou titre..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full bg-dark-900 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-brand-500 transition-colors"
+                      />
+                    </div>
                   <div className="overflow-x-auto rounded-xl border border-white/5 bg-dark-900/60 shadow-inner">
                     <table className="w-full text-left text-sm">
                       <thead className="bg-dark-800/80 text-gray-400 text-xs uppercase tracking-wider border-b border-white/5">
@@ -521,7 +610,9 @@ export default function ClientOnboarding({
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-white/5 text-gray-300">
-                        {discoveredPages.map((page) => {
+                        {discoveredPages
+                          .filter(p => p.url.toLowerCase().includes(searchQuery.toLowerCase()) || (p.title && p.title.toLowerCase().includes(searchQuery.toLowerCase())))
+                          .map((page) => {
                           const isSelected = selectedUrls.has(page.url);
                           return (
                             <tr
@@ -546,6 +637,12 @@ export default function ClientOnboarding({
                                 </div>
                               </td>
                               <td className="py-3 px-4 text-right">
+                                <button 
+                                  onClick={(e) => handleEditPage(page.url, e)}
+                                  className="mr-3 text-[10px] bg-dark-800 hover:bg-gray-700 text-gray-300 px-2.5 py-1.5 rounded-lg border border-white/10 transition-colors"
+                                >
+                                  Éditer
+                                </button>
                                 {isSelected ? (
                                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Indexé
@@ -668,9 +765,18 @@ export default function ClientOnboarding({
                                 <span className="bg-brand-500/20 px-1.5 py-0.5 rounded text-white">{m.tool_call.name}</span>
                               </div>
                               {m.tool_call.name === 'search_knowledge_base' && (
-                                <div className="space-y-0.5">
+                                <div className="space-y-1">
                                   <div>🔍 Mots-clés RAG : "{m.tool_call.keywords || m.tool_call.query}"</div>
-                                  <div className="text-[10px] text-gray-400">📄 {m.tool_call.matched_chunks} blocs trouvés ({m.tool_call.sources?.length || 0} sources)</div>
+                                  <div className="text-[10px] text-gray-400 mb-1">📄 {m.tool_call.matched_chunks} blocs trouvés ({m.tool_call.sources?.length || 0} sources)</div>
+                                  {m.tool_call.sources && m.tool_call.sources.length > 0 && (
+                                    <div className="mt-1 flex flex-col gap-1">
+                                      {m.tool_call.sources.map((src, i) => (
+                                        <a key={i} href={src} target="_blank" rel="noopener noreferrer" className="text-[9px] text-indigo-400 hover:text-indigo-300 truncate max-w-[200px] flex items-center gap-1 bg-indigo-950/50 px-1.5 py-0.5 rounded border border-indigo-500/20">
+                                          🔗 {src.replace(`https://${activeSite.domain}`, '') || '/'}
+                                        </a>
+                                      ))}
+                                    </div>
+                                  )}
                                 </div>
                               )}
                               {m.tool_call.name === 'capture_lead' && (
@@ -787,6 +893,49 @@ export default function ClientOnboarding({
                 className="bg-brand-600 hover:bg-brand-500 text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition-all shadow-lg"
               >
                 Terminer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT PAGE MODAL */}
+      {editingPage && (
+        <div className="fixed inset-0 z-[9999999] bg-black/80 flex items-center justify-center p-4">
+          <div className="bg-dark-900 p-6 rounded-2xl w-full max-w-3xl border border-white/10 shadow-2xl relative flex flex-col h-[80vh]">
+            <button
+              onClick={() => setEditingPage(null)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-white p-2 rounded-lg hover:bg-white/5 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            
+            <h3 className="text-lg font-bold text-white mb-1">Modifier le contenu indexé</h3>
+            <p className="text-xs text-gray-400 font-mono mb-4 truncate pr-10">{editingPage.url}</p>
+
+            <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+              <textarea
+                value={editingPage.content}
+                onChange={(e) => setEditingPage({ ...editingPage, content: e.target.value })}
+                disabled={editingPage.saving || editingPage.content === 'Chargement...'}
+                className="flex-1 w-full bg-dark-800 border border-white/10 rounded-xl p-4 text-sm text-gray-200 font-mono resize-none outline-none focus:border-brand-500 transition-colors"
+              />
+            </div>
+
+            <div className="mt-4 flex justify-end gap-3 pt-4 border-t border-white/10">
+              <button
+                onClick={() => setEditingPage(null)}
+                className="px-5 py-2.5 rounded-xl text-sm text-gray-400 hover:text-white font-medium"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleSavePageContent}
+                disabled={editingPage.saving || editingPage.content === 'Chargement...'}
+                className="bg-brand-600 hover:bg-brand-500 text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition-all shadow-sm flex items-center gap-2"
+              >
+                {editingPage.saving && <RefreshCw className="w-4 h-4 animate-spin" />}
+                Sauvegarder
               </button>
             </div>
           </div>

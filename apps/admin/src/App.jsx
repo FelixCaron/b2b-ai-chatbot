@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Header from './components/Header';
-import OverviewStats from './components/OverviewStats';
 import ClientOnboarding from './components/ClientOnboarding';
 import LeadsTable from './components/LeadsTable';
 import LoginModal from './components/LoginModal';
@@ -230,15 +229,6 @@ export default function App() {
         <Pricing onSelectPlan={() => setCurrentView('dashboard')} />
       ) : (
         <main className="max-w-7xl mx-auto px-4 sm:px-8 space-y-8 sm:space-y-12">
-          {!isGuest && (
-            <OverviewStats
-              tenant={selectedTenant}
-              sitesCount={sites.length}
-              usage={usage}
-              leadsCount={leads.length}
-            />
-          )}
-
           <section>
             <ClientOnboarding
               selectedTenant={selectedTenant}

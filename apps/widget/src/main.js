@@ -1,4 +1,4 @@
-import "./widget.css";
+import widgetStyles from "./widget.css?inline";
 import { ChatManager } from "./chat.js";
 
 (function () {
@@ -17,6 +17,16 @@ import { ChatManager } from "./chat.js";
   const chatManager = new ChatManager(apiEndpoint, tenantPublicKey);
 
   // Build Container
+  const host = document.createElement("div");
+  host.id = "b2b-chatbot-host";
+  document.body.appendChild(host);
+
+  const shadowRoot = host.attachShadow({ mode: "open" });
+
+  const styleTag = document.createElement("style");
+  styleTag.textContent = widgetStyles;
+  shadowRoot.appendChild(styleTag);
+
   const container = document.createElement("div");
   container.id = "b2b-chatbot-container";
 
@@ -49,15 +59,15 @@ import { ChatManager } from "./chat.js";
     </button>
   `;
 
-  document.body.appendChild(container);
+  shadowRoot.appendChild(container);
 
   // UI Element Selectors
-  const launcher = document.getElementById("b2b-launcher");
-  const panel = document.getElementById("b2b-panel");
-  const closeBtn = document.getElementById("b2b-close-btn");
-  const messagesFeed = document.getElementById("b2b-messages");
-  const input = document.getElementById("b2b-input");
-  const sendBtn = document.getElementById("b2b-send-btn");
+  const launcher = shadowRoot.getElementById("b2b-launcher");
+  const panel = shadowRoot.getElementById("b2b-panel");
+  const closeBtn = shadowRoot.getElementById("b2b-close-btn");
+  const messagesFeed = shadowRoot.getElementById("b2b-messages");
+  const input = shadowRoot.getElementById("b2b-input");
+  const sendBtn = shadowRoot.getElementById("b2b-send-btn");
 
   let isOpen = false;
   let isStreaming = false;
@@ -116,7 +126,25 @@ import { ChatManager } from "./chat.js";
       },
       // On Error
       (errText) => {
-        assistantMsgEl.innerText = `Erreur: ${errText}`;
+        const id = Date.now();
+        assistantMsgEl.innerHTML = `<span>Oups! Une erreur technique m'empêche de vous répondre. 😔<br><br><b>Laissez-nous votre email pour que nous puissions vous recontacter :</b></span>
+        <div style="display:flex; gap:5px; margin-top:10px;">
+           <input type="email" id="fallback-email-${id}" placeholder="votre@email.com" class="b2b-chat-input" style="flex:1; padding:8px; border-radius:6px; border:1px solid #ccc; font-size:12px; color:#333; background:#fff;" />
+           <button id="fallback-btn-${id}" style="padding:8px 12px; border-radius:6px; background:${themeColor}; color:white; border:none; cursor:pointer; font-weight:bold; font-size:12px;">Envoyer</button>
+        </div>`;
+        
+        const btn = shadowRoot.getElementById(`fallback-btn-${id}`);
+        const inputFallback = shadowRoot.getElementById(`fallback-email-${id}`);
+        if (btn && inputFallback) {
+          btn.addEventListener('click', () => {
+            if (inputFallback.value.includes('@')) {
+              assistantMsgEl.innerHTML = `Merci ! Nous vous recontacterons très vite à l'adresse <b>${inputFallback.value}</b>.`;
+            } else {
+              inputFallback.style.border = "1px solid red";
+            }
+          });
+        }
+        
         isStreaming = false;
         sendBtn.disabled = false;
       },

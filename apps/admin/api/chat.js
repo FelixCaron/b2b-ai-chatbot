@@ -9,6 +9,9 @@ const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
+// Simple memory cache for basic Edge Rate Limiting (per isolate)
+const rateLimitMap = new Map();
+
 export default async function handler(req) {
   if (req.method === 'OPTIONS') {
     return new Response('ok', {
@@ -30,10 +33,32 @@ export default async function handler(req) {
       });
     }
 
+    // IP-based Rate Limiting (10 req / minute per IP)
+    const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
+    const now = Date.now();
+    if (ip !== 'unknown') {
+      const record = rateLimitMap.get(ip) || { count: 0, startTime: now };
+      if (now - record.startTime > 60000) {
+        record.count = 1;
+        record.startTime = now;
+      } else {
+        record.count++;
+        if (record.count > 10) {
+          return new Response(JSON.stringify({ error: 'Limite de requêtes atteinte. Veuillez patienter.' }), {
+            status: 429,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+      }
+      rateLimitMap.set(ip, record);
+      // Clean up map occasionally to prevent memory leaks in the isolate
+      if (rateLimitMap.size > 10000) rateLimitMap.clear();
+    }
+
     // Lookup site and check lead capture toggle setting
     const { data: site } = await supabase
       .from('sites')
-      .select('id, tenant_id, domain, enable_lead_capture')
+      .select('id, tenant_id, domain, enable_lead_capture, bot_goal, bot_tone')
       .eq('public_key', tenant_public_key)
       .single();
 
@@ -67,8 +92,11 @@ export default async function handler(req) {
     const apiKey = process.env.OPENROUTER_API_KEY;
 
     // Build system prompt
+    const toneString = site.bot_tone === 'amical' ? "Ton: Chaleureux, amical, tutoiement autorisé si naturel, très bienveillant." : "Ton: Professionnel, courtois, vouvoiement obligatoire, précis.";
+    const goalString = site.bot_goal === 'lead' ? "Objectif Principal: Convertir le visiteur en prospect. Incite fortement à laisser un email ou numéro." : "Objectif Principal: Informer et supporter le visiteur. Réponds de façon exhaustive et claire.";
+
     const systemPrompt = `Tu es l'assistant virtuel officiel du site web ${site.domain}. 
-Ton rôle est de répondre avec précision, clarté et bienveillance aux visiteurs.
+Ton rôle est de répondre avec précision aux visiteurs.
 
 RÈGLE D'OR : TU NE DOIS JAMAIS INVENTER DE SERVICES OU D'INFORMATIONS. 
 Dès qu'un utilisateur pose une question sur l'entreprise, un service, ou fait une demande (ex: réparation, achat), TU DOIS OBLIGATOIREMENT utiliser l'outil "search_knowledge_base" pour vérifier si nous offrons cela.
@@ -79,10 +107,11 @@ INTERDICTIONS ABSOLUES :
 - INTERDIT d'utiliser les mots : "base de connaissances", "base de données", "contexte".
 - INTERDIT de parler à la 3ème personne ("ils", "leur site"). Utilise TOUJOURS "nous".
 
-RÈGLES DE RÉPONSE :
-1. TON : Chaleureux, naturel et professionnel.
-2. LIMITES : Si l'utilisateur parle de quelque chose de complètement hors sujet par rapport à tes connaissances, recadre poliment la conversation.
-${isLeadCaptureEnabled ? "3. CAPTURE DE PROSPECTS : Dès que le client s'intéresse à un de NOS vrais services, propose-lui de laisser son courriel pour être recontacté." : ""}`;
+DIRECTIVES SPÉCIFIQUES :
+1. ${toneString}
+2. ${goalString}
+3. LIMITES : Si l'utilisateur parle de quelque chose de complètement hors sujet par rapport à tes connaissances, recadre poliment la conversation.
+${isLeadCaptureEnabled ? "4. CAPTURE DE PROSPECTS : Dès que le client s'intéresse à un de NOS vrais services, propose-lui de laisser son courriel pour être recontacté." : ""}`;
 
     // Fetch conversation history (last 10 messages)
     const { data: historyData } = await supabase
