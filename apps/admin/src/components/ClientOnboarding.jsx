@@ -590,6 +590,7 @@ export default function ClientOnboarding({
                     </button>
                   </div>
                 ) : (
+                  <>
                     <div className="mb-4">
                       <input
                         type="text"
@@ -599,7 +600,7 @@ export default function ClientOnboarding({
                         className="w-full bg-dark-900 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-brand-500 transition-colors"
                       />
                     </div>
-                  <div className="overflow-x-auto rounded-xl border border-white/5 bg-dark-900/60 shadow-inner">
+                    <div className="overflow-x-auto rounded-xl border border-white/5 bg-dark-900/60 shadow-inner">
                     <table className="w-full text-left text-sm">
                       <thead className="bg-dark-800/80 text-gray-400 text-xs uppercase tracking-wider border-b border-white/5">
                         <tr>
@@ -659,6 +660,7 @@ export default function ClientOnboarding({
                       </tbody>
                     </table>
                   </div>
+                </>
                 )}
               </div>
             )}
