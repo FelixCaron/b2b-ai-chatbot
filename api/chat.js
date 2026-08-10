@@ -63,8 +63,8 @@ export default async function handler(req) {
       .single();
 
     if (!site) {
-      return new Response(JSON.stringify({ error: 'Invalid site key' }), {
-        status: 403,
+      return new Response(JSON.stringify({ error: `Clé de site invalide (${tenant_public_key}). Le site n'a pas été trouvé dans la base de données.` }), {
+        status: 404,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
@@ -72,9 +72,12 @@ export default async function handler(req) {
     const tenantId = site.tenant_id;
     // Domain locking: verify request origin matches site domain
     const origin = req.headers.get('origin') || req.headers.get('referer') || '';
-    const isAdminOrigin = origin.includes('vercel.app') || origin.includes('localhost');
-    if (!isAdminOrigin && !origin.includes(site.domain)) {
-      return new Response(JSON.stringify({ error: 'Origin mismatch' }), {
+    const isAdminOrigin = !origin || origin.includes('vercel.app') || origin.includes('localhost') || origin.includes('127.0.0.1');
+    const siteDomainClean = site.domain ? site.domain.replace(/^https?:\/\//, '').replace(/^www\./, '') : '';
+    const isDomainMatch = origin.includes(siteDomainClean) || (site.domain && origin.includes(site.domain));
+
+    if (!isAdminOrigin && !isDomainMatch) {
+      return new Response(JSON.stringify({ error: `Origin non autorisée (${origin}) pour le domaine ${site.domain}` }), {
         status: 403,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
