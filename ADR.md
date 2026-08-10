@@ -104,3 +104,24 @@ Lorsqu'un utilisateur non connecté teste une URL, le système crée un locatair
 ### Conséquences
 - **Avantage** : Taux de conversion maximal.
 - **Inconvénient** : Nécessite une gestion asynchrone du nettoyage (cron job) et une logique de migration (convertir un Guest en compte réel lors de l'inscription).
+
+---
+
+## ADR 007 : Séparation stricte Base de Données Production / Développement
+**Date:** 10 Août 2026
+**Statut:** Accepté
+
+### Contexte
+Lors d'une session de développement, la commande `supabase db reset` a été exécutée afin de consolider les migrations SQL. Cette commande a effacé la base de données Supabase en ligne (production), supprimant les données de tous les clients déjà onboardés (tenants, sites, documents, clés publiques).
+
+### Décision
+La commande `supabase db reset` (et toute commande destructive similaire) est **INTERDITE** sur la base de données de production Supabase. Cette commande doit uniquement être utilisée dans un environnement **local Docker** (`supabase start`).
+
+Les règles à respecter sont :
+1. **Local uniquement** : `supabase db reset` → uniquement après `supabase start` (Docker local).
+2. **Production** : Les modifications de schéma en production se font exclusivement via `supabase migration new` + `supabase db push` (pas de reset).
+3. **Vérification obligatoire** : Avant tout `db reset`, vérifier que `supabase status` affiche `Local` et non une URL Supabase cloud.
+
+### Conséquences
+- **Avantage** : Les données de production (clients, sites, documents indexés, clés d'API) sont protégées.
+- **Inconvénient** : Les migrations doivent être testées localement avant d'être poussées en production. Cela requiert que Docker Desktop soit installé sur la machine de développement.
