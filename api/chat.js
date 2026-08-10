@@ -159,13 +159,13 @@ ${isLeadCaptureEnabled ? "4. CAPTURE DE PROSPECTS : Dès que le client s'intére
         type: "function",
         function: {
           name: "search_knowledge_base",
-          description: "Recherche dans la base de connaissances et la documentation de l'entreprise. Utilise cet outil dès qu'un utilisateur pose une question sur un service, un prix, une caractéristique ou une information spécifique de l'entreprise.",
+          description: "Recherche dans la documentation et la base de connaissances du site. Utilise cet outil pour toute question sur les produits, services, caractéristiques ou spécifications techniques. Pour des résultats optimaux sur des sites bilingues ou techniques, inclus les termes clés pertinents en anglais et en français (ex: 'core polystyrene honeycomb doors').",
           parameters: {
             type: "object",
             properties: {
               query: {
                 type: "string",
-                description: "Les mots-clés spécifiques à rechercher."
+                description: "La requête ou les mots-clés de recherche (en français et/ou anglais si pertinent)."
               }
             },
             required: ["query"]
