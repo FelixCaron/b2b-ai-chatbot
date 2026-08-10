@@ -41,6 +41,7 @@ export default function ClientOnboarding({
   const [showIntegrationModal, setShowIntegrationModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [editingPage, setEditingPage] = useState(null);
+  const [isScanning, setIsScanning] = useState(false);
 
   // Auto-fetch indexed pages when site changes
   useEffect(() => {
@@ -572,33 +573,72 @@ export default function ClientOnboarding({
                   <div className="text-center py-8 bg-dark-900/40 rounded-xl border border-dashed border-white/10">
                     <p className="text-sm text-gray-400 mb-4">La base de données est vide pour le moment.</p>
                     <button
+                      disabled={isScanning}
                       onClick={async () => {
-                        const crawlRes = await fetch(`${window.location.origin}/api/crawl-site`, {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ url: `https://${activeSite.domain}` })
-                        });
-                        const crawlData = await crawlRes.json();
-                        if (crawlData.pages) {
-                          setDiscoveredPages(crawlData.pages);
-                          setSelectedUrls(new Set(crawlData.pages.map((p) => p.url)));
+                        setIsScanning(true);
+                        try {
+                          const crawlRes = await fetch(`${window.location.origin}/api/crawl-site`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ url: `https://${activeSite.domain}` })
+                          });
+                          const crawlData = await crawlRes.json();
+                          if (crawlData.pages) {
+                            setDiscoveredPages(crawlData.pages);
+                            setSelectedUrls(new Set(crawlData.pages.map((p) => p.url)));
+                          } else {
+                            alert("Erreur lors du scan: " + (crawlData.error || "Aucune page trouvée"));
+                          }
+                        } catch (err) {
+                          alert("Erreur réseau: " + err.message);
+                        } finally {
+                          setIsScanning(false);
                         }
                       }}
-                      className="bg-brand-600 hover:bg-brand-500 text-white px-5 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 mx-auto transition-all shadow-lg shadow-brand-900/50"
+                      className={`bg-brand-600 hover:bg-brand-500 text-white px-5 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 mx-auto transition-all shadow-lg shadow-brand-900/50 ${isScanning ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
-                      <RefreshCw className="w-4 h-4" /> Lancer un scan complet du site
+                      <RefreshCw className={`w-4 h-4 ${isScanning ? 'animate-spin' : ''}`} /> 
+                      {isScanning ? 'Scan en cours...' : 'Lancer un scan complet du site'}
                     </button>
                   </div>
                 ) : (
                   <>
-                    <div className="mb-4">
+                    <div className="mb-4 flex gap-3">
                       <input
                         type="text"
                         placeholder="Rechercher une page par URL ou titre..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full bg-dark-900 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-brand-500 transition-colors"
+                        className="flex-1 bg-dark-900 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-brand-500 transition-colors"
                       />
+                      <button
+                        disabled={isScanning}
+                        onClick={async () => {
+                          setIsScanning(true);
+                          try {
+                            const crawlRes = await fetch(`${window.location.origin}/api/crawl-site`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ url: `https://${activeSite.domain}` })
+                            });
+                            const crawlData = await crawlRes.json();
+                            if (crawlData.pages) {
+                              setDiscoveredPages(crawlData.pages);
+                              setSelectedUrls(new Set(crawlData.pages.map((p) => p.url)));
+                            } else {
+                              alert("Erreur lors du scan: " + (crawlData.error || "Aucune page trouvée"));
+                            }
+                          } catch (err) {
+                            alert("Erreur réseau: " + err.message);
+                          } finally {
+                            setIsScanning(false);
+                          }
+                        }}
+                        className={`bg-dark-800 hover:bg-gray-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-colors border border-white/10 ${isScanning ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        <RefreshCw className={`w-4 h-4 ${isScanning ? 'animate-spin' : ''}`} /> 
+                        {isScanning ? 'Scan...' : 'Re-scanner'}
+                      </button>
                     </div>
                     <div className="overflow-x-auto rounded-xl border border-white/5 bg-dark-900/60 shadow-inner">
                     <table className="w-full text-left text-sm">
