@@ -180,131 +180,121 @@ ${isLeadCaptureEnabled ? "4. CAPTURE DE PROSPECTS : Dès que le client s'intére
         try {
           const { generateChatResponse, extractLeadInfo } = await import('./lib/llm.js');
           
-          // FIRST LLM CALL (Agentic Loop)
-          let responseData = await generateChatResponse({ 
-            systemPrompt, 
-            messagesHistory: fullHistory, 
-            apiKey, 
-            tools 
-          });
+          // MULTI-TURN AGENTIC LOOP (True Reasoning Loop)
+          // Allows up to MAX_TURNS iterations of tool calls & query reformulations
+          const MAX_TURNS = 4;
+          let currentHistory = [...fullHistory];
+          let finalReply = '';
+          let loopCount = 0;
 
-          if (responseData.error) {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: responseData.error })}\n\n`));
-            controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-            controller.close();
-            return;
-          }
+          while (loopCount < MAX_TURNS) {
+            loopCount++;
 
-          const llmMessage = responseData.message;
-          let finalReply = llmMessage?.content || '';
+            const responseData = await generateChatResponse({ 
+              systemPrompt, 
+              messagesHistory: currentHistory, 
+              apiKey, 
+              tools 
+            });
 
-          // If the LLM wants to call a tool
-          if (llmMessage?.tool_calls && llmMessage.tool_calls.length > 0) {
-            const toolCall = llmMessage.tool_calls[0];
-            
-            if (toolCall.function.name === 'search_knowledge_base') {
-              const toolArgs = JSON.parse(toolCall.function.arguments || '{}');
-              const toolQuery = toolArgs.query || message;
+            if (responseData.error) {
+              finalReply = responseData.error;
+              break;
+            }
 
-              // ── HYBRID SEARCH: Embedding sémantique + FTS bilingue ───────────────
-              // 1. Générer l'embedding de la query (retrieval.query task pour Jina)
-              // 2. Appeler match_documents_hybrid (RRF: cosine + FTS FR/EN)
-              // 3. Fallback sur search_documents_fts si pas d'embedding
-              // 4. Fallback textSearch basique si RPC indisponible
-              let docs = [];
-              let searchErr = null;
-              let searchMethod = 'unknown';
+            const llmMessage = responseData.message;
 
-              const queryEmbedding = await generateEmbedding(toolQuery, 'retrieval.query');
-
-              if (queryEmbedding) {
-                // Path A: Hybrid (semantic + FTS)
-                const { data: hybridDocs, error: hybridErr } = await supabase.rpc('match_documents_hybrid', {
-                  query_text: toolQuery,
-                  query_embedding: queryEmbedding,
-                  match_tenant_id: tenantId,
-                  match_count: 5
-                });
-                if (!hybridErr) {
-                  docs = hybridDocs || [];
-                  searchMethod = 'hybrid (semantic + FTS)';
-                } else {
-                  console.warn('[chat] match_documents_hybrid failed, falling back to FTS:', hybridErr.message);
-                  // Fallback B: FTS bilingue seul
-                  const { data: ftsDocs, error: ftsErr } = await supabase.rpc('search_documents_fts', {
-                    query_text: toolQuery,
-                    match_tenant_id: tenantId,
-                    match_count: 5
-                  });
-                  docs = ftsDocs || [];
-                  searchErr = ftsErr;
-                  searchMethod = 'FTS bilingue (fallback)';
-                }
-              } else {
-                // Path B: FTS bilingue seul (pas d'embedding dispo)
-                const { data: ftsDocs, error: ftsErr } = await supabase.rpc('search_documents_fts', {
-                  query_text: toolQuery,
-                  match_tenant_id: tenantId,
-                  match_count: 5
-                });
-                if (!ftsErr) {
-                  docs = ftsDocs || [];
-                  searchMethod = 'FTS bilingue';
-                } else {
-                  // Path C: textSearch basique (dernier recours)
-                  console.warn('[chat] search_documents_fts unavailable:', ftsErr.message);
-                  const { data: fallbackDocs, error: fallbackErr } = await supabase
-                    .from('documents')
-                    .select('id, url, content')
-                    .eq('tenant_id', tenantId)
-                    .textSearch('fts', toolQuery, { type: 'websearch', config: 'french' })
-                    .limit(5);
-                  docs = fallbackDocs || [];
-                  searchErr = fallbackErr;
-                  searchMethod = 'textSearch basique (fallback)';
-                }
-              }
-
-              console.log(`[chat] RAG search via ${searchMethod}: ${docs.length} docs`);
-
-              // Stream tool badge to user
-              const sources = Array.from(new Set(docs.map((d) => d.url)));
-              controller.enqueue(
-                encoder.encode(
-                  `data: ${JSON.stringify({
-                    tool_call: {
-                      name: 'search_knowledge_base',
-                      keywords: toolQuery,
-                      matched_chunks: docs.length,
-                      sources: sources
-                    }
-                  })}\n\n`
-                )
-              );
-
-              const contextText = docs.map((d) => d.content).join('\n---\n');
-              const toolResponseContent = contextText || "Aucune information trouvée pour cette requête.";
-
-              // Add tool call and tool response to history for the SECOND LLM CALL
-              const secondPassHistory = [
-                ...fullHistory,
-                { role: 'assistant', content: "", tool_calls: llmMessage.tool_calls },
-                { role: 'tool', content: toolResponseContent, tool_call_id: toolCall.id }
-              ];
-
-              const secondResponseData = await generateChatResponse({ 
-                systemPrompt, 
-                messagesHistory: secondPassHistory, 
-                apiKey, 
-                tools: null // Don't allow nested tool calls to prevent infinite loops
+            // If the LLM requested tool calls
+            if (llmMessage?.tool_calls && llmMessage.tool_calls.length > 0) {
+              // Append assistant tool_calls message to current conversation state
+              currentHistory.push({
+                role: 'assistant',
+                content: llmMessage.content || '',
+                tool_calls: llmMessage.tool_calls
               });
 
-              if (secondResponseData.error) {
-                finalReply = secondResponseData.error;
-              } else {
-                finalReply = secondResponseData.message?.content || "⚠️ Je ne peux pas répondre pour le moment.";
+              for (const toolCall of llmMessage.tool_calls) {
+                if (toolCall.function.name === 'search_knowledge_base') {
+                  const toolArgs = JSON.parse(toolCall.function.arguments || '{}');
+                  const toolQuery = toolArgs.query || message;
+
+                  // ── HYBRID SEARCH: Embedding sémantique + FTS bilingue ───────────────
+                  let docs = [];
+                  let searchMethod = 'unknown';
+
+                  const queryEmbedding = await generateEmbedding(toolQuery, 'retrieval.query');
+
+                  if (queryEmbedding) {
+                    const { data: hybridDocs, error: hybridErr } = await supabase.rpc('match_documents_hybrid', {
+                      query_text: toolQuery,
+                      query_embedding: queryEmbedding,
+                      match_tenant_id: tenantId,
+                      match_count: 5
+                    });
+                    if (!hybridErr && hybridDocs) {
+                      docs = hybridDocs;
+                      searchMethod = 'hybrid (semantic + FTS)';
+                    }
+                  }
+
+                  if (!docs.length) {
+                    const { data: rpcDocs, error: rpcErr } = await supabase.rpc('search_documents_fts', {
+                      query_text: toolQuery,
+                      match_tenant_id: tenantId,
+                      match_count: 5
+                    });
+                    if (!rpcErr && rpcDocs) {
+                      docs = rpcDocs;
+                      searchMethod = 'FTS bilingue';
+                    } else {
+                      const { data: fallbackDocs } = await supabase
+                        .from('documents')
+                        .select('id, url, content')
+                        .eq('tenant_id', tenantId)
+                        .textSearch('fts', toolQuery, { type: 'websearch', config: 'french' })
+                        .limit(5);
+                      docs = fallbackDocs || [];
+                      searchMethod = 'textSearch basique (fallback)';
+                    }
+                  }
+
+                  console.log(`[chat] Loop #${loopCount} search "${toolQuery}" via ${searchMethod}: ${docs.length} docs`);
+
+                  // Stream tool badge to user interface in real-time
+                  const sources = Array.from(new Set(docs.map((d) => d.url)));
+                  controller.enqueue(
+                    encoder.encode(
+                      `data: ${JSON.stringify({
+                        tool_call: {
+                          name: 'search_knowledge_base',
+                          keywords: toolQuery,
+                          matched_chunks: docs.length,
+                          sources: sources
+                        }
+                      })}\n\n`
+                    )
+                  );
+
+                  const contextText = docs.map((d) => d.content).join('\n---\n');
+                  const toolResponseContent = contextText || "Aucune information trouvée pour cette recherche spécifique. Essaye de reformuler avec des mots-clés équivalents ou en anglais si pertinent.";
+
+                  // Append tool result to currentHistory for next reasoning loop
+                  currentHistory.push({
+                    role: 'tool',
+                    content: toolResponseContent,
+                    tool_call_id: toolCall.id
+                  });
+                }
               }
+            } else {
+              // No tool calls requested: LLM provided final response!
+              finalReply = llmMessage?.content || "⚠️ Je ne peux pas répondre pour le moment.";
+              break;
             }
+          }
+
+          if (!finalReply && loopCount >= MAX_TURNS) {
+            finalReply = "Désolé, j'ai recherché dans nos informations mais je n'ai pas pu trouver les éléments nécessaires.";
           }
 
           // Stream out assistant response in smooth visual chunks
