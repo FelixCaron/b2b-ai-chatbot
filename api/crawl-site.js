@@ -121,8 +121,22 @@ export default async function handler(req) {
       }
     } catch (_e) {}
 
-    // Map discovered URLs to structured page objects
-    const pages = Array.from(discoveredUrls).map((pageUrl) => {
+    // Helper to normalize canonical URL (stripping trailing .html / index.html duplicates)
+    const normalizeUrl = (rawUrl) => {
+      try {
+        const u = new URL(rawUrl.split('#')[0]);
+        u.pathname = u.pathname.replace(/\/index\.html$/i, '/').replace(/\.html$/i, '');
+        return u.href;
+      } catch (_e) {
+        return rawUrl;
+      }
+    };
+
+    // Map discovered URLs to structured page objects (deduplicated by normalized URL)
+    const canonicalUrls = new Set();
+    discoveredUrls.forEach(url => canonicalUrls.add(normalizeUrl(url)));
+
+    const pages = Array.from(canonicalUrls).map((pageUrl) => {
       const u = new URL(pageUrl);
       let pageTitle = u.pathname === '/' ? "Page d'accueil" : u.pathname;
       pageTitle = pageTitle
