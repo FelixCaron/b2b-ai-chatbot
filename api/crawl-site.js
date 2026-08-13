@@ -2,14 +2,15 @@ export const config = {
   runtime: 'edge',
 };
 
-function isValidPage(urlStr) {
+function isValidPageUrl(urlStr, cleanHost) {
   try {
     const u = new URL(urlStr);
+    if (u.hostname.replace(/^www\./, '') !== cleanHost) return false;
     const p = u.pathname.toLowerCase();
     // Exclude static assets
     if (/\.(png|jpg|jpeg|gif|svg|pdf|zip|css|js|ico|xml|json|woff|woff2|ttf|eot|mp4|webm|mp3|wav)$/i.test(p)) return false;
-    // Exclude WordPress system URLs & feeds
-    if (p.includes('/feed') || p.includes('/wp-json') || p.includes('/wp-content') || p.includes('/wp-includes') || p.includes('xmlrpc') || p.includes('/cart') || p.includes('/checkout')) return false;
+    // Exclude WP system junk & internal ERP order lists
+    if (p.includes('/feed') || p.includes('/wp-json') || p.includes('/wp-content') || p.includes('/wp-includes') || p.includes('xmlrpc') || p.includes('/cart') || p.includes('/checkout') || p.includes('/sales-orders') || p.includes('/sales-lines')) return false;
     return true;
   } catch (e) {
     return false;
@@ -45,70 +46,60 @@ export default async function handler(req) {
     const cleanHost = initialParsed.hostname.replace(/^www\./, '');
 
     const discoveredUrls = new Set();
-    discoveredUrls.add(targetUrl);
+    discoveredUrls.add(initialParsed.href.split('#')[0]);
 
-    // 1. Extensive XML Sitemap Discovery
+    // 1. Discover via sitemaps
     const sitemapCandidates = [
       `https://${cleanHost}/sitemap.xml`,
-      `https://www.${cleanHost}/sitemap.xml`,
       `https://${cleanHost}/sitemap_index.xml`,
-      `https://www.${cleanHost}/sitemap_index.xml`,
-      `https://${cleanHost}/wp-sitemap.xml`,
-      `https://www.${cleanHost}/wp-sitemap.xml`,
-      `https://${cleanHost}/page-sitemap.xml`,
-      `https://${cleanHost}/post-sitemap.xml`
+      `https://${cleanHost}/wp-sitemap.xml`
     ];
 
-    const parseSitemapXml = async (xmlText, depth = 0) => {
-      if (depth > 2 || !xmlText) return;
-      const locRegex = /<loc>([^<]+)<\/loc>/gi;
-      let match;
-      const subSitemaps = [];
-
-      while ((match = locRegex.exec(xmlText)) !== null) {
-        const loc = match[1].trim();
-        if (loc.endsWith('.xml') || loc.includes('sitemap')) {
-          subSitemaps.push(loc);
-        } else {
-          try {
-            const u = new URL(loc);
-            if (u.hostname.replace(/^www\./, '') === cleanHost) {
-              const cleanUrl = u.href.split('#')[0];
-              if (isValidPage(cleanUrl)) discoveredUrls.add(cleanUrl);
-            }
-          } catch (_e) {}
-        }
-      }
-
-      // Fetch sub-sitemaps recursively up to depth 2
-      for (const subLoc of subSitemaps.slice(0, 10)) {
-        try {
-          const subRes = await fetch(subLoc, {
-            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
-          });
-          if (subRes.ok) {
-            const subXml = await subRes.text();
-            await parseSitemapXml(subXml, depth + 1);
-          }
-        } catch (_subErr) {}
-      }
-    };
+    const subSitemapUrls = new Set();
 
     for (const smUrl of sitemapCandidates) {
       try {
-        const smRes = await fetch(smUrl, {
-          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
-        });
-        if (smRes.ok) {
-          const xml = await smRes.text();
-          await parseSitemapXml(xml, 0);
+        const res = await fetch(smUrl, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } });
+        if (res.ok) {
+          const xml = await res.text();
+          const locMatches = xml.match(/<loc>([^<]+)<\/loc>/gi) || [];
+          for (const m of locMatches) {
+            const loc = m.replace(/<\/?loc>/gi, '').trim();
+            if (loc.endsWith('.xml') || loc.includes('sitemap')) {
+              if (!loc.includes('sales-orders') && !loc.includes('sales-lines')) {
+                subSitemapUrls.add(loc);
+              }
+            } else if (isValidPageUrl(loc, cleanHost)) {
+              discoveredUrls.add(loc.split('#')[0]);
+            }
+          }
+          if (locMatches.length > 0) break;
         }
-      } catch (_smErr) {}
+      } catch (_e) {}
     }
 
-    // 2. Direct HTML Parsing (href links)
+    // Fetch sub-sitemaps in parallel
+    const subPromises = Array.from(subSitemapUrls).slice(0, 15).map(async (subUrl) => {
+      try {
+        const res = await fetch(subUrl, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } });
+        if (res.ok) {
+          const xml = await res.text();
+          const locMatches = xml.match(/<loc>([^<]+)<\/loc>/gi) || [];
+          for (const m of locMatches) {
+            const loc = m.replace(/<\/?loc>/gi, '').trim();
+            if (!loc.endsWith('.xml') && isValidPageUrl(loc, cleanHost)) {
+              discoveredUrls.add(loc.split('#')[0]);
+            }
+          }
+        }
+      } catch (_e) {}
+    });
+
+    await Promise.all(subPromises);
+
+    // 2. Direct HTML Link Extraction
     try {
-      const res = await fetch(targetUrl, {
+      const res = await fetch(initialParsed.href, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
           'Accept': 'text/html,application/xhtml+xml'
@@ -116,48 +107,19 @@ export default async function handler(req) {
       });
       if (res.ok) {
         const html = await res.text();
-        const hrefRegex = /href=["']([^"']+)["']/g;
+        const hrefRegex = /href=["']([^"']+)["']/gi;
         let match;
         while ((match = hrefRegex.exec(html)) !== null) {
-          const link = match[1];
-          if (!link || link.startsWith('#') || link.startsWith('mailto:') || link.startsWith('tel:') || link.startsWith('javascript:')) {
-            continue;
-          }
           try {
-            const resolved = new URL(link, targetUrl);
-            if (resolved.hostname.replace(/^www\./, '') === cleanHost) {
-              resolved.hash = '';
-              if (isValidPage(resolved.href)) discoveredUrls.add(resolved.href);
+            const resolved = new URL(match[1], initialParsed.href);
+            const cleanUrl = resolved.href.split('#')[0];
+            if (isValidPageUrl(cleanUrl, cleanHost)) {
+              discoveredUrls.add(cleanUrl);
             }
           } catch (_e) {}
         }
       }
     } catch (_e) {}
-
-    // 3. Jina Reader Link Extraction (Renders JavaScript navigation menus!)
-    try {
-      const jinaRes = await fetch(`https://r.jina.ai/${targetUrl}`, {
-        headers: {
-          'Accept': 'text/plain',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        }
-      });
-      if (jinaRes.ok) {
-        const jinaText = await jinaRes.text();
-        const mdLinkRegex = /\[.*?\]\((https?:\/\/[^\s\)]+)\)/g;
-        let match;
-        while ((match = mdLinkRegex.exec(jinaText)) !== null) {
-          try {
-            const linkUrl = match[1].trim();
-            const u = new URL(linkUrl);
-            if (u.hostname.replace(/^www\./, '') === cleanHost) {
-              u.hash = '';
-              if (isValidPage(u.href)) discoveredUrls.add(u.href);
-            }
-          } catch (_e) {}
-        }
-      }
-    } catch (_jinaErr) {}
 
     // Map discovered URLs to structured page objects
     const pages = Array.from(discoveredUrls).map((pageUrl) => {
@@ -174,7 +136,6 @@ export default async function handler(req) {
 
       return {
         url: pageUrl,
-        path: u.pathname,
         title: pageTitle
       };
     });
