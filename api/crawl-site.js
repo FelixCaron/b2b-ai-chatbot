@@ -10,7 +10,7 @@ function isValidPageUrl(urlStr, cleanHost) {
     // Exclude static assets
     if (/\.(png|jpg|jpeg|gif|svg|pdf|zip|css|js|ico|xml|json|woff|woff2|ttf|eot|mp4|webm|mp3|wav)$/i.test(p)) return false;
     // Exclude WP system junk & internal ERP order lists
-    if (p.includes('/feed') || p.includes('/wp-json') || p.includes('/wp-content') || p.includes('/wp-includes') || p.includes('xmlrpc') || p.includes('/cart') || p.includes('/checkout') || p.includes('/sales-orders') || p.includes('/sales-lines')) return false;
+    if (p.includes('/feed') || p.includes('/wp-json') || p.includes('/wp-content') || p.includes('/wp-includes') || p.includes('xmlrpc') || p.includes('/cart') || p.includes('/checkout') || p.includes('/my-account') || p.includes('/account') || p.includes('?add-to-cart') || p.includes('&add-to-cart')) return false;
     return true;
   } catch (e) {
     return false;
@@ -121,22 +121,8 @@ export default async function handler(req) {
       }
     } catch (_e) {}
 
-    // Helper to normalize canonical URL (stripping trailing .html / index.html duplicates)
-    const normalizeUrl = (rawUrl) => {
-      try {
-        const u = new URL(rawUrl.split('#')[0]);
-        u.pathname = u.pathname.replace(/\/index\.html$/i, '/').replace(/\.html$/i, '');
-        return u.href;
-      } catch (_e) {
-        return rawUrl;
-      }
-    };
-
-    // Map discovered URLs to structured page objects (deduplicated by normalized URL)
-    const canonicalUrls = new Set();
-    discoveredUrls.forEach(url => canonicalUrls.add(normalizeUrl(url)));
-
-    const pages = Array.from(canonicalUrls).map((pageUrl) => {
+    // Map discovered URLs to structured page objects
+    const pages = Array.from(discoveredUrls).map((pageUrl) => {
       const u = new URL(pageUrl);
       let pageTitle = u.pathname === '/' ? "Page d'accueil" : u.pathname;
       pageTitle = pageTitle
