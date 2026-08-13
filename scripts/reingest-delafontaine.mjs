@@ -55,37 +55,53 @@ const PAGES_TO_INGEST = [
 ];
 
 // ── Noise filter + chunker (same as api/start-scan.js) ──────────────────────
-const NOISE_PATTERNS = [
-  /cookie/i, /cookieyes/i, /Duration\s+\d+/i, /_ga[t_]/i, /VISITOR_INFO/i,
-  /yt-remote/i, /innertube/i, /localStorage/i, /sessionStorage/i, /\bGTM-/i,
-  /Google Analytics/i, /Google Tag Manager/i, /Reject All/i, /Accept All/i,
-  /Save My Preferences/i, /Powered by.*Cookie/i, /Privacy Policy/i, /Terms of Service/i,
-];
-const MIN_CONTENT_WORDS = 25;
+function cleanAndChunk(text, targetUrl = '', maxChunkLength = 800) {
+  let cleanText = text
+    .replace(/Nous respectons votre vie privée[\s\S]*?Enregistrer mes préférences[^\n]*/gi, '')
+    .replace(/Les cookies [\s\S]*?visiteurs uniques\./gi, '')
+    .replace(/Cookieyes place ce témoin[\s\S]*?visiteurs uniques\./gi, '');
 
-function cleanAndChunk(text, maxChunkLength = 800) {
-  const rawParagraphs = text.split(/\n{2,}|\n(?=#{1,3} )/);
+  const NOISE_PATTERNS = [
+    /cookie/i, /cookieyes/i, /Duration\s+\d+/i, /_ga[t_]/i, /VISITOR_INFO/i,
+    /yt-remote/i, /innertube/i, /localStorage/i, /sessionStorage/i, /\bGTM-/i,
+    /Google Analytics/i, /Google Tag Manager/i, /Reject All/i, /Accept All/i,
+    /Save My Preferences/i, /Powered by.*Cookie/i, /Privacy Policy/i, /Terms of Service/i,
+    /Copyright/i, /Tous droits réservés/i, /Personnaliser Tout rejeter/i
+  ];
+
+  const rawParagraphs = cleanText.split(/\n{2,}|\n(?=#{1,3} )/);
   const cleanParagraphs = rawParagraphs.map(p => p.trim()).filter(p => {
-    if (!p || p.length < 30) return false;
+    if (!p || p.length < 5) return false;
     if (NOISE_PATTERNS.some(pattern => pattern.test(p))) return false;
     const linkCount = (p.match(/\[.*?\]\(https?:\/\//g) || []).length;
-    const wordCount = p.split(/\s+/).filter(w => w.length > 2).length;
-    if (linkCount > 5 && wordCount < 40) return false;
-    if (wordCount < MIN_CONTENT_WORDS) return false;
+    const wordCount = p.split(/\s+/).filter(w => w.length > 1).length;
+    if (linkCount > 4 && wordCount < 30) return false;
     return true;
   });
+
   const chunks = [];
   let currentChunk = '';
+  let overlapPrefix = '';
+
   for (const para of cleanParagraphs) {
-    if (!currentChunk) { currentChunk = para; }
-    else if ((currentChunk + '\n\n' + para).length <= maxChunkLength) { currentChunk += '\n\n' + para; }
-    else {
-      if (currentChunk.split(/\s+/).length >= MIN_CONTENT_WORDS) chunks.push(currentChunk.trim());
-      currentChunk = para;
+    if (!currentChunk) {
+      currentChunk = overlapPrefix ? `... ${overlapPrefix}\n\n${para}` : para;
+    } else if ((currentChunk + '\n\n' + para).length <= maxChunkLength) {
+      currentChunk += '\n\n' + para;
+    } else {
+      if (currentChunk.split(/\s+/).length >= 8) {
+        chunks.push(currentChunk.trim());
+        const words = currentChunk.split(/\s+/);
+        overlapPrefix = words.slice(-20).join(' ');
+      }
+      currentChunk = overlapPrefix ? `... ${overlapPrefix}\n\n${para}` : para;
     }
   }
-  if (currentChunk && currentChunk.split(/\s+/).length >= MIN_CONTENT_WORDS) chunks.push(currentChunk.trim());
-  return chunks;
+  if (currentChunk && currentChunk.split(/\s+/).length >= 8) {
+    chunks.push(currentChunk.trim());
+  }
+
+  return chunks.map(chunk => targetUrl ? `[Source URL: ${targetUrl}]\n${chunk}` : chunk);
 }
 
 // ── Jina Embeddings ──────────────────────────────────────────────────────────
