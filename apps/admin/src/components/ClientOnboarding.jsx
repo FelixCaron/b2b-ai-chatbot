@@ -40,16 +40,119 @@ export default function ClientOnboarding({
   const [showPageManager, setShowPageManager] = useState(false);
   const [discoveredPages, setDiscoveredPages] = useState([]);
   const [selectedUrls, setSelectedUrls] = useState(new Set());
-  const [isIndexing, setIsIndexing] = useState(false);
+  const [isCrawling, setIsCrawling] = useState(false);
+  const [crawlProgressMsg, setCrawlProgressMsg] = useState('');
   const [statusMsg, setStatusMsg] = useState('');
   const [showIntegrationModal, setShowIntegrationModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [editingPage, setEditingPage] = useState(null);
-  const [isScanning, setIsScanning] = useState(false);
+
+  // Synchronous crawl and index pipeline
+  const runSynchronousCrawlAndIndex = async (siteObj, targetUrl) => {
+    setIsCrawling(true);
+    setShowPageManager(true);
+    setStep('dashboard');
+
+    setCrawlProgressMsg('Initialisation du scan...');
+
+    // Step 1: Add homepage as initial page
+    const initialHome = { url: targetUrl, title: 'Page d\'accueil', status: 'loading' };
+    setDiscoveredPages([initialHome]);
+    setSelectedUrls(new Set([targetUrl]));
+
+    setCrawlProgressMsg(`Indexation de la page d'accueil (${targetUrl})...`);
+    await onTriggerScan(siteObj.id, targetUrl, siteObj.tenant_id).catch(() => null);
+
+    setDiscoveredPages([{ url: targetUrl, title: 'Page d\'accueil', status: 'loaded' }]);
+
+    // Step 2: Crawl remaining site pages
+    setCrawlProgressMsg('Exploration des autres pages du site...');
+    try {
+      const crawlRes = await fetch(`${window.location.origin}/api/crawl-site`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: targetUrl })
+      });
+
+      if (crawlRes.ok) {
+        const crawlData = await crawlRes.json();
+        if (crawlData.pages && crawlData.pages.length > 0) {
+          const otherPages = crawlData.pages.filter(p => p.url !== targetUrl);
+
+          const fullList = [
+            { url: targetUrl, title: 'Page d\'accueil', status: 'loaded' },
+            ...otherPages.map(p => ({ url: p.url, title: p.title || p.url, status: 'loading' }))
+          ];
+
+          setDiscoveredPages(fullList);
+          setSelectedUrls(new Set(fullList.map(p => p.url)));
+
+          // Step 3: Synchronously scan each discovered page
+          for (let i = 0; i < otherPages.length; i++) {
+            const page = otherPages[i];
+            const cleanPath = page.url.replace(/^https?:\/\/[^\/]+/, '') || '/';
+            setCrawlProgressMsg(`Indexation page ${i + 1}/${otherPages.length} : ${cleanPath}`);
+
+            await onTriggerScan(siteObj.id, page.url, siteObj.tenant_id).catch(() => null);
+
+            // Update page status to loaded
+            setDiscoveredPages(prev => prev.map(p => p.url === page.url ? { ...p, status: 'loaded' } : p));
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[runSynchronousCrawlAndIndex] Crawl error:', err);
+    }
+
+    setCrawlProgressMsg('✓ Scan et indexation terminés ! Toutes les pages sont prêtes.');
+    setIsCrawling(false);
+  };
+
+  const handleRecrawlSite = async () => {
+    if (!activeSite || isCrawling) return;
+    setIsCrawling(true);
+    setShowPageManager(true);
+    setCrawlProgressMsg('Nettoyage de l\'ancienne base de données...');
+
+    try {
+      await supabase.from('documents').delete().eq('site_id', activeSite.id);
+    } catch (err) {
+      console.error('[handleRecrawlSite] DB cleanup error:', err);
+    }
+
+    setDiscoveredPages([]);
+    setSelectedUrls(new Set());
+
+    const rootUrl = activeSite.domain.startsWith('http') ? activeSite.domain : `https://${activeSite.domain}`;
+    await runSynchronousCrawlAndIndex(activeSite, rootUrl);
+  };
+
+  const handleTogglePageActivation = async (pageUrl) => {
+    if (!activeSite) return;
+    const targetPage = discoveredPages.find(p => p.url === pageUrl);
+    const currentStatus = targetPage?.status || (selectedUrls.has(pageUrl) ? 'loaded' : 'disabled');
+
+    if (currentStatus === 'loaded' || currentStatus === 'loading') {
+      // Deactivate & delete document chunks
+      setDiscoveredPages(prev => prev.map(p => p.url === pageUrl ? { ...p, status: 'disabled' } : p));
+      setSelectedUrls(prev => {
+        const next = new Set(prev);
+        next.delete(pageUrl);
+        return next;
+      });
+      await onDeleteDocumentUrls(activeSite.id, [pageUrl]);
+    } else {
+      // Activate & Scan page
+      setDiscoveredPages(prev => prev.map(p => p.url === pageUrl ? { ...p, status: 'loading' } : p));
+      setSelectedUrls(prev => new Set(prev).add(pageUrl));
+      await onTriggerScan(activeSite.id, pageUrl, activeSite.tenant_id);
+      setDiscoveredPages(prev => prev.map(p => p.url === pageUrl ? { ...p, status: 'loaded' } : p));
+    }
+  };
 
   // Auto-fetch indexed pages when site changes
   const fetchIndexedPages = async () => {
-    if (!activeSite?.id) return;
+    if (!activeSite?.id || isCrawling) return;
     try {
       const { data, error } = await supabase.from('documents').select('url, metadata').eq('site_id', activeSite.id);
       if (error) {
@@ -62,7 +165,7 @@ export default function ClientOnboarding({
         data.forEach(d => {
           if (d.url && !uniqueUrls.has(d.url)) {
             uniqueUrls.add(d.url);
-            pages.push({ url: d.url, title: d.metadata?.title || d.url });
+            pages.push({ url: d.url, title: d.metadata?.title || d.url, status: 'loaded' });
           }
         });
         setDiscoveredPages(pages);
@@ -111,7 +214,7 @@ export default function ClientOnboarding({
     }
   }, [previewMessages, previewChatOpen]);
 
-  // 1-Click Seamless Onboarding: Client enters URL -> Assistant created & live preview opens!
+  // Instant Onboarding: Client enters URL -> Environment created -> Instant Dashboard with synchronous crawl progression!
   const handleAnalyzeSite = async (e) => {
     e.preventDefault();
     if (!siteUrl) return;
@@ -143,53 +246,21 @@ export default function ClientOnboarding({
         }
       } catch (_tErr) {}
 
-      setStatusMsg('Création de votre environnement...');
       // 2. Add or fetch site in database
       const siteObj = await onAddSite(currentDomain, brandColor);
 
       if (siteObj) {
         setLocalCreatedSite(siteObj);
-
-        setStatusMsg('Lecture & apprentissage du site...');
-        // 3. Trigger initial scan & wait for indexing to complete
-        const scanRes = await onTriggerScan(siteObj.id, formattedUrl, siteObj.tenant_id).catch(err => ({ success: false, error: err.message }));
-        const scanOk = scanRes && scanRes.success;
-        if (!scanOk) {
-          console.error('Initial scan failed:', scanRes?.error || scanRes?.data);
-        }
-
-        setStatusMsg('Découverte des autres pages...');
-        // 4. Background crawling of discovered pages
-        fetch(`${window.location.origin}/api/crawl-site`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: formattedUrl })
-        })
-          .then((r) => r.json())
-          .then(async (crawlData) => {
-            if (crawlData.pages && crawlData.pages.length > 0) {
-              setDiscoveredPages(crawlData.pages);
-              setSelectedUrls(new Set(crawlData.pages.map((p) => p.url)));
-              for (const p of crawlData.pages) {
-                await onTriggerScan(siteObj.id, p.url, siteObj.tenant_id).catch(() => null);
-              }
-            }
-          })
-          .catch((err) => console.error('Background crawl error:', err));
-
-        setStatusMsg(scanOk
-          ? '✓ Assistant configuré avec succès !'
-          : '⚠️ L\'indexation initiale a échoué. Vérifiez que le site est accessible et réessayez.'
-        );
-        setStep('dashboard');
-        if (scanOk) setShowPreviewModal(true);
+        setIsAnalyzing(false);
+        // Switch immediately to dashboard & run synchronous crawling with progression messages!
+        await runSynchronousCrawlAndIndex(siteObj, formattedUrl);
       } else {
         setStatusMsg('Erreur : Impossible d\'ajouter ce site.');
+        setIsAnalyzing(false);
       }
     } catch (err) {
       console.error('Onboarding error:', err);
       setStatusMsg(`Erreur : ${err.message}`);
-    } finally {
       setIsAnalyzing(false);
     }
   };
@@ -456,10 +527,24 @@ export default function ClientOnboarding({
             {/* Actions */}
             <div className="flex items-center gap-3 w-full sm:w-auto">
               <button
+                disabled={isCrawling}
                 onClick={() => setShowPreviewModal(true)}
-                className="flex-1 sm:flex-initial bg-brand-600 hover:bg-brand-500 text-white font-medium px-5 py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 shadow-sm transition-colors"
+                className={`flex-1 sm:flex-initial text-white font-medium px-5 py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 shadow-sm transition-all ${
+                  isCrawling 
+                    ? 'bg-gray-800 text-gray-400 cursor-not-allowed border border-white/10 opacity-70' 
+                    : 'bg-brand-600 hover:bg-brand-500 shadow-brand-900/50'
+                }`}
+                title={isCrawling ? "Veuillez patienter pendant la fin du crawl" : "Aperçu Plein Écran & Test Live"}
               >
-                <Eye className="w-4 h-4" /> Aperçu Plein Écran & Test Live
+                {isCrawling ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin text-brand-400" /> Crawl en cours...
+                  </>
+                ) : (
+                  <>
+                    <Eye className="w-4 h-4" /> Aperçu Plein Écran & Test Live
+                  </>
+                )}
               </button>
               <button
                 onClick={() => {
@@ -567,7 +652,7 @@ export default function ClientOnboarding({
           </div>
 
           {/* Collapsible Page Selection Drawer */}
-          <div className="bg-dark-800/50 p-6 rounded-xl border border-white/5">
+          <div className="bg-dark-800/50 p-6 rounded-xl border border-white/5 space-y-4">
             <button
               onClick={() => setShowPageManager(!showPageManager)}
               className="w-full flex items-center justify-between text-left"
@@ -583,43 +668,33 @@ export default function ClientOnboarding({
               </span>
             </button>
 
+            {/* Real-time progression bar inside page management section */}
+            {crawlProgressMsg && (
+              <div className="p-3.5 bg-brand-500/10 border border-brand-500/20 rounded-xl text-xs font-medium text-brand-300 flex items-center justify-between shadow-inner animate-in fade-in">
+                <div className="flex items-center gap-2.5">
+                  {isCrawling && <RefreshCw className="w-4 h-4 animate-spin text-brand-400 shrink-0" />}
+                  <span>{crawlProgressMsg}</span>
+                </div>
+              </div>
+            )}
+
             {showPageManager && (
-              <div className="mt-6 pt-6 border-t border-white/5 space-y-4">
-                {discoveredPages.length === 0 ? (
+              <div className="mt-4 pt-4 border-t border-white/5 space-y-4">
+                {discoveredPages.length === 0 && !isCrawling ? (
                   <div className="text-center py-8 bg-dark-900/40 rounded-xl border border-dashed border-white/10">
-                    <p className="text-sm text-gray-400 mb-4">La base de données est vide pour le moment.</p>
+                    <p className="text-sm text-gray-400 mb-4">Aucune page indexée dans la base de données pour le moment.</p>
                     <button
-                      disabled={isScanning}
-                      onClick={async () => {
-                        setIsScanning(true);
-                        try {
-                          const crawlRes = await fetch(`${window.location.origin}/api/crawl-site`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ url: `https://${activeSite.domain}` })
-                          });
-                          const crawlData = await crawlRes.json();
-                          if (crawlData.pages) {
-                            setDiscoveredPages(crawlData.pages);
-                            setSelectedUrls(new Set(crawlData.pages.map((p) => p.url)));
-                          } else {
-                            alert("Erreur lors du scan: " + (crawlData.error || "Aucune page trouvée"));
-                          }
-                        } catch (err) {
-                          alert("Erreur réseau: " + err.message);
-                        } finally {
-                          setIsScanning(false);
-                        }
-                      }}
-                      className={`bg-brand-600 hover:bg-brand-500 text-white px-5 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 mx-auto transition-all shadow-lg shadow-brand-900/50 ${isScanning ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      disabled={isCrawling}
+                      onClick={handleRecrawlSite}
+                      className={`bg-brand-600 hover:bg-brand-500 text-white px-5 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 mx-auto transition-all shadow-lg shadow-brand-900/50 ${isCrawling ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
-                      <RefreshCw className={`w-4 h-4 ${isScanning ? 'animate-spin' : ''}`} /> 
-                      {isScanning ? 'Scan en cours...' : 'Lancer un scan complet du site'}
+                      <RefreshCw className={`w-4 h-4 ${isCrawling ? 'animate-spin' : ''}`} /> 
+                      Lancer un scan et crawl complet du site
                     </button>
                   </div>
                 ) : (
                   <>
-                    <div className="mb-4 flex gap-3">
+                    <div className="mb-4 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
                       <input
                         type="text"
                         placeholder="Rechercher une page par URL ou titre..."
@@ -628,95 +703,96 @@ export default function ClientOnboarding({
                         className="flex-1 bg-dark-900 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-brand-500 transition-colors"
                       />
                       <button
-                        disabled={isScanning}
-                        onClick={async () => {
-                          setIsScanning(true);
-                          try {
-                            const crawlRes = await fetch(`${window.location.origin}/api/crawl-site`, {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ url: `https://${activeSite.domain}` })
-                            });
-                            const crawlData = await crawlRes.json();
-                            if (crawlData.pages) {
-                              setDiscoveredPages(crawlData.pages);
-                              setSelectedUrls(new Set(crawlData.pages.map((p) => p.url)));
-                            } else {
-                              alert("Erreur lors du scan: " + (crawlData.error || "Aucune page trouvée"));
-                            }
-                          } catch (err) {
-                            alert("Erreur réseau: " + err.message);
-                          } finally {
-                            setIsScanning(false);
-                          }
-                        }}
-                        className={`bg-dark-800 hover:bg-gray-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-colors border border-white/10 ${isScanning ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        disabled={isCrawling}
+                        onClick={handleRecrawlSite}
+                        className={`bg-brand-600 hover:bg-brand-500 text-white px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all border border-brand-500/30 shadow-md ${isCrawling ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        title="Efface les anciennes données et relance un crawl synchrone de toutes les pages"
                       >
-                        <RefreshCw className={`w-4 h-4 ${isScanning ? 'animate-spin' : ''}`} /> 
-                        {isScanning ? 'Scan...' : 'Re-scanner'}
+                        <RefreshCw className={`w-3.5 h-3.5 ${isCrawling ? 'animate-spin' : ''}`} /> 
+                        {isCrawling ? 'Re-scan en cours...' : 'Re-scanner & Rafraîchir le site'}
                       </button>
                     </div>
+
                     <div className="overflow-x-auto rounded-xl border border-white/5 bg-dark-900/60 shadow-inner">
-                    <table className="w-full text-left text-sm">
-                      <thead className="bg-dark-800/80 text-gray-400 text-xs uppercase tracking-wider border-b border-white/5">
-                        <tr>
-                          <th className="py-3 px-4 font-semibold w-12 text-center">Inclus</th>
-                          <th className="py-3 px-4 font-semibold">Titre de la page</th>
-                          <th className="py-3 px-4 font-semibold">URL</th>
-                          <th className="py-3 px-4 font-semibold text-right">Statut</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-white/5 text-gray-300">
-                        {discoveredPages
-                          .filter(p => p.url.toLowerCase().includes(searchQuery.toLowerCase()) || (p.title && p.title.toLowerCase().includes(searchQuery.toLowerCase())))
-                          .map((page) => {
-                          const isSelected = selectedUrls.has(page.url);
-                          return (
-                            <tr
-                              key={page.url}
-                              onClick={() => handleTogglePage(page.url)}
-                              className={`hover:bg-white/[0.03] transition-colors cursor-pointer ${isSelected ? 'bg-brand-500/5' : ''}`}
-                            >
-                              <td className="py-3 px-4 text-center">
-                                <input 
-                                  type="checkbox" 
-                                  checked={isSelected} 
-                                  readOnly 
-                                  className="w-4 h-4 rounded accent-brand-500 cursor-pointer" 
-                                />
-                              </td>
-                              <td className="py-3 px-4">
-                                <div className="font-medium text-white line-clamp-1">{page.title || 'Page sans titre'}</div>
-                              </td>
-                              <td className="py-3 px-4">
-                                <div className="text-xs text-gray-400 font-mono truncate max-w-[200px] sm:max-w-xs" title={page.url}>
-                                  {page.url.replace(`https://${activeSite.domain}`, '') || '/'}
-                                </div>
-                              </td>
-                              <td className="py-3 px-4 text-right">
-                                <button 
-                                  onClick={(e) => handleEditPage(page.url, e)}
-                                  className="mr-3 text-[10px] bg-dark-800 hover:bg-gray-700 text-gray-300 px-2.5 py-1.5 rounded-lg border border-white/10 transition-colors"
-                                >
-                                  Éditer
-                                </button>
-                                {isSelected ? (
-                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Indexé
-                                  </span>
-                                ) : (
-                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-gray-500/10 text-gray-400 border border-gray-500/20">
-                                    Ignoré
-                                  </span>
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </>
+                      <table className="w-full text-left text-sm">
+                        <thead className="bg-dark-800/80 text-gray-400 text-xs uppercase tracking-wider border-b border-white/5">
+                          <tr>
+                            <th className="py-3 px-4 font-semibold w-12 text-center">Inclus</th>
+                            <th className="py-3 px-4 font-semibold">Titre de la page</th>
+                            <th className="py-3 px-4 font-semibold">URL</th>
+                            <th className="py-3 px-4 font-semibold text-right">Statut & Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/5 text-gray-300">
+                          {discoveredPages
+                            .filter(p => p.url.toLowerCase().includes(searchQuery.toLowerCase()) || (p.title && p.title.toLowerCase().includes(searchQuery.toLowerCase())))
+                            .map((page) => {
+                            const currentStatus = page.status || (selectedUrls.has(page.url) ? 'loaded' : 'disabled');
+                            const isIncluded = currentStatus !== 'disabled';
+
+                            return (
+                              <tr
+                                key={page.url}
+                                className={`hover:bg-white/[0.03] transition-colors ${isIncluded ? 'bg-brand-500/5' : ''}`}
+                              >
+                                <td className="py-3 px-4 text-center">
+                                  <input 
+                                    type="checkbox" 
+                                    checked={isIncluded} 
+                                    onChange={() => handleTogglePageActivation(page.url)}
+                                    className="w-4 h-4 rounded accent-brand-500 cursor-pointer" 
+                                  />
+                                </td>
+                                <td className="py-3 px-4">
+                                  <div className="font-medium text-white line-clamp-1">{page.title || 'Page sans titre'}</div>
+                                </td>
+                                <td className="py-3 px-4">
+                                  <div className="text-xs text-gray-400 font-mono truncate max-w-[200px] sm:max-w-xs" title={page.url}>
+                                    {page.url.replace(`https://${activeSite?.domain}`, '') || '/'}
+                                  </div>
+                                </td>
+                                <td className="py-3 px-4 text-right space-x-2">
+                                  <button 
+                                    onClick={(e) => handleEditPage(page.url, e)}
+                                    className="text-[10px] bg-dark-800 hover:bg-gray-700 text-gray-300 px-2.5 py-1.5 rounded-lg border border-white/10 transition-colors"
+                                  >
+                                    Éditer
+                                  </button>
+
+                                  {/* Activate / Deactivate Toggle Button */}
+                                  <button
+                                    onClick={() => handleTogglePageActivation(page.url)}
+                                    className={`text-[10px] px-2.5 py-1.5 rounded-lg font-semibold border transition-colors ${
+                                      isIncluded
+                                        ? 'bg-red-500/10 hover:bg-red-500/20 text-red-400 border-red-500/20'
+                                        : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/20'
+                                    }`}
+                                  >
+                                    {isIncluded ? 'Désactiver' : 'Activer'}
+                                  </button>
+
+                                  {/* Page Status Badge: loading | loaded | disabled */}
+                                  {currentStatus === 'loading' ? (
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                                      <RefreshCw className="w-3 h-3 animate-spin" /> Chargement...
+                                    </span>
+                                  ) : currentStatus === 'loaded' ? (
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                      <Check className="w-3 h-3" /> Indexé
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-gray-500/10 text-gray-400 border border-gray-500/20">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span> Désactivé
+                                    </span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
                 )}
               </div>
             )}

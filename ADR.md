@@ -256,5 +256,31 @@ Bien que l'ADR-008 et l'ADR-009 aient posé les bases du FTS bilingue et des Emb
 - **Avantage** : Respect garanti des limites d'API pour le tier gratuit de Jina Embeddings.
 - **Règle** : Toute mise à jour de la logique de chunking ou de batching doit impérativement être répercutée de façon identique dans `start-scan.js` et `update-document.js`.
 
+---
+
+## ADR 012 : Flux d'Onboarding Synchrone, Statuts de Pages & Re-crawl avec Nettoyage DB
+**Date:** 13 Août 2026
+**Statut:** Accepté
+
+### Contexte
+L'expérience d'onboarding initiale comportait un écran d'attente bloquant pendant le crawl en arrière-plan, ce qui laissait l'utilisateur dans l'ignorance de l'avancement. De plus, les boutons d'activation individuelle de page et le re-scan complet avec suppression des anciens morceaux de documents n'étaient pas synchronisés de manière transparente.
+
+### Décision
+1. **Transition Immédiate au Dashboard** : Soumettre une URL crée le site et affiche immédiatement le Tableau de Bord client avec le tiroir *Gérer la base de connaissances* ouvert.
+2. **Crawl Synchrone avec Progression Textuelle** : L'exploration (`/api/crawl-site`) et l'indexation (`/api/start-scan`) s'exécutent séquentiellement en direct sous les yeux de l'utilisateur avec des messages de statut explicites (`Indexation page X/N : [URL]`).
+3. **Verrouillage du Bouton Aperçu** : Le bouton "Aperçu Plein Écran & Test Live" est désactivé tant que `isCrawling` est actif (`opacity-70 cursor-not-allowed`) pour éviter de tester un bot partiellement indexé.
+4. **Statuts de Pages Granulaires** : Le tableau des pages affiche pour chaque ligne l'un des trois statuts :
+   - `loading` : Spinner animé + badge ambre (En cours d'indexation)
+   - `loaded` : Badge vert avec coche (Indexé)
+   - `disabled` : Badge gris (Ignoré / Désactivé)
+5. **Actions par Page (Activer / Désactiver)** : Bouton dédié permettant de désactiver une page (suppression des chunks dans Supabase) ou de la réactiver (déclenchement du scan et passage en `loading` -> `loaded`).
+6. **Bouton Re-scanner / Rafraîchir avec Purge DB** : Le bouton de re-scan effectue d'abord un nettoyage complet des anciens chunks de la table Supabase (`DELETE FROM documents WHERE site_id = ...`) avant de relancer le crawl synchrone complet.
+
+### Conséquences
+- **Avantage** : Transparence totale pour l'utilisateur qui suit l'indexation en temps réel.
+- **Avantage** : Prévention des erreurs en empêchant l'ouverture de la démo pendant le crawl.
+- **Avantage** : Nettoyage propre des données obsolètes lors d'un re-crawl d'un site.
+
+
 
 
