@@ -53,20 +53,13 @@ export default function ClientOnboarding({
     setShowPageManager(true);
     setStep('dashboard');
 
-    setCrawlProgressMsg('Initialisation du scan...');
+    setCrawlProgressMsg('Découverte de toutes les pages du site...');
 
-    // Step 1: Add homepage as initial page
-    const initialHome = { url: targetUrl, title: 'Page d\'accueil', status: 'loading' };
-    setDiscoveredPages([initialHome]);
+    // 1. Instantly discover ALL pages via /api/crawl-site without waiting
+    let pagesToScan = [{ url: targetUrl, title: 'Page d\'accueil', status: 'loading' }];
+    setDiscoveredPages(pagesToScan);
     setSelectedUrls(new Set([targetUrl]));
 
-    setCrawlProgressMsg(`Indexation de la page d'accueil (${targetUrl})...`);
-    await onTriggerScan(siteObj.id, targetUrl, siteObj.tenant_id).catch(() => null);
-
-    setDiscoveredPages([{ url: targetUrl, title: 'Page d\'accueil', status: 'loaded' }]);
-
-    // Step 2: Crawl remaining site pages
-    setCrawlProgressMsg('Exploration des autres pages du site...');
     try {
       const crawlRes = await fetch(`${window.location.origin}/api/crawl-site`, {
         method: 'POST',
@@ -77,34 +70,35 @@ export default function ClientOnboarding({
       if (crawlRes.ok) {
         const crawlData = await crawlRes.json();
         if (crawlData.pages && crawlData.pages.length > 0) {
-          const otherPages = crawlData.pages.filter(p => p.url !== targetUrl);
-
-          const fullList = [
-            { url: targetUrl, title: 'Page d\'accueil', status: 'loaded' },
-            ...otherPages.map(p => ({ url: p.url, title: p.title || p.url, status: 'loading' }))
-          ];
-
-          setDiscoveredPages(fullList);
-          setSelectedUrls(new Set(fullList.map(p => p.url)));
-
-          // Step 3: Synchronously scan each discovered page
-          for (let i = 0; i < otherPages.length; i++) {
-            const page = otherPages[i];
-            const cleanPath = page.url.replace(/^https?:\/\/[^\/]+/, '') || '/';
-            setCrawlProgressMsg(`Indexation page ${i + 1}/${otherPages.length} : ${cleanPath}`);
-
-            await onTriggerScan(siteObj.id, page.url, siteObj.tenant_id).catch(() => null);
-
-            // Update page status to loaded
-            setDiscoveredPages(prev => prev.map(p => p.url === page.url ? { ...p, status: 'loaded' } : p));
-          }
+          pagesToScan = crawlData.pages.map(p => ({
+            url: p.url,
+            title: p.title || p.url,
+            status: 'loading'
+          }));
         }
       }
     } catch (err) {
       console.error('[runSynchronousCrawlAndIndex] Crawl error:', err);
     }
 
-    setCrawlProgressMsg('✓ Scan et indexation terminés ! Toutes les pages sont prêtes.');
+    // Populate all discovered pages in loading state in the table right away!
+    setDiscoveredPages(pagesToScan);
+    setSelectedUrls(new Set(pagesToScan.map(p => p.url)));
+
+    // 2. Sequentially scan each discovered page
+    for (let i = 0; i < pagesToScan.length; i++) {
+      const page = pagesToScan[i];
+      const cleanPath = page.url.replace(/^https?:\/\/[^\/]+/, '') || '/';
+      const pct = Math.round(((i + 1) / pagesToScan.length) * 100);
+      setCrawlProgressMsg(`Indexation page ${i + 1}/${pagesToScan.length} (${pct}%) : ${cleanPath}`);
+
+      await onTriggerScan(siteObj.id, page.url, siteObj.tenant_id).catch(() => null);
+
+      // Update page status to loaded
+      setDiscoveredPages(prev => prev.map(p => p.url === page.url ? { ...p, status: 'loaded' } : p));
+    }
+
+    setCrawlProgressMsg(`✓ Scan et indexation terminés ! ${pagesToScan.length} page(s) prête(s).`);
     setIsCrawling(false);
   };
 
