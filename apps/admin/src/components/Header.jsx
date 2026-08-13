@@ -1,7 +1,34 @@
-import React from 'react';
-import { Bot, ShieldCheck, LogOut } from 'lucide-react';
+import React, { useState } from 'react';
+import { Bot, ShieldCheck, LogOut, Settings, Loader2 } from 'lucide-react';
+import PlanBadge from './PlanBadge';
 
 export default function Header({ tenants, selectedTenant, setSelectedTenant, onLogout, onShowPricing }) {
+  const [portalLoading, setPortalLoading] = useState(false);
+
+  const plan = selectedTenant?.plan || 'free';
+  const planStatus = selectedTenant?.plan_status || 'free';
+  const hasActivePlan = plan !== 'free' && planStatus === 'active';
+
+  const handleManageSubscription = async () => {
+    if (!selectedTenant?.id) return;
+    setPortalLoading(true);
+    try {
+      const res = await fetch('/api/create-portal-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tenantId: selectedTenant.id }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (err) {
+      console.error('[Header] Portal error:', err);
+    } finally {
+      setPortalLoading(false);
+    }
+  };
+
   return (
     <header className="glass-card sticky top-0 z-50 px-4 sm:px-8 py-3 sm:py-4 mb-6 sm:mb-8">
       <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
@@ -18,7 +45,7 @@ export default function Header({ tenants, selectedTenant, setSelectedTenant, onL
             </div>
           </div>
 
-          <button 
+          <button
             onClick={onLogout}
             className="sm:hidden text-gray-400 hover:text-white p-2 rounded-lg hover:bg-white/5"
             title="Se déconnecter"
@@ -27,15 +54,37 @@ export default function Header({ tenants, selectedTenant, setSelectedTenant, onL
           </button>
         </div>
 
-        {/* Tenant Selector Dropdown & Upgrade */}
-        <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 border-white/5 pt-2 sm:pt-0">
-          <button
-            onClick={onShowPricing}
-            className="text-xs font-semibold bg-gradient-to-r from-brand-500 to-indigo-500 hover:from-brand-400 hover:to-indigo-400 text-white px-3.5 py-1.5 rounded-full transition-all shadow-md shadow-brand-500/20 shrink-0"
-          >
-            Upgrade / Forfaits
-          </button>
-          
+        {/* Tenant Selector, Plan Badge & Actions */}
+        <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 border-white/5 pt-2 sm:pt-0">
+          {/* Plan Badge — always visible */}
+          <PlanBadge plan={plan} planStatus={planStatus} />
+
+          {/* Manage Subscription (if on a paid plan) */}
+          {hasActivePlan ? (
+            <button
+              id="manage-subscription-btn"
+              onClick={handleManageSubscription}
+              disabled={portalLoading}
+              className="text-xs font-semibold text-gray-300 hover:text-white px-3 py-1.5 rounded-full border border-white/10 hover:border-white/25 flex items-center gap-1.5 transition-all disabled:opacity-50"
+              title="Gérer mon abonnement"
+            >
+              {portalLoading ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <Settings className="w-3 h-3" />
+              )}
+              <span className="hidden sm:inline">Gérer</span>
+            </button>
+          ) : (
+            <button
+              id="upgrade-btn"
+              onClick={onShowPricing}
+              className="text-xs font-semibold bg-gradient-to-r from-brand-500 to-indigo-500 hover:from-brand-400 hover:to-indigo-400 text-white px-3.5 py-1.5 rounded-full transition-all shadow-md shadow-brand-500/20 shrink-0"
+            >
+              Upgrade / Forfaits
+            </button>
+          )}
+
           <div className="flex items-center gap-2">
             <span className="text-xs text-gray-400 font-medium hidden md:inline">Connecté :</span>
             <select
@@ -53,8 +102,8 @@ export default function Header({ tenants, selectedTenant, setSelectedTenant, onL
               ))}
             </select>
           </div>
-          
-          <button 
+
+          <button
             onClick={onLogout}
             className="hidden sm:block text-gray-400 hover:text-white p-2 rounded-lg hover:bg-white/5 transition-colors"
             title="Se déconnecter"

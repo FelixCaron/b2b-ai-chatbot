@@ -198,3 +198,63 @@ Bien que le FTS bilingue (ADR-008) ait résolu les requêtes exactes en françai
 - **Avantage** : Résilience maximale avec fallback automatique sur FTS bilingue si l'API d'embedding échoue.
 - **Sécurité/Performance** : Batching d'embeddings lors de l'ingestion (1 seul appel HTTP par page).
 
+---
+
+## ADR 010 : Intégration du Paiement via Stripe (Subscriptions + Billing Portal)
+**Date:** 11 Août 2026
+**Statut:** Accepté
+
+### Contexte
+La plateforme avait une page `Pricing.jsx` avec des plans (Starter 29$/mois, Pro 99$/mois, Enterprise sur mesure) mais aucun mécanisme de paiement réel. L'objectif est de rendre la plateforme payante en utilisant un fournisseur de paiement standard.
+
+### Décision
+Nous adoptons **Stripe** comme fournisseur de paiement unique, avec les composants suivants :
+
+1. **Stripe Checkout** (mode `subscription`) — Page de paiement hébergée par Stripe, sans PCI-DSS côté client.
+2. **Stripe Billing Portal** — Portail client Stripe pour gérer les abonnements (annulation, changement de CB, factures).
+3. **Stripe Webhooks** — Synchronisation asynchrone de l'état d'abonnement dans Supabase (`tenants.plan`, `plan_status`, `stripe_subscription_id`).
+
+**Fichiers créés :**
+- `api/create-checkout-session.js` — Crée la session Checkout, attache/crée le Customer Stripe.
+- `api/create-portal-session.js` — Crée la session Billing Portal.
+- `api/stripe-webhook.js` — Traite `checkout.session.completed`, `customer.subscription.deleted`, `invoice.payment_failed`, `customer.subscription.updated`.
+- `supabase/migrations/20260811000001_stripe_billing.sql` — Ajoute `stripe_subscription_id`, `plan_status`, `plan_expires_at` sur `tenants`.
+- `src/components/PlanBadge.jsx` — Badge plan actuel visible dans le Header.
+- `src/components/PaymentSuccessPage.jsx` — Page de confirmation post-paiement avec animation.
+
+**Routing Vercel :** `/payment-success` et `/payment-cancel` redirigent vers `index.html` (SPA).
+
+### Conséquences
+- **Avantage** : Aucune donnée de carte ne transite par nos serveurs (Stripe Checkout hébergé).
+- **Avantage** : Le Customer Portal Stripe gère automatiquement les factures PDF, mises à jour CB, et annulations.
+- **Avantage** : Les webhooks garantissent la cohérence de l'état même si le client ferme le navigateur avant la redirection.
+- **Règle** : Toute modification du pricing (ajout de plan, changement de tarif) doit créer un nouveau `Price` dans Stripe (jamais modifier un Price existant) et mettre à jour `STRIPE_PRICE_ID_*` dans `.env.local` + Vercel.
+- **Règle** : Le `SUPABASE_SERVICE_ROLE_KEY` doit être utilisé dans les API routes webhook (et non la clé anon) pour mettre à jour la table `tenants`.
+
+---
+
+## ADR 011 : Optimisation Avancée du Pipeline RAG (Dé-truncation, Overlap Sémantique & Enrichissement Métadonnées)
+**Date:** 13 Août 2026
+**Statut:** Accepté
+
+### Contexte
+Bien que l'ADR-008 et l'ADR-009 aient posé les bases du FTS bilingue et des Embeddings Jina v3 (768d), le pipeline RAG souffrait encore de 3 limites majeures :
+1. **Troncature arbitraire** : `start-scan.js` et `update-document.js` appliquaient `chunks.slice(0, 20)`, ce qui abandonnait le contenu au-delà de 20 chunks (~16 000 caractères).
+2. **Coupure du contexte** : La découpe par paragraphes ne préservait aucun chevauchement, risquant de fragmenter une idée ou une liste à la frontière de deux chunks.
+3. **Absence de métadonnées de source** : Les chunks étaient stockés nus, sans que l'embedding ou le modèle LLM ne sache de quelle URL provient le texte.
+
+### Décision
+1. **Suppression de la limite de 20 chunks** : Indexation intégrale des pages web.
+2. **Génération d'embeddings par lots (Batching pour Free Tier Jina)** : Traitement des embeddings par paquets de 20 chunks (`BATCH_SIZE = 20`) avec une temporisation de 200 ms entre les lots pour respecter strictement les quotas et limites de débit du Tier Gratuit Jina AI.
+3. **Overlap Sémantique** : Injection automatique des 20 derniers mots du chunk précédent au début du chunk suivant (`... [overlap]\n\n[nouveau texte]`) dans `cleanAndChunk`.
+4. **Enrichissement des Métadonnées** : Préfixe explicite `[Source URL: {targetUrl}]\n` ajouté directement à chaque chunk avant son embedding et stockage vectoriel.
+5. **Augmentation de la fenêtre de contexte dans `chat.js`** : Augmentation du nombre de chunks extraits (`match_count` porté de 5 à 10) lors de la recherche hybride `match_documents_hybrid` pour fournir un contexte plus riche et exhaustif au LLM.
+
+### Conséquences
+- **Avantage** : Couverture complète des pages volumineuses sans perte de données.
+- **Avantage** : Amélioration sensible du recall vectoriel grâce aux métadonnées d'URL et à l'overlap sémantique.
+- **Avantage** : Respect garanti des limites d'API pour le tier gratuit de Jina Embeddings.
+- **Règle** : Toute mise à jour de la logique de chunking ou de batching doit impérativement être répercutée de façon identique dans `start-scan.js` et `update-document.js`.
+
+
+

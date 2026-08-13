@@ -229,7 +229,7 @@ ${isLeadCaptureEnabled ? "4. CAPTURE DE PROSPECTS : Dès que le client s'intére
                       query_text: toolQuery,
                       query_embedding: queryEmbedding,
                       match_tenant_id: tenantId,
-                      match_count: 5
+                      match_count: 10
                     });
                     if (!hybridErr && hybridDocs) {
                       docs = hybridDocs;
@@ -241,7 +241,7 @@ ${isLeadCaptureEnabled ? "4. CAPTURE DE PROSPECTS : Dès que le client s'intére
                     const { data: rpcDocs, error: rpcErr } = await supabase.rpc('search_documents_fts', {
                       query_text: toolQuery,
                       match_tenant_id: tenantId,
-                      match_count: 5
+                      match_count: 10
                     });
                     if (!rpcErr && rpcDocs) {
                       docs = rpcDocs;
@@ -252,7 +252,7 @@ ${isLeadCaptureEnabled ? "4. CAPTURE DE PROSPECTS : Dès que le client s'intére
                         .select('id, url, content')
                         .eq('tenant_id', tenantId)
                         .textSearch('fts', toolQuery, { type: 'websearch', config: 'french' })
-                        .limit(5);
+                        .limit(10);
                       docs = fallbackDocs || [];
                       searchMethod = 'textSearch basique (fallback)';
                     }

@@ -34,7 +34,7 @@ const NOISE_PATTERNS = [
 
 const MIN_CONTENT_WORDS = 25;
 
-function cleanAndChunk(text, maxChunkLength = 800) {
+function cleanAndChunk(text, targetUrl = '', maxChunkLength = 800) {
   const rawParagraphs = text.split(/\n{2,}|\n(?=#{1,3} )/);
 
   const cleanParagraphs = rawParagraphs
@@ -51,24 +51,31 @@ function cleanAndChunk(text, maxChunkLength = 800) {
 
   const chunks = [];
   let currentChunk = '';
+  let overlapPrefix = '';
 
   for (const para of cleanParagraphs) {
     if (!currentChunk) {
-      currentChunk = para;
+      currentChunk = overlapPrefix ? `... ${overlapPrefix}\n\n${para}` : para;
     } else if ((currentChunk + '\n\n' + para).length <= maxChunkLength) {
       currentChunk += '\n\n' + para;
     } else {
       if (currentChunk.split(/\s+/).length >= MIN_CONTENT_WORDS) {
         chunks.push(currentChunk.trim());
+        const words = currentChunk.split(/\s+/);
+        overlapPrefix = words.slice(-20).join(' ');
       }
-      currentChunk = para;
+      currentChunk = overlapPrefix ? `... ${overlapPrefix}\n\n${para}` : para;
     }
   }
   if (currentChunk && currentChunk.split(/\s+/).length >= MIN_CONTENT_WORDS) {
     chunks.push(currentChunk.trim());
   }
 
-  return chunks;
+  const enrichedChunks = chunks.map(chunk => {
+    return targetUrl ? `[Source URL: ${targetUrl}]\n${chunk}` : chunk;
+  });
+
+  return enrichedChunks;
 }
 
 
@@ -93,32 +100,46 @@ export default async function handler(req) {
       });
     }
 
-    const chunks = cleanAndChunk(content, 800);
-    const chunkSlice = chunks.slice(0, 20);
+    const chunks = cleanAndChunk(content, url, 800);
 
-    // Generate real embeddings in a single batch call
+    // Generate embeddings in batches of 20 to respect Jina API Free Tier limits
     const FALLBACK_EMBEDDING = Array(768).fill(0).map((_, i) => (i % 2 === 0 ? 0.05 : -0.05));
-    let embeddings;
-    try {
-      const jinaKey = process.env.JINA_API_KEY;
-      if (jinaKey && chunkSlice.length > 0) {
-        const batchResult = await generateEmbedding(chunkSlice, 'retrieval.passage', jinaKey);
-        embeddings = Array.isArray(batchResult) ? batchResult : null;
+    const allEmbeddings = [];
+    const jinaKey = process.env.JINA_API_KEY;
+    const BATCH_SIZE = 20;
+
+    if (jinaKey && chunks.length > 0) {
+      for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
+        const batch = chunks.slice(i, i + BATCH_SIZE);
+        try {
+          const batchResult = await generateEmbedding(batch, 'retrieval.passage', jinaKey);
+          if (Array.isArray(batchResult)) {
+            allEmbeddings.push(...batchResult);
+          } else if (batchResult) {
+            allEmbeddings.push(batchResult);
+          } else {
+            allEmbeddings.push(...Array(batch.length).fill(FALLBACK_EMBEDDING));
+          }
+        } catch (embErr) {
+          console.warn(`[update-document] Embedding batch starting at ${i} failed:`, embErr.message);
+          allEmbeddings.push(...Array(batch.length).fill(FALLBACK_EMBEDDING));
+        }
+        if (i + BATCH_SIZE < chunks.length) {
+          await new Promise(r => setTimeout(r, 200));
+        }
       }
-    } catch (embErr) {
-      console.warn('[update-document] Embedding generation failed, using fallback:', embErr.message);
     }
 
     // Remove old chunks
     await supabase.from('documents').delete().eq('site_id', site_id).eq('url', url);
 
-    if (chunkSlice.length > 0) {
-      const records = chunkSlice.map((chunk, i) => ({
+    if (chunks.length > 0) {
+      const records = chunks.map((chunk, i) => ({
         tenant_id,
         site_id,
         url,
         content: chunk,
-        embedding: embeddings?.[i] ?? FALLBACK_EMBEDDING
+        embedding: allEmbeddings[i] ?? FALLBACK_EMBEDDING
       }));
 
       const { error: insertErr } = await supabase.from('documents').insert(records);

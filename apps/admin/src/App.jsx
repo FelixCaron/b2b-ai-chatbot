@@ -5,6 +5,7 @@ import ClientOnboarding from './components/ClientOnboarding';
 import LeadsTable from './components/LeadsTable';
 import LoginModal from './components/LoginModal';
 import Pricing from './components/Pricing';
+import PaymentSuccessPage from './components/PaymentSuccessPage';
 import { Users } from 'lucide-react';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://xuvueegdokgiyedwvmkm.supabase.co";
@@ -21,7 +22,15 @@ export default function App() {
   const [usage, setUsage] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const [currentView, setCurrentView] = useState('dashboard');
+  const [paymentToast, setPaymentToast] = useState(null); // 'success' | 'cancel' | null
+
+  // Detect Stripe redirect routes
+  const path = window.location.pathname;
+  const [currentView, setCurrentView] = useState(
+    path === '/payment-success' ? 'payment-success' :
+    path === '/payment-cancel' ? 'pricing' :
+    'dashboard'
+  );
 
   const isGuest = !sessionEmail && selectedTenant?.name?.startsWith('Guest_');
 
@@ -80,12 +89,30 @@ export default function App() {
     localStorage.removeItem('b2b_session_email');
   };
 
+  // Show toast on payment redirect
+  useEffect(() => {
+    if (path === '/payment-success') {
+      setPaymentToast('success');
+      // Clean up URL without hard reload
+      window.history.replaceState({}, '', '/');
+    } else if (path === '/payment-cancel') {
+      setPaymentToast('cancel');
+      window.history.replaceState({}, '', '/');
+      const t = setTimeout(() => setPaymentToast(null), 5000);
+      return () => clearTimeout(t);
+    }
+  }, []);
+
   // Fetch tenant-specific resources whenever selectedTenant changes
   useEffect(() => {
     if (!selectedTenant) return;
 
     async function loadTenantData() {
       const tId = selectedTenant.id;
+      // Refresh tenant to pick up plan changes from Stripe webhook
+      const { data: freshTenant } = await supabase.from('tenants').select('*').eq('id', tId).single();
+      if (freshTenant) setSelectedTenant(freshTenant);
+
       const { data: sitesData } = await supabase.from('sites').select('*').eq('tenant_id', tId);
       setSites(sitesData || []);
 
@@ -97,7 +124,7 @@ export default function App() {
     }
 
     loadTenantData();
-  }, [selectedTenant]);
+  }, [selectedTenant?.id]);
 
   // Handler: Add new Site
   const handleAddSite = async (domain, primaryColor = '#6366f1') => {
@@ -225,8 +252,21 @@ export default function App() {
         </header>
       )}
 
-      {currentView === 'pricing' ? (
-        <Pricing onSelectPlan={() => setCurrentView('dashboard')} />
+      {/* Payment cancel toast */}
+      {paymentToast === 'cancel' && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-dark-800 border border-yellow-500/30 text-yellow-400 text-sm rounded-xl px-6 py-3 shadow-xl animate-in fade-in slide-in-from-bottom-4">
+          ⚠️ Paiement annulé. Vous pouvez réessayer à tout moment.
+        </div>
+      )}
+
+      {currentView === 'payment-success' ? (
+        <PaymentSuccessPage onGoToDashboard={() => { setCurrentView('dashboard'); setPaymentToast(null); }} />
+      ) : currentView === 'pricing' ? (
+        <Pricing
+          onSelectPlan={() => setCurrentView('dashboard')}
+          tenantId={selectedTenant?.id}
+          currentPlan={selectedTenant?.plan || 'free'}
+        />
       ) : (
         <main className="max-w-7xl mx-auto px-4 sm:px-8 space-y-8 sm:space-y-12">
           <section>

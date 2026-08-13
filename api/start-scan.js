@@ -35,10 +35,10 @@ const NOISE_PATTERNS = [
 const MIN_CONTENT_WORDS = 25; // Minimum meaningful words per chunk
 
 /**
- * Split text into semantic paragraphs, filter noise, then chunk by max size.
+ * Split text into semantic paragraphs, filter noise, then chunk by max size with overlap.
  * Works for both French and English content.
  */
-function cleanAndChunk(text, maxChunkLength = 800) {
+function cleanAndChunk(text, targetUrl = '', maxChunkLength = 800) {
   // Split into paragraphs/sections by double newlines or markdown headers
   const rawParagraphs = text.split(/\n{2,}|\n(?=#{1,3} )/);
 
@@ -57,28 +57,36 @@ function cleanAndChunk(text, maxChunkLength = 800) {
       return true;
     });
 
-  // Now chunk the clean paragraphs respecting max size
+  // Now chunk the clean paragraphs respecting max size and adding semantic overlap
   const chunks = [];
   let currentChunk = '';
+  let overlapPrefix = '';
 
   for (const para of cleanParagraphs) {
     if (!currentChunk) {
-      currentChunk = para;
+      currentChunk = overlapPrefix ? `... ${overlapPrefix}\n\n${para}` : para;
     } else if ((currentChunk + '\n\n' + para).length <= maxChunkLength) {
       currentChunk += '\n\n' + para;
     } else {
       // Current chunk is full, flush it
       if (currentChunk.split(/\s+/).length >= MIN_CONTENT_WORDS) {
         chunks.push(currentChunk.trim());
+        const words = currentChunk.split(/\s+/);
+        overlapPrefix = words.slice(-20).join(' ');
       }
-      currentChunk = para;
+      currentChunk = overlapPrefix ? `... ${overlapPrefix}\n\n${para}` : para;
     }
   }
   if (currentChunk && currentChunk.split(/\s+/).length >= MIN_CONTENT_WORDS) {
     chunks.push(currentChunk.trim());
   }
 
-  return chunks;
+  // Prepend metadata (source URL) to each chunk content for better context
+  const enrichedChunks = chunks.map(chunk => {
+    return targetUrl ? `[Source URL: ${targetUrl}]\n${chunk}` : chunk;
+  });
+
+  return enrichedChunks;
 }
 
 export default async function handler(req) {
@@ -131,35 +139,53 @@ export default async function handler(req) {
       });
     }
 
-    const chunks = cleanAndChunk(pageText, 800);
-    const chunkSlice = chunks.slice(0, 20);
+    // Process ALL chunks without 20-chunk truncation limit
+    const chunks = cleanAndChunk(pageText, targetUrl, 800);
 
-    // Generate embeddings in a single batch API call (1 request for all chunks)
-    // Fallback to mock if JINA_API_KEY is not set (no regression)
+    // Generate embeddings in batches of 20 to respect Jina API Free Tier limits
     const FALLBACK_EMBEDDING = Array(768).fill(0).map((_, i) => (i % 2 === 0 ? 0.05 : -0.05));
-    let embeddings;
-    try {
-      const jinaKey = process.env.JINA_API_KEY;
-      if (jinaKey && chunkSlice.length > 0) {
-        const batchResult = await generateEmbedding(chunkSlice, 'retrieval.passage', jinaKey);
-        embeddings = Array.isArray(batchResult) ? batchResult : null;
+    const allEmbeddings = [];
+    const jinaKey = process.env.JINA_API_KEY;
+    const BATCH_SIZE = 20;
+
+    if (jinaKey && chunks.length > 0) {
+      for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
+        const batch = chunks.slice(i, i + BATCH_SIZE);
+        try {
+          const batchResult = await generateEmbedding(batch, 'retrieval.passage', jinaKey);
+          if (Array.isArray(batchResult)) {
+            allEmbeddings.push(...batchResult);
+          } else if (batchResult) {
+            allEmbeddings.push(batchResult);
+          } else {
+            allEmbeddings.push(...Array(batch.length).fill(FALLBACK_EMBEDDING));
+          }
+        } catch (embErr) {
+          console.warn(`[start-scan] Embedding batch starting at ${i} failed:`, embErr.message);
+          allEmbeddings.push(...Array(batch.length).fill(FALLBACK_EMBEDDING));
+        }
+        // Small delay between batches to respect free tier rate limit
+        if (i + BATCH_SIZE < chunks.length) {
+          await new Promise(r => setTimeout(r, 200));
+        }
       }
-    } catch (embErr) {
-      console.warn('[start-scan] Embedding generation failed, using fallback:', embErr.message);
     }
 
     // Remove old chunks for this URL to avoid duplication
     await supabase.from('documents').delete().eq('site_id', site_id).eq('url', targetUrl);
 
-    const records = chunkSlice.map((chunk, i) => ({
+    const records = chunks.map((chunk, i) => ({
       tenant_id,
       site_id,
       url: targetUrl,
       content: chunk,
-      embedding: embeddings?.[i] ?? FALLBACK_EMBEDDING
+      embedding: allEmbeddings[i] ?? FALLBACK_EMBEDDING
     }));
 
-    const { error: insertErr } = await supabase.from('documents').insert(records);
+    if (records.length > 0) {
+      const { error: insertErr } = await supabase.from('documents').insert(records);
+      if (insertErr) throw insertErr;
+    }
 
     if (insertErr) {
       throw insertErr;
