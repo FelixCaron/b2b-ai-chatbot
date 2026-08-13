@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Sparkles, Globe, Eye, CheckCircle2, ArrowRight, Settings2, ShieldCheck, ToggleLeft, ToggleRight, Check, RefreshCw, Copy, Layers, Laptop, Smartphone, X, Send, Code } from 'lucide-react';
+import { Sparkles, Globe, Eye, CheckCircle2, ArrowRight, Settings2, ShieldCheck, ToggleLeft, ToggleRight, Check, RefreshCw, Copy, Layers, Laptop, Smartphone, X, Send, Code, Lock } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { createClient } from '@supabase/supabase-js';
@@ -86,6 +86,7 @@ export default function ClientOnboarding({
     setSelectedUrls(new Set(pagesToScan.map(p => p.url)));
 
     let loadedCount = 0;
+    let protectedCount = 0;
     let emptyCount = 0;
 
     // 2. Sequentially scan each discovered page
@@ -96,10 +97,20 @@ export default function ClientOnboarding({
       setCrawlProgressMsg(`Indexation page ${i + 1}/${pagesToScan.length} (${pct}%) : ${cleanPath}`);
 
       const scanRes = await onTriggerScan(siteObj.id, page.url, siteObj.tenant_id).catch(() => null);
+      const isProtected = scanRes?.data?.is_protected || scanRes?.is_protected;
       const chunksCount = scanRes?.data?.chunks_count ?? 0;
-      const isEmpty = !scanRes?.success || chunksCount === 0;
+      const isEmpty = !isProtected && (!scanRes?.success || chunksCount === 0);
 
-      if (isEmpty) {
+      if (isProtected) {
+        protectedCount++;
+        // Deactivate protected / auth wall page by default
+        setSelectedUrls(prev => {
+          const next = new Set(prev);
+          next.delete(page.url);
+          return next;
+        });
+        setDiscoveredPages(prev => prev.map(p => p.url === page.url ? { ...p, status: 'protected', isProtected: true, chunksCount: 0 } : p));
+      } else if (isEmpty) {
         emptyCount++;
         // Deactivate empty page by default
         setSelectedUrls(prev => {
@@ -110,11 +121,11 @@ export default function ClientOnboarding({
         setDiscoveredPages(prev => prev.map(p => p.url === page.url ? { ...p, status: 'empty', isEmpty: true, chunksCount: 0 } : p));
       } else {
         loadedCount++;
-        setDiscoveredPages(prev => prev.map(p => p.url === page.url ? { ...p, status: 'loaded', isEmpty: false, chunksCount } : p));
+        setDiscoveredPages(prev => prev.map(p => p.url === page.url ? { ...p, status: 'loaded', isEmpty: false, isProtected: false, chunksCount } : p));
       }
     }
 
-    setCrawlProgressMsg(`✓ Scan terminé ! ${loadedCount} page(s) indexée(s)${emptyCount > 0 ? `, ${emptyCount} page(s) vide(s) désactivée(s)` : ''}.`);
+    setCrawlProgressMsg(`✓ Scan terminé ! ${loadedCount} page(s) indexée(s)${protectedCount > 0 ? `, ${protectedCount} protégée(s) (Auth Wall)` : ''}${emptyCount > 0 ? `, ${emptyCount} vide(s)` : ''}.`);
     setIsCrawling(false);
   };
 
@@ -737,7 +748,7 @@ export default function ClientOnboarding({
                           {discoveredPages
                             .filter(p => p.url.toLowerCase().includes(searchQuery.toLowerCase()) || (p.title && p.title.toLowerCase().includes(searchQuery.toLowerCase())))
                             .sort((a, b) => {
-                              const statusOrder = { loaded: 1, loading: 2, disabled: 3, empty: 4 };
+                              const statusOrder = { loaded: 1, loading: 2, disabled: 3, empty: 4, protected: 5 };
                               const stA = a.status || (selectedUrls.has(a.url) ? 'loaded' : 'disabled');
                               const stB = b.status || (selectedUrls.has(b.url) ? 'loaded' : 'disabled');
                               const ordA = statusOrder[stA] || 3;
@@ -790,8 +801,12 @@ export default function ClientOnboarding({
                                     {isIncluded ? 'Désactiver' : 'Activer'}
                                   </button>
 
-                                  {/* Page Status Badge: loading | loaded | empty | disabled */}
-                                  {currentStatus === 'empty' ? (
+                                  {/* Page Status Badge: loading | loaded | empty | protected | disabled */}
+                                  {currentStatus === 'protected' ? (
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20" title="Page protégée par mot de passe ou connexion / Auth Wall">
+                                      <Lock className="w-3 h-3 text-rose-400" /> Protégé (Auth)
+                                    </span>
+                                  ) : currentStatus === 'empty' ? (
                                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-dark-900 text-gray-400 border border-gray-700/60" title="Aucun contenu textuel extrait de cette page">
                                       <span className="w-1.5 h-1.5 rounded-full bg-gray-500"></span> Vide (0 chunk)
                                     </span>

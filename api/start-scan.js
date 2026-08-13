@@ -115,6 +115,12 @@ export default async function handler(req) {
       targetUrl = `https://${targetUrl}`;
     }
 
+    const AUTH_WALL_REGEX = /\/(login|signin|sign-in|sinscrire|s-inscrire|register|account|my-account|mon-compte|connexion|se-connecter|log-in|user-login|members|espace-client|client-portal|dashboard|admin)($|\/|\?|#)/i;
+    const AUTH_CONTENT_REGEX = /(please log in|sign in to access|connexion requise|veuillez vous connecter|accès réservé|connectez-vous|password required|mot de passe requis|authentification requise|member login|espace client|espace membre)/i;
+
+    const u = new URL(targetUrl);
+    const isAuthUrl = AUTH_WALL_REGEX.test(u.pathname);
+
     // Single source of truth: Jina Reader API for clean LLM-ready markdown
     const jinaRes = await fetch(`https://r.jina.ai/${targetUrl}`, {
       headers: { 
@@ -122,6 +128,13 @@ export default async function handler(req) {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
       }
     });
+
+    if (jinaRes.status === 401 || jinaRes.status === 403 || isAuthUrl) {
+      return new Response(
+        JSON.stringify({ success: true, is_protected: true, chunks_count: 0, message: '🔒 Page protégée par connexion / Auth Wall' }),
+        { status: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
+      );
+    }
 
     if (!jinaRes.ok) {
       return new Response(JSON.stringify({ error: `Impossible de lire la page via Jina Reader (Status ${jinaRes.status})` }), {
@@ -132,9 +145,16 @@ export default async function handler(req) {
 
     const pageText = await jinaRes.text();
 
+    if (AUTH_CONTENT_REGEX.test(pageText) && pageText.length < 500) {
+      return new Response(
+        JSON.stringify({ success: true, is_protected: true, chunks_count: 0, message: '🔒 Page protégée (Formulaire de connexion détecté)' }),
+        { status: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
+      );
+    }
+
     if (!pageText || pageText.length < 50) {
-      return new Response(JSON.stringify({ error: 'Contenu insuffisant retourné par la page' }), {
-        status: 400,
+      return new Response(JSON.stringify({ success: true, is_empty: true, chunks_count: 0, message: 'Contenu insuffisant retourné par la page' }), {
+        status: 200,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
