@@ -85,6 +85,9 @@ export default function ClientOnboarding({
     setDiscoveredPages(pagesToScan);
     setSelectedUrls(new Set(pagesToScan.map(p => p.url)));
 
+    let loadedCount = 0;
+    let emptyCount = 0;
+
     // 2. Sequentially scan each discovered page
     for (let i = 0; i < pagesToScan.length; i++) {
       const page = pagesToScan[i];
@@ -92,13 +95,26 @@ export default function ClientOnboarding({
       const pct = Math.round(((i + 1) / pagesToScan.length) * 100);
       setCrawlProgressMsg(`Indexation page ${i + 1}/${pagesToScan.length} (${pct}%) : ${cleanPath}`);
 
-      await onTriggerScan(siteObj.id, page.url, siteObj.tenant_id).catch(() => null);
+      const scanRes = await onTriggerScan(siteObj.id, page.url, siteObj.tenant_id).catch(() => null);
+      const chunksCount = scanRes?.data?.chunks_count ?? 0;
+      const isEmpty = !scanRes?.success || chunksCount === 0;
 
-      // Update page status to loaded
-      setDiscoveredPages(prev => prev.map(p => p.url === page.url ? { ...p, status: 'loaded' } : p));
+      if (isEmpty) {
+        emptyCount++;
+        // Deactivate empty page by default
+        setSelectedUrls(prev => {
+          const next = new Set(prev);
+          next.delete(page.url);
+          return next;
+        });
+        setDiscoveredPages(prev => prev.map(p => p.url === page.url ? { ...p, status: 'empty', isEmpty: true, chunksCount: 0 } : p));
+      } else {
+        loadedCount++;
+        setDiscoveredPages(prev => prev.map(p => p.url === page.url ? { ...p, status: 'loaded', isEmpty: false, chunksCount } : p));
+      }
     }
 
-    setCrawlProgressMsg(`✓ Scan et indexation terminés ! ${pagesToScan.length} page(s) prête(s).`);
+    setCrawlProgressMsg(`✓ Scan terminé ! ${loadedCount} page(s) indexée(s)${emptyCount > 0 ? `, ${emptyCount} page(s) vide(s) désactivée(s)` : ''}.`);
     setIsCrawling(false);
   };
 
@@ -720,14 +736,23 @@ export default function ClientOnboarding({
                         <tbody className="divide-y divide-white/5 text-gray-300">
                           {discoveredPages
                             .filter(p => p.url.toLowerCase().includes(searchQuery.toLowerCase()) || (p.title && p.title.toLowerCase().includes(searchQuery.toLowerCase())))
+                            .sort((a, b) => {
+                              const statusOrder = { loaded: 1, loading: 2, disabled: 3, empty: 4 };
+                              const stA = a.status || (selectedUrls.has(a.url) ? 'loaded' : 'disabled');
+                              const stB = b.status || (selectedUrls.has(b.url) ? 'loaded' : 'disabled');
+                              const ordA = statusOrder[stA] || 3;
+                              const ordB = statusOrder[stB] || 3;
+                              if (ordA !== ordB) return ordA - ordB;
+                              return a.url.localeCompare(b.url);
+                            })
                             .map((page) => {
                             const currentStatus = page.status || (selectedUrls.has(page.url) ? 'loaded' : 'disabled');
-                            const isIncluded = currentStatus !== 'disabled';
+                            const isIncluded = currentStatus === 'loaded' || currentStatus === 'loading';
 
                             return (
                               <tr
                                 key={page.url}
-                                className={`hover:bg-white/[0.03] transition-colors ${isIncluded ? 'bg-brand-500/5' : ''}`}
+                                className={`hover:bg-white/[0.03] transition-colors ${isIncluded ? 'bg-brand-500/5' : 'opacity-75'}`}
                               >
                                 <td className="py-3 px-4 text-center">
                                   <input 
@@ -765,8 +790,12 @@ export default function ClientOnboarding({
                                     {isIncluded ? 'Désactiver' : 'Activer'}
                                   </button>
 
-                                  {/* Page Status Badge: loading | loaded | disabled */}
-                                  {currentStatus === 'loading' ? (
+                                  {/* Page Status Badge: loading | loaded | empty | disabled */}
+                                  {currentStatus === 'empty' ? (
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-dark-900 text-gray-400 border border-gray-700/60" title="Aucun contenu textuel extrait de cette page">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-gray-500"></span> Vide (0 chunk)
+                                    </span>
+                                  ) : currentStatus === 'loading' ? (
                                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
                                       <RefreshCw className="w-3 h-3 animate-spin" /> Chargement...
                                     </span>
