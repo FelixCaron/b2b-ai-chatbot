@@ -2,8 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Sparkles, Globe, Eye, CheckCircle2, ArrowRight, Settings2, ShieldCheck, ToggleLeft, ToggleRight, Check, RefreshCw, Copy, Layers, Laptop, Smartphone, X, Send, Code } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = "https://xuvueegdokgiyedwvmkm.supabase.co";
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://xuvueegdokgiyedwvmkm.supabase.co";
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh1dnVlZWdkb2tnaXllZHd2bWttIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NjE0ODAxNCwiZXhwIjoyMTAxNzI0MDE0fQ.Z9CsCniLkOuPJZajLzUMfN2FUTbZsvwZC8KD5CXh-7E";
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 export default function ClientOnboarding({
   selectedTenant,
@@ -44,25 +48,37 @@ export default function ClientOnboarding({
   const [isScanning, setIsScanning] = useState(false);
 
   // Auto-fetch indexed pages when site changes
-  useEffect(() => {
-    if (!activeSite) return;
-    async function fetchIndexedPages() {
-      const { data } = await supabase.from('documents').select('url, metadata').eq('site_id', activeSite.id);
+  const fetchIndexedPages = async () => {
+    if (!activeSite?.id) return;
+    try {
+      const { data, error } = await supabase.from('documents').select('url, metadata').eq('site_id', activeSite.id);
+      if (error) {
+        console.error('[ClientOnboarding] Error fetching indexed pages:', error);
+        return;
+      }
       if (data && data.length > 0) {
         const uniqueUrls = new Set();
         const pages = [];
         data.forEach(d => {
-          if (!uniqueUrls.has(d.url)) {
+          if (d.url && !uniqueUrls.has(d.url)) {
             uniqueUrls.add(d.url);
             pages.push({ url: d.url, title: d.metadata?.title || d.url });
           }
         });
         setDiscoveredPages(pages);
         setSelectedUrls(new Set(pages.map(p => p.url)));
+      } else {
+        setDiscoveredPages([]);
+        setSelectedUrls(new Set());
       }
+    } catch (err) {
+      console.error('[ClientOnboarding] Exception fetching indexed pages:', err);
     }
+  };
+
+  useEffect(() => {
     fetchIndexedPages();
-  }, [activeSite]);
+  }, [activeSite?.id]);
 
   // Full-Screen Preview & Live Bot Testing State
   const [showPreviewModal, setShowPreviewModal] = useState(false);
