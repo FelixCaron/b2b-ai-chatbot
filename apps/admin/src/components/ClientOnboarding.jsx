@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Sparkles, Globe, Eye, CheckCircle2, ArrowRight, Settings2, ShieldCheck, ToggleLeft, ToggleRight, Check, RefreshCw, Copy, Layers, Laptop, Smartphone, X, Send, Code, Lock, FileText, Save, Edit3 } from 'lucide-react';
+import { Sparkles, Globe, Eye, CheckCircle2, ArrowRight, Settings2, ShieldCheck, ToggleLeft, ToggleRight, Check, RefreshCw, Copy, Layers, Laptop, Smartphone, X, Send, Code, Lock, FileText, Save, Edit3, ExternalLink } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
 import remarkGfm from 'remark-gfm';
@@ -1139,24 +1139,37 @@ function normalizePageUrl(rawUrl) {
               </div>
             </div>
 
-            {/* Viewport Switcher */}
-            <div className="flex items-center gap-1 bg-dark-800 p-1 rounded-xl border border-white/5">
-              <button
-                onClick={() => setPreviewViewport('desktop')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                  previewViewport === 'desktop' ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-white'
-                }`}
+            {/* Viewport Switcher & New Tab Button */}
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1 bg-dark-800 p-1 rounded-xl border border-white/5">
+                <button
+                  onClick={() => setPreviewViewport('desktop')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    previewViewport === 'desktop' ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  <Laptop className="w-3.5 h-3.5" /> Desktop
+                </button>
+                <button
+                  onClick={() => setPreviewViewport('mobile')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    previewViewport === 'mobile' ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  <Smartphone className="w-3.5 h-3.5" /> Mobile
+                </button>
+              </div>
+
+              <a
+                href={activeSite.domain.startsWith('http') ? activeSite.domain : `https://${activeSite.domain}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-white/10 hover:bg-white/20 text-white text-xs font-semibold px-3.5 py-1.5 rounded-xl flex items-center gap-2 transition-all border border-white/5 shadow-sm"
+                title="Ouvrir le site dans un nouvel onglet"
               >
-                <Laptop className="w-3.5 h-3.5" /> Desktop
-              </button>
-              <button
-                onClick={() => setPreviewViewport('mobile')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                  previewViewport === 'mobile' ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-white'
-                }`}
-              >
-                <Smartphone className="w-3.5 h-3.5" /> Mobile
-              </button>
+                <ExternalLink className="w-3.5 h-3.5 text-brand-400" />
+                <span className="hidden sm:inline">Ouvrir dans un nouvel onglet</span>
+              </a>
             </div>
 
             <button

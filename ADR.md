@@ -359,8 +359,17 @@ La détection des pages vides (`empty`) ou protégées (`protected`) et la désa
 - **Avantage** : Élimination complète des bugs d'affichage et des clignotements de statut durant le crawl.
 - **Avantage** : Garantie que les pages ne sont désactivées que si et seulement si l'indexation globale du site est totalement achevée et vérifiée en base de données.
 
+---
 
+## ADR 015 : Bouton d'Ouverture de l'Aperçu dans un Nouvel Onglet
+**Date:** 14 Août 2026
+**Statut:** Accepté
 
+### Contexte
+Lors de l'utilisation de la modale d'aperçu plein écran (`showPreviewModal`), l'utilisateur souhaitait avoir la possibilité d'ouvrir rapidement le site prévisualisé dans un nouvel onglet du navigateur.
 
+### Décision
+Ajout d'un bouton "Ouvrir dans un nouvel onglet" dans la barre de contrôle supérieure de la modale d'aperçu (`ClientOnboarding.jsx`). Le bouton s'appuie sur une balise `<a>` avec `target="_blank"`, `rel="noopener noreferrer"`, et comporte l'icône `ExternalLink` issue de `lucide-react`.
 
-
+### Conséquences
+- **Avantage** : Accès direct en 1-clic au site web de destination dans un nouvel onglet sans fermer la session de test ou le tableau de bord d'administration.
