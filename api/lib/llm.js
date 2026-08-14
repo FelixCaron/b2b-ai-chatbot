@@ -10,9 +10,9 @@ const JINA_EMBEDDINGS_MODEL = 'jina-embeddings-v3';
 
 /**
  * MODE DE TEST DELAFONTAINE : 
- * Désactivé par défaut (Mode Production actif). Pour réactiver en dev, définir TEST_MODE=true dans l'environnement.
+ * Désactivé par défaut (Mode Production actif).
  */
-export const TEST_MODE = process.env.TEST_MODE === 'true';
+export const TEST_MODE = false;
 
 function generateMockVector(text) {
   const str = String(text || '');

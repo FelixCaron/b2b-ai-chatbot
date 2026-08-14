@@ -4,6 +4,27 @@ Ce document retrace toutes les décisions importantes concernant l'architecture,
 
 ---
 
+## ADR 007 : Directives Anti-Hallucination Strictes, Contexte Temporel et Suppression des Modes de Test Mock
+**Date:** 14 Août 2026
+**Statut:** Accepté
+
+### Contexte
+Le chatbot pouvait parfois générer des hallucinations sur les numéros de téléphone (ex: `[numéro de téléphone]`), inventer des heures d'ouverture génériques (9h à 18h) ou prendre une identité hardcodée (ex: "Portes Delafontaine") en raison d'un résidu de `TEST_MODE` et d'une absence de règles explicites d'interdiction de placeholders et d'inventions de données de contact.
+
+### Décision
+1. **Désactivation intégrale du TEST_MODE** : `TEST_MODE` est forcé à `false` dans `api/lib/llm.js` afin d'empêcher toute injection de réponses/données factices "Delafontaine".
+2. **Injection du Contexte Temporel** : La date, le jour de la semaine et l'heure courante sont automatiquement injectés dans le `systemPrompt` pour que l'IA connaisse le moment présent.
+3. **Directives Anti-Hallucination Strictes** :
+   - Interdiction absolue d'inventer des numéros de téléphone, des adresses, des horaires ou des tarifs.
+   - Interdiction stricte d'utiliser des placeholders textuels (`[numéro de téléphone]`).
+   - Obligation d'avouer l'absence d'information si la donnée n'est pas dans le RAG ou le résumé du site, et de proposer la capture de coordonnées (Leads).
+
+### Conséquences
+- Éradication des réponses avec placeholders ou fausses informations de contact.
+- Fiabilité et crédibilité maximales des assistants générés pour les clients B2B.
+
+---
+
 ## ADR 001 : Suppression de l'upload de documents manuels
 **Date:** 9 Août 2026
 **Statut:** Accepté
