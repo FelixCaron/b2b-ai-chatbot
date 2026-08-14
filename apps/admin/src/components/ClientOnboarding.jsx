@@ -133,9 +133,33 @@ export default function ClientOnboarding({
       }
     }
 
+    // Automatically generate website summary during onboarding / scan
+    setCrawlProgressMsg('Génération du résumé IA de votre entreprise...');
+    try {
+      const summaryRes = await fetch(`${window.location.origin}/api/generate-summary`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenant_id: siteObj.tenant_id,
+          site_id: siteObj.id,
+          url: targetUrl
+        })
+      });
+      if (summaryRes.ok) {
+        const sumData = await summaryRes.json();
+        if (sumData?.summary) {
+          setSiteSummary(sumData.summary);
+        }
+      }
+    } catch (sumErr) {
+      console.warn('[runSynchronousCrawlAndIndex] Summary generation warning:', sumErr);
+    }
+    await fetchSiteSummary();
+
     setCrawlProgressMsg(`✓ Scan terminé ! ${loadedCount} page(s) indexée(s)${protectedCount > 0 ? `, ${protectedCount} protégée(s)` : ''}${emptyCount > 0 ? `, ${emptyCount} vide(s)` : ''}.`);
     setIsCrawling(false);
   };
+
 
 
 
@@ -269,9 +293,22 @@ function normalizePageUrl(rawUrl) {
 
       if (docData?.content) {
         setSiteSummary(docData.content.replace(/^\[SITE_SUMMARY\]\n/, ''));
-      } else {
+      } else if (activeSite?.domain) {
         setSiteSummary('');
+        // Trigger auto summary generation if no summary exists yet
+        fetch(`${window.location.origin}/api/generate-summary`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tenant_id: activeSite.tenant_id,
+            site_id: activeSite.id,
+            url: activeSite.domain
+          })
+        }).then(res => res.json()).then(resData => {
+          if (resData?.summary) setSiteSummary(resData.summary);
+        }).catch(() => null);
       }
+
     } catch (err) {
       console.error('[fetchSiteSummary] Error:', err);
     }
