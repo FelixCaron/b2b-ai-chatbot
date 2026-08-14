@@ -86,11 +86,9 @@ export default function ClientOnboarding({
     setDiscoveredPages(pagesToScan);
     setSelectedUrls(new Set(pagesToScan.map(p => p.url)));
 
-    let loadedCount = 0;
-    let protectedCount = 0;
-    let emptyCount = 0;
+    const scanResultsMap = {};
 
-    // 2. Sequentially scan each discovered page
+    // 2. Scan all discovered pages WITHOUT mutating status/empty flags or selectedUrls during the loop
     for (let i = 0; i < pagesToScan.length; i++) {
       const page = pagesToScan[i];
       const cleanPath = page.url.replace(/^https?:\/\/[^\/]+/, '') || '/';
@@ -98,38 +96,79 @@ export default function ClientOnboarding({
       setCrawlProgressMsg(`Indexation page ${i + 1}/${pagesToScan.length} (${pct}%) : ${cleanPath}`);
 
       const scanRes = await onTriggerScan(siteObj.id, page.url, siteObj.tenant_id).catch(() => null);
-      const isProtected = scanRes?.data?.is_protected || scanRes?.is_protected;
-      const chunksCount = scanRes?.data?.chunks_count ?? scanRes?.chunks_count ?? 0;
-      const isEmpty = !isProtected && (scanRes?.data?.is_empty || chunksCount === 0);
+      scanResultsMap[page.url] = scanRes;
+    }
 
+    // 3. POST-PROCESSING PHASE: Executed ONLY AFTER all scans have completely finished!
+    setCrawlProgressMsg('Vérification et consolidation des données indexées...');
+
+    // Query ground-truth documents saved in Supabase for this site
+    const { data: dbDocs } = await supabase
+      .from('documents')
+      .select('url')
+      .eq('site_id', siteObj.id);
+
+    const docCountsByUrl = {};
+    if (dbDocs) {
+      dbDocs.forEach(d => {
+        if (d.url && !d.url.includes('#site-summary')) {
+          const norm = normalizePageUrl(d.url);
+          docCountsByUrl[norm] = (docCountsByUrl[norm] || 0) + 1;
+        }
+      });
+    }
+
+    let loadedCount = 0;
+    let protectedCount = 0;
+    let emptyCount = 0;
+
+    const finalPages = [];
+    const finalSelectedUrls = new Set();
+
+    for (const page of pagesToScan) {
+      const scanRes = scanResultsMap[page.url];
+      const isProtected = scanRes?.data?.is_protected || scanRes?.is_protected;
+      const chunksCount = docCountsByUrl[page.url] ?? scanRes?.data?.chunks_count ?? 0;
 
       if (isProtected) {
         protectedCount++;
-        // Deactivate protected / auth wall page by default
-        setSelectedUrls(prev => {
-          const next = new Set(prev);
-          next.delete(page.url);
-          return next;
+        finalPages.push({
+          ...page,
+          status: 'protected',
+          isProtected: true,
+          isEmpty: false,
+          chunksCount: 0
         });
-        setDiscoveredPages(prev => prev.map(p => p.url === page.url ? { ...p, status: 'protected', isProtected: true, chunksCount: 0 } : p));
-      } else if (isEmpty) {
+      } else if (chunksCount === 0) {
         emptyCount++;
-        // Deactivate empty page by default
-        setSelectedUrls(prev => {
-          const next = new Set(prev);
-          next.delete(page.url);
-          return next;
+        finalPages.push({
+          ...page,
+          status: 'empty',
+          isEmpty: true,
+          isProtected: false,
+          chunksCount: 0
         });
-        setDiscoveredPages(prev => prev.map(p => p.url === page.url ? { ...p, status: 'empty', isEmpty: true, chunksCount: 0 } : p));
       } else {
         loadedCount++;
-        setDiscoveredPages(prev => prev.map(p => p.url === page.url ? { ...p, status: 'loaded', isEmpty: false, isProtected: false, chunksCount } : p));
+        finalPages.push({
+          ...page,
+          status: 'loaded',
+          isEmpty: false,
+          isProtected: false,
+          chunksCount
+        });
+        finalSelectedUrls.add(page.url);
       }
     }
 
-    setCrawlProgressMsg(`✓ Scan terminé ! ${loadedCount} page(s) indexée(s)${protectedCount > 0 ? `, ${protectedCount} protégée(s) (Auth Wall)` : ''}${emptyCount > 0 ? `, ${emptyCount} vide(s)` : ''}.`);
+    // Apply clean atomic update ONCE everything has completely finished!
+    setDiscoveredPages(finalPages);
+    setSelectedUrls(finalSelectedUrls);
+
+    setCrawlProgressMsg(`✓ Scan terminé ! ${loadedCount} page(s) indexée(s)${protectedCount > 0 ? `, ${protectedCount} protégée(s)` : ''}${emptyCount > 0 ? `, ${emptyCount} vide(s)` : ''}.`);
     setIsCrawling(false);
   };
+
 
   const handleRecrawlSite = async () => {
     if (!activeSite || isCrawling) return;

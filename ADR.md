@@ -302,6 +302,25 @@ Lorsqu'un visiteur pose une question générale sur une entreprise (ex: "Que fai
 - **Avantage** : Amélioration drastique de la qualité perçue des réponses initiales du chatbot.
 - **Règle** : Toute mise à jour de la table `site_summaries` doit s'effectuer via des requêtes SQL/Supabase brutes (conformément à l'ADR-004).
 
+---
+
+## ADR 014 : Post-traitement Atomique des Statuts de Crawl & Désactivation des Pages Vides
+**Date:** 14 Août 2026
+**Statut:** Accepté
+
+### Contexte
+La détection des pages vides (`empty`) ou protégées (`protected`) et la désactivation des cases à cocher s'exécutaient de manière itérative au sein de la boucle de scan. Cela entraînait des clignotements d'interface, des désactivations prématurées et des conflits d'état pendant que le crawl était encore en cours.
+
+### Décision
+1. **Séparation Stricte entre Scan et Post-Traitement** : Durant la phase de scan, toutes les pages découvertes restent affichées avec le statut `loading` et toutes les URL demeurent sélectionnées dans `selectedUrls`.
+2. **Exécution du Marquage uniquement APRÈS la Fin du Crawl** : Une fois la boucle de scan de toutes les pages 100% terminée, une passe de post-traitement vérifie le nombre réel de morceaux de document enregistrés dans Supabase (`documents`).
+3. **Mise à Jour Atomique** : Les statuts finaux (`loaded`, `empty`, `protected`) et les désactivations de sélection sont appliqués en une seule mise à jour d'état atomique (`setDiscoveredPages` et `setSelectedUrls`).
+
+### Conséquences
+- **Avantage** : Élimination complète des bugs d'affichage et des clignotements de statut durant le crawl.
+- **Avantage** : Garantie que les pages ne sont désactivées que si et seulement si l'indexation globale du site est totalement achevée et vérifiée en base de données.
+
+
 
 
 
