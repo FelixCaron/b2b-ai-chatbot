@@ -24,7 +24,7 @@ export default async function handler(req) {
       });
     }
 
-    if (process.env.TEST_MODE !== 'false') {
+    if (process.env.TEST_MODE === 'true') {
       return new Response(JSON.stringify({ primary_color: '#1e3a8a', org_name: 'Portes Delafontaine' }), {
         status: 200,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }

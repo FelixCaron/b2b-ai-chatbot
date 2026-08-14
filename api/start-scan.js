@@ -173,7 +173,7 @@ export default async function handler(req) {
       });
     }
 
-    if (process.env.TEST_MODE !== 'false') {
+    if (process.env.TEST_MODE === 'true') {
       return new Response(JSON.stringify({
         success: true,
         url,

@@ -10,10 +10,9 @@ const JINA_EMBEDDINGS_MODEL = 'jina-embeddings-v3';
 
 /**
  * MODE DE TEST DELAFONTAINE : 
- * Permet d'économiser 100% des crédits IA (OpenRouter & Jina) en dev/test.
- * Actif par défaut. Pour passer en production avec les vraies API, définir TEST_MODE=false.
+ * Désactivé par défaut (Mode Production actif). Pour réactiver en dev, définir TEST_MODE=true dans l'environnement.
  */
-export const TEST_MODE = process.env.TEST_MODE !== 'false';
+export const TEST_MODE = process.env.TEST_MODE === 'true';
 
 function generateMockVector(text) {
   const str = String(text || '');

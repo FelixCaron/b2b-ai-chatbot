@@ -58,7 +58,7 @@ export default async function handler(req) {
       });
     }
 
-    if (process.env.TEST_MODE !== 'false') {
+    if (process.env.TEST_MODE === 'true') {
       const cleanHost = url.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0];
       return new Response(JSON.stringify({
         url,
