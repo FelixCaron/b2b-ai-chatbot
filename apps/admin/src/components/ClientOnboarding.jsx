@@ -172,6 +172,26 @@ export default function ClientOnboarding({
     }
   };
 
+function normalizePageUrl(rawUrl) {
+  if (!rawUrl) return '';
+  try {
+    let uStr = rawUrl.split('#')[0].split('?')[0].trim();
+    if (!uStr.startsWith('http://') && !uStr.startsWith('https://')) {
+      uStr = `https://${uStr}`;
+    }
+    const parsed = new URL(uStr);
+    parsed.pathname = parsed.pathname.replace(/\/index\.html$/i, '/').replace(/\.html$/i, '');
+    if (parsed.pathname === '' || parsed.pathname === '/') {
+      parsed.pathname = '/';
+    } else if (parsed.pathname.endsWith('/')) {
+      parsed.pathname = parsed.pathname.slice(0, -1);
+    }
+    return parsed.href;
+  } catch (e) {
+    return rawUrl;
+  }
+}
+
   // Auto-fetch indexed pages when site changes
   const fetchIndexedPages = async () => {
     if (!activeSite?.id || isCrawling) return;
@@ -185,9 +205,17 @@ export default function ClientOnboarding({
         const uniqueUrls = new Set();
         const pages = [];
         data.forEach(d => {
-          if (d.url && !uniqueUrls.has(d.url)) {
-            uniqueUrls.add(d.url);
-            pages.push({ url: d.url, title: d.metadata?.title || d.url, status: 'loaded' });
+          if (d.url && !d.url.includes('#site-summary')) {
+            const normUrl = normalizePageUrl(d.url);
+            if (normUrl && !uniqueUrls.has(normUrl)) {
+              uniqueUrls.add(normUrl);
+              let title = d.metadata?.title;
+              if (!title) {
+                const u = new URL(normUrl);
+                title = (u.pathname === '/' || u.pathname === '') ? "Page d'accueil" : u.pathname.replace(/^\//, '');
+              }
+              pages.push({ url: normUrl, title, status: 'loaded' });
+            }
           }
         });
         setDiscoveredPages(pages);
@@ -200,6 +228,7 @@ export default function ClientOnboarding({
       console.error('[ClientOnboarding] Exception fetching indexed pages:', err);
     }
   };
+
 
   // Website Summary State & Handlers
   const [siteSummary, setSiteSummary] = useState('');
