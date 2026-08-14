@@ -4,6 +4,24 @@ Ce document retrace toutes les décisions importantes concernant l'architecture,
 
 ---
 
+## ADR 008 : Interdiction des Salutations Répétitives & Fallback de Résumé d'Entreprise
+**Date:** 14 Août 2026
+**Statut:** Accepté
+
+### Contexte
+Lorsqu'un utilisateur posait une question générale dès le début ("que faites vous ?"), le chatbot répondait en répétant une formule générique de présentation de lui-même ("Bonjour, je suis l'assistant virtuel..."), créant une impression de "double/triple message d'intro". De plus, si la table `site_summaries` n'était pas encore peuplée pour un site, le prompt système n'avait aucun résumé de l'entreprise sous la main.
+
+### Décision
+1. **Interdiction Formelle des Salutations Répétitives** : Le widget affiche déjà un message d'accueil initial au visiteur. L'IA a désormais l'ordre strict de répondre **directement et immédiatement** à la question posée sans réutiliser de formules d'introduction ("Bonjour, je suis l'assistant...").
+2. **Fallback Automatique sur les Documents d'Origine** : Si aucun résumé IA explicite n'existe encore dans `site_summaries`, l'API extrait automatiquement les premiers documents indexés du client pour alimenter le résumé d'entreprise du système prompt.
+3. **Réponse Obligatoire aux Questions d'Activité** : À la question "que faites-vous ?", l'IA doit utiliser le résumé d'entreprise pour lister directement les vraies prestations au lieu de répéter une politesse vide.
+
+### Conséquences
+- Suppression intégrale des boucles de messages d'intro.
+- L'IA présente instantanément les vrais produits/services du client dès la première question générale.
+
+---
+
 ## ADR 007 : Directives Anti-Hallucination Strictes, Contexte Temporel et Suppression des Modes de Test Mock
 **Date:** 14 Août 2026
 **Statut:** Accepté
