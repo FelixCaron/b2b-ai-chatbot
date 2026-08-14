@@ -14,13 +14,20 @@ const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 export default function App() {
-  const [sessionEmail, setSessionEmail] = useState(null);
-  const [tenants, setTenants] = useState([]);
-  const [selectedTenant, setSelectedTenant] = useState(null);
+  const [sessionEmail, setSessionEmail] = useState(() => localStorage.getItem('b2b_session_email') || null);
+  const [selectedTenant, setSelectedTenant] = useState(() => {
+    try {
+      const saved = localStorage.getItem('b2b_selected_tenant');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [tenants, setTenants] = useState(() => (selectedTenant ? [selectedTenant] : []));
   const [sites, setSites] = useState([]);
   const [leads, setLeads] = useState([]);
   const [usage, setUsage] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [paymentToast, setPaymentToast] = useState(null); // 'success' | 'cancel' | null
 
@@ -34,51 +41,53 @@ export default function App() {
 
   const isGuest = !sessionEmail && selectedTenant?.name?.startsWith('Guest_');
 
-  // Check LocalStorage on boot
+  // Check LocalStorage & sync session silently in background on boot
   useEffect(() => {
     async function initSession() {
       const savedEmail = localStorage.getItem('b2b_session_email');
       if (savedEmail) {
-        await handleLogin(savedEmail);
-      } else {
-        setLoading(false);
+        await handleLogin(savedEmail, true);
       }
     }
     initSession();
   }, []);
 
-  const handleLogin = async (email) => {
-    setLoading(true);
+  const handleLogin = async (email, isBackgroundSync = false) => {
+    if (!isBackgroundSync) setLoading(true);
     let currentGuestTenant = (selectedTenant && selectedTenant.name.startsWith('Guest_')) ? selectedTenant : null;
 
-    const { data: existingTenants } = await supabase.from('tenants').select('*').eq('name', email);
-    let finalTenant = null;
+    try {
+      const { data: existingTenants } = await supabase.from('tenants').select('*').eq('name', email);
+      let finalTenant = null;
 
-    if (existingTenants && existingTenants.length > 0) {
-      finalTenant = existingTenants[0];
-      // If they had a guest tenant, maybe reassign its sites to the finalTenant, but for MVP let's just use existing.
-      if (currentGuestTenant) {
-        await supabase.from('sites').update({ tenant_id: finalTenant.id }).eq('tenant_id', currentGuestTenant.id);
-      }
-    } else {
-      if (currentGuestTenant) {
-        // Convert guest to real user
-        const { data: updated } = await supabase.from('tenants').update({ name: email }).eq('id', currentGuestTenant.id).select().single();
-        finalTenant = updated;
+      if (existingTenants && existingTenants.length > 0) {
+        finalTenant = existingTenants[0];
+        if (currentGuestTenant) {
+          await supabase.from('sites').update({ tenant_id: finalTenant.id }).eq('tenant_id', currentGuestTenant.id);
+        }
       } else {
-        const { data: newTenant } = await supabase.from('tenants').insert({ name: email }).select().single();
-        finalTenant = newTenant;
+        if (currentGuestTenant) {
+          const { data: updated } = await supabase.from('tenants').update({ name: email }).eq('id', currentGuestTenant.id).select().single();
+          finalTenant = updated;
+        } else {
+          const { data: newTenant } = await supabase.from('tenants').insert({ name: email }).select().single();
+          finalTenant = newTenant;
+        }
       }
-    }
 
-    if (finalTenant) {
-      setTenants([finalTenant]);
-      setSelectedTenant(finalTenant);
-      setSessionEmail(email);
-      localStorage.setItem('b2b_session_email', email);
-      setShowLoginModal(false);
+      if (finalTenant) {
+        setTenants([finalTenant]);
+        setSelectedTenant(finalTenant);
+        setSessionEmail(email);
+        localStorage.setItem('b2b_session_email', email);
+        localStorage.setItem('b2b_selected_tenant', JSON.stringify(finalTenant));
+        setShowLoginModal(false);
+      }
+    } catch (e) {
+      console.warn('[handleLogin] error:', e);
+    } finally {
+      if (!isBackgroundSync) setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleLogout = () => {
@@ -87,6 +96,7 @@ export default function App() {
     setSites([]);
     setLeads([]);
     localStorage.removeItem('b2b_session_email');
+    localStorage.removeItem('b2b_selected_tenant');
   };
 
   // Show toast on payment redirect
