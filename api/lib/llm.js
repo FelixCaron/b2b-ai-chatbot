@@ -216,8 +216,7 @@ Le résumé doit impérativement inclure :
 4. Les points forts, valeurs ou avantages concurrentiels clés.
 5. Les informations de contact ou localisation si disponibles.
 
-CONSIGNE STRICITE : Sois factuel et direct. N'invente AUCUNE information absente du texte.
-Rédige en français sous forme de texte structuré et naturel.`;
+CONSIGNE STRICTE : Sois factuel et direct. N'ajoute AUCUN préambule, ni métadonnée système (ne commence PAS par "Voici le résumé" et n'ajoute pas de ligne "User Safety: safe"). Rédige uniquement le texte du résumé en français sous forme de texte structuré et naturel.`;
 
   try {
     const res = await fetch(OPENROUTER_BASE_URL, {
@@ -229,7 +228,7 @@ Rédige en français sous forme de texte structuré et naturel.`;
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: DEFAULT_OPENROUTER_MODEL,
+        model: 'google/gemini-2.0-flash-lite-001',
         messages: [{ role: 'user', content: `${prompt}\n\nContenu du site web :\n${content.slice(0, 12000)}` }],
         temperature: 0.3
       })
@@ -237,8 +236,19 @@ Rédige en français sous forme de texte structuré et naturel.`;
 
     if (res.ok) {
       const data = await res.json();
-      const summaryText = data.choices?.[0]?.message?.content?.trim();
-      return summaryText || null;
+      let summaryText = data.choices?.[0]?.message?.content?.trim();
+      if (summaryText) {
+        summaryText = summaryText
+          .replace(/^User Safety:\s*safe\s*/gi, '')
+          .replace(/User Safety:\s*safe\s*$/gi, '')
+          .replace(/^Safety:\s*safe\s*/gi, '')
+          .replace(/Safety:\s*safe\s*$/gi, '')
+          .replace(/^\*\*User Safety:\*\*\s*safe\s*/gi, '')
+          .replace(/\*\*User Safety:\*\*\s*safe\s*$/gi, '')
+          .replace(/^(Voici le résumé|Voici une synthèse|Résumé du site|Présentation de l'entreprise)\s*:\s*/gi, '')
+          .trim();
+        return summaryText || null;
+      }
     }
   } catch (e) {
     console.warn('OpenRouter summary generation error:', e);
@@ -246,5 +256,6 @@ Rédige en français sous forme de texte structuré et naturel.`;
 
   return null;
 }
+
 
 
