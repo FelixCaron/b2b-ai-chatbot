@@ -59,7 +59,7 @@ export default async function handler(req) {
     // Lookup site - fetch core columns (always exist) + optional personality cols
     const { data: site, error: siteError } = await supabase
       .from('sites')
-      .select('id, tenant_id, domain, enable_lead_capture, theme_primary_color, bot_goal, bot_tone')
+      .select('id, tenant_id, domain, enable_lead_capture, theme_primary_color, bot_goal, bot_tone, tenants(plan, plan_status)')
       .eq('public_key', tenant_public_key)
       .maybeSingle();
 
@@ -225,11 +225,17 @@ ${isLeadCaptureEnabled ? "4. CAPTURE DE PROSPECTS : Dès que le client s'intére
           while (loopCount < MAX_TURNS) {
             loopCount++;
 
+            const tenantPlan = site.tenants?.plan || 'free';
+            const tenantPlanStatus = site.tenants?.plan_status || 'free';
+            const isPaid = tenantPlan !== 'free' && tenantPlanStatus === 'active';
+            const selectedModel = isPaid ? 'openai/gpt-5.6-luna' : 'openrouter/free';
+
             const responseData = await generateChatResponse({ 
               systemPrompt, 
               messagesHistory: currentHistory, 
               apiKey, 
-              tools 
+              tools,
+              model: selectedModel
             });
 
             if (responseData.error) {

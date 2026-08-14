@@ -82,7 +82,7 @@ export async function generateEmbedding(input, task = 'retrieval.passage', apiKe
   }
 }
 
-export async function generateChatResponse({ systemPrompt, messagesHistory, apiKey, tools = null }) {
+export async function generateChatResponse({ systemPrompt, messagesHistory, apiKey, tools = null, model = 'openrouter/free' }) {
   if (TEST_MODE) {
     console.log('[TEST_MODE Delafontaine] Réponse Chatbot simulée (0 crédit utilisé).');
     
@@ -158,7 +158,7 @@ export async function generateChatResponse({ systemPrompt, messagesHistory, apiK
     }
 
     const reqBody = {
-      model: DEFAULT_OPENROUTER_MODEL,
+      model,
       messages: openAiMessages,
       temperature: 0.7
     };
@@ -233,7 +233,7 @@ Réponds STRICTEMENT en format JSON brut, sans backticks, sans markdown:
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: DEFAULT_OPENROUTER_MODEL,
+        model: 'openai/gpt-5.6-luna',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.1
       })
@@ -279,7 +279,7 @@ Respond strictly in raw JSON format, without backticks: {"primary_color": "#hex"
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: DEFAULT_OPENROUTER_MODEL,
+        model: 'openai/gpt-5.6-luna',
         messages: [{ role: 'user', content: `${prompt}\n\nHTML Snippet:\n${htmlSnippet}` }],
         temperature: 0.1
       })
@@ -328,33 +328,45 @@ CONSIGNE STRICTE : Sois factuel et direct. N'ajoute AUCUN préambule, ni métado
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'openai/gpt-4o-mini',
+        model: 'openai/gpt-5.6-luna',
         messages: [{ role: 'user', content: `${prompt}\n\nContenu du site web :\n${content.slice(0, 12000)}` }],
         temperature: 0.3
       })
     });
 
-    if (res.ok) {
-      const data = await res.json();
-      let summaryText = data.choices?.[0]?.message?.content?.trim();
-      if (summaryText) {
-        summaryText = summaryText
-          .replace(/^User Safety:\s*safe\s*/gi, '')
-          .replace(/User Safety:\s*safe\s*$/gi, '')
-          .replace(/^Safety:\s*safe\s*/gi, '')
-          .replace(/Safety:\s*safe\s*$/gi, '')
-          .replace(/^\*\*User Safety:\*\*\s*safe\s*/gi, '')
-          .replace(/\*\*User Safety:\*\*\s*safe\s*$/gi, '')
-          .replace(/^(Voici le résumé|Voici une synthèse|Résumé du site|Présentation de l'entreprise)\s*:\s*/gi, '')
-          .trim();
-        return summaryText || null;
-      }
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error(`[generateWebsiteSummary] Erreur OpenRouter ${res.status}:`, errText);
+      throw new Error(`OpenRouter API Error (${res.status}): ${errText}`);
     }
-  } catch (e) {
-    console.warn('OpenRouter summary generation error:', e);
-  }
 
-  return null;
+    const data = await res.json();
+    if (data.error) {
+      console.error('[generateWebsiteSummary] Erreur JSON API:', data.error);
+      throw new Error(`OpenRouter JSON Error: ${data.error.message || JSON.stringify(data.error)}`);
+    }
+
+    let summaryText = data.choices?.[0]?.message?.content?.trim();
+    if (!summaryText) {
+      throw new Error('Réponse OpenRouter vide ou format inattendu.');
+    }
+
+    summaryText = summaryText
+      .replace(/^User Safety:\s*safe\s*/gi, '')
+      .replace(/User Safety:\s*safe\s*$/gi, '')
+      .replace(/^Safety:\s*safe\s*/gi, '')
+      .replace(/Safety:\s*safe\s*$/gi, '')
+      .replace(/^\*\*User Safety:\*\*\s*safe\s*/gi, '')
+      .replace(/\*\*User Safety:\*\*\s*safe\s*$/gi, '')
+      .replace(/^(Voici le résumé|Voici une synthèse|Résumé du site|Présentation de l'entreprise)\s*:\s*/gi, '')
+      .trim();
+
+    return summaryText;
+
+  } catch (e) {
+    console.error('[generateWebsiteSummary] Erreur fatale:', e);
+    throw e; // Pas de fallback
+  }
 }
 
 
