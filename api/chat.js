@@ -137,15 +137,36 @@ export default async function handler(req) {
     }
 
     if (!summaryText) {
-      const { data: docSummary } = await supabase
-        .from('documents')
-        .select('content')
-        .eq('site_id', site.id)
-        .ilike('url', '%#site-summary')
-        .maybeSingle();
+      try {
+        const { data: docSummary } = await supabase
+          .from('documents')
+          .select('content')
+          .eq('site_id', site.id)
+          .ilike('url', '%#site-summary')
+          .maybeSingle();
 
-      if (docSummary?.content) {
-        summaryText = docSummary.content.replace(/^\[SITE_SUMMARY\]\n/, '');
+        if (docSummary?.content) {
+          summaryText = docSummary.content.replace(/^\[SITE_SUMMARY\]\n/, '');
+        }
+      } catch (e) {
+        console.warn('[chat] docSummary fetch warning:', e.message);
+      }
+    }
+
+    // Ultimate fallback: if no explicit AI summary exists yet, load top indexed documents as business summary
+    if (!summaryText) {
+      try {
+        const { data: topDocs } = await supabase
+          .from('documents')
+          .select('content')
+          .eq('tenant_id', tenantId)
+          .limit(3);
+
+        if (topDocs && topDocs.length > 0) {
+          summaryText = topDocs.map(d => d.content).join('\n\n').slice(0, 3000);
+        }
+      } catch (e) {
+        console.warn('[chat] topDocs fallback warning:', e.message);
       }
     }
 
@@ -166,6 +187,10 @@ export default async function handler(req) {
 Ton rôle est de répondre avec précision, honnêteté et professionnalisme aux visiteurs.
 ${timeContext}
 ${siteSummaryText}
+
+RÈGLES DE RÉPONSE ET DE PRÉSENTATION :
+1. PAS DE PRÉSENTATION RÉPÉTITIVE : L'interface du chat affiche DÉJÀ un message d'accueil au visiteur ("Bonjour! Je suis l'assistant virtuel..."). Ne commence JAMAIS tes réponses par des formules de présentation répétitives comme "Bonjour, je suis l'assistant virtuel du site...". Réponds DIRECTEMENT et immédiatement à ce que l'utilisateur demande.
+2. RÉPONSES AUX QUESTIONS GÉNÉRALES ("QUE FAITES VOUS / QUI ÊTES VOUS") : Si l'utilisateur demande ce que nous faisons, ce que nous offrons ou qui nous sommes, utilise IMPÉRATIVEMENT le RÉSUMÉ DU SITE ci-dessus pour expliquer concrètement nos produits/services principaux. Ne réponds JAMAIS par une salutation vide sans expliquer notre activité.
 
 RÈGLES D'OR DE VÉRITÉ ET ANTI-HALLUCINATION :
 1. TU NE DOIS JAMAIS INVENTER D'INFORMATIONS OU DE SERVICES.
