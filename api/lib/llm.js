@@ -2,7 +2,7 @@
 // OpenRouter Provider Integration
 
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1/chat/completions';
-const DEFAULT_OPENROUTER_MODEL = 'openrouter/free';
+const DEFAULT_OPENROUTER_MODEL = 'google/gemini-2.0-flash-lite-001';
 
 // Jina Embeddings — jina-embeddings-v3
 // Multilingue SOTA (FR, EN, ES, ...), 768 dimensions demandées explicitement
