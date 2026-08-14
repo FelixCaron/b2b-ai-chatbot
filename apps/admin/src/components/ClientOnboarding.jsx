@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Sparkles, Globe, Eye, CheckCircle2, ArrowRight, Settings2, ShieldCheck, ToggleLeft, ToggleRight, Check, RefreshCw, Copy, Layers, Laptop, Smartphone, X, Send, Code, Lock } from 'lucide-react';
+import { Sparkles, Globe, Eye, CheckCircle2, ArrowRight, Settings2, ShieldCheck, ToggleLeft, ToggleRight, Check, RefreshCw, Copy, Layers, Laptop, Smartphone, X, Send, Code, Lock, FileText, Save, Edit3 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+
 import remarkGfm from 'remark-gfm';
 import { createClient } from '@supabase/supabase-js';
 
@@ -200,9 +201,108 @@ export default function ClientOnboarding({
     }
   };
 
+  // Website Summary State & Handlers
+  const [siteSummary, setSiteSummary] = useState('');
+  const [isSavingSummary, setIsSavingSummary] = useState(false);
+  const [isRegeneratingSummary, setIsRegeneratingSummary] = useState(false);
+  const [summarySuccessMsg, setSummarySuccessMsg] = useState('');
+  const [showSummaryEditor, setShowSummaryEditor] = useState(false);
+
+  const fetchSiteSummary = async () => {
+    if (!activeSite?.id) return;
+    try {
+      const { data: sumData } = await supabase
+        .from('site_summaries')
+        .select('summary')
+        .eq('site_id', activeSite.id)
+        .maybeSingle();
+
+      if (sumData?.summary) {
+        setSiteSummary(sumData.summary);
+        return;
+      }
+
+      const { data: docData } = await supabase
+        .from('documents')
+        .select('content')
+        .eq('site_id', activeSite.id)
+        .ilike('url', '%#site-summary')
+        .maybeSingle();
+
+      if (docData?.content) {
+        setSiteSummary(docData.content.replace(/^\[SITE_SUMMARY\]\n/, ''));
+      } else {
+        setSiteSummary('');
+      }
+    } catch (err) {
+      console.error('[fetchSiteSummary] Error:', err);
+    }
+  };
+
+  const handleSaveSummary = async () => {
+    if (!activeSite?.id || !siteSummary.trim()) return;
+    setIsSavingSummary(true);
+    try {
+      const { error: sumErr } = await supabase.from('site_summaries').upsert({
+        tenant_id: activeSite.tenant_id,
+        site_id: activeSite.id,
+        summary: siteSummary.trim(),
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'tenant_id,site_id' });
+
+      // Fallback document sync
+      const summaryUrl = `https://${activeSite.domain}#site-summary`;
+      await supabase.from('documents').delete().eq('site_id', activeSite.id).eq('url', summaryUrl);
+      await supabase.from('documents').insert({
+        tenant_id: activeSite.tenant_id,
+        site_id: activeSite.id,
+        url: summaryUrl,
+        content: `[SITE_SUMMARY]\n${siteSummary.trim()}`
+      });
+
+      setSummarySuccessMsg('✓ Résumé enregistré avec succès !');
+      setTimeout(() => setSummarySuccessMsg(''), 3500);
+    } catch (err) {
+      console.error('[handleSaveSummary] Error:', err);
+    } finally {
+      setIsSavingSummary(false);
+    }
+  };
+
+  const handleRegenerateSummary = async () => {
+    if (!activeSite?.id || isRegeneratingSummary) return;
+    setIsRegeneratingSummary(true);
+    try {
+      const res = await fetch(`${window.location.origin}/api/generate-summary`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenant_id: activeSite.tenant_id,
+          site_id: activeSite.id,
+          url: activeSite.domain
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.summary) {
+          setSiteSummary(data.summary);
+          setSummarySuccessMsg('✓ Résumé régénéré par IA avec succès !');
+          setTimeout(() => setSummarySuccessMsg(''), 3500);
+        }
+      }
+    } catch (err) {
+      console.error('[handleRegenerateSummary] Error:', err);
+    } finally {
+      setIsRegeneratingSummary(false);
+    }
+  };
+
   useEffect(() => {
     fetchIndexedPages();
+    fetchSiteSummary();
   }, [activeSite?.id]);
+
 
   // Full-Screen Preview & Live Bot Testing State
   const [showPreviewModal, setShowPreviewModal] = useState(false);
@@ -672,7 +772,77 @@ export default function ClientOnboarding({
             </div>
           </div>
 
+          {/* Feature 5: Editable Website Summary Card */}
+          <div className="bg-dark-800/50 p-6 rounded-xl border border-white/5 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-emerald-400" /> Résumé du site web & Aperçu entreprise
+                </h3>
+                <p className="text-xs text-gray-400">
+                  Présentation synthétique transmise directement à l'IA lors de chaque conversation. Vous pouvez la consulter et la modifier ci-dessous.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowSummaryEditor(!showSummaryEditor)}
+                  className="text-xs font-semibold text-brand-400 bg-brand-500/10 px-3.5 py-1.5 rounded-lg border border-brand-500/20 hover:bg-brand-500/20 transition-all flex items-center gap-1.5"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                  {showSummaryEditor ? 'Masquer' : 'Afficher / Modifier'}
+                </button>
+              </div>
+            </div>
+
+            {summarySuccessMsg && (
+              <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs font-medium text-emerald-400 flex items-center gap-2 animate-in fade-in">
+                <Check className="w-4 h-4 shrink-0" />
+                <span>{summarySuccessMsg}</span>
+              </div>
+            )}
+
+            {showSummaryEditor && (
+              <div className="mt-4 pt-4 border-t border-white/5 space-y-4">
+                <div className="relative">
+                  <textarea
+                    rows={6}
+                    value={siteSummary}
+                    onChange={(e) => setSiteSummary(e.target.value)}
+                    placeholder="Aucun résumé disponible pour le moment. Entrez la présentation synthétique de votre entreprise ici ou régénérez par IA..."
+                    className="w-full bg-dark-900 border border-white/10 text-white rounded-xl p-4 text-xs leading-relaxed outline-none focus:border-brand-500 transition-colors font-mono shadow-inner"
+                  />
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+                  <button
+                    disabled={isRegeneratingSummary}
+                    onClick={handleRegenerateSummary}
+                    className="w-full sm:w-auto bg-dark-900 hover:bg-gray-800 border border-white/10 text-gray-300 hover:text-white px-4 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 text-brand-400 ${isRegeneratingSummary ? 'animate-spin' : ''}`} />
+                    {isRegeneratingSummary ? 'Génération IA en cours...' : 'Régénérer par IA depuis le site'}
+                  </button>
+
+                  <button
+                    disabled={isSavingSummary || !siteSummary.trim()}
+                    onClick={handleSaveSummary}
+                    className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSavingSummary ? (
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Save className="w-3.5 h-3.5" />
+                    )}
+                    Enregistrer le résumé
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Collapsible Page Selection Drawer */}
+
           <div className="bg-dark-800/50 p-6 rounded-xl border border-white/5 space-y-4">
             <button
               onClick={() => setShowPageManager(!showPageManager)}
