@@ -33,12 +33,69 @@ const NOISE_PATTERNS = [
   /Terms of Service/i,
 ];
 
+function normalizePageUrl(rawUrl) {
+  if (!rawUrl) return '';
+  try {
+    let uStr = rawUrl.split('#')[0].split('?')[0].trim();
+    if (!uStr.startsWith('http://') && !uStr.startsWith('https://')) {
+      uStr = `https://${uStr}`;
+    }
+    const parsed = new URL(uStr);
+    parsed.pathname = parsed.pathname.replace(/\/index\.html$/i, '/').replace(/\.html$/i, '');
+    if (parsed.pathname === '' || parsed.pathname === '/') {
+      parsed.pathname = '/';
+    } else if (parsed.pathname.endsWith('/')) {
+      parsed.pathname = parsed.pathname.slice(0, -1);
+    }
+    return parsed.href;
+  } catch (e) {
+    return rawUrl;
+  }
+}
+
+function extractTextFromHtml(html) {
+  if (!html) return '';
+  let clean = html
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<nav[\s\S]*?<\/nav>/gi, '')
+    .replace(/<footer[\s\S]*?<\/footer>/gi, '')
+    .replace(/<head[\s\S]*?<\/head>/gi, '')
+    .replace(/<!--[\s\S]*?-->/g, '');
+
+  const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  const titleText = titleMatch ? titleMatch[1].trim() : '';
+
+  const metaDescMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i);
+  const metaDescText = metaDescMatch ? metaDescMatch[1].trim() : '';
+
+  let bodyText = clean
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<\/h[1-6]>/gi, '\n\n')
+    .replace(/<\/li>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&#39;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/\s+/g, ' ');
+
+  const result = [];
+  if (titleText) result.push(`Title: ${titleText}`);
+  if (metaDescText) result.push(`Description: ${metaDescText}`);
+  if (bodyText) result.push(bodyText);
+
+  return result.join('\n\n');
+}
+
 /**
  * Split text into semantic paragraphs, filter noise, then chunk by max size with overlap.
  * Works for both French and English content.
  */
 function cleanAndChunk(text, targetUrl = '', maxChunkLength = 800) {
-  // 1. Strip cookie banner / consent blocks upfront
   let cleanText = text
     .replace(/Nous respectons votre vie privée[\s\S]*?Enregistrer mes préférences[^\n]*/gi, '')
     .replace(/Les cookies [\s\S]*?visiteurs uniques\./gi, '')
@@ -52,23 +109,19 @@ function cleanAndChunk(text, targetUrl = '', maxChunkLength = 800) {
     /Copyright/i, /Tous droits réservés/i, /Personnaliser Tout rejeter/i
   ];
 
-  // Split into paragraphs/sections by double newlines or markdown headers
   const rawParagraphs = cleanText.split(/\n{2,}|\n(?=#{1,3} )/);
 
   const cleanParagraphs = rawParagraphs
     .map(p => p.trim())
     .filter(p => {
       if (!p || p.length < 5) return false;
-      // Filter paragraphs matching noise patterns
       if (NOISE_PATTERNS.some(pattern => pattern.test(p))) return false;
-      // Filter paragraphs that are mostly list items of links (nav menus)
       const linkCount = (p.match(/\[.*?\]\(https?:\/\//g) || []).length;
       const wordCount = p.split(/\s+/).filter(w => w.length > 1).length;
       if (linkCount > 4 && wordCount < 30) return false;
       return true;
     });
 
-  // Now chunk the clean paragraphs respecting max size and adding semantic overlap
   const chunks = [];
   let currentChunk = '';
   let overlapPrefix = '';
@@ -79,8 +132,7 @@ function cleanAndChunk(text, targetUrl = '', maxChunkLength = 800) {
     } else if ((currentChunk + '\n\n' + para).length <= maxChunkLength) {
       currentChunk += '\n\n' + para;
     } else {
-      // Current chunk is full, flush it if it has at least 8 words
-      if (currentChunk.split(/\s+/).length >= 8) {
+      if (currentChunk.split(/\s+/).length >= 3) {
         chunks.push(currentChunk.trim());
         const words = currentChunk.split(/\s+/);
         overlapPrefix = words.slice(-20).join(' ');
@@ -88,17 +140,17 @@ function cleanAndChunk(text, targetUrl = '', maxChunkLength = 800) {
       currentChunk = overlapPrefix ? `... ${overlapPrefix}\n\n${para}` : para;
     }
   }
-  if (currentChunk && currentChunk.split(/\s+/).length >= 8) {
+  if (currentChunk && currentChunk.split(/\s+/).length >= 3) {
     chunks.push(currentChunk.trim());
   }
 
-  // Prepend metadata (source URL) to each chunk content for better context
   const enrichedChunks = chunks.map(chunk => {
     return targetUrl ? `[Source URL: ${targetUrl}]\n${chunk}` : chunk;
   });
 
   return enrichedChunks;
 }
+
 
 export default async function handler(req) {
   if (req.method === 'OPTIONS') {
@@ -121,10 +173,7 @@ export default async function handler(req) {
       });
     }
 
-    let targetUrl = url.trim();
-    if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
-      targetUrl = `https://${targetUrl}`;
-    }
+    let targetUrl = normalizePageUrl(url);
 
     const AUTH_WALL_REGEX = /\/(login|signin|sign-in|sinscrire|s-inscrire|register|account|my-account|mon-compte|connexion|se-connecter|log-in|user-login|members|espace-client|client-portal|dashboard|admin)($|\/|\?|#)/i;
     const AUTH_CONTENT_REGEX = /(please log in|sign in to access|connexion requise|veuillez vous connecter|accès réservé|connectez-vous|password required|mot de passe requis|authentification requise|member login|espace client|espace membre)/i;
@@ -132,29 +181,47 @@ export default async function handler(req) {
     const u = new URL(targetUrl);
     const isAuthUrl = AUTH_WALL_REGEX.test(u.pathname);
 
-    // Single source of truth: Jina Reader API for clean LLM-ready markdown
-    const jinaRes = await fetch(`https://r.jina.ai/${targetUrl}`, {
-      headers: { 
-        'Accept': 'text/plain', 
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-      }
-    });
+    let pageText = '';
 
-    if (jinaRes.status === 401 || jinaRes.status === 403 || isAuthUrl) {
-      return new Response(
-        JSON.stringify({ success: true, is_protected: true, chunks_count: 0, message: '🔒 Page protégée par connexion / Auth Wall' }),
-        { status: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
-      );
-    }
-
-    if (!jinaRes.ok) {
-      return new Response(JSON.stringify({ error: `Impossible de lire la page via Jina Reader (Status ${jinaRes.status})` }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    // 1. Primary: Jina Reader API for LLM-ready markdown
+    try {
+      const jinaRes = await fetch(`https://r.jina.ai/${targetUrl}`, {
+        headers: { 
+          'Accept': 'text/plain', 
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
       });
+
+      if (jinaRes.status === 401 || jinaRes.status === 403 || isAuthUrl) {
+        return new Response(
+          JSON.stringify({ success: true, is_protected: true, chunks_count: 0, message: '🔒 Page protégée par connexion / Auth Wall' }),
+          { status: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
+        );
+      }
+
+      if (jinaRes.ok) {
+        pageText = await jinaRes.text();
+      }
+    } catch (jinaErr) {
+      console.warn('[start-scan] Jina Reader error, trying direct HTML fallback:', jinaErr.message);
     }
 
-    const pageText = await jinaRes.text();
+    // 2. Secondary Fallback: Direct HTML fetch if Jina failed or returned empty
+    if (!pageText || pageText.length < 50) {
+      try {
+        const directRes = await fetch(targetUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+          }
+        });
+        if (directRes.ok) {
+          const rawHtml = await directRes.text();
+          pageText = extractTextFromHtml(rawHtml);
+        }
+      } catch (directErr) {
+        console.warn('[start-scan] Direct HTML fetch fallback error:', directErr.message);
+      }
+    }
 
     if (AUTH_CONTENT_REGEX.test(pageText) && pageText.length < 500) {
       return new Response(
@@ -163,7 +230,7 @@ export default async function handler(req) {
       );
     }
 
-    if (!pageText || pageText.length < 50) {
+    if (!pageText || pageText.length < 20) {
       return new Response(JSON.stringify({ success: true, is_empty: true, chunks_count: 0, message: 'Contenu insuffisant retourné par la page' }), {
         status: 200,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
@@ -172,6 +239,7 @@ export default async function handler(req) {
 
     // Process ALL chunks without 20-chunk truncation limit
     const chunks = cleanAndChunk(pageText, targetUrl, 800);
+
 
     // Generate embeddings in batches of 20 to respect Jina API Free Tier limits
     const FALLBACK_EMBEDDING = Array(768).fill(0).map((_, i) => (i % 2 === 0 ? 0.05 : -0.05));

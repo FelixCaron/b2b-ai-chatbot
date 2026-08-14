@@ -99,8 +99,9 @@ export default function ClientOnboarding({
 
       const scanRes = await onTriggerScan(siteObj.id, page.url, siteObj.tenant_id).catch(() => null);
       const isProtected = scanRes?.data?.is_protected || scanRes?.is_protected;
-      const chunksCount = scanRes?.data?.chunks_count ?? 0;
-      const isEmpty = !isProtected && (!scanRes?.success || chunksCount === 0);
+      const chunksCount = scanRes?.data?.chunks_count ?? scanRes?.chunks_count ?? 0;
+      const isEmpty = !isProtected && (scanRes?.data?.is_empty || chunksCount === 0);
+
 
       if (isProtected) {
         protectedCount++;
