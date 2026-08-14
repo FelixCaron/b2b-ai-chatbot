@@ -328,7 +328,7 @@ CONSIGNE STRICTE : Sois factuel et direct. N'ajoute AUCUN préambule, ni métado
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.0-flash-lite-001',
+        model: 'openai/gpt-4o-mini',
         messages: [{ role: 'user', content: `${prompt}\n\nContenu du site web :\n${content.slice(0, 12000)}` }],
         temperature: 0.3
       })
