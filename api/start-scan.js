@@ -1,9 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
-import { generateEmbedding } from './lib/llm.js';
+import { generateEmbedding, generateWebsiteSummary } from './lib/llm.js';
 
 export const config = {
   runtime: 'edge',
 };
+
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -217,9 +218,50 @@ export default async function handler(req) {
       if (insertErr) throw insertErr;
     }
 
-    if (insertErr) {
-      throw insertErr;
+    // Auto-generate site summary if it's the root/homepage or if no summary exists for this site yet
+    const parsedTarget = new URL(targetUrl);
+    const isHomepage = parsedTarget.pathname === '/' || parsedTarget.pathname === '';
+
+    const { data: existingSummary } = await supabase
+      .from('site_summaries')
+      .select('id')
+      .eq('site_id', site_id)
+      .maybeSingle();
+
+    if ((isHomepage || !existingSummary) && pageText && pageText.length >= 100) {
+      try {
+        const summaryText = await generateWebsiteSummary({
+          content: pageText,
+          targetUrl: targetUrl,
+          apiKey: process.env.OPENROUTER_API_KEY
+        });
+
+        if (summaryText) {
+          const { error: sumErr } = await supabase.from('site_summaries').upsert({
+            tenant_id,
+            site_id,
+            summary: summaryText,
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'tenant_id,site_id' });
+
+          if (sumErr) {
+            // Fallback to documents table if site_summaries table doesn't exist yet
+            const summaryUrl = `${targetUrl}#site-summary`;
+            await supabase.from('documents').delete().eq('site_id', site_id).eq('url', summaryUrl);
+            await supabase.from('documents').insert({
+              tenant_id,
+              site_id,
+              url: summaryUrl,
+              content: `[SITE_SUMMARY]\n${summaryText}`
+            });
+          }
+          console.log(`[start-scan] Website summary auto-generated for site ${site_id}`);
+        }
+      } catch (sumErr) {
+        console.warn(`[start-scan] Auto summary generation non-critical warning:`, sumErr.message);
+      }
     }
+
 
     return new Response(
       JSON.stringify({ success: true, message: 'Page scannée et indexée via Jina Reader avec succès !', chunks_count: records.length }),
@@ -235,3 +277,4 @@ export default async function handler(req) {
     });
   }
 }
+

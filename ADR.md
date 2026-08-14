@@ -281,6 +281,28 @@ L'expérience d'onboarding initiale comportait un écran d'attente bloquant pend
 - **Avantage** : Prévention des erreurs en empêchant l'ouverture de la démo pendant le crawl.
 - **Avantage** : Nettoyage propre des données obsolètes lors d'un re-crawl d'un site.
 
+---
+
+## ADR 013 : Intégration du Résumé de Site Web (Site Summary RAG Context)
+**Date:** 14 Août 2026
+**Statut:** Accepté
+
+### Contexte
+Lorsqu'un visiteur pose une question générale sur une entreprise (ex: "Que fait votre entreprise ?", "Quels sont vos domaines d'expertise ?"), le chatbot devait précédemment déclencher une recherche RAG par chunks qui pouvait retourner des fragments isolés au lieu d'une vue d'ensemble cohérente du site.
+
+### Décision
+1. **Extraction & Génération AI** : Création du module `api/generate-summary.js` et de la fonction `generateWebsiteSummary` (`api/lib/llm.js`). Le système extrait le contenu brut de la page d'accueil ou des chunks du site et génère un résumé structuré et concis par le LLM.
+2. **Stockage Supabase Dedicated** : Création de la table `site_summaries` (`supabase/migrations/20260814000001_site_summaries.sql`) avec contrainte unique `(tenant_id, site_id)` et Row Level Security (RLS).
+3. **Auto-génération lors de l'ingestion** : `api/start-scan.js` déclenche automatiquement la génération et l'upsert du résumé lors de l'indexation de la page d'accueil.
+4. **Injection dans le Prompt système (`api/chat.js`)** : Le résumé est extrait au début de chaque session de chat et directement injecté dans le prompt système du bot.
+5. **Robustesse et Fallback** : Si aucun résumé n'est présent (ou en cas d'erreur), le chatbot conserve son comportement RAG classique sans aucune interruption.
+
+### Conséquences
+- **Avantage** : Réponses immédiates et exhaustives aux questions d'ensemble sur l'entreprise dès le premier message sans coût d'outil supplémentaire.
+- **Avantage** : Amélioration drastique de la qualité perçue des réponses initiales du chatbot.
+- **Règle** : Toute mise à jour de la table `site_summaries` doit s'effectuer via des requêtes SQL/Supabase brutes (conformément à l'ADR-004).
+
+
 
 
 

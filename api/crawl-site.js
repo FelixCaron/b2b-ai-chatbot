@@ -7,10 +7,9 @@ function isValidPageUrl(urlStr, cleanHost) {
     const u = new URL(urlStr);
     if (u.hostname.replace(/^www\./, '') !== cleanHost) return false;
     const p = u.pathname.toLowerCase();
-    // Exclude static assets
-    if (/\.(png|jpg|jpeg|gif|svg|pdf|zip|css|js|ico|xml|json|woff|woff2|ttf|eot|mp4|webm|mp3|wav)$/i.test(p)) return false;
-    // Exclude WP system junk & internal ERP order lists
-    if (p.includes('/feed') || p.includes('/wp-json') || p.includes('/wp-content') || p.includes('/wp-includes') || p.includes('xmlrpc') || p.includes('/cart') || p.includes('/checkout') || p.includes('/my-account') || p.includes('/account') || p.includes('?add-to-cart') || p.includes('&add-to-cart')) return false;
+    // Exclude WP system junk, cart, account, job offer lists & internal ERP order lists
+    if (p.includes('/feed') || p.includes('/wp-json') || p.includes('/wp-content') || p.includes('/wp-includes') || p.includes('xmlrpc') || p.includes('/cart') || p.includes('/checkout') || p.includes('/my-account') || p.includes('/account') || p.includes('?add-to-cart') || p.includes('&add-to-cart') || p.includes('/sales-orders') || p.includes('/sales-lines') || p.includes('/job/') || p.includes('/job_cat/')) return false;
+
     return true;
   } catch (e) {
     return false;

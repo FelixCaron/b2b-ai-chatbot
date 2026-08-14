@@ -202,3 +202,49 @@ Respond strictly in raw JSON format, without backticks: {"primary_color": "#hex"
   return null;
 }
 
+export async function generateWebsiteSummary({ content, targetUrl, apiKey }) {
+  const openRouterKey = process.env.OPENROUTER_API_KEY || apiKey;
+  if (!openRouterKey) return null;
+
+  const prompt = `Tu es un expert en synthèse d'entreprise B2B. Voici le contenu brut extrait du site web ${targetUrl}.
+Rédige un résumé clair, structuré et concis (3 à 5 paragraphes max) présentable à un assistant virtuel.
+
+Le résumé doit impérativement inclure :
+1. La présentation générale de l'entreprise / organisation (domaine d'activité principal).
+2. Les produits, services ou prestations phares proposés.
+3. Le public cible / les clients types.
+4. Les points forts, valeurs ou avantages concurrentiels clés.
+5. Les informations de contact ou localisation si disponibles.
+
+CONSIGNE STRICITE : Sois factuel et direct. N'invente AUCUNE information absente du texte.
+Rédige en français sous forme de texte structuré et naturel.`;
+
+  try {
+    const res = await fetch(OPENROUTER_BASE_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openRouterKey}`,
+        'HTTP-Referer': 'https://admin-seven-alpha-37.vercel.app',
+        'X-Title': 'B2B AI Chatbot',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: DEFAULT_OPENROUTER_MODEL,
+        messages: [{ role: 'user', content: `${prompt}\n\nContenu du site web :\n${content.slice(0, 12000)}` }],
+        temperature: 0.3
+      })
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const summaryText = data.choices?.[0]?.message?.content?.trim();
+      return summaryText || null;
+    }
+  } catch (e) {
+    console.warn('OpenRouter summary generation error:', e);
+  }
+
+  return null;
+}
+
+

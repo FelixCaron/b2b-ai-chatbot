@@ -119,17 +119,51 @@ export default async function handler(req) {
       content: message
     });
 
+    // Fetch site summary from site_summaries if available, with fallback to documents table (#site-summary)
+    let summaryText = null;
+
+    try {
+      const { data: summaryRecord } = await supabase
+        .from('site_summaries')
+        .select('summary')
+        .eq('site_id', site.id)
+        .maybeSingle();
+
+      if (summaryRecord?.summary) {
+        summaryText = summaryRecord.summary;
+      }
+    } catch (e) {
+      console.warn('[chat] site_summaries fetch warning:', e.message);
+    }
+
+    if (!summaryText) {
+      const { data: docSummary } = await supabase
+        .from('documents')
+        .select('content')
+        .eq('site_id', site.id)
+        .ilike('url', '%#site-summary')
+        .maybeSingle();
+
+      if (docSummary?.content) {
+        summaryText = docSummary.content.replace(/^\[SITE_SUMMARY\]\n/, '');
+      }
+    }
+
+    const siteSummaryText = summaryText ? `\nRÉSUMÉ DU SITE WEB ET APERÇU DE L'ENTREPRISE :\n${summaryText}\n` : '';
+
+
     const apiKey = process.env.OPENROUTER_API_KEY;
 
     // Build system prompt
+
     const toneString = site.bot_tone === 'amical' ? "Ton: Chaleureux, amical, tutoiement autorisé si naturel, très bienveillant." : "Ton: Professionnel, courtois, vouvoiement obligatoire, précis.";
     const goalString = site.bot_goal === 'lead' ? "Objectif Principal: Convertir le visiteur en prospect. Incite fortement à laisser un email ou numéro." : "Objectif Principal: Informer et supporter le visiteur. Réponds de façon exhaustive et claire.";
 
     const systemPrompt = `Tu es l'assistant virtuel officiel du site web ${site.domain}. 
 Ton rôle est de répondre avec précision aux visiteurs.
-
+${siteSummaryText}
 RÈGLE D'OR : TU NE DOIS JAMAIS INVENTER DE SERVICES OU D'INFORMATIONS. 
-Dès qu'un utilisateur pose une question sur l'entreprise, un service, ou fait une demande (ex: réparation, achat), TU DOIS OBLIGATOIREMENT utiliser l'outil "search_knowledge_base" pour vérifier si nous offrons cela.
+Dès qu'un utilisateur pose une question sur un service spécifique, un produit, des tarifs ou des caractéristiques détaillées, TU DOIS OBLIGATOIREMENT utiliser l'outil "search_knowledge_base" pour vérifier et obtenir des détails exacts.
 Si l'outil ne retourne aucune information sur le sujet (ou si tu ne l'as pas trouvé), tu DOIS répondre que notre entreprise n'offre pas ce service ou que tu ne possèdes pas cette information. N'improvise JAMAIS.
 
 INTERDICTIONS ABSOLUES :
@@ -142,6 +176,7 @@ DIRECTIVES SPÉCIFIQUES :
 2. ${goalString}
 3. LIMITES : Si l'utilisateur parle de quelque chose de complètement hors sujet par rapport à tes connaissances, recadre poliment la conversation.
 ${isLeadCaptureEnabled ? "4. CAPTURE DE PROSPECTS : Dès que le client s'intéresse à un de NOS vrais services, propose-lui de laisser son courriel pour être recontacté." : ""}`;
+
 
     // Fetch conversation history (last 10 messages)
     const { data: historyData } = await supabase
