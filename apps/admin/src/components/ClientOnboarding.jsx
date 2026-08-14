@@ -134,6 +134,7 @@ export default function ClientOnboarding({
     }
 
     // Automatically generate website summary during onboarding / scan
+    setIsRegeneratingSummary(true);
     setCrawlProgressMsg('Génération du résumé IA de votre entreprise...');
     try {
       const summaryRes = await fetch(`${window.location.origin}/api/generate-summary`, {
@@ -153,12 +154,15 @@ export default function ClientOnboarding({
       }
     } catch (sumErr) {
       console.warn('[runSynchronousCrawlAndIndex] Summary generation warning:', sumErr);
+    } finally {
+      setIsRegeneratingSummary(false);
     }
     await fetchSiteSummary();
 
     setCrawlProgressMsg(`✓ Scan terminé ! ${loadedCount} page(s) indexée(s)${protectedCount > 0 ? `, ${protectedCount} protégée(s)` : ''}${emptyCount > 0 ? `, ${emptyCount} vide(s)` : ''}.`);
     setIsCrawling(false);
   };
+
 
 
 
@@ -265,13 +269,15 @@ function normalizePageUrl(rawUrl) {
 
   // Website Summary State & Handlers
   const [siteSummary, setSiteSummary] = useState('');
+  const [isLoadingSummary, setIsLoadingSummary] = useState(true);
   const [isSavingSummary, setIsSavingSummary] = useState(false);
   const [isRegeneratingSummary, setIsRegeneratingSummary] = useState(false);
   const [summarySuccessMsg, setSummarySuccessMsg] = useState('');
-  const [showSummaryEditor, setShowSummaryEditor] = useState(false);
+  const [showSummaryEditor, setShowSummaryEditor] = useState(true);
 
   const fetchSiteSummary = async () => {
     if (!activeSite?.id) return;
+    setIsLoadingSummary(true);
     try {
       const { data: sumData } = await supabase
         .from('site_summaries')
@@ -281,6 +287,7 @@ function normalizePageUrl(rawUrl) {
 
       if (sumData?.summary) {
         setSiteSummary(sumData.summary);
+        setIsLoadingSummary(false);
         return;
       }
 
@@ -293,10 +300,13 @@ function normalizePageUrl(rawUrl) {
 
       if (docData?.content) {
         setSiteSummary(docData.content.replace(/^\[SITE_SUMMARY\]\n/, ''));
-      } else if (activeSite?.domain) {
-        setSiteSummary('');
-        // Trigger auto summary generation if no summary exists yet
-        fetch(`${window.location.origin}/api/generate-summary`, {
+        setIsLoadingSummary(false);
+        return;
+      }
+
+      if (activeSite?.domain) {
+        setIsRegeneratingSummary(true);
+        const summaryRes = await fetch(`${window.location.origin}/api/generate-summary`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -304,15 +314,23 @@ function normalizePageUrl(rawUrl) {
             site_id: activeSite.id,
             url: activeSite.domain
           })
-        }).then(res => res.json()).then(resData => {
-          if (resData?.summary) setSiteSummary(resData.summary);
         }).catch(() => null);
-      }
 
+        if (summaryRes && summaryRes.ok) {
+          const resData = await summaryRes.json();
+          if (resData?.summary) {
+            setSiteSummary(resData.summary);
+          }
+        }
+      }
     } catch (err) {
       console.error('[fetchSiteSummary] Error:', err);
+    } finally {
+      setIsLoadingSummary(false);
+      setIsRegeneratingSummary(false);
     }
   };
+
 
   const handleSaveSummary = async () => {
     if (!activeSite?.id || !siteSummary.trim()) return;
@@ -849,17 +867,28 @@ function normalizePageUrl(rawUrl) {
 
           {/* Feature 5: Editable Website Summary Card */}
           <div className="bg-dark-800/50 p-6 rounded-xl border border-white/5 space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div>
-                <h3 className="text-base font-bold text-white flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-emerald-400" /> Résumé du site web & Aperçu entreprise
-                </h3>
-                <p className="text-xs text-gray-400">
+                <div className="flex items-center gap-3">
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-emerald-400" /> Résumé du site web & Aperçu entreprise
+                  </h3>
+                  {(isLoadingSummary || isRegeneratingSummary) ? (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/20 animate-pulse">
+                      <RefreshCw className="w-3 h-3 animate-spin text-amber-400" /> Génération IA en cours...
+                    </span>
+                  ) : siteSummary ? (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                      <Check className="w-3 h-3" /> Résumé IA disponible
+                    </span>
+                  ) : null}
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
                   Présentation synthétique transmise directement à l'IA lors de chaque conversation. Vous pouvez la consulter et la modifier ci-dessous.
                 </p>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 shrink-0">
                 <button
                   onClick={() => setShowSummaryEditor(!showSummaryEditor)}
                   className="text-xs font-semibold text-brand-400 bg-brand-500/10 px-3.5 py-1.5 rounded-lg border border-brand-500/20 hover:bg-brand-500/20 transition-all flex items-center gap-1.5"
@@ -882,25 +911,32 @@ function normalizePageUrl(rawUrl) {
                 <div className="relative">
                   <textarea
                     rows={6}
-                    value={siteSummary}
+                    disabled={isLoadingSummary || isRegeneratingSummary}
+                    value={
+                      (isLoadingSummary || isRegeneratingSummary)
+                        ? "Analyse synthétique de votre entreprise en cours par notre modèle IA... Veuillez patienter quelques secondes pendant la création du résumé."
+                        : siteSummary
+                    }
                     onChange={(e) => setSiteSummary(e.target.value)}
                     placeholder="Aucun résumé disponible pour le moment. Entrez la présentation synthétique de votre entreprise ici ou régénérez par IA..."
-                    className="w-full bg-dark-900 border border-white/10 text-white rounded-xl p-4 text-xs leading-relaxed outline-none focus:border-brand-500 transition-colors font-mono shadow-inner"
+                    className={`w-full bg-dark-900 border border-white/10 text-white rounded-xl p-4 text-xs leading-relaxed outline-none focus:border-brand-500 transition-colors font-mono shadow-inner ${
+                      (isLoadingSummary || isRegeneratingSummary) ? 'opacity-60 cursor-not-allowed animate-pulse bg-dark-950 text-amber-300 border-amber-500/30' : ''
+                    }`}
                   />
                 </div>
 
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
                   <button
-                    disabled={isRegeneratingSummary}
+                    disabled={isLoadingSummary || isRegeneratingSummary}
                     onClick={handleRegenerateSummary}
-                    className="w-full sm:w-auto bg-dark-900 hover:bg-gray-800 border border-white/10 text-gray-300 hover:text-white px-4 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all"
+                    className="w-full sm:w-auto bg-dark-900 hover:bg-gray-800 border border-white/10 text-gray-300 hover:text-white px-4 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <RefreshCw className={`w-3.5 h-3.5 text-brand-400 ${isRegeneratingSummary ? 'animate-spin' : ''}`} />
-                    {isRegeneratingSummary ? 'Génération IA en cours...' : 'Régénérer par IA depuis le site'}
+                    <RefreshCw className={`w-3.5 h-3.5 text-brand-400 ${(isLoadingSummary || isRegeneratingSummary) ? 'animate-spin' : ''}`} />
+                    {(isLoadingSummary || isRegeneratingSummary) ? 'Génération IA en cours...' : 'Régénérer par IA depuis le site'}
                   </button>
 
                   <button
-                    disabled={isSavingSummary || !siteSummary.trim()}
+                    disabled={isLoadingSummary || isRegeneratingSummary || isSavingSummary || !siteSummary.trim()}
                     onClick={handleSaveSummary}
                     className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                   >
@@ -915,6 +951,7 @@ function normalizePageUrl(rawUrl) {
               </div>
             )}
           </div>
+
 
           {/* Collapsible Page Selection Drawer */}
 
