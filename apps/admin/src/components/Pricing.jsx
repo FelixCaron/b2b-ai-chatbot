@@ -1,7 +1,24 @@
 import React, { useState } from 'react';
-import { Check, Zap, Shield, ArrowRight, Loader2, ExternalLink } from 'lucide-react';
+import { Check, Zap, Shield, Sparkles, ArrowRight, Loader2, ExternalLink } from 'lucide-react';
 
 const PLANS = [
+  {
+    id: 'free',
+    name: 'Plan Gratuit',
+    price: '0',
+    currency: 'CAD',
+    description: "Pour tester et automatiser vos premiers échanges gratuitement avec nos LLM gratuits.",
+    features: [
+      '1 Assistant IA sur votre site web',
+      'Modèles LLM 100% Gratuits (OpenRouter / Gemini / Llama)',
+      '100 messages / mois offerts',
+      'Indexation de vos pages web',
+      'Capture de prospects (Leads)',
+      'Widget personnalisé',
+    ],
+    icon: <Sparkles className="w-6 h-6 text-sky-400" />,
+    color: 'sky',
+  },
   {
     id: 'basic',
     name: 'Chatbot Basic',
@@ -11,11 +28,11 @@ const PLANS = [
     popular: true,
     features: [
       '1 Assistant IA sur votre site web',
-      "Indexation automatique de vos pages",
+      "Indexation automatique illimitée",
       'Recherche sémantique multilingue (FR/EN)',
       'Capture de prospects (Leads)',
       'Widget personnalisable (couleur, ton)',
-      'Support par email',
+      'Support prioritaire par email',
     ],
     icon: <Zap className="w-6 h-6 text-emerald-400" />,
     color: 'emerald',
@@ -28,7 +45,7 @@ const PLANS = [
     features: [
       'Assistants IA illimités',
       'Intégration CRM (HubSpot, Salesforce)',
-      'Modèles LLM au choix (Claude, OpenAI)',
+      'Modèles LLM au choix (Claude, OpenAI, Gemini)',
       'SLA 99.9% & Account Manager dédié',
     ],
     icon: <Shield className="w-6 h-6 text-brand-400" />,
@@ -46,8 +63,7 @@ export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'free' }
       return;
     }
 
-    if (!tenantId) {
-      // Fallback for unauthenticated users — just call parent handler
+    if (planId === 'free' || !tenantId) {
       onSelectPlan?.(planId);
       return;
     }

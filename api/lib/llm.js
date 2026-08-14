@@ -2,7 +2,7 @@
 // OpenRouter Provider Integration
 
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1/chat/completions';
-const DEFAULT_OPENROUTER_MODEL = 'openai/gpt-4o-mini';
+const DEFAULT_OPENROUTER_MODEL = 'openrouter/free';
 
 // Jina Embeddings — jina-embeddings-v3
 const JINA_EMBEDDINGS_URL = 'https://api.jina.ai/v1/embeddings';
