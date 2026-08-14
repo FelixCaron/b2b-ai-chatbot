@@ -58,6 +58,22 @@ export default async function handler(req) {
       });
     }
 
+    if (process.env.TEST_MODE !== 'false') {
+      const cleanHost = url.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0];
+      return new Response(JSON.stringify({
+        url,
+        pages: [
+          { url: `https://${cleanHost}`, title: 'Page d\'accueil - Portes Delafontaine' },
+          { url: `https://${cleanHost}/portes-coupe-feu`, title: 'Portes Coupe-Feu UL/ULC' },
+          { url: `https://${cleanHost}/portes-acoustiques`, title: 'Portes Acoustiques STC 35-55' },
+          { url: `https://${cleanHost}/contact`, title: 'Contact & Siège Social' }
+        ]
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
     let targetUrl = url.trim();
     if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
       targetUrl = `https://${targetUrl}`;

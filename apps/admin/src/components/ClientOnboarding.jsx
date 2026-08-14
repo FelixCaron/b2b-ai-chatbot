@@ -440,33 +440,32 @@ function normalizePageUrl(rawUrl) {
     }
 
     setIsAnalyzing(true);
-    setStatusMsg('Analyse de la charte graphique...');
+    setStatusMsg('Création de votre assistant...');
 
     try {
       let currentDomain = formattedUrl.replace('https://', '').replace('http://', '').replace('www.', '').split('/')[0];
+      let brandColor = '#1e3a8a';
 
-      // 1. Detect theme color in background
-      let brandColor = '#6366f1';
-      try {
-        const themeRes = await fetch(`${window.location.origin}/api/analyze-theme`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: formattedUrl })
-        });
-        if (themeRes.ok) {
-          const themeData = await themeRes.json();
-          if (themeData.primary_color) brandColor = themeData.primary_color;
-          if (themeData.org_name) setOrgName(themeData.org_name);
-        }
-      } catch (_tErr) {}
-
-      // 2. Add or fetch site in database
+      // 1. Add or fetch site in database immediately
       const siteObj = await onAddSite(currentDomain, brandColor);
 
       if (siteObj) {
         setLocalCreatedSite(siteObj);
         setIsAnalyzing(false);
-        // Switch immediately to dashboard & run synchronous crawling with progression messages!
+
+        // 2. Detect theme color asynchronously in background
+        fetch(`${window.location.origin}/api/analyze-theme`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: formattedUrl })
+        }).then(res => res.ok ? res.json() : null).then(themeData => {
+          if (themeData?.primary_color) {
+            onUpdateSiteSettings(siteObj.id, { theme_primary_color: themeData.primary_color });
+          }
+          if (themeData?.org_name) setOrgName(themeData.org_name);
+        }).catch(() => {});
+
+        // 3. Switch immediately to dashboard & run crawling progression!
         await runSynchronousCrawlAndIndex(siteObj, formattedUrl);
       } else {
         setStatusMsg('Erreur : Impossible d\'ajouter ce site.');
