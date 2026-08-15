@@ -10,7 +10,7 @@ const PLANS = [
     description: "For small websites and testing automated AI conversations.",
     features: [
       '1 Website maximum',
-      'Up to 15 indexed pages',
+      'Up to 50 indexed pages',
       'Fast Lightweight AI (Gemini 2.0 Flash)',
       '100 messages / month',
       'Customized widget styling',
@@ -27,7 +27,7 @@ const PLANS = [
     popular: true,
     features: [
       '1 Website maximum',
-      'Up to 50 indexed pages',
+      'Up to 150 indexed pages',
       'Fast Optimized Model (GPT-4o-mini)',
       '2,000 messages / month',
       'Lead capture & CSV export',
@@ -44,7 +44,7 @@ const PLANS = [
     description: "For growing companies with large websites and multiple domains.",
     features: [
       'Up to 5 Websites',
-      'Up to 250 pages per website',
+      'Up to 500 pages per website',
       'Advanced Reasoning Model (GPT-4o / Claude 3.5)',
       '10,000 messages / month',
       'High-speed priority indexing',

@@ -38,10 +38,10 @@ export default function ClientOnboarding({
     return 1; // free and basic: 1 website
   };
   const getMaxPagesForPlan = (plan) => {
-    if (plan === 'enterprise') return 1000;
-    if (plan === 'pro' || plan === 'starter') return 250;
-    if (plan === 'basic') return 50;
-    return 15; // free: 15 pages
+    if (plan === 'enterprise') return 2000;
+    if (plan === 'pro' || plan === 'starter') return 500;
+    if (plan === 'basic') return 150;
+    return 50; // free: 50 pages
   };
 
   // Onboarding Step State
