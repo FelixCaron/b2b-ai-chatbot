@@ -390,3 +390,23 @@ L'ingestion des pages web découvertes (crawling) s'effectuait de manière séqu
 ### Conséquences
 - **Avantage** : Accélération massive du temps d'ingestion global du site web lors de l'onboarding.
 - **Inconvénient** : Augmentation du taux de requêtes concurrentes vers notre API et vers Jina Reader (géré par notre limite de concurrence de 5).
+
+---
+
+## ADR 017 : Refonte du Prompt Système (Posture Service Client & Liens Directs)
+**Date:** 14 Août 2026
+**Statut:** Accepté
+
+### Contexte
+L'assistant IA manquait de consistance dans son rôle : il ne se positionnait pas toujours comme un véritable membre du service client, et pouvait inviter l'utilisateur à "consulter le site web" alors qu'il se trouve déjà dessus. Il fallait également s'assurer qu'il utilise le "nous" de façon stricte.
+
+### Décision
+Le `systemPrompt` dans `api/chat.js` a été entièrement revu pour :
+1. Renforcer la posture d'**agent de service client** (intégration totale à l'équipe, utilisation exclusive de "nous").
+2. Interdire formellement les phrases du type "consultez notre site web". S'il faut fournir une information, il la donne ou fournit le lien direct (URL).
+3. Bannir le jargon IA ("contexte", "base de données") pour maintenir l'immersion.
+4. Accentuer la priorité sur la capture de prospects dès qu'un intérêt est montré (si activé).
+
+### Conséquences
+- **Avantage** : L'expérience utilisateur est nettement plus naturelle et professionnelle. Le bot agit comme un vrai employé.
+- **Avantage** : Élimination des frictions UX (dire d'aller sur le site alors qu'on y est).
