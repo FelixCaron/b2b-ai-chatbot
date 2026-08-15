@@ -260,17 +260,8 @@ ${isLeadCaptureEnabled ? "4. CAPTURE DE PROSPECTS : C'est une priorité. Dès qu
           while (loopCount < MAX_TURNS) {
             loopCount++;
 
-            const tenantPlan = site.tenants?.plan || 'free';
-            let selectedModel = 'google/gemini-2.0-flash-001';
-            if (tenantPlan === 'enterprise') {
-              selectedModel = 'anthropic/claude-3.5-sonnet';
-            } else if (tenantPlan === 'pro' || tenantPlan === 'starter') {
-              selectedModel = 'openai/gpt-4o';
-            } else if (tenantPlan === 'basic') {
-              selectedModel = 'openai/gpt-4o-mini';
-            } else {
-              selectedModel = 'google/gemini-2.0-flash-001';
-            }
+            // Use GPT Luna across all plans for optimal response speed & accuracy
+            const selectedModel = 'openai/gpt-5.6-luna';
 
             const responseData = await generateChatResponse({ 
               systemPrompt, 

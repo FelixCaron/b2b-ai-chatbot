@@ -2,7 +2,7 @@
 // OpenRouter Provider Integration
 
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1/chat/completions';
-const DEFAULT_OPENROUTER_MODEL = 'openrouter/free';
+const DEFAULT_OPENROUTER_MODEL = 'openai/gpt-5.6-luna';
 
 // Jina Embeddings — jina-embeddings-v3
 const JINA_EMBEDDINGS_URL = 'https://api.jina.ai/v1/embeddings';
@@ -82,7 +82,7 @@ export async function generateEmbedding(input, task = 'retrieval.passage', apiKe
   }
 }
 
-export async function generateChatResponse({ systemPrompt, messagesHistory, apiKey, tools = null, model = 'openrouter/free' }) {
+export async function generateChatResponse({ systemPrompt, messagesHistory, apiKey, tools = null, model = DEFAULT_OPENROUTER_MODEL }) {
   if (TEST_MODE) {
     console.log('[TEST_MODE Delafontaine] Réponse Chatbot simulée (0 crédit utilisé).');
     

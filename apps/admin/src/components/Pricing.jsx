@@ -12,7 +12,7 @@ const PLANS = [
       '1 Website maximum',
       'Up to 500 live deployed pages',
       'Unlimited trial testing & learning',
-      'Fast Lightweight AI (Gemini 2.0 Flash)',
+      'Powered by GPT Luna (Ultra-Fast Architecture)',
       '100 messages / month',
       'Customized widget styling',
     ],
@@ -29,7 +29,7 @@ const PLANS = [
     features: [
       '1 Website maximum',
       'Up to 500 live deployed pages',
-      'Fast Optimized Model (GPT-4o-mini)',
+      'Powered by GPT Luna (High-Speed & Precision)',
       '2,000 messages / month',
       'Lead capture & CSV export',
       'Priority email support',
@@ -46,7 +46,7 @@ const PLANS = [
     features: [
       'Up to 5 Websites',
       'Up to 2,000 live pages per website',
-      'Advanced Reasoning Model (GPT-4o / Claude 3.5)',
+      'Powered by GPT Luna (Max Context & Agentic Tools)',
       '10,000 messages / month',
       'High-speed priority indexing',
       'VIP customer support',

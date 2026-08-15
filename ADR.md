@@ -4,6 +4,25 @@ Ce document retrace toutes les décisions importantes concernant l'architecture,
 
 ---
 
+## ADR 024 : Harmonisation du Moteur IA sur GPT Luna (`openai/gpt-5.6-luna`) pour Tous les Forfaits
+**Date:** 15 Août 2026
+**Statut:** Accepté
+
+### Contexte
+Pour garantir une expérience ultra rapide, homogène et de haute précision à travers l'ensemble des fonctionnalités et des forfaits de la plateforme, l'ensemble des flux de chat et d'agents doivent utiliser le modèle GPT Luna (`openai/gpt-5.6-luna`).
+
+### Décision
+1. **Routage Unifié vers `openai/gpt-5.6-luna`** :
+   - Dans `api/chat.js`, tous les forfaits (Free, Basic, Pro, Enterprise) routent directement vers `openai/gpt-5.6-luna`.
+   - Dans `api/lib/llm.js`, la constante par défaut `DEFAULT_OPENROUTER_MODEL` et les assistants d'extraction (leads, synthèses) sont configurés sur `openai/gpt-5.6-luna`.
+2. **Mise à Jour des Fiches Forfaits** :
+   - Les cartes de prix et fonctionnalités dans `Pricing.jsx` mentionnent l'accélération GPT Luna sur toutes les offres.
+
+### Conséquences
+- Temps de réponse réduit, streaming ultra réactif et excellente capacité d'extraction/raisonnement sur l'ensemble de l'application.
+
+---
+
 ## ADR 023 : Modale Interactive de Sélection de Pages pour les Grands Sites (Zéro Omission Silencieuse)
 **Date:** 15 Août 2026
 **Statut:** Accepté
