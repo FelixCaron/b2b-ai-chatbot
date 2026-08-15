@@ -364,6 +364,7 @@ export default function App() {
               isGuest={isGuest}
               onRequireLogin={() => setShowLoginModal(true)}
               onViewLeads={() => setCurrentView('leads')}
+              onShowPricing={() => setCurrentView('pricing')}
               leadsCount={leads.length}
             />
           </section>

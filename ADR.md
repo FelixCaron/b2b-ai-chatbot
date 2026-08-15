@@ -4,6 +4,29 @@ Ce document retrace toutes les décisions importantes concernant l'architecture,
 
 ---
 
+## ADR 021 : Apprentissage Intégral sans Limite à l'Onboarding & Avertissement de Quotas au Déploiement
+**Date:** 15 Août 2026
+**Statut:** Accepté
+
+### Contexte
+Lors de la découverte initiale d'un site web pendant l'onboarding, un seuil arbitraire de pages (ex: 15 pages) tronquait l'indexation de sites complets comme Delafontaine (~28 pages), dégradant l'expérience de test et de démonstration du bot. Le client doit pouvoir tester l'IA sur l'ensemble de son contenu sans restriction lors de l'onboarding, et n'être soumis aux quotas que lors du déploiement réel du widget sur son site web.
+
+### Décision
+1. **Suppression Totale de la Limite de Pages à l'Onboarding** :
+   - Pendant le scan initial et les re-scans, 100% des pages découvertes sont scannées, indexées et apprises sans aucun découpage artificiel.
+2. **Avertissement de Quota Contextuel au Déploiement** :
+   - Lorsque l'utilisateur ouvre la modale d'intégration du widget (`showIntegrationModal`) :
+     - Si le nombre de pages actives dépasse le forfait (ex: > 15 pages sur Free ou > 50 pages sur Basic) :
+       - Affichage d'un encart d'avertissement clair détaillant le dépassement (`X / Y pages`).
+       - Bouton d'action directe "Upgrade Plan →" pour passer au forfait supérieur.
+       - Bouton d'action "Manage & Deactivate Pages" qui redirige vers le tableau de la base de connaissances pour désactiver les pages superflues si le client souhaite rester sur son forfait actuel.
+
+### Conséquences
+- Expérience d'onboarding complète, valorisante et sans friction.
+- Incitation naturelle à l'upgrade au moment clé du déploiement en production.
+
+---
+
 ## ADR 020 : Suppression Sécurisée de Sites Web & Nettoyage en Cascade
 **Date:** 15 Août 2026
 **Statut:** Accepté
