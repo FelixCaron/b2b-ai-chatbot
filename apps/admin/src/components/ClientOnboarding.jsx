@@ -89,48 +89,53 @@ export default function ClientOnboarding({
     let loadedCount = 0;
     let protectedCount = 0;
     let emptyCount = 0;
+    let completedPagesCount = 0;
 
-    // 2. Scan each page: while loading, page shows 'loading'. Immediately when IT finishes loading, update its status row!
-    for (let i = 0; i < pagesToScan.length; i++) {
-      const page = pagesToScan[i];
-      const cleanPath = page.url.replace(/^https?:\/\/[^\/]+/, '') || '/';
-      const pct = Math.round(((i + 1) / pagesToScan.length) * 100);
-      setCrawlProgressMsg(`Indexation page ${i + 1}/${pagesToScan.length} (${pct}%) : ${cleanPath}`);
+    // 2. Scan pages in parallel batches to speed up ingestion
+    const CONCURRENCY = 5;
+    for (let i = 0; i < pagesToScan.length; i += CONCURRENCY) {
+      const batch = pagesToScan.slice(i, i + CONCURRENCY);
 
-      const scanRes = await onTriggerScan(siteObj.id, page.url, siteObj.tenant_id).catch(() => null);
+      await Promise.all(batch.map(async (page) => {
+        const scanRes = await onTriggerScan(siteObj.id, page.url, siteObj.tenant_id).catch(() => null);
 
-      // Verify ground truth chunk count in DB for this exact page
-      const { count } = await supabase
-        .from('documents')
-        .select('id', { count: 'exact', head: true })
-        .eq('site_id', siteObj.id)
-        .eq('url', page.url);
+        // Verify ground truth chunk count in DB for this exact page
+        const { count } = await supabase
+          .from('documents')
+          .select('id', { count: 'exact', head: true })
+          .eq('site_id', siteObj.id)
+          .eq('url', page.url);
 
-      const isProtected = scanRes?.data?.is_protected || scanRes?.is_protected;
-      const chunksCount = count ?? scanRes?.data?.chunks_count ?? scanRes?.chunks_count ?? 0;
-      const isEmpty = !isProtected && (scanRes?.data?.is_empty || chunksCount === 0);
+        const isProtected = scanRes?.data?.is_protected || scanRes?.is_protected;
+        const chunksCount = count ?? scanRes?.data?.chunks_count ?? scanRes?.chunks_count ?? 0;
+        const isEmpty = !isProtected && (scanRes?.data?.is_empty || chunksCount === 0);
 
-      // Update status immediately as soon as THIS page finishes loading!
-      if (isProtected) {
-        protectedCount++;
-        setSelectedUrls(prev => {
-          const next = new Set(prev);
-          next.delete(page.url);
-          return next;
-        });
-        setDiscoveredPages(prev => prev.map(p => p.url === page.url ? { ...p, status: 'protected', isProtected: true, isEmpty: false, chunksCount: 0 } : p));
-      } else if (isEmpty) {
-        emptyCount++;
-        setSelectedUrls(prev => {
-          const next = new Set(prev);
-          next.delete(page.url);
-          return next;
-        });
-        setDiscoveredPages(prev => prev.map(p => p.url === page.url ? { ...p, status: 'empty', isEmpty: true, isProtected: false, chunksCount: 0 } : p));
-      } else {
-        loadedCount++;
-        setDiscoveredPages(prev => prev.map(p => p.url === page.url ? { ...p, status: 'loaded', isEmpty: false, isProtected: false, chunksCount } : p));
-      }
+        // Update status immediately as soon as THIS page finishes loading!
+        if (isProtected) {
+          protectedCount++;
+          setSelectedUrls(prev => {
+            const next = new Set(prev);
+            next.delete(page.url);
+            return next;
+          });
+          setDiscoveredPages(prev => prev.map(p => p.url === page.url ? { ...p, status: 'protected', isProtected: true, isEmpty: false, chunksCount: 0 } : p));
+        } else if (isEmpty) {
+          emptyCount++;
+          setSelectedUrls(prev => {
+            const next = new Set(prev);
+            next.delete(page.url);
+            return next;
+          });
+          setDiscoveredPages(prev => prev.map(p => p.url === page.url ? { ...p, status: 'empty', isEmpty: true, isProtected: false, chunksCount: 0 } : p));
+        } else {
+          loadedCount++;
+          setDiscoveredPages(prev => prev.map(p => p.url === page.url ? { ...p, status: 'loaded', isEmpty: false, isProtected: false, chunksCount } : p));
+        }
+
+        completedPagesCount++;
+        const pct = Math.round((completedPagesCount / pagesToScan.length) * 100);
+        setCrawlProgressMsg(`Indexation page ${completedPagesCount}/${pagesToScan.length} (${pct}%)`);
+      }));
     }
 
     // Automatically generate website summary during onboarding / scan

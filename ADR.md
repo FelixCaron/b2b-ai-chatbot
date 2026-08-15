@@ -373,3 +373,20 @@ Ajout d'un bouton "Ouvrir dans un nouvel onglet" dans la barre de contrôle sup�
 
 ### Conséquences
 - **Avantage** : Accès direct en 1-clic au site web de destination dans un nouvel onglet sans fermer la session de test ou le tableau de bord d'administration.
+
+---
+
+## ADR 016 : Parallélisation de l'Ingestion (Batching Client-Side)
+**Date:** 14 Août 2026
+**Statut:** Accepté
+
+### Contexte
+L'ingestion des pages web découvertes (crawling) s'effectuait de manière séquentielle (une page à la fois) dans `ClientOnboarding.jsx`. Cela rendait le processus très lent pour les sites contenant beaucoup de pages, car chaque page devait attendre que la précédente termine son scan (`/api/start-scan`) avant de commencer.
+
+### Décision
+1. **Batching Concurrent (Client-Side)** : Le scan des pages a été parallélisé dans `runSynchronousCrawlAndIndex` en utilisant `Promise.all` avec un niveau de concurrence (`CONCURRENCY = 5`).
+2. **Gestion d'État Sécurisée** : Les mises à jour de l'état React (`setDiscoveredPages`, `setSelectedUrls`) utilisent des fonctions de mise à jour fonctionnelles (`prev => ...`) pour garantir qu'aucune donnée n'est perdue ou écrasée lors des retours de promesses concurrentes.
+
+### Conséquences
+- **Avantage** : Accélération massive du temps d'ingestion global du site web lors de l'onboarding.
+- **Inconvénient** : Augmentation du taux de requêtes concurrentes vers notre API et vers Jina Reader (géré par notre limite de concurrence de 5).
