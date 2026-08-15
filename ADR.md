@@ -4,6 +4,28 @@ Ce document retrace toutes les décisions importantes concernant l'architecture,
 
 ---
 
+## ADR 022 : Hausse du Seuil de Blocage à 500 Pages, Découverte Multi-Sitemaps & Pagination DB
+**Date:** 15 Août 2026
+**Statut:** Accepté
+
+### Contexte
+Le seuil de blocage et de notification de quotas devait être assoupli pour ne déclencher aucun blocage en dessous de 500 pages. De plus, la découverte des sous-sitemaps devait supporter jusqu'à 50 flux parallèles et la récupération des pages indexées devait lever la limite par défaut de 1000 lignes de Supabase postgREST.
+
+### Décision
+1. **Seuil de 500 Pages pour les Forfaits Standards** :
+   - Aucun avertissement ou blocage n'est déclenché tant que le site contient 500 pages ou moins.
+   - Les forfaits Pro supportent jusqu'à 2 000 pages et Enterprise jusqu'à 9 999+ pages.
+2. **Support de 50 Sous-Sitemaps en Parallèle** :
+   - Extension de la découverte `crawl-site.js` pour explorer jusqu'à 50 sous-sitemaps simultanément.
+3. **Suppression du Plafond de Lignes Supabase (`.limit(10000)`)** :
+   - Dans `fetchIndexedPages`, ajout d'un `.limit(10000)` explicite sur la requête des documents pour éviter la troncature silencieuse à 1000 chunks (qui pouvait limiter l'affichage à ~50 pages).
+
+### Conséquences
+- Zéro blocage pour tous les sites web contenant jusqu'à 500 pages.
+- Indexation et affichage garantis de l'intégralité des sections et sous-pages du site.
+
+---
+
 ## ADR 021 : Apprentissage Intégral sans Limite à l'Onboarding & Avertissement de Quotas au Déploiement
 **Date:** 15 Août 2026
 **Statut:** Accepté

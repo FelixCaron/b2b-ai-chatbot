@@ -138,10 +138,10 @@ export default async function handler(req) {
       }
     }
 
-    // Fetch sub-sitemaps in parallel if needed
+    // Fetch sub-sitemaps in parallel if needed (up to 50 sub-sitemaps for comprehensive multi-section sites)
     if (subSitemapUrls.size > 0) {
-      const subPromises = Array.from(subSitemapUrls).slice(0, 10).map(async (subUrl) => {
-        const res = await fetchWithTimeout(subUrl, 2000);
+      const subPromises = Array.from(subSitemapUrls).slice(0, 50).map(async (subUrl) => {
+        const res = await fetchWithTimeout(subUrl, 2500);
         if (res && res.ok) {
           try {
             const xml = await res.text();

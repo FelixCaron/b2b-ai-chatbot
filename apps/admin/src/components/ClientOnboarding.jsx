@@ -40,9 +40,8 @@ export default function ClientOnboarding({
   };
   const getMaxPagesForPlan = (plan) => {
     if (plan === 'enterprise') return 9999;
-    if (plan === 'pro' || plan === 'starter') return 250;
-    if (plan === 'basic') return 50;
-    return 15; // free: 15 pages
+    if (plan === 'pro' || plan === 'starter') return 2000;
+    return 500; // Do not block unless over 500 pages
   };
 
   // Onboarding Step State
@@ -310,7 +309,11 @@ export default function ClientOnboarding({
   const fetchIndexedPages = async () => {
     if (!activeSite?.id || isCrawling) return;
     try {
-      const { data, error } = await supabase.from('documents').select('url, metadata').eq('site_id', activeSite.id);
+      const { data, error } = await supabase
+        .from('documents')
+        .select('url, metadata')
+        .eq('site_id', activeSite.id)
+        .limit(10000);
       if (error) {
         console.error('[ClientOnboarding] Error fetching indexed pages:', error);
         return;
