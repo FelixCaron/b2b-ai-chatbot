@@ -4,6 +4,30 @@ Ce document retrace toutes les décisions importantes concernant l'architecture,
 
 ---
 
+## ADR 023 : Modale Interactive de Sélection de Pages pour les Grands Sites (Zéro Omission Silencieuse)
+**Date:** 15 Août 2026
+**Statut:** Accepté
+
+### Contexte
+Lorsqu'un site web dépasse la limite de pages d'un forfait (ex: plus de 500 pages découvertes), le système ne doit en aucun cas ignorer ou tronquer des pages silencieusement. L'utilisateur doit recevoir un avertissement explicite et pouvoir choisir précisément les pages à indexer ou mettre à niveau son forfait.
+
+### Décision
+1. **Zéro Omission Silencieuse** :
+   - Le crawler découvre et liste 100% des URLs disponibles sans restriction initiale.
+2. **Modale d'Avertissement & Sélecteur Interactif (`showPageSelectionModal`)** :
+   - Si le nombre total de pages découvertes dépasse le quota du plan, le processus de scan automatique se met en pause et ouvre une modale dédiée.
+   - Pré-sélection intelligente des premières pages (`Top N`) avec possibilité de cocher/décocher n'importe quelle page.
+   - Barre de recherche en temps réel pour filtrer les pages par chemin ou titre.
+   - Compteur de sélection dynamique (`X / Y pages`) bloquant le dépassement avec explication claire.
+   - Bouton d'action directe "Upgrade Plan →" pour lever toutes les limites.
+   - Bouton de confirmation "Confirm & Index Selected Pages" pour lancer l'indexation de la sélection personnalisée.
+
+### Conséquences
+- Transparence totale pour les clients ayant de volumineux catalogues ou documentations.
+- Maîtrise totale de la sélection de contenu indexé dans la base vectorielle.
+
+---
+
 ## ADR 022 : Hausse du Seuil de Blocage à 500 Pages, Découverte Multi-Sitemaps & Pagination DB
 **Date:** 15 Août 2026
 **Statut:** Accepté

@@ -110,54 +110,31 @@ export default function ClientOnboarding({
   const [learningDomain, setLearningDomain] = useState('');
   const [learningStats, setLearningStats] = useState({ pages: 0, indexed: 0, protected: 0, empty: 0 });
 
-  // Synchronous crawl and index pipeline
-  const runSynchronousCrawlAndIndex = async (siteObj, targetUrl) => {
+  // Large Website Selection Modal State (Never a silent miss)
+  const [showPageSelectionModal, setShowPageSelectionModal] = useState(false);
+  const [pendingCrawlPages, setPendingCrawlPages] = useState([]);
+  const [pendingSiteObj, setPendingSiteObj] = useState(null);
+  const [pendingTargetUrl, setPendingTargetUrl] = useState('');
+  const [pageSelectionSearch, setPageSelectionSearch] = useState('');
+
+  // Batch indexer helper
+  const executeBatchScan = async (siteObj, targetUrl, pagesToScan) => {
     setIsCrawling(true);
     setStep('dashboard');
     setShowLearningModal(true);
-    setLearningProgress(5);
-    setLearningStep(1);
+    setLearningProgress(20);
+    setLearningStep(2);
     setLearningDomain(siteObj.domain || targetUrl.replace('https://', '').replace('http://', ''));
-
-    setCrawlProgressMsg('Discovering website pages...');
-
-    // 1. Instantly discover ALL pages via /api/crawl-site without waiting (no limit during onboarding)
-    let pagesToScan = [{ url: targetUrl, title: 'Home Page', status: 'loading' }];
-    setDiscoveredPages(pagesToScan);
-    setSelectedUrls(new Set([targetUrl]));
-
-    try {
-      const crawlRes = await fetch(`${window.location.origin}/api/crawl-site`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: targetUrl })
-      });
-
-      if (crawlRes.ok) {
-        const crawlData = await crawlRes.json();
-        if (crawlData.pages && crawlData.pages.length > 0) {
-          pagesToScan = crawlData.pages.map(p => ({
-            url: p.url,
-            title: p.title || p.url,
-            status: 'loading'
-          }));
-        }
-      }
-    } catch (err) {
-      console.error('[runSynchronousCrawlAndIndex] Crawl error:', err);
-    }
 
     setDiscoveredPages(pagesToScan);
     setSelectedUrls(new Set(pagesToScan.map(p => p.url)));
-    setLearningStep(2);
-    setLearningProgress(20);
 
     let loadedCount = 0;
     let protectedCount = 0;
     let emptyCount = 0;
     let completedPagesCount = 0;
 
-    // 2. Scan pages in parallel batches to speed up ingestion (10x concurrency)
+    // Scan pages in parallel batches (10x concurrency)
     const CONCURRENCY = 10;
     for (let i = 0; i < pagesToScan.length; i += CONCURRENCY) {
       const batch = pagesToScan.slice(i, i + CONCURRENCY);
@@ -204,7 +181,7 @@ export default function ClientOnboarding({
       }));
     }
 
-    // 3. Automatically generate website summary during onboarding / scan
+    // Automatically generate website summary during scan
     setLearningStep(3);
     setLearningProgress(90);
     setIsRegeneratingSummary(true);
@@ -227,13 +204,13 @@ export default function ClientOnboarding({
         }
       }
     } catch (sumErr) {
-      console.warn('[runSynchronousCrawlAndIndex] Summary generation warning:', sumErr);
+      console.warn('[executeBatchScan] Summary generation warning:', sumErr);
     } finally {
       setIsRegeneratingSummary(false);
     }
     await fetchSiteSummary();
 
-    // 4. Complete
+    // Complete
     setLearningStats({
       pages: pagesToScan.length,
       indexed: loadedCount,
@@ -244,6 +221,68 @@ export default function ClientOnboarding({
     setLearningProgress(100);
     setCrawlProgressMsg(`✓ Scan finished! ${loadedCount} page(s) indexed.`);
     setIsCrawling(false);
+  };
+
+  // Synchronous crawl and index pipeline
+  const runSynchronousCrawlAndIndex = async (siteObj, targetUrl) => {
+    setIsCrawling(true);
+    setStep('dashboard');
+    setShowLearningModal(true);
+    setLearningProgress(5);
+    setLearningStep(1);
+    setLearningDomain(siteObj.domain || targetUrl.replace('https://', '').replace('http://', ''));
+
+    setCrawlProgressMsg('Discovering website pages...');
+
+    // 1. Discover ALL pages via /api/crawl-site without silent drops
+    let pagesToScan = [{ url: targetUrl, title: 'Home Page', status: 'loading' }];
+    setDiscoveredPages(pagesToScan);
+    setSelectedUrls(new Set([targetUrl]));
+
+    try {
+      const crawlRes = await fetch(`${window.location.origin}/api/crawl-site`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: targetUrl })
+      });
+
+      if (crawlRes.ok) {
+        const crawlData = await crawlRes.json();
+        if (crawlData.pages && crawlData.pages.length > 0) {
+          pagesToScan = crawlData.pages.map(p => ({
+            url: p.url,
+            title: p.title || p.url,
+            status: 'loading'
+          }));
+        }
+      }
+    } catch (err) {
+      console.error('[runSynchronousCrawlAndIndex] Crawl error:', err);
+    }
+
+    const maxAllowedPages = getMaxPagesForPlan(tenantPlan);
+
+    // If website exceeds plan limit (e.g. over 500 pages), prompt with warning and interactive page selector
+    if (pagesToScan.length > maxAllowedPages) {
+      setPendingCrawlPages(pagesToScan);
+      setPendingSiteObj(siteObj);
+      setPendingTargetUrl(targetUrl);
+      setSelectedUrls(new Set(pagesToScan.slice(0, maxAllowedPages).map(p => p.url)));
+      setShowLearningModal(false);
+      setIsCrawling(false);
+      setShowPageSelectionModal(true);
+      return;
+    }
+
+    await executeBatchScan(siteObj, targetUrl, pagesToScan);
+  };
+
+  const handleConfirmSelectedPagesAndScan = async () => {
+    if (!pendingSiteObj || !pendingTargetUrl) return;
+    setShowPageSelectionModal(false);
+    const chosenPages = pendingCrawlPages.filter(p => selectedUrls.has(p.url));
+    const finalPages = chosenPages.length > 0 ? chosenPages : pendingCrawlPages.slice(0, 1);
+    await executeBatchScan(pendingSiteObj, pendingTargetUrl, finalPages);
   };
 
   const handleRecrawlSite = async () => {
@@ -1782,6 +1821,155 @@ export default function ClientOnboarding({
                   <><Trash2 className="w-3.5 h-3.5" /> Delete Permanently</>
                 )}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 9. LARGE WEBSITE PAGE SELECTION REVIEW MODAL (Never a silent miss) */}
+      {showPageSelectionModal && (
+        <div className="fixed inset-0 z-[9999999] bg-black/85 flex items-center justify-center p-4 animate-in fade-in">
+          <div className="glass-card p-6 sm:p-8 rounded-3xl w-full max-w-3xl border border-amber-500/30 shadow-2xl relative flex flex-col max-h-[88vh]">
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/30">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white">
+                    Large Website ({pendingCrawlPages.length} Pages Discovered)
+                  </h3>
+                  <p className="text-xs text-gray-400">
+                    Your current <strong>{tenantPlan.toUpperCase()}</strong> plan includes up to <strong>{getMaxPagesForPlan(tenantPlan)} pages</strong>. Select which pages to index or upgrade your plan.
+                  </p>
+                </div>
+              </div>
+
+              <span className={`px-3 py-1 rounded-full text-xs font-bold shrink-0 ${
+                selectedUrls.size > getMaxPagesForPlan(tenantPlan)
+                  ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                  : 'bg-brand-500/20 text-brand-300 border border-brand-500/30'
+              }`}>
+                {selectedUrls.size} / {getMaxPagesForPlan(tenantPlan)} pages selected
+              </span>
+            </div>
+
+            {/* Quick Actions & Search */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pb-3 border-b border-white/5">
+              <div className="relative w-full sm:w-72">
+                <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-2.5" />
+                <input
+                  type="text"
+                  placeholder="Filter pages by URL or title..."
+                  value={pageSelectionSearch}
+                  onChange={(e) => setPageSelectionSearch(e.target.value)}
+                  style={{ backgroundColor: '#090d16', color: '#f3f4f6' }}
+                  className="w-full bg-dark-950 border border-white/10 text-gray-100 placeholder-gray-500 rounded-xl pl-8 pr-3 py-1.5 text-xs outline-none focus:border-brand-500 transition-colors"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const topN = pendingCrawlPages.slice(0, getMaxPagesForPlan(tenantPlan));
+                    setSelectedUrls(new Set(topN.map(p => p.url)));
+                  }}
+                  className="text-xs text-gray-300 hover:text-white bg-dark-800 hover:bg-dark-700 px-3 py-1.5 rounded-lg border border-white/10 transition-colors"
+                >
+                  Select Top {getMaxPagesForPlan(tenantPlan)}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedUrls(new Set())}
+                  className="text-xs text-gray-400 hover:text-white bg-dark-800 hover:bg-dark-700 px-3 py-1.5 rounded-lg border border-white/10 transition-colors"
+                >
+                  Clear All
+                </button>
+              </div>
+            </div>
+
+            {/* Scrollable Page Checklist */}
+            <div className="flex-1 overflow-y-auto min-h-0 my-3 divide-y divide-white/5 rounded-xl border border-white/5 bg-dark-950/60">
+              {pendingCrawlPages
+                .filter(p => p.url.toLowerCase().includes(pageSelectionSearch.toLowerCase()) || (p.title && p.title.toLowerCase().includes(pageSelectionSearch.toLowerCase())))
+                .map((page, idx) => {
+                  const isChecked = selectedUrls.has(page.url);
+                  return (
+                    <div
+                      key={idx}
+                      onClick={() => {
+                        setSelectedUrls(prev => {
+                          const next = new Set(prev);
+                          if (next.has(page.url)) {
+                            next.delete(page.url);
+                          } else {
+                            if (next.size >= getMaxPagesForPlan(tenantPlan)) {
+                              alert(`Your plan allows up to ${getMaxPagesForPlan(tenantPlan)} pages. Please upgrade or uncheck another page.`);
+                              return next;
+                            }
+                            next.add(page.url);
+                          }
+                          return next;
+                        });
+                      }}
+                      className={`p-3 flex items-center justify-between gap-3 cursor-pointer hover:bg-white/[0.03] transition-colors ${
+                        isChecked ? 'bg-brand-500/5' : ''
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {}}
+                          className="w-4 h-4 rounded text-brand-600 bg-dark-800 border-white/20 focus:ring-0 shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <div className="text-xs font-semibold text-white truncate">{page.title || page.url}</div>
+                          <div className="text-[11px] text-gray-400 font-mono truncate">{page.url}</div>
+                        </div>
+                      </div>
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${
+                        isChecked ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-gray-800 text-gray-400'
+                      }`}>
+                        {isChecked ? 'Selected' : 'Skipped'}
+                      </span>
+                    </div>
+                  );
+                })}
+            </div>
+
+            {/* Modal Footer Actions */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-white/5">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPageSelectionModal(false);
+                  if (onShowPricing) onShowPricing();
+                }}
+                className="w-full sm:w-auto text-xs text-amber-300 hover:text-amber-200 font-semibold flex items-center gap-1.5 px-3 py-2"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                Upgrade plan for unlimited pages →
+              </button>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowPageSelectionModal(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-gray-400 hover:text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={selectedUrls.size === 0 || selectedUrls.size > getMaxPagesForPlan(tenantPlan)}
+                  onClick={handleConfirmSelectedPagesAndScan}
+                  className="bg-brand-600 hover:bg-brand-500 text-white font-semibold px-6 py-2 rounded-xl text-xs flex items-center gap-2 transition-all shadow-lg disabled:opacity-50"
+                >
+                  Confirm & Index Selected Pages ({selectedUrls.size}) →
+                </button>
+              </div>
             </div>
           </div>
         </div>
