@@ -1,7 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Sparkles, Globe, Eye, CheckCircle2, ArrowRight, Settings2, ShieldCheck, ToggleLeft, ToggleRight, Check, RefreshCw, Copy, Layers, Laptop, Smartphone, X, Send, Code, Lock, FileText, Save, Edit3, ExternalLink } from 'lucide-react';
+import { 
+  Sparkles, Globe, Eye, CheckCircle2, ArrowRight, Settings2, ShieldCheck, 
+  ToggleLeft, ToggleRight, Check, RefreshCw, Copy, Layers, Laptop, 
+  Smartphone, X, Send, Code, Lock, FileText, Save, Edit3, ExternalLink,
+  ChevronDown, ChevronUp, Bot, ArrowUpRight, Search
+} from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-
 import remarkGfm from 'remark-gfm';
 import { createClient } from '@supabase/supabase-js';
 
@@ -38,7 +42,7 @@ export default function ClientOnboarding({
   }, [activeSite]);
 
   // Page Management & Selection State
-  const [showPageManager, setShowPageManager] = useState(false);
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
   const [discoveredPages, setDiscoveredPages] = useState([]);
   const [selectedUrls, setSelectedUrls] = useState(new Set());
   const [isCrawling, setIsCrawling] = useState(false);
@@ -48,16 +52,26 @@ export default function ClientOnboarding({
   const [searchQuery, setSearchQuery] = useState('');
   const [editingPage, setEditingPage] = useState(null);
 
+  // Learning Progress Modal State
+  const [showLearningModal, setShowLearningModal] = useState(false);
+  const [learningProgress, setLearningProgress] = useState(0);
+  const [learningStep, setLearningStep] = useState(1); // 1: Discover, 2: Index, 3: Summary, 4: Complete
+  const [learningDomain, setLearningDomain] = useState('');
+  const [learningStats, setLearningStats] = useState({ pages: 0, indexed: 0, protected: 0, empty: 0 });
+
   // Synchronous crawl and index pipeline
   const runSynchronousCrawlAndIndex = async (siteObj, targetUrl) => {
     setIsCrawling(true);
-    setShowPageManager(true);
     setStep('dashboard');
+    setShowLearningModal(true);
+    setLearningProgress(5);
+    setLearningStep(1);
+    setLearningDomain(siteObj.domain || targetUrl.replace('https://', '').replace('http://', ''));
 
-    setCrawlProgressMsg('Découverte de toutes les pages du site...');
+    setCrawlProgressMsg('Discovering website pages...');
 
     // 1. Instantly discover ALL pages via /api/crawl-site without waiting
-    let pagesToScan = [{ url: targetUrl, title: 'Page d\'accueil', status: 'loading' }];
+    let pagesToScan = [{ url: targetUrl, title: 'Home Page', status: 'loading' }];
     setDiscoveredPages(pagesToScan);
     setSelectedUrls(new Set([targetUrl]));
 
@@ -82,9 +96,10 @@ export default function ClientOnboarding({
       console.error('[runSynchronousCrawlAndIndex] Crawl error:', err);
     }
 
-    // Populate all discovered pages in loading state in the table right away!
     setDiscoveredPages(pagesToScan);
     setSelectedUrls(new Set(pagesToScan.map(p => p.url)));
+    setLearningStep(2);
+    setLearningProgress(20);
 
     let loadedCount = 0;
     let protectedCount = 0;
@@ -110,7 +125,6 @@ export default function ClientOnboarding({
         const chunksCount = count ?? scanRes?.data?.chunks_count ?? scanRes?.chunks_count ?? 0;
         const isEmpty = !isProtected && (scanRes?.data?.is_empty || chunksCount === 0);
 
-        // Update status immediately as soon as THIS page finishes loading!
         if (isProtected) {
           protectedCount++;
           setSelectedUrls(prev => {
@@ -133,14 +147,18 @@ export default function ClientOnboarding({
         }
 
         completedPagesCount++;
-        const pct = Math.round((completedPagesCount / pagesToScan.length) * 100);
-        setCrawlProgressMsg(`Indexation page ${completedPagesCount}/${pagesToScan.length} (${pct}%)`);
+        const pct = Math.round(20 + ((completedPagesCount / pagesToScan.length) * 60));
+        setLearningProgress(Math.min(pct, 85));
+        setCrawlProgressMsg(`Indexing page ${completedPagesCount}/${pagesToScan.length} (${Math.round((completedPagesCount / pagesToScan.length) * 100)}%)`);
       }));
     }
 
-    // Automatically generate website summary during onboarding / scan
+    // 3. Automatically generate website summary during onboarding / scan
+    setLearningStep(3);
+    setLearningProgress(90);
     setIsRegeneratingSummary(true);
-    setCrawlProgressMsg('Génération du résumé IA de votre entreprise...');
+    setCrawlProgressMsg('Generating AI Business Summary...');
+    
     try {
       const summaryRes = await fetch(`${window.location.origin}/api/generate-summary`, {
         method: 'POST',
@@ -164,19 +182,23 @@ export default function ClientOnboarding({
     }
     await fetchSiteSummary();
 
-    setCrawlProgressMsg(`✓ Scan terminé ! ${loadedCount} page(s) indexée(s)${protectedCount > 0 ? `, ${protectedCount} protégée(s)` : ''}${emptyCount > 0 ? `, ${emptyCount} vide(s)` : ''}.`);
+    // 4. Complete
+    setLearningStats({
+      pages: pagesToScan.length,
+      indexed: loadedCount,
+      protected: protectedCount,
+      empty: emptyCount
+    });
+    setLearningStep(4);
+    setLearningProgress(100);
+    setCrawlProgressMsg(`✓ Scan finished! ${loadedCount} page(s) indexed.`);
     setIsCrawling(false);
   };
-
-
-
-
 
   const handleRecrawlSite = async () => {
     if (!activeSite || isCrawling) return;
     setIsCrawling(true);
-    setShowPageManager(true);
-    setCrawlProgressMsg('Nettoyage de l\'ancienne base de données...');
+    setCrawlProgressMsg('Resetting previous database chunks...');
 
     try {
       await supabase.from('documents').delete().eq('site_id', activeSite.id);
@@ -197,7 +219,6 @@ export default function ClientOnboarding({
     const currentStatus = targetPage?.status || (selectedUrls.has(pageUrl) ? 'loaded' : 'disabled');
 
     if (currentStatus === 'loaded' || currentStatus === 'loading') {
-      // Deactivate & delete document chunks
       setDiscoveredPages(prev => prev.map(p => p.url === pageUrl ? { ...p, status: 'disabled' } : p));
       setSelectedUrls(prev => {
         const next = new Set(prev);
@@ -206,7 +227,6 @@ export default function ClientOnboarding({
       });
       await onDeleteDocumentUrls(activeSite.id, [pageUrl]);
     } else {
-      // Activate & Scan page
       setDiscoveredPages(prev => prev.map(p => p.url === pageUrl ? { ...p, status: 'loading' } : p));
       setSelectedUrls(prev => new Set(prev).add(pageUrl));
       await onTriggerScan(activeSite.id, pageUrl, activeSite.tenant_id);
@@ -214,25 +234,25 @@ export default function ClientOnboarding({
     }
   };
 
-function normalizePageUrl(rawUrl) {
-  if (!rawUrl) return '';
-  try {
-    let uStr = rawUrl.split('#')[0].split('?')[0].trim();
-    if (!uStr.startsWith('http://') && !uStr.startsWith('https://')) {
-      uStr = `https://${uStr}`;
+  function normalizePageUrl(rawUrl) {
+    if (!rawUrl) return '';
+    try {
+      let uStr = rawUrl.split('#')[0].split('?')[0].trim();
+      if (!uStr.startsWith('http://') && !uStr.startsWith('https://')) {
+        uStr = `https://${uStr}`;
+      }
+      const parsed = new URL(uStr);
+      parsed.pathname = parsed.pathname.replace(/\/index\.html$/i, '/').replace(/\.html$/i, '');
+      if (parsed.pathname === '' || parsed.pathname === '/') {
+        parsed.pathname = '/';
+      } else if (parsed.pathname.endsWith('/')) {
+        parsed.pathname = parsed.pathname.slice(0, -1);
+      }
+      return parsed.href;
+    } catch (e) {
+      return rawUrl;
     }
-    const parsed = new URL(uStr);
-    parsed.pathname = parsed.pathname.replace(/\/index\.html$/i, '/').replace(/\.html$/i, '');
-    if (parsed.pathname === '' || parsed.pathname === '/') {
-      parsed.pathname = '/';
-    } else if (parsed.pathname.endsWith('/')) {
-      parsed.pathname = parsed.pathname.slice(0, -1);
-    }
-    return parsed.href;
-  } catch (e) {
-    return rawUrl;
   }
-}
 
   // Auto-fetch indexed pages when site changes
   const fetchIndexedPages = async () => {
@@ -254,7 +274,7 @@ function normalizePageUrl(rawUrl) {
               let title = d.metadata?.title;
               if (!title) {
                 const u = new URL(normUrl);
-                title = (u.pathname === '/' || u.pathname === '') ? "Page d'accueil" : u.pathname.replace(/^\//, '');
+                title = (u.pathname === '/' || u.pathname === '') ? "Home Page" : u.pathname.replace(/^\//, '');
               }
               pages.push({ url: normUrl, title, status: 'loaded' });
             }
@@ -271,14 +291,13 @@ function normalizePageUrl(rawUrl) {
     }
   };
 
-
   // Website Summary State & Handlers
   const [siteSummary, setSiteSummary] = useState('');
   const [isLoadingSummary, setIsLoadingSummary] = useState(true);
   const [isSavingSummary, setIsSavingSummary] = useState(false);
   const [isRegeneratingSummary, setIsRegeneratingSummary] = useState(false);
   const [summarySuccessMsg, setSummarySuccessMsg] = useState('');
-  const [showSummaryEditor, setShowSummaryEditor] = useState(true);
+  const [showSummaryEditor, setShowSummaryEditor] = useState(false);
 
   const fetchSiteSummary = async () => {
     if (!activeSite?.id) return;
@@ -336,12 +355,11 @@ function normalizePageUrl(rawUrl) {
     }
   };
 
-
   const handleSaveSummary = async () => {
     if (!activeSite?.id || !siteSummary.trim()) return;
     setIsSavingSummary(true);
     try {
-      const { error: sumErr } = await supabase.from('site_summaries').upsert({
+      await supabase.from('site_summaries').upsert({
         tenant_id: activeSite.tenant_id,
         site_id: activeSite.id,
         summary: siteSummary.trim(),
@@ -358,7 +376,7 @@ function normalizePageUrl(rawUrl) {
         content: `[SITE_SUMMARY]\n${siteSummary.trim()}`
       });
 
-      setSummarySuccessMsg('✓ Résumé enregistré avec succès !');
+      setSummarySuccessMsg('✓ Business summary saved successfully!');
       setTimeout(() => setSummarySuccessMsg(''), 3500);
     } catch (err) {
       console.error('[handleSaveSummary] Error:', err);
@@ -385,7 +403,7 @@ function normalizePageUrl(rawUrl) {
         const data = await res.json();
         if (data.summary) {
           setSiteSummary(data.summary);
-          setSummarySuccessMsg('✓ Résumé régénéré par IA avec succès !');
+          setSummarySuccessMsg('✓ AI Business Summary regenerated successfully!');
           setTimeout(() => setSummarySuccessMsg(''), 3500);
         }
       }
@@ -401,7 +419,6 @@ function normalizePageUrl(rawUrl) {
     fetchSiteSummary();
   }, [activeSite?.id]);
 
-
   // Full-Screen Preview & Live Bot Testing State
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [previewViewport, setPreviewViewport] = useState('desktop'); // 'desktop' | 'mobile'
@@ -409,9 +426,9 @@ function normalizePageUrl(rawUrl) {
 
   // Live Preview Chatbot State
   const [previewSessionId, setPreviewSessionId] = useState(() => 'preview_sess_' + Date.now());
-  const [previewChatOpen, setPreviewChatOpen] = useState(true); // Open chatbot by default in preview!
+  const [previewChatOpen, setPreviewChatOpen] = useState(true);
   const [previewMessages, setPreviewMessages] = useState([
-    { role: 'assistant', text: 'Bonjour! Je suis l\'assistant virtuel de votre site. Posez-moi une question pour tester mes réponses en direct!' }
+    { role: 'assistant', text: "Hello! I am your website's virtual assistant. Ask me any question to test my live responses!" }
   ]);
   const [previewInput, setPreviewInput] = useState('');
   const [previewStreaming, setPreviewStreaming] = useState(false);
@@ -422,7 +439,7 @@ function normalizePageUrl(rawUrl) {
     if (activeSite) {
       setPreviewSessionId('preview_sess_' + Date.now());
       setPreviewMessages([
-        { role: 'assistant', text: `Bonjour! Je suis l'assistant virtuel de ${activeSite.domain}. Posez-moi une question pour tester mes réponses en direct!` }
+        { role: 'assistant', text: `Hello! I am the virtual assistant for ${activeSite.domain}. Ask me any question to test my live answers!` }
       ]);
     }
   }, [activeSite?.id]);
@@ -445,20 +462,18 @@ function normalizePageUrl(rawUrl) {
     }
 
     setIsAnalyzing(true);
-    setStatusMsg('Création de votre assistant...');
+    setStatusMsg('Creating your AI Assistant...');
 
     try {
       let currentDomain = formattedUrl.replace('https://', '').replace('http://', '').replace('www.', '').split('/')[0];
-      let brandColor = '#1e3a8a';
+      let brandColor = '#4f46e5';
 
-      // 1. Add or fetch site in database immediately
       const siteObj = await onAddSite(currentDomain, brandColor);
 
       if (siteObj) {
         setLocalCreatedSite(siteObj);
         setIsAnalyzing(false);
 
-        // 2. Detect theme color asynchronously in background
         fetch(`${window.location.origin}/api/analyze-theme`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -470,53 +485,28 @@ function normalizePageUrl(rawUrl) {
           if (themeData?.org_name) setOrgName(themeData.org_name);
         }).catch(() => {});
 
-        // 3. Switch immediately to dashboard & run crawling progression!
         await runSynchronousCrawlAndIndex(siteObj, formattedUrl);
       } else {
-        setStatusMsg('Erreur : Impossible d\'ajouter ce site.');
+        setStatusMsg('Error: Unable to add this website domain.');
         setIsAnalyzing(false);
       }
     } catch (err) {
       console.error('Onboarding error:', err);
-      setStatusMsg(`Erreur : ${err.message}`);
+      setStatusMsg(`Error: ${err.message}`);
       setIsAnalyzing(false);
     }
   };
 
-  const handleConfirmAndIndex = async () => {
-    setStep('dashboard');
-    setShowPreviewModal(true);
-  };
-
-  // Toggle single page selection & sync DB deletions
-  const handleTogglePage = async (pageUrl) => {
-    const next = new Set(selectedUrls);
-    const wasSelected = next.has(pageUrl);
-
-    if (wasSelected) {
-      next.delete(pageUrl);
-      if (primarySite) {
-        await onDeleteDocumentUrls(primarySite.id, [pageUrl]);
-      }
-    } else {
-      next.add(pageUrl);
-      if (primarySite) {
-        await onTriggerScan(primarySite.id, pageUrl, primarySite.tenant_id);
-      }
-    }
-    setSelectedUrls(next);
-  };
-
   const handleEditPage = async (pageUrl, e) => {
     e.stopPropagation();
-    setEditingPage({ url: pageUrl, content: 'Chargement...', saving: false });
+    setEditingPage({ url: pageUrl, content: 'Loading content...', saving: false });
     try {
       const { data, error } = await supabase.from('documents').select('content').eq('site_id', activeSite.id).eq('url', pageUrl);
       if (error) throw error;
       const fullContent = data ? data.map(d => d.content).join('\n\n') : '';
       setEditingPage({ url: pageUrl, content: fullContent, saving: false });
     } catch (err) {
-      setEditingPage({ url: pageUrl, content: 'Erreur de chargement.', saving: false });
+      setEditingPage({ url: pageUrl, content: 'Error loading page content.', saving: false });
     }
   };
 
@@ -537,7 +527,7 @@ function normalizePageUrl(rawUrl) {
       setSelectedUrls(prev => new Set(prev).add(editingPage.url));
       setEditingPage(null);
     } catch (e) {
-      alert("Erreur lors de la sauvegarde.");
+      alert("Error saving page content.");
       setEditingPage(prev => ({ ...prev, saving: false }));
     }
   };
@@ -549,7 +539,7 @@ function normalizePageUrl(rawUrl) {
     const userText = previewInput.trim();
     setPreviewInput('');
     setPreviewMessages((prev) => [...prev, { role: 'user', text: userText }]);
-    setPreviewStreaming("Recherche dans la base de connaissances...");
+    setPreviewStreaming("Searching knowledge base...");
 
     try {
       const res = await fetch(`${window.location.origin}/api/chat`, {
@@ -562,13 +552,13 @@ function normalizePageUrl(rawUrl) {
         })
       });
 
-      if (!res.ok) throw new Error(`Erreur ${res.status}`);
+      if (!res.ok) throw new Error(`Error ${res.status}`);
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let assistantText = '';
 
-      setPreviewStreaming("L'assistant rédige une réponse...");
+      setPreviewStreaming("AI is writing a response...");
       setPreviewMessages((prev) => [...prev, { role: 'assistant', text: '' }]);
 
       while (true) {
@@ -586,7 +576,6 @@ function normalizePageUrl(rawUrl) {
               const parsed = JSON.parse(dataStr);
               if (parsed.tool_call) {
                 setPreviewMessages((prev) => {
-                  // Insert tool message before the empty assistant message placeholder
                   const updated = [...prev];
                   const lastMsg = updated[updated.length - 1];
                   if (lastMsg && lastMsg.role === 'assistant' && !lastMsg.text) {
@@ -598,7 +587,6 @@ function normalizePageUrl(rawUrl) {
                 });
               }
               if (parsed.text) {
-                // Clear the loading string once we get the first chunk
                 if (previewStreaming) setPreviewStreaming(false);
                 assistantText = parsed.text;
                 setPreviewMessages((prev) => {
@@ -612,14 +600,14 @@ function normalizePageUrl(rawUrl) {
         }
       }
     } catch (err) {
-      setPreviewMessages((prev) => [...prev, { role: 'assistant', text: `Erreur: ${err.message}` }]);
+      setPreviewMessages((prev) => [...prev, { role: 'assistant', text: `Error: ${err.message}` }]);
     } finally {
       setPreviewStreaming(false);
     }
   };
 
   const copyWidgetScript = (key) => {
-    const snippet = `<script src="${window.location.origin}/widget.iife.js" data-tenant-key="${key}" data-api-url="${window.location.origin}/api/chat" data-theme-color="${primarySite?.theme_primary_color || '#6366f1'}"></script>`;
+    const snippet = `<script src="${window.location.origin}/widget.iife.js" data-tenant-key="${key}" data-api-url="${window.location.origin}/api/chat" data-theme-color="${activeSite?.theme_primary_color || '#6366f1'}"></script>`;
     navigator.clipboard.writeText(snippet);
     setCopiedScriptKey(key);
     setTimeout(() => setCopiedScriptKey(null), 2000);
@@ -629,7 +617,7 @@ function normalizePageUrl(rawUrl) {
 
   return (
     <div className="space-y-8">
-      {/* HERO ONBOARDING (When no site exists) */}
+      {/* 1. HERO ONBOARDING (When no site exists) */}
       {(!activeSite || step !== 'dashboard') ? (
         <div className="relative max-w-2xl mx-auto mt-12">
           <div className="relative bg-dark-800/50 backdrop-blur-sm p-10 rounded-2xl border border-white/10 text-center shadow-lg overflow-hidden">
@@ -638,79 +626,39 @@ function normalizePageUrl(rawUrl) {
             </div>
             
             <h2 className="text-3xl font-bold text-white tracking-tight mb-3">
-              Déployez votre IA en 30 secondes
+              Deploy Your AI Assistant in 30 Seconds
             </h2>
             <p className="text-base text-gray-400 mb-10 max-w-lg mx-auto">
-              Entrez l'adresse de votre site. Notre système analysera automatiquement son contenu pour configurer votre assistant sur mesure.
+              Enter your website address. Our system will automatically crawl your site, learn your business, and configure your custom AI assistant.
             </p>
 
-            {step === 'input' && (
-              <form onSubmit={handleAnalyzeSite} className="space-y-4">
-                <div className="relative max-w-lg mx-auto">
-                  <Globe className="w-5 h-5 text-gray-400 absolute left-4 top-3.5" />
-                  <input
-                    type="text"
-                    placeholder="https://votre-entreprise.com ou votre-entreprise.com"
-                    value={siteUrl}
-                    onChange={(e) => setSiteUrl(e.target.value)}
-                    className="w-full bg-dark-900 border border-gray-700 text-white rounded-2xl pl-12 pr-4 py-3.5 text-sm outline-none focus:border-brand-500 transition-colors shadow-inner"
-                    required
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={!siteUrl || isAnalyzing}
-                  className="w-full max-w-lg mx-auto bg-brand-600 hover:bg-brand-500 text-white font-medium py-3.5 rounded-xl text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isAnalyzing ? (
-                    <span className="flex items-center gap-2">
-                      <RefreshCw className="w-4 h-4 animate-spin" /> Analyse intelligente de votre marque...
-                    </span>
-                  ) : (
-                    <>Continuer <ArrowRight className="w-4 h-4" /></>
-                  )}
-                </button>
-              </form>
-            )}
-
-            {step === 'confirm' && (
-              <div className="space-y-6 text-left max-w-lg mx-auto bg-dark-900/80 p-6 rounded-2xl border border-white/5 shadow-inner">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-400 mb-1">Nom de votre entreprise / Organisation</label>
-                  <input
-                    type="text"
-                    value={orgName}
-                    onChange={(e) => setOrgName(e.target.value)}
-                    className="w-full bg-dark-800 border border-gray-700 text-white rounded-xl px-4 py-2.5 text-sm outline-none focus:border-brand-500"
-                  />
-                </div>
-
-                {detectedTheme && (
-                  <div className="flex items-center justify-between p-3.5 rounded-xl bg-dark-800 border border-white/5">
-                    <span className="text-xs text-gray-300 font-medium">Style de votre marque détecté :</span>
-                    <div className="flex items-center gap-2">
-                      <span className="w-5 h-5 rounded-full border border-white/20 shadow-md" style={{ backgroundColor: detectedTheme.primary_color }}></span>
-                      <span className="text-xs font-mono text-indigo-300">{detectedTheme.primary_color}</span>
-                    </div>
-                  </div>
-                )}
-
-                <button
-                  onClick={handleConfirmAndIndex}
-                  disabled={isIndexing}
-                  className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3.5 rounded-2xl text-sm flex items-center justify-center gap-2 shadow-lg transition-all"
-                >
-                  {isIndexing ? (
-                    <span className="flex items-center gap-2">
-                      <RefreshCw className="w-4 h-4 animate-spin" /> Lecture & Apprentissage du site...
-                    </span>
-                  ) : (
-                    <>Activer mon Assistant IA <CheckCircle2 className="w-4 h-4" /></>
-                  )}
-                </button>
+            <form onSubmit={handleAnalyzeSite} className="space-y-4">
+              <div className="relative max-w-lg mx-auto">
+                <Globe className="w-5 h-5 text-gray-400 absolute left-4 top-3.5" />
+                <input
+                  type="text"
+                  placeholder="https://your-company.com or your-company.com"
+                  value={siteUrl}
+                  onChange={(e) => setSiteUrl(e.target.value)}
+                  className="w-full bg-dark-900 border border-gray-700 text-white rounded-2xl pl-12 pr-4 py-3.5 text-sm outline-none focus:border-brand-500 transition-colors shadow-inner"
+                  required
+                />
               </div>
-            )}
+
+              <button
+                type="submit"
+                disabled={!siteUrl || isAnalyzing}
+                className="w-full max-w-lg mx-auto bg-brand-600 hover:bg-brand-500 text-white font-medium py-3.5 rounded-xl text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-brand-900/40"
+              >
+                {isAnalyzing ? (
+                  <span className="flex items-center gap-2">
+                    <RefreshCw className="w-4 h-4 animate-spin" /> Analyzing your website...
+                  </span>
+                ) : (
+                  <>Create My AI Assistant <ArrowRight className="w-4 h-4" /></>
+                )}
+              </button>
+            </form>
 
             {statusMsg && (
               <div className="mt-6 flex items-center justify-center gap-3 text-sm text-brand-400 font-medium bg-brand-500/10 p-3 rounded-xl border border-brand-500/20">
@@ -721,328 +669,359 @@ function normalizePageUrl(rawUrl) {
           </div>
         </div>
       ) : (
-        /* MAIN DASHBOARD CLIENT VIEW */
+        /* 2. MAIN DASHBOARD CLIENT VIEW */
         <div className="space-y-8">
-          {/* Active Site Header & Fullscreen Preview Button */}
-          <div className="bg-dark-800/80 p-6 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-white/5 shadow-sm">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold shadow-sm" style={{ backgroundColor: themeColor }}>
-                <Globe className="w-6 h-6" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-xl font-bold text-white">{activeSite.domain}</h2>
-                  <span className="bg-emerald-500/15 text-emerald-400 text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5 border border-emerald-500/20">
-                    <Check className="w-3.5 h-3.5" /> Assistant En Ligne
-                  </span>
+          {/* Active Site Hero Card */}
+          <div className="bg-dark-800/80 p-6 sm:p-8 rounded-2xl border border-white/5 shadow-sm space-y-6">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-bold shadow-md" style={{ backgroundColor: themeColor }}>
+                  <Globe className="w-7 h-7" />
                 </div>
-                <p className="text-xs text-gray-400 mt-1">
-                  Identifiant : <span className="font-mono text-indigo-300">{activeSite.public_key}</span>
-                </p>
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex items-center gap-3 w-full sm:w-auto">
-              <button
-                disabled={isCrawling}
-                onClick={() => setShowPreviewModal(true)}
-                className={`flex-1 sm:flex-initial text-white font-medium px-5 py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 shadow-sm transition-all ${
-                  isCrawling 
-                    ? 'bg-gray-800 text-gray-400 cursor-not-allowed border border-white/10 opacity-70' 
-                    : 'bg-brand-600 hover:bg-brand-500 shadow-brand-900/50'
-                }`}
-                title={isCrawling ? "Veuillez patienter pendant la fin du crawl" : "Aperçu Plein Écran & Test Live"}
-              >
-                {isCrawling ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin text-brand-400" /> Crawl en cours...
-                  </>
-                ) : (
-                  <>
-                    <Eye className="w-4 h-4" /> Aperçu Plein Écran & Test Live
-                  </>
-                )}
-              </button>
-              <button
-                onClick={() => {
-                  if (isGuest) onRequireLogin();
-                  else setShowIntegrationModal(true);
-                }}
-                className="bg-dark-800 hover:bg-gray-700 border border-gray-700 text-gray-300 hover:text-white px-4 py-2.5 rounded-xl text-xs font-medium flex items-center justify-center gap-2 transition-all"
-              >
-                <Code className="w-4 h-4 text-gray-400" /> Intégrer à mon site
-              </button>
-              <button
-                onClick={() => {
-                  setSiteUrl('');
-                  setStep('input');
-                }}
-                className="bg-dark-800 hover:bg-gray-700 border border-gray-700 text-gray-400 hover:text-white px-3 py-2.5 rounded-xl text-xs font-medium flex items-center justify-center gap-1 transition-all"
-                title="Configurer un nouveau site"
-              >
-                + Nouveau site
-              </button>
-            </div>
-          </div>
-
-          {/* Feature Toggles */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Feature 1: Prospect Capture Toggle (Opt-in) */}
-            <div className="bg-dark-800/50 p-6 rounded-xl border border-white/5 flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-bold text-white flex items-center gap-2 mb-1">
-                  <ShieldCheck className="w-4 h-4 text-brand-400" /> Capture de Prospects
-                </h3>
-                <p className="text-xs text-gray-400">
-                  Propose au client de transmettre son email.
-                </p>
-              </div>
-
-              <button
-                onClick={() => onUpdateSiteSettings(activeSite.id, { enable_lead_capture: !activeSite.enable_lead_capture })}
-                className="p-1 cursor-pointer transition-transform hover:scale-105"
-              >
-                {activeSite.enable_lead_capture ? (
-                  <ToggleRight className="w-10 h-10 text-emerald-400" />
-                ) : (
-                  <ToggleLeft className="w-10 h-10 text-gray-600" />
-                )}
-              </button>
-            </div>
-
-            {/* Feature 2: Brand Color Preference */}
-            <div className="bg-dark-800/50 p-6 rounded-xl border border-white/5 flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-bold text-white flex items-center gap-2 mb-1">
-                  <Settings2 className="w-4 h-4 text-indigo-400" /> Couleur du Widget
-                </h3>
-                <p className="text-xs text-gray-400">Personnalisez la couleur du bouton.</p>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <input
-                  type="color"
-                  value={themeColor}
-                  onChange={(e) => onUpdateSiteSettings(activeSite.id, { theme_primary_color: e.target.value })}
-                  className="w-10 h-10 rounded-xl border-0 bg-transparent cursor-pointer"
-                />
-              </div>
-            </div>
-
-            {/* Feature 3: Bot Goal */}
-            <div className="bg-dark-800/50 p-6 rounded-xl border border-white/5 flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-bold text-white flex items-center gap-2 mb-1">
-                  <Sparkles className="w-4 h-4 text-emerald-400" /> Objectif Principal
-                </h3>
-                <p className="text-xs text-gray-400">Comportement du bot.</p>
-              </div>
-
-              <select
-                value={activeSite.bot_goal || 'support'}
-                onChange={(e) => onUpdateSiteSettings(activeSite.id, { bot_goal: e.target.value })}
-                className="bg-dark-900 border border-white/10 text-white text-xs rounded-lg px-3 py-2 outline-none"
-              >
-                <option value="support">Information & Support</option>
-                <option value="lead">Génération de Leads</option>
-              </select>
-            </div>
-
-            {/* Feature 4: Bot Tone */}
-            <div className="bg-dark-800/50 p-6 rounded-xl border border-white/5 flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-bold text-white flex items-center gap-2 mb-1">
-                  <Sparkles className="w-4 h-4 text-emerald-400" /> Ton de la Voix
-                </h3>
-                <p className="text-xs text-gray-400">Personnalité du bot.</p>
-              </div>
-
-              <select
-                value={activeSite.bot_tone || 'professionnel'}
-                onChange={(e) => onUpdateSiteSettings(activeSite.id, { bot_tone: e.target.value })}
-                className="bg-dark-900 border border-white/10 text-white text-xs rounded-lg px-3 py-2 outline-none"
-              >
-                <option value="professionnel">Professionnel & Courtois</option>
-                <option value="amical">Chaleureux & Amical</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Feature 5: Editable Website Summary Card */}
-          <div className="bg-dark-800/50 p-6 rounded-xl border border-white/5 space-y-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-3">
-                  <h3 className="text-base font-bold text-white flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-emerald-400" /> Résumé du site web & Aperçu entreprise
-                  </h3>
-                  {(isLoadingSummary || isRegeneratingSummary) ? (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/20 animate-pulse">
-                      <RefreshCw className="w-3 h-3 animate-spin text-amber-400" /> Génération IA en cours...
+                <div>
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    <h2 className="text-2xl font-bold text-white tracking-tight">{activeSite.domain}</h2>
+                    <span className="bg-emerald-500/15 text-emerald-400 text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5 border border-emerald-500/20">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                      Assistant Active & Ready
                     </span>
-                  ) : siteSummary ? (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                      <Check className="w-3 h-3" /> Résumé IA disponible
-                    </span>
-                  ) : null}
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1 flex items-center gap-2">
+                    Public Key: <span className="font-mono text-indigo-300 bg-dark-900 px-2 py-0.5 rounded border border-white/5">{activeSite.public_key}</span>
+                  </p>
                 </div>
-                <p className="text-xs text-gray-400 mt-1">
-                  Présentation synthétique transmise directement à l'IA lors de chaque conversation. Vous pouvez la consulter et la modifier ci-dessous.
-                </p>
               </div>
 
-              <div className="flex items-center gap-2 shrink-0">
+              {/* Action Buttons */}
+              <div className="flex items-center gap-3 w-full md:w-auto flex-wrap">
                 <button
-                  onClick={() => setShowSummaryEditor(!showSummaryEditor)}
-                  className="text-xs font-semibold text-brand-400 bg-brand-500/10 px-3.5 py-1.5 rounded-lg border border-brand-500/20 hover:bg-brand-500/20 transition-all flex items-center gap-1.5"
+                  disabled={isCrawling}
+                  onClick={() => setShowPreviewModal(true)}
+                  className={`flex-1 sm:flex-initial text-white font-semibold px-6 py-3 rounded-xl text-sm flex items-center justify-center gap-2 shadow-lg transition-all ${
+                    isCrawling 
+                      ? 'bg-gray-800 text-gray-400 cursor-not-allowed border border-white/10 opacity-70' 
+                      : 'bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 shadow-brand-900/50 hover:scale-[1.02] active:scale-98'
+                  }`}
                 >
-                  <Edit3 className="w-3.5 h-3.5" />
-                  {showSummaryEditor ? 'Masquer' : 'Afficher / Modifier'}
+                  {isCrawling ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin text-brand-400" /> Indexing website...
+                    </>
+                  ) : (
+                    <>
+                      <Eye className="w-4 h-4" /> Test Live Assistant
+                    </>
+                  )}
+                </button>
+                
+                <button
+                  onClick={() => {
+                    if (isGuest) onRequireLogin();
+                    else setShowIntegrationModal(true);
+                  }}
+                  className="bg-dark-900 hover:bg-gray-800 border border-white/10 text-gray-200 hover:text-white px-5 py-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-all shadow-sm"
+                >
+                  <Code className="w-4 h-4 text-brand-400" /> Embed Widget
+                </button>
+
+                <button
+                  onClick={handleRecrawlSite}
+                  disabled={isCrawling}
+                  className="bg-dark-900 hover:bg-gray-800 border border-white/10 text-gray-400 hover:text-white p-3 rounded-xl text-sm transition-all"
+                  title="Re-scan and re-learn website"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isCrawling ? 'animate-spin text-brand-400' : ''}`} />
+                </button>
+
+                <button
+                  onClick={() => {
+                    setSiteUrl('');
+                    setStep('input');
+                  }}
+                  className="bg-dark-900 hover:bg-gray-800 border border-white/10 text-gray-400 hover:text-white px-3.5 py-3 rounded-xl text-xs font-medium transition-all"
+                  title="Add another website"
+                >
+                  + New Site
                 </button>
               </div>
             </div>
 
-            {summarySuccessMsg && (
-              <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs font-medium text-emerald-400 flex items-center gap-2 animate-in fade-in">
-                <Check className="w-4 h-4 shrink-0" />
-                <span>{summarySuccessMsg}</span>
-              </div>
-            )}
-
-            {showSummaryEditor && (
-              <div className="mt-4 pt-4 border-t border-white/5 space-y-4">
-                <div className="relative">
-                  <textarea
-                    rows={6}
-                    disabled={isLoadingSummary || isRegeneratingSummary}
-                    value={
-                      (isLoadingSummary || isRegeneratingSummary)
-                        ? "Analyse synthétique de votre entreprise en cours par notre modèle IA... Veuillez patienter quelques secondes pendant la création du résumé."
-                        : siteSummary
-                    }
-                    onChange={(e) => setSiteSummary(e.target.value)}
-                    placeholder="Aucun résumé disponible pour le moment. Entrez la présentation synthétique de votre entreprise ici ou régénérez par IA..."
-                    className={`w-full bg-dark-900 border border-white/10 text-white rounded-xl p-4 text-xs leading-relaxed outline-none focus:border-brand-500 transition-colors font-mono shadow-inner ${
-                      (isLoadingSummary || isRegeneratingSummary) ? 'opacity-60 cursor-not-allowed animate-pulse bg-dark-950 text-amber-300 border-amber-500/30' : ''
-                    }`}
-                  />
+            {/* Quick 3-Step Guided Roadmap */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-white/5">
+              <div className="bg-dark-900/60 p-4 rounded-xl border border-white/5 flex items-center gap-3.5">
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/20 font-bold text-xs">
+                  1
                 </div>
-
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-                  <button
-                    disabled={isLoadingSummary || isRegeneratingSummary}
-                    onClick={handleRegenerateSummary}
-                    className="w-full sm:w-auto bg-dark-900 hover:bg-gray-800 border border-white/10 text-gray-300 hover:text-white px-4 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <RefreshCw className={`w-3.5 h-3.5 text-brand-400 ${(isLoadingSummary || isRegeneratingSummary) ? 'animate-spin' : ''}`} />
-                    {(isLoadingSummary || isRegeneratingSummary) ? 'Génération IA en cours...' : 'Régénérer par IA depuis le site'}
-                  </button>
-
-                  <button
-                    disabled={isLoadingSummary || isRegeneratingSummary || isSavingSummary || !siteSummary.trim()}
-                    onClick={handleSaveSummary}
-                    className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isSavingSummary ? (
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <Save className="w-3.5 h-3.5" />
-                    )}
-                    Enregistrer le résumé
-                  </button>
+                <div>
+                  <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                    AI Knowledge Learned <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  </div>
+                  <div className="text-[11px] text-gray-400">{discoveredPages.filter(p => p.status === 'loaded').length || 1} pages indexed in memory</div>
                 </div>
               </div>
-            )}
+
+              <div 
+                onClick={() => setShowPreviewModal(true)}
+                className="bg-dark-900/60 p-4 rounded-xl border border-white/5 flex items-center gap-3.5 cursor-pointer hover:border-brand-500/30 transition-colors group"
+              >
+                <div className="w-8 h-8 rounded-lg bg-brand-500/10 text-brand-400 flex items-center justify-center shrink-0 border border-brand-500/20 font-bold text-xs group-hover:bg-brand-500 group-hover:text-white transition-colors">
+                  2
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-white flex items-center gap-1">
+                    Test Your Bot Live <ArrowUpRight className="w-3 h-3 text-brand-400" />
+                  </div>
+                  <div className="text-[11px] text-gray-400">Ask questions in full-screen sandbox</div>
+                </div>
+              </div>
+
+              <div 
+                onClick={() => {
+                  if (isGuest) onRequireLogin();
+                  else setShowIntegrationModal(true);
+                }}
+                className="bg-dark-900/60 p-4 rounded-xl border border-white/5 flex items-center gap-3.5 cursor-pointer hover:border-indigo-500/30 transition-colors group"
+              >
+                <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center shrink-0 border border-indigo-500/20 font-bold text-xs group-hover:bg-indigo-500 group-hover:text-white transition-colors">
+                  3
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-white flex items-center gap-1">
+                    Embed on Website <ArrowUpRight className="w-3 h-3 text-indigo-400" />
+                  </div>
+                  <div className="text-[11px] text-gray-400">Copy 1-line script tag to your site</div>
+                </div>
+              </div>
+            </div>
           </div>
 
-
-          {/* Collapsible Page Selection Drawer */}
-
-          <div className="bg-dark-800/50 p-6 rounded-xl border border-white/5 space-y-4">
+          {/* Collapsible Section for Non-Essential / Advanced Settings */}
+          <div className="bg-dark-800/40 rounded-2xl border border-white/5 overflow-hidden transition-all">
             <button
-              onClick={() => setShowPageManager(!showPageManager)}
-              className="w-full flex items-center justify-between text-left"
+              onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
+              className="w-full p-5 sm:p-6 flex items-center justify-between text-left hover:bg-white/[0.02] transition-colors"
             >
-              <div>
-                <h3 className="text-base font-bold text-white flex items-center gap-2">
-                  <Layers className="w-4 h-4 text-indigo-400" /> Gérer la base de connaissances
-                </h3>
-                <p className="text-xs text-gray-400">Sélectionnez les pages web que votre assistant doit connaître.</p>
-              </div>
-              <span className="text-xs font-semibold text-brand-400 bg-brand-500/10 px-3 py-1.5 rounded-lg border border-brand-500/20">
-                {showPageManager ? 'Masquer' : 'Afficher / Modifier'}
-              </span>
-            </button>
-
-            {/* Real-time progression bar inside page management section */}
-            {crawlProgressMsg && (
-              <div className="p-3.5 bg-brand-500/10 border border-brand-500/20 rounded-xl text-xs font-medium text-brand-300 flex items-center justify-between shadow-inner animate-in fade-in">
-                <div className="flex items-center gap-2.5">
-                  {isCrawling && <RefreshCw className="w-4 h-4 animate-spin text-brand-400 shrink-0" />}
-                  <span>{crawlProgressMsg}</span>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-dark-700/80 border border-white/10 flex items-center justify-center text-indigo-400">
+                  <Settings2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    Advanced Settings & Knowledge Base
+                  </h3>
+                  <p className="text-xs text-gray-400">Customize bot personality, widget colors, lead capture, business summary, and individual page URLs.</p>
                 </div>
               </div>
-            )}
 
-            {showPageManager && (
-              <div className="mt-4 pt-4 border-t border-white/5 space-y-4">
-                {discoveredPages.length === 0 && !isCrawling ? (
-                  <div className="text-center py-8 bg-dark-900/40 rounded-xl border border-dashed border-white/10">
-                    <p className="text-sm text-gray-400 mb-4">Aucune page indexée dans la base de données pour le moment.</p>
-                    <button
-                      disabled={isCrawling}
-                      onClick={handleRecrawlSite}
-                      className={`bg-brand-600 hover:bg-brand-500 text-white px-5 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 mx-auto transition-all shadow-lg shadow-brand-900/50 ${isCrawling ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                      <RefreshCw className={`w-4 h-4 ${isCrawling ? 'animate-spin' : ''}`} /> 
-                      Lancer un scan et crawl complet du site
-                    </button>
-                  </div>
+              <div className="flex items-center gap-2 text-xs font-semibold text-brand-400 bg-brand-500/10 px-3.5 py-1.5 rounded-lg border border-brand-500/20">
+                {showAdvancedSettings ? (
+                  <>Hide Settings <ChevronUp className="w-4 h-4" /></>
                 ) : (
-                  <>
-                    <div className="mb-4 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
-                      <input
-                        type="text"
-                        placeholder="Rechercher une page par URL ou titre..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="flex-1 bg-dark-900 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-brand-500 transition-colors"
-                      />
-                      <button
-                        disabled={isCrawling}
-                        onClick={handleRecrawlSite}
-                        className={`bg-brand-600 hover:bg-brand-500 text-white px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all border border-brand-500/30 shadow-md ${isCrawling ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        title="Efface les anciennes données et relance un crawl synchrone de toutes les pages"
-                      >
-                        <RefreshCw className={`w-3.5 h-3.5 ${isCrawling ? 'animate-spin' : ''}`} /> 
-                        {isCrawling ? 'Re-scan en cours...' : 'Re-scanner & Rafraîchir le site'}
-                      </button>
+                  <>Show Settings <ChevronDown className="w-4 h-4" /></>
+                )}
+              </div>
+            </button>
+
+            {showAdvancedSettings && (
+              <div className="p-6 pt-2 border-t border-white/5 space-y-6 animate-in fade-in duration-300">
+                {/* 1. Feature Toggles Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Lead Capture Toggle */}
+                  <div className="bg-dark-900/60 p-5 rounded-xl border border-white/5 flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-bold text-white flex items-center gap-2 mb-1">
+                        <ShieldCheck className="w-4 h-4 text-brand-400" /> Lead Capture & Email Collection
+                      </h4>
+                      <p className="text-xs text-gray-400">
+                        Automatically prompts visitors for email and contact info.
+                      </p>
                     </div>
 
-                    <div className="overflow-x-auto rounded-xl border border-white/5 bg-dark-900/60 shadow-inner">
-                      <table className="w-full text-left text-sm">
-                        <thead className="bg-dark-800/80 text-gray-400 text-xs uppercase tracking-wider border-b border-white/5">
-                          <tr>
-                            <th className="py-3 px-4 font-semibold w-12 text-center">Inclus</th>
-                            <th className="py-3 px-4 font-semibold">Titre de la page</th>
-                            <th className="py-3 px-4 font-semibold">URL</th>
-                            <th className="py-3 px-4 font-semibold text-right">Statut & Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-white/5 text-gray-300">
-                          {discoveredPages
-                            .filter(p => p.url.toLowerCase().includes(searchQuery.toLowerCase()) || (p.title && p.title.toLowerCase().includes(searchQuery.toLowerCase())))
-                            .sort((a, b) => {
-                              const statusOrder = { loaded: 1, loading: 2, disabled: 3, empty: 4, protected: 5 };
-                              const stA = a.status || (selectedUrls.has(a.url) ? 'loaded' : 'disabled');
-                              const stB = b.status || (selectedUrls.has(b.url) ? 'loaded' : 'disabled');
-                              const ordA = statusOrder[stA] || 3;
-                              const ordB = statusOrder[stB] || 3;
-                              if (ordA !== ordB) return ordA - ordB;
-                              return a.url.localeCompare(b.url);
-                            })
-                            .map((page) => {
+                    <button
+                      onClick={() => onUpdateSiteSettings(activeSite.id, { enable_lead_capture: !activeSite.enable_lead_capture })}
+                      className="p-1 cursor-pointer transition-transform hover:scale-105"
+                    >
+                      {activeSite.enable_lead_capture ? (
+                        <ToggleRight className="w-9 h-9 text-emerald-400" />
+                      ) : (
+                        <ToggleLeft className="w-9 h-9 text-gray-600" />
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Widget Color */}
+                  <div className="bg-dark-900/60 p-5 rounded-xl border border-white/5 flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-bold text-white flex items-center gap-2 mb-1">
+                        <Settings2 className="w-4 h-4 text-indigo-400" /> Widget Accent Color
+                      </h4>
+                      <p className="text-xs text-gray-400">Match your brand styling.</p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={themeColor}
+                        onChange={(e) => onUpdateSiteSettings(activeSite.id, { theme_primary_color: e.target.value })}
+                        className="w-9 h-9 rounded-xl border-0 bg-transparent cursor-pointer"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Bot Goal */}
+                  <div className="bg-dark-900/60 p-5 rounded-xl border border-white/5 flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-bold text-white flex items-center gap-2 mb-1">
+                        <Sparkles className="w-4 h-4 text-emerald-400" /> Primary Objective
+                      </h4>
+                      <p className="text-xs text-gray-400">AI conversation focus.</p>
+                    </div>
+
+                    <select
+                      value={activeSite.bot_goal || 'support'}
+                      onChange={(e) => onUpdateSiteSettings(activeSite.id, { bot_goal: e.target.value })}
+                      className="bg-dark-800 border border-white/10 text-white text-xs rounded-lg px-3 py-2 outline-none"
+                    >
+                      <option value="support">Information & Support</option>
+                      <option value="lead">Lead Generation & Sales</option>
+                    </select>
+                  </div>
+
+                  {/* Bot Tone */}
+                  <div className="bg-dark-900/60 p-5 rounded-xl border border-white/5 flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-bold text-white flex items-center gap-2 mb-1">
+                        <Sparkles className="w-4 h-4 text-emerald-400" /> Voice Tone
+                      </h4>
+                      <p className="text-xs text-gray-400">Personality & communication style.</p>
+                    </div>
+
+                    <select
+                      value={activeSite.bot_tone || 'professionnel'}
+                      onChange={(e) => onUpdateSiteSettings(activeSite.id, { bot_tone: e.target.value })}
+                      className="bg-dark-800 border border-white/10 text-white text-xs rounded-lg px-3 py-2 outline-none"
+                    >
+                      <option value="professionnel">Professional & Courteous</option>
+                      <option value="amical">Warm & Friendly</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* 2. Website Summary Card */}
+                <div className="bg-dark-900/60 p-5 sm:p-6 rounded-xl border border-white/5 space-y-4">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                          <FileText className="w-4 h-4 text-emerald-400" /> AI Business Summary
+                        </h4>
+                        {(isLoadingSummary || isRegeneratingSummary) ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/20 animate-pulse">
+                            <RefreshCw className="w-3 h-3 animate-spin text-amber-400" /> Generating Summary...
+                          </span>
+                        ) : siteSummary ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                            <Check className="w-3 h-3" /> Summary Ready
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1">
+                        High-level context injected into the system prompt to answer general business inquiries accurately.
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={() => setShowSummaryEditor(!showSummaryEditor)}
+                      className="text-xs font-semibold text-brand-400 bg-brand-500/10 px-3.5 py-1.5 rounded-lg border border-brand-500/20 hover:bg-brand-500/20 transition-all flex items-center gap-1.5"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                      {showSummaryEditor ? 'Collapse' : 'View / Edit Summary'}
+                    </button>
+                  </div>
+
+                  {summarySuccessMsg && (
+                    <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs font-medium text-emerald-400 flex items-center gap-2 animate-in fade-in">
+                      <Check className="w-4 h-4 shrink-0" />
+                      <span>{summarySuccessMsg}</span>
+                    </div>
+                  )}
+
+                  {showSummaryEditor && (
+                    <div className="pt-3 border-t border-white/5 space-y-4">
+                      <textarea
+                        rows={5}
+                        disabled={isLoadingSummary || isRegeneratingSummary}
+                        value={
+                          (isLoadingSummary || isRegeneratingSummary)
+                            ? "Analyzing your business overview with our AI model... Please wait a few moments."
+                            : siteSummary
+                        }
+                        onChange={(e) => setSiteSummary(e.target.value)}
+                        placeholder="Enter business summary overview here or click regenerate..."
+                        className="w-full bg-dark-950 border border-white/10 text-white rounded-xl p-4 text-xs leading-relaxed outline-none focus:border-brand-500 transition-colors font-mono shadow-inner"
+                      />
+
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+                        <button
+                          disabled={isLoadingSummary || isRegeneratingSummary}
+                          onClick={handleRegenerateSummary}
+                          className="w-full sm:w-auto bg-dark-800 hover:bg-gray-700 border border-white/10 text-gray-300 hover:text-white px-4 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                        >
+                          <RefreshCw className={`w-3.5 h-3.5 text-brand-400 ${(isLoadingSummary || isRegeneratingSummary) ? 'animate-spin' : ''}`} />
+                          Regenerate with AI
+                        </button>
+
+                        <button
+                          disabled={isLoadingSummary || isRegeneratingSummary || isSavingSummary || !siteSummary.trim()}
+                          onClick={handleSaveSummary}
+                          className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all shadow-md disabled:opacity-50"
+                        >
+                          {isSavingSummary ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                          Save Summary
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. Knowledge Base / Indexed Pages Management */}
+                <div className="bg-dark-900/60 p-5 sm:p-6 rounded-xl border border-white/5 space-y-4">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div>
+                      <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                        <Layers className="w-4 h-4 text-indigo-400" /> Knowledge Base & Page Management
+                      </h4>
+                      <p className="text-xs text-gray-400">Select which discovered website URLs are indexed into the vector database.</p>
+                    </div>
+
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                      <div className="relative flex-1 sm:w-60">
+                        <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-2.5" />
+                        <input
+                          type="text"
+                          placeholder="Filter URLs or titles..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="w-full bg-dark-950 border border-white/10 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white outline-none focus:border-brand-500"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="overflow-x-auto rounded-xl border border-white/5 bg-dark-950/60 shadow-inner">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-dark-800/80 text-gray-400 uppercase tracking-wider border-b border-white/5">
+                        <tr>
+                          <th className="py-2.5 px-4 font-semibold w-12 text-center">Active</th>
+                          <th className="py-2.5 px-4 font-semibold">Page Title</th>
+                          <th className="py-2.5 px-4 font-semibold">URL Path</th>
+                          <th className="py-2.5 px-4 font-semibold text-right">Status & Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/5 text-gray-300">
+                        {discoveredPages
+                          .filter(p => p.url.toLowerCase().includes(searchQuery.toLowerCase()) || (p.title && p.title.toLowerCase().includes(searchQuery.toLowerCase())))
+                          .map((page) => {
                             const currentStatus = page.status || (selectedUrls.has(page.url) ? 'loaded' : 'disabled');
                             const isIncluded = currentStatus === 'loaded' || currentStatus === 'loading';
 
@@ -1051,7 +1030,7 @@ function normalizePageUrl(rawUrl) {
                                 key={page.url}
                                 className={`hover:bg-white/[0.03] transition-colors ${isIncluded ? 'bg-brand-500/5' : 'opacity-75'}`}
                               >
-                                <td className="py-3 px-4 text-center">
+                                <td className="py-2.5 px-4 text-center">
                                   <input 
                                     type="checkbox" 
                                     checked={isIncluded} 
@@ -1059,72 +1038,172 @@ function normalizePageUrl(rawUrl) {
                                     className="w-4 h-4 rounded accent-brand-500 cursor-pointer" 
                                   />
                                 </td>
-                                <td className="py-3 px-4">
-                                  <div className="font-medium text-white line-clamp-1">{page.title || 'Page sans titre'}</div>
+                                <td className="py-2.5 px-4">
+                                  <div className="font-medium text-white line-clamp-1">{page.title || 'Untitled Page'}</div>
                                 </td>
-                                <td className="py-3 px-4">
-                                  <div className="text-xs text-gray-400 font-mono truncate max-w-[200px] sm:max-w-xs" title={page.url}>
+                                <td className="py-2.5 px-4">
+                                  <div className="text-gray-400 font-mono truncate max-w-[200px]" title={page.url}>
                                     {page.url.replace(`https://${activeSite?.domain}`, '') || '/'}
                                   </div>
                                 </td>
-                                <td className="py-3 px-4 text-right space-x-2">
+                                <td className="py-2.5 px-4 text-right space-x-2">
                                   <button 
                                     onClick={(e) => handleEditPage(page.url, e)}
-                                    className="text-[10px] bg-dark-800 hover:bg-gray-700 text-gray-300 px-2.5 py-1.5 rounded-lg border border-white/10 transition-colors"
+                                    className="text-[10px] bg-dark-800 hover:bg-gray-700 text-gray-300 px-2 py-1 rounded border border-white/10 transition-colors"
                                   >
-                                    Éditer
+                                    Edit
                                   </button>
 
-                                  {/* Activate / Deactivate Toggle Button */}
                                   <button
                                     onClick={() => handleTogglePageActivation(page.url)}
-                                    className={`text-[10px] px-2.5 py-1.5 rounded-lg font-semibold border transition-colors ${
+                                    className={`text-[10px] px-2 py-1 rounded font-semibold border transition-colors ${
                                       isIncluded
                                         ? 'bg-red-500/10 hover:bg-red-500/20 text-red-400 border-red-500/20'
                                         : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/20'
                                     }`}
                                   >
-                                    {isIncluded ? 'Désactiver' : 'Activer'}
+                                    {isIncluded ? 'Disable' : 'Enable'}
                                   </button>
 
-                                  {/* Page Status Badge: loading | loaded | empty | protected | disabled */}
                                   {currentStatus === 'protected' ? (
-                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20" title="Page protégée par mot de passe ou connexion / Auth Wall">
-                                      <Lock className="w-3 h-3 text-rose-400" /> Protégé (Auth)
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                                      <Lock className="w-2.5 h-2.5" /> Auth Protected
                                     </span>
                                   ) : currentStatus === 'empty' ? (
-                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-dark-900 text-gray-400 border border-gray-700/60" title="Aucun contenu textuel extrait de cette page">
-                                      <span className="w-1.5 h-1.5 rounded-full bg-gray-500"></span> Vide (0 chunk)
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-dark-900 text-gray-400 border border-gray-700/60">
+                                      Empty (0 chunks)
                                     </span>
                                   ) : currentStatus === 'loading' ? (
-                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                                      <RefreshCw className="w-3 h-3 animate-spin" /> Chargement...
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                                      <RefreshCw className="w-2.5 h-2.5 animate-spin" /> Indexing...
                                     </span>
                                   ) : currentStatus === 'loaded' ? (
-                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                                      <Check className="w-3 h-3" /> Indexé
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                      <Check className="w-2.5 h-2.5" /> Indexed
                                     </span>
                                   ) : (
-                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-gray-500/10 text-gray-400 border border-gray-500/20">
-                                      <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span> Désactivé
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-500/10 text-gray-400 border border-gray-500/20">
+                                      Disabled
                                     </span>
                                   )}
                                 </td>
                               </tr>
                             );
                           })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </>
-                )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* FULL-SCREEN LIVE SITE PREVIEW WITH FUNCTIONAL CHATBOT */}
+      {/* 3. DEDICATED LEARNING PROGRESS MODAL (POPUP WITH PROGRESS BAR) */}
+      {showLearningModal && (
+        <div className="fixed inset-0 z-[999999] bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="glass-card p-8 sm:p-10 rounded-3xl w-full max-w-lg border border-white/10 shadow-2xl relative text-center overflow-hidden animate-in fade-in zoom-in-95 duration-300">
+            {/* Background Glow */}
+            <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-64 h-64 rounded-full bg-brand-500/20 blur-[90px] pointer-events-none" />
+
+            {/* AI Avatar / Radar */}
+            <div className="relative mx-auto mb-6 flex justify-center">
+              <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-brand-600 to-indigo-500 flex items-center justify-center text-white shadow-2xl shadow-brand-500/30 border border-white/20">
+                {learningStep === 4 ? (
+                  <CheckCircle2 className="w-10 h-10 text-emerald-300" />
+                ) : (
+                  <Bot className="w-10 h-10 text-white animate-pulse" />
+                )}
+              </div>
+            </div>
+
+            {/* Title & Description */}
+            <h3 className="text-2xl font-bold text-white mb-2">
+              {learningStep === 4 ? "🎉 Your AI Assistant is Ready!" : `Teaching Your AI from ${learningDomain || 'Website'}`}
+            </h3>
+            <p className="text-sm text-gray-400 mb-8 max-w-md mx-auto">
+              {learningStep === 4
+                ? `Our system successfully crawled, indexed, and synthesized your website content. You can now test it live!`
+                : `Our system is analyzing your website pages, extracting content & services, and training your custom 24/7 AI chatbot.`}
+            </p>
+
+            {/* Progress Bar */}
+            <div className="space-y-2 mb-8 text-left">
+              <div className="flex items-center justify-between text-xs font-semibold">
+                <span className="text-gray-300 flex items-center gap-2">
+                  {learningStep < 4 && <RefreshCw className="w-3.5 h-3.5 animate-spin text-brand-400" />}
+                  {crawlProgressMsg || "Processing website..."}
+                </span>
+                <span className="text-brand-400 font-mono">{learningProgress}%</span>
+              </div>
+              <div className="w-full h-3 bg-dark-900 rounded-full overflow-hidden border border-white/10 p-0.5">
+                <div 
+                  className="h-full bg-gradient-to-r from-brand-500 via-indigo-500 to-emerald-400 rounded-full transition-all duration-500 shadow-sm"
+                  style={{ width: `${learningProgress}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Step Checklist */}
+            <div className="bg-dark-900/70 p-4 rounded-2xl border border-white/5 text-left space-y-3 mb-8">
+              <div className="flex items-center gap-3 text-xs">
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${learningStep >= 2 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-brand-500/20 text-brand-400 animate-pulse'}`}>
+                  {learningStep >= 2 ? <Check className="w-3 h-3" /> : '1'}
+                </div>
+                <span className={learningStep >= 2 ? 'text-gray-300 font-medium' : 'text-white font-semibold'}>
+                  Discovering all website pages & sitemap
+                </span>
+              </div>
+
+              <div className="flex items-center gap-3 text-xs">
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${learningStep >= 3 ? 'bg-emerald-500/20 text-emerald-400' : learningStep === 2 ? 'bg-brand-500/20 text-brand-400 animate-pulse' : 'bg-gray-800 text-gray-500'}`}>
+                  {learningStep >= 3 ? <Check className="w-3 h-3" /> : '2'}
+                </div>
+                <span className={learningStep >= 3 ? 'text-gray-300 font-medium' : learningStep === 2 ? 'text-white font-semibold' : 'text-gray-500'}>
+                  Extracting text & building semantic vector index
+                </span>
+              </div>
+
+              <div className="flex items-center gap-3 text-xs">
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${learningStep >= 4 ? 'bg-emerald-500/20 text-emerald-400' : learningStep === 3 ? 'bg-brand-500/20 text-brand-400 animate-pulse' : 'bg-gray-800 text-gray-500'}`}>
+                  {learningStep >= 4 ? <Check className="w-3 h-3" /> : '3'}
+                </div>
+                <span className={learningStep >= 4 ? 'text-gray-300 font-medium' : learningStep === 3 ? 'text-white font-semibold' : 'text-gray-500'}>
+                  Synthesizing AI Business Summary
+                </span>
+              </div>
+            </div>
+
+            {/* Completion Buttons */}
+            {learningStep === 4 ? (
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={() => {
+                    setShowLearningModal(false);
+                    setShowPreviewModal(true);
+                  }}
+                  className="flex-1 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white font-bold py-3.5 px-6 rounded-xl text-sm flex items-center justify-center gap-2 shadow-lg shadow-brand-900/40 transition-all hover:scale-[1.02] active:scale-98"
+                >
+                  <Eye className="w-4 h-4" /> Test My Bot Now →
+                </button>
+                <button
+                  onClick={() => setShowLearningModal(false)}
+                  className="bg-dark-800 hover:bg-gray-700 text-gray-300 hover:text-white font-semibold py-3.5 px-5 rounded-xl text-sm transition-all"
+                >
+                  Go to Dashboard
+                </button>
+              </div>
+            ) : (
+              <div className="text-xs text-gray-500">
+                Please keep this window open while we finish learning your site...
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 4. FULL-SCREEN LIVE SITE PREVIEW WITH FUNCTIONAL CHATBOT */}
       {showPreviewModal && activeSite && (
         <div className="fixed inset-0 z-[999999] w-screen h-screen bg-black flex flex-col">
           {/* Top Control Bar */}
@@ -1137,7 +1216,7 @@ function normalizePageUrl(rawUrl) {
                 }}
                 className="bg-white/10 hover:bg-white/20 text-white text-xs font-semibold px-4 py-2 rounded-xl flex items-center gap-2 transition-all"
               >
-                ← Retour au Dashboard
+                ← Back to Dashboard
               </button>
               <div className="hidden sm:flex items-center gap-2 text-xs text-gray-400 font-mono">
                 <Globe className="w-4 h-4 text-emerald-400" /> https://{activeSite.domain}
@@ -1170,10 +1249,10 @@ function normalizePageUrl(rawUrl) {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="bg-white/10 hover:bg-white/20 text-white text-xs font-semibold px-3.5 py-1.5 rounded-xl flex items-center gap-2 transition-all border border-white/5 shadow-sm"
-                title="Ouvrir le site dans un nouvel onglet"
+                title="Open website in new tab"
               >
                 <ExternalLink className="w-3.5 h-3.5 text-brand-400" />
-                <span className="hidden sm:inline">Ouvrir dans un nouvel onglet</span>
+                <span className="hidden sm:inline">Open in new tab</span>
               </a>
             </div>
 
@@ -1198,7 +1277,7 @@ function normalizePageUrl(rawUrl) {
               <iframe
                 src={activeSite.domain.startsWith('http') ? activeSite.domain : `https://${activeSite.domain}`}
                 className="w-full h-full border-0 bg-white"
-                title="Aperçu Site Web"
+                title="Website Preview"
               />
 
               {/* LIVE FUNCTIONAL CHATBOT WIDGET OVERLAY */}
@@ -1216,8 +1295,11 @@ function normalizePageUrl(rawUrl) {
                           AI
                         </div>
                         <div>
-                          <div className="text-sm font-bold text-white">Assistant Virtuel</div>
-                          <div className="text-[11px] text-emerald-400">En ligne sur {activeSite.domain}</div>
+                          <div className="text-sm font-bold text-white">Virtual Assistant</div>
+                          <div className="text-[11px] text-emerald-400 flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                            Live on {activeSite.domain}
+                          </div>
                         </div>
                       </div>
                       <button onClick={() => setPreviewChatOpen(false)} className="text-gray-400 hover:text-white">
@@ -1237,8 +1319,8 @@ function normalizePageUrl(rawUrl) {
                               </div>
                               {m.tool_call.name === 'search_knowledge_base' && (
                                 <div className="space-y-1">
-                                  <div>🔍 Mots-clés RAG : "{m.tool_call.keywords || m.tool_call.query}"</div>
-                                  <div className="text-[10px] text-gray-400 mb-1">📄 {m.tool_call.matched_chunks} blocs trouvés ({m.tool_call.sources?.length || 0} sources)</div>
+                                  <div>🔍 Search keywords: "{m.tool_call.keywords || m.tool_call.query}"</div>
+                                  <div className="text-[10px] text-gray-400 mb-1">📄 {m.tool_call.matched_chunks} chunks matched ({m.tool_call.sources?.length || 0} sources)</div>
                                   {m.tool_call.sources && m.tool_call.sources.length > 0 && (
                                     <div className="mt-1 flex flex-col gap-1">
                                       {m.tool_call.sources.map((src, i) => (
@@ -1252,8 +1334,8 @@ function normalizePageUrl(rawUrl) {
                               )}
                               {m.tool_call.name === 'capture_lead' && (
                                 <div className="space-y-0.5">
-                                  <div>👤 Lead extrait : {m.tool_call.lead?.name || m.tool_call.lead?.email || m.tool_call.lead?.phone || 'Prospect'}</div>
-                                  <div className="text-[10px] text-emerald-400">✓ Enregistré dans Supabase</div>
+                                  <div>👤 Lead captured: {m.tool_call.lead?.name || m.tool_call.lead?.email || m.tool_call.lead?.phone || 'Visitor'}</div>
+                                  <div className="text-[10px] text-emerald-400">✓ Saved in Supabase database</div>
                                 </div>
                               )}
                             </div>
@@ -1296,7 +1378,7 @@ function normalizePageUrl(rawUrl) {
                     <div className="p-3 bg-dark-800 border-t border-white/10 flex items-center gap-2">
                       <input
                         type="text"
-                        placeholder="Posez une question à votre assistant..."
+                        placeholder="Ask your assistant anything..."
                         value={previewInput}
                         onChange={(e) => setPreviewInput(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleSendPreviewChat()}
@@ -1305,7 +1387,7 @@ function normalizePageUrl(rawUrl) {
                       <button
                         onClick={handleSendPreviewChat}
                         disabled={!previewInput.trim() || previewStreaming}
-                        className="p-2 rounded-xl text-white disabled:opacity-50"
+                        className="p-2 rounded-xl text-white disabled:opacity-50 transition-all hover:scale-105 active:scale-95"
                         style={{ backgroundColor: themeColor }}
                       >
                         <Send className="w-4 h-4" />
@@ -1328,7 +1410,7 @@ function normalizePageUrl(rawUrl) {
         </div>
       )}
 
-      {/* INTEGRATION MODAL */}
+      {/* 5. INTEGRATION MODAL */}
       {showIntegrationModal && activeSite && (
         <div className="fixed inset-0 z-[9999999] bg-black/80 flex items-center justify-center p-4">
           <div className="glass-card p-8 rounded-3xl w-full max-w-2xl border border-white/10 shadow-2xl relative">
@@ -1340,10 +1422,10 @@ function normalizePageUrl(rawUrl) {
             </button>
 
             <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
-              <Code className="w-6 h-6 text-brand-400" /> Intégration sur votre site
+              <Code className="w-6 h-6 text-brand-400" /> Embed Widget on Your Website
             </h3>
             <p className="text-sm text-gray-400 mb-6">
-              Copiez ce code et collez-le juste avant la balise de fermeture <code className="text-indigo-300 font-mono text-xs bg-dark-800 px-1 py-0.5 rounded">&lt;/body&gt;</code> de toutes les pages de votre site web où vous souhaitez afficher l'assistant.
+              Copy this code snippet and paste it right before the closing <code className="text-indigo-300 font-mono text-xs bg-dark-800 px-1 py-0.5 rounded">&lt;/body&gt;</code> tag on any pages where you want the assistant to appear.
             </p>
 
             <div className="relative group">
@@ -1354,7 +1436,7 @@ function normalizePageUrl(rawUrl) {
                 onClick={() => copyWidgetScript(activeSite.public_key)}
                 className="absolute top-3 right-3 bg-white/10 hover:bg-white/20 text-white p-2 rounded-lg transition-colors flex items-center gap-2 text-xs font-semibold backdrop-blur-md"
               >
-                {copiedScriptKey === activeSite.public_key ? <><Check className="w-4 h-4 text-emerald-400" /> Copié</> : <><Copy className="w-4 h-4" /> Copier le code</>}
+                {copiedScriptKey === activeSite.public_key ? <><Check className="w-4 h-4 text-emerald-400" /> Copied</> : <><Copy className="w-4 h-4" /> Copy Code</>}
               </button>
             </div>
             
@@ -1363,14 +1445,14 @@ function normalizePageUrl(rawUrl) {
                 onClick={() => setShowIntegrationModal(false)}
                 className="bg-brand-600 hover:bg-brand-500 text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition-all shadow-lg"
               >
-                Terminer
+                Done
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* EDIT PAGE MODAL */}
+      {/* 6. EDIT PAGE CONTENT MODAL */}
       {editingPage && (
         <div className="fixed inset-0 z-[9999999] bg-black/80 flex items-center justify-center p-4">
           <div className="bg-dark-900 p-6 rounded-2xl w-full max-w-3xl border border-white/10 shadow-2xl relative flex flex-col h-[80vh]">
@@ -1381,14 +1463,14 @@ function normalizePageUrl(rawUrl) {
               <X className="w-5 h-5" />
             </button>
             
-            <h3 className="text-lg font-bold text-white mb-1">Modifier le contenu indexé</h3>
+            <h3 className="text-lg font-bold text-white mb-1">Edit Indexed Knowledge Content</h3>
             <p className="text-xs text-gray-400 font-mono mb-4 truncate pr-10">{editingPage.url}</p>
 
             <div className="flex-1 overflow-hidden flex flex-col min-h-0">
               <textarea
                 value={editingPage.content}
                 onChange={(e) => setEditingPage({ ...editingPage, content: e.target.value })}
-                disabled={editingPage.saving || editingPage.content === 'Chargement...'}
+                disabled={editingPage.saving || editingPage.content === 'Loading content...'}
                 className="flex-1 w-full bg-dark-800 border border-white/10 rounded-xl p-4 text-sm text-gray-200 font-mono resize-none outline-none focus:border-brand-500 transition-colors"
               />
             </div>
@@ -1398,15 +1480,15 @@ function normalizePageUrl(rawUrl) {
                 onClick={() => setEditingPage(null)}
                 className="px-5 py-2.5 rounded-xl text-sm text-gray-400 hover:text-white font-medium"
               >
-                Annuler
+                Cancel
               </button>
               <button
                 onClick={handleSavePageContent}
-                disabled={editingPage.saving || editingPage.content === 'Chargement...'}
+                disabled={editingPage.saving || editingPage.content === 'Loading content...'}
                 className="bg-brand-600 hover:bg-brand-500 text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition-all shadow-sm flex items-center gap-2"
               >
                 {editingPage.saving && <RefreshCw className="w-4 h-4 animate-spin" />}
-                Sauvegarder
+                Save Changes
               </button>
             </div>
           </div>

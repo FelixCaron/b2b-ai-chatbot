@@ -65,22 +65,22 @@ export default function PaymentSuccessPage({ onGoToDashboard }) {
 
         {/* Heading */}
         <h1 className="text-3xl sm:text-4xl font-bold text-white mb-4 leading-tight">
-          Bienvenue dans la <br />
+          Welcome to the <br />
           <span className="bg-gradient-to-r from-emerald-400 to-brand-400 bg-clip-text text-transparent">
-            version payante ! 🎉
+            Pro Plan! 🎉
           </span>
         </h1>
 
         <p className="text-gray-400 text-base mb-3 leading-relaxed">
-          Votre paiement a été traité avec succès. Votre abonnement est maintenant actif.
+          Your payment was processed successfully. Your subscription is now active.
         </p>
 
         {/* Feature highlights */}
         <div className="glass-card rounded-2xl p-6 mb-8 text-left space-y-3">
           {[
-            { icon: Zap, text: 'Toutes les fonctionnalités débloquées', color: 'text-emerald-400' },
-            { icon: Star, text: 'Support prioritaire activé', color: 'text-indigo-400' },
-            { icon: CheckCircle, text: 'Factures envoyées automatiquement par Stripe', color: 'text-brand-400' },
+            { icon: Zap, text: 'All premium features unlocked', color: 'text-emerald-400' },
+            { icon: Star, text: 'Priority customer support active', color: 'text-indigo-400' },
+            { icon: CheckCircle, text: 'Automatic Stripe invoicing & billing', color: 'text-brand-400' },
           ].map(({ icon: Icon, text, color }, i) => (
             <div key={i} className="flex items-center gap-3 text-sm text-gray-300">
               <Icon className={`w-4 h-4 shrink-0 ${color}`} />
@@ -94,12 +94,12 @@ export default function PaymentSuccessPage({ onGoToDashboard }) {
           onClick={onGoToDashboard}
           className="w-full py-4 rounded-xl font-bold text-sm bg-gradient-to-r from-brand-600 to-indigo-500 hover:from-brand-500 hover:to-indigo-400 text-white shadow-lg shadow-brand-900/30 flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-95"
         >
-          Accéder à mon Dashboard
+          Go to My Dashboard
           <ArrowRight className="w-4 h-4" />
         </button>
 
         <p className="text-xs text-gray-600 mt-4">
-          Redirection automatique dans quelques secondes…
+          Automatic redirect in a few seconds…
         </p>
       </div>
     </div>

@@ -3,7 +3,7 @@ import { Star, Zap, Shield, Crown } from 'lucide-react';
 
 const PLAN_CONFIG = {
   free: {
-    label: 'Gratuit',
+    label: 'Free',
     icon: null,
     className: 'bg-gray-500/15 text-gray-400 border-gray-500/25',
   },

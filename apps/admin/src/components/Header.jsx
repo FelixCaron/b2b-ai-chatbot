@@ -38,9 +38,9 @@ export default function Header({ tenants, selectedTenant, setSelectedTenant, onL
               <Bot className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
             <div>
-              <h1 className="text-base sm:text-xl font-bold text-white tracking-tight">Plateforme Assistant IA</h1>
+              <h1 className="text-base sm:text-xl font-bold text-white tracking-tight">AI Assistant Platform</h1>
               <p className="text-[10px] sm:text-xs text-gray-400 flex items-center gap-1">
-                <ShieldCheck className="w-3 h-3 text-emerald-400" /> Client Sécurisé
+                <ShieldCheck className="w-3 h-3 text-emerald-400" /> Secure Workspace
               </p>
             </div>
           </div>
@@ -48,7 +48,7 @@ export default function Header({ tenants, selectedTenant, setSelectedTenant, onL
           <button
             onClick={onLogout}
             className="sm:hidden text-gray-400 hover:text-white p-2 rounded-lg hover:bg-white/5"
-            title="Se déconnecter"
+            title="Sign out"
           >
             <LogOut className="w-4 h-4" />
           </button>
@@ -66,14 +66,14 @@ export default function Header({ tenants, selectedTenant, setSelectedTenant, onL
               onClick={handleManageSubscription}
               disabled={portalLoading}
               className="text-xs font-semibold text-gray-300 hover:text-white px-3 py-1.5 rounded-full border border-white/10 hover:border-white/25 flex items-center gap-1.5 transition-all disabled:opacity-50"
-              title="Gérer mon abonnement"
+              title="Manage Subscription"
             >
               {portalLoading ? (
                 <Loader2 className="w-3 h-3 animate-spin" />
               ) : (
                 <Settings className="w-3 h-3" />
               )}
-              <span className="hidden sm:inline">Gérer</span>
+              <span className="hidden sm:inline">Manage</span>
             </button>
           ) : (
             <button
@@ -81,12 +81,12 @@ export default function Header({ tenants, selectedTenant, setSelectedTenant, onL
               onClick={onShowPricing}
               className="text-xs font-semibold bg-gradient-to-r from-brand-500 to-indigo-500 hover:from-brand-400 hover:to-indigo-400 text-white px-3.5 py-1.5 rounded-full transition-all shadow-md shadow-brand-500/20 shrink-0"
             >
-              Upgrade / Forfaits
+              Upgrade / Plans
             </button>
           )}
 
           <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-400 font-medium hidden md:inline">Connecté :</span>
+            <span className="text-xs text-gray-400 font-medium hidden md:inline">Logged in:</span>
             <select
               value={selectedTenant?.id || ''}
               onChange={(e) => {
@@ -106,7 +106,7 @@ export default function Header({ tenants, selectedTenant, setSelectedTenant, onL
           <button
             onClick={onLogout}
             className="hidden sm:block text-gray-400 hover:text-white p-2 rounded-lg hover:bg-white/5 transition-colors"
-            title="Se déconnecter"
+            title="Sign out"
           >
             <LogOut className="w-4 h-4" />
           </button>

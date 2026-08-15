@@ -27,7 +27,7 @@ export default function SitesManager({ sites, tenant, onAddSite, onTriggerScan }
     if (!crawlUrl) return;
 
     setIsCrawling(true);
-    setIndexingStatus('Crawl du site en cours...');
+    setIndexingStatus('Crawling website pages...');
     setDiscoveredPages([]);
     setSelectedUrls(new Set());
 
@@ -45,12 +45,12 @@ export default function SitesManager({ sites, tenant, onAddSite, onTriggerScan }
         setDiscoveredPages(data.pages);
         // By default, select all discovered URLs
         setSelectedUrls(new Set(data.pages.map((p) => p.url)));
-        setIndexingStatus(`✓ ${data.pages.length} pages découvertes! Sélectionnez les pages à indexer.`);
+        setIndexingStatus(`✓ ${data.pages.length} pages discovered! Select pages to index.`);
       } else {
-        setIndexingStatus(`Erreur de crawl: ${data.error || 'Impossible d\'explorer ce site'}`);
+        setIndexingStatus(`Crawl error: ${data.error || 'Unable to crawl this website'}`);
       }
     } catch (err) {
-      setIndexingStatus(`Erreur réseau: ${err.message}`);
+      setIndexingStatus(`Network error: ${err.message}`);
     } finally {
       setIsCrawling(false);
     }
@@ -80,7 +80,7 @@ export default function SitesManager({ sites, tenant, onAddSite, onTriggerScan }
   const handleBatchIndex = async () => {
     if (!selectedSiteForScan || selectedUrls.size === 0) return;
 
-    setIndexingStatus(`Envoi de ${selectedUrls.size} page(s) à la file d'attente PGMQ...`);
+    setIndexingStatus(`Sending ${selectedUrls.size} page(s) to indexing queue...`);
     let queued = 0;
 
     for (const url of Array.from(selectedUrls)) {
@@ -88,7 +88,7 @@ export default function SitesManager({ sites, tenant, onAddSite, onTriggerScan }
       if (result?.success) queued++;
     }
 
-    setIndexingStatus(`✓ Succès! ${queued} / ${selectedUrls.size} tâches d'indexation ajoutées à PGMQ!`);
+    setIndexingStatus(`✓ Success! ${queued} / ${selectedUrls.size} indexing tasks queued.`);
   };
 
   const copySnippet = (key) => {
@@ -108,12 +108,12 @@ export default function SitesManager({ sites, tenant, onAddSite, onTriggerScan }
       {/* 1. Add New Site Card */}
       <div className="glass-card p-6 rounded-2xl">
         <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-          <Globe className="w-5 h-5 text-brand-500" /> Enregistrer un Domaine Site Web
+          <Globe className="w-5 h-5 text-brand-500" /> Register a Website Domain
         </h2>
         <form onSubmit={handleCreateSite} className="flex flex-col sm:flex-row gap-3">
           <input
             type="text"
-            placeholder="Nom de domaine (ex: example.com)"
+            placeholder="Domain name (e.g. example.com)"
             value={newDomain}
             onChange={(e) => setNewDomain(e.target.value)}
             className="flex-1 bg-dark-900 border border-gray-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-500 outline-none focus:border-brand-500"
@@ -122,16 +122,16 @@ export default function SitesManager({ sites, tenant, onAddSite, onTriggerScan }
             type="submit"
             className="bg-brand-600 hover:bg-brand-700 text-white font-medium px-6 py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 transition-all shadow-md"
           >
-            <Plus className="w-4 h-4" /> Enregistrer
+            <Plus className="w-4 h-4" /> Save
           </button>
         </form>
       </div>
 
       {/* 2. Registered Sites List & Integration Code */}
       <div className="glass-card p-6 rounded-2xl">
-        <h2 className="text-lg font-bold text-white mb-4">Sites Enregistrés & Clés d'Intégration</h2>
+        <h2 className="text-lg font-bold text-white mb-4">Registered Sites & Public Keys</h2>
         {sites.length === 0 ? (
-          <div className="text-center py-8 text-gray-500 text-sm">Aucun site enregistré pour ce tenant.</div>
+          <div className="text-center py-8 text-gray-500 text-sm">No sites registered yet.</div>
         ) : (
           <div className="space-y-4">
             {sites.map((site) => (
@@ -152,11 +152,11 @@ export default function SitesManager({ sites, tenant, onAddSite, onTriggerScan }
                 >
                   {copiedKey === site.public_key ? (
                     <>
-                      <Check className="w-3.5 h-3.5 text-emerald-400" /> Copié!
+                      <Check className="w-3.5 h-3.5 text-emerald-400" /> Copied!
                     </>
                   ) : (
                     <>
-                      <Code className="w-3.5 h-3.5 text-brand-400" /> Copier Code Widget Embed
+                      <Code className="w-3.5 h-3.5 text-brand-400" /> Copy Embed Code
                     </>
                   )}
                 </button>
@@ -170,24 +170,24 @@ export default function SitesManager({ sites, tenant, onAddSite, onTriggerScan }
       <div className="glass-card p-6 rounded-2xl">
         <div className="flex items-center justify-between mb-2">
           <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <Layers className="w-5 h-5 text-indigo-400" /> Web Crawler & Sélection des Pages à Indexer
+            <Layers className="w-5 h-5 text-indigo-400" /> Web Crawler & Knowledge Base Indexing
           </h2>
         </div>
         <p className="text-xs text-gray-400 mb-6">
-          Explorez automatiquement votre site pour découvrir toutes ses pages, puis cochez/décochez précisément les URLs à indexer dans la base de connaissances vectorielle.
+          Automatically crawl your site to discover all pages, then choose which URLs to index into the vector knowledge base.
         </p>
 
         {/* Step 1: Input URL and trigger Crawler */}
         <form onSubmit={handleCrawlSubmit} className="space-y-4 mb-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1">1. Sélectionner le site target</label>
+              <label className="block text-xs font-medium text-gray-400 mb-1">1. Select target site</label>
               <select
                 value={selectedSiteForScan}
                 onChange={(e) => setSelectedSiteForScan(e.target.value)}
                 className="w-full bg-dark-900 border border-gray-700 text-white rounded-xl px-4 py-2.5 text-sm outline-none focus:border-brand-500"
               >
-                <option value="">-- Choisir un site --</option>
+                <option value="">-- Choose a site --</option>
                 {sites.map((s) => (
                   <option key={s.id} value={s.id}>{s.domain}</option>
                 ))}
@@ -195,7 +195,7 @@ export default function SitesManager({ sites, tenant, onAddSite, onTriggerScan }
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1">2. URL Racine du site à crawler</label>
+              <label className="block text-xs font-medium text-gray-400 mb-1">2. Root URL to crawl</label>
               <input
                 type="url"
                 placeholder="https://example.com"
@@ -214,11 +214,11 @@ export default function SitesManager({ sites, tenant, onAddSite, onTriggerScan }
             >
               {isCrawling ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" /> Crawl en cours...
+                  <Loader2 className="w-4 h-4 animate-spin" /> Crawling site...
                 </>
               ) : (
                 <>
-                  <Search className="w-4 h-4" /> Explorer le Site & Lister les Pages
+                  <Search className="w-4 h-4" /> Crawl & Discover Pages
                 </>
               )}
             </button>
@@ -238,22 +238,22 @@ export default function SitesManager({ sites, tenant, onAddSite, onTriggerScan }
                 >
                   {selectedUrls.size === discoveredPages.length ? (
                     <>
-                      <CheckSquare className="w-4 h-4 text-indigo-400" /> Tout décocher
+                      <CheckSquare className="w-4 h-4 text-indigo-400" /> Deselect All
                     </>
                   ) : (
                     <>
-                      <Square className="w-4 h-4 text-gray-400" /> Tout sélectionner ({discoveredPages.length})
+                      <Square className="w-4 h-4 text-gray-400" /> Select All ({discoveredPages.length})
                     </>
                   )}
                 </button>
                 <span className="text-xs text-gray-400">
-                  {selectedUrls.size} sur {discoveredPages.length} pages sélectionnées
+                  {selectedUrls.size} of {discoveredPages.length} pages selected
                 </span>
               </div>
 
               <input
                 type="text"
-                placeholder="Filtrer les pages..."
+                placeholder="Filter pages..."
                 value={pageSearchFilter}
                 onChange={(e) => setPageSearchFilter(e.target.value)}
                 className="bg-dark-900 border border-gray-700 text-xs text-white rounded-lg px-3 py-1.5 w-full sm:w-56 outline-none focus:border-indigo-500"
@@ -297,7 +297,7 @@ export default function SitesManager({ sites, tenant, onAddSite, onTriggerScan }
                 disabled={!selectedSiteForScan || selectedUrls.size === 0}
                 className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-semibold px-6 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-all shadow-lg"
               >
-                <Send className="w-4 h-4" /> Indexer les ({selectedUrls.size}) Pages Sélectionnées avec PGMQ
+                <Send className="w-4 h-4" /> Index ({selectedUrls.size}) Selected Pages
               </button>
             </div>
           </div>

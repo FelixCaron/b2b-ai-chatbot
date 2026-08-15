@@ -220,7 +220,7 @@ export default function App() {
   if (loading) {
     return (
       <div className="min-h-screen bg-dark-900 flex items-center justify-center text-brand-400 text-sm font-medium animate-pulse">
-        Chargement de l'Espace Client...
+        Loading Client Workspace...
       </div>
     );
   }
@@ -251,12 +251,12 @@ export default function App() {
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-400 flex items-center justify-center text-white shadow-lg">
-                <span className="font-bold">IA</span>
+                <span className="font-bold">AI</span>
               </div>
-              <h1 className="text-xl font-bold text-white tracking-tight">Plateforme Assistant IA</h1>
+              <h1 className="text-xl font-bold text-white tracking-tight">AI Assistant Platform</h1>
             </div>
             <button onClick={() => setShowLoginModal(true)} className="text-sm font-medium text-gray-300 hover:text-white">
-              Se connecter
+              Sign In
             </button>
           </div>
         </header>
@@ -265,7 +265,7 @@ export default function App() {
       {/* Payment cancel toast */}
       {paymentToast === 'cancel' && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-dark-800 border border-yellow-500/30 text-yellow-400 text-sm rounded-xl px-6 py-3 shadow-xl animate-in fade-in slide-in-from-bottom-4">
-          ⚠️ Paiement annulé. Vous pouvez réessayer à tout moment.
+          ⚠️ Payment canceled. You can try again at any time.
         </div>
       )}
 
@@ -298,7 +298,7 @@ export default function App() {
                 <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center text-indigo-400 border border-indigo-500/30">
                   <Users className="w-5 h-5" />
                 </div>
-                <h2 className="text-xl font-bold text-white">Prospects Capturés</h2>
+                <h2 className="text-xl font-bold text-white">Captured Leads</h2>
               </div>
               <LeadsTable leads={leads} />
             </section>

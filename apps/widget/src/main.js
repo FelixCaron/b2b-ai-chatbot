@@ -36,8 +36,8 @@ import { ChatManager } from "./chat.js";
         <div class="b2b-chat-header-info">
           <div class="b2b-avatar" style="background: ${themeColor}; shadow: 0 4px 12px ${themeColor}44;">AI</div>
           <div>
-            <div class="b2b-status-title">Assistant Virtuel</div>
-            <div class="b2b-status-sub"><span class="b2b-status-dot"></span>En ligne</div>
+            <div class="b2b-status-title">Virtual Assistant</div>
+            <div class="b2b-status-sub"><span class="b2b-status-dot"></span>Online</div>
           </div>
         </div>
         <button class="b2b-close-btn" id="b2b-close-btn">
@@ -45,10 +45,10 @@ import { ChatManager } from "./chat.js";
         </button>
       </div>
       <div class="b2b-chat-messages" id="b2b-messages">
-        <div class="b2b-msg assistant">Bonjour! Comment puis-je vous aider aujourd'hui?</div>
+        <div class="b2b-msg assistant">Hello! How can I help you today?</div>
       </div>
       <div class="b2b-chat-footer">
-        <input type="text" class="b2b-chat-input" id="b2b-input" placeholder="Posez une question..." />
+        <input type="text" class="b2b-chat-input" id="b2b-input" placeholder="Ask a question..." />
         <button class="b2b-send-btn" id="b2b-send-btn" style="background: ${themeColor};">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
         </button>
@@ -115,22 +115,22 @@ import { ChatManager } from "./chat.js";
         if (event === "tool_start" && data.tool === "search_knowledge_base") {
           const badge = document.createElement("div");
           badge.className = "b2b-tool-badge";
-          badge.innerText = "🔍 Recherche des informations...";
+          badge.innerText = "🔍 Searching knowledge base...";
           assistantMsgEl.appendChild(badge);
         } else if (event === "tool_end" && data.tool === "capture_lead") {
           const badge = document.createElement("div");
           badge.className = "b2b-tool-badge";
-          badge.innerText = "✅ Coordonnées enregistrées";
+          badge.innerText = "✅ Contact details saved";
           assistantMsgEl.appendChild(badge);
         }
       },
       // On Error
       (errText) => {
         const id = Date.now();
-        assistantMsgEl.innerHTML = `<span>Oups! Une erreur technique m'empêche de vous répondre. 😔<br><br><b>Laissez-nous votre email pour que nous puissions vous recontacter :</b></span>
+        assistantMsgEl.innerHTML = `<span>Sorry! A technical issue occurred. 😔<br><br><b>Leave us your email so our team can follow up with you:</b></span>
         <div style="display:flex; gap:5px; margin-top:10px;">
-           <input type="email" id="fallback-email-${id}" placeholder="votre@email.com" class="b2b-chat-input" style="flex:1; padding:8px; border-radius:6px; border:1px solid #ccc; font-size:12px; color:#333; background:#fff;" />
-           <button id="fallback-btn-${id}" style="padding:8px 12px; border-radius:6px; background:${themeColor}; color:white; border:none; cursor:pointer; font-weight:bold; font-size:12px;">Envoyer</button>
+           <input type="email" id="fallback-email-${id}" placeholder="your@email.com" class="b2b-chat-input" style="flex:1; padding:8px; border-radius:6px; border:1px solid #ccc; font-size:12px; color:#333; background:#fff;" />
+           <button id="fallback-btn-${id}" style="padding:8px 12px; border-radius:6px; background:${themeColor}; color:white; border:none; cursor:pointer; font-weight:bold; font-size:12px;">Submit</button>
         </div>`;
         
         const btn = shadowRoot.getElementById(`fallback-btn-${id}`);
@@ -138,7 +138,7 @@ import { ChatManager } from "./chat.js";
         if (btn && inputFallback) {
           btn.addEventListener('click', () => {
             if (inputFallback.value.includes('@')) {
-              assistantMsgEl.innerHTML = `Merci ! Nous vous recontacterons très vite à l'adresse <b>${inputFallback.value}</b>.`;
+              assistantMsgEl.innerHTML = `Thank you! We will get back to you shortly at <b>${inputFallback.value}</b>.`;
             } else {
               inputFallback.style.border = "1px solid red";
             }

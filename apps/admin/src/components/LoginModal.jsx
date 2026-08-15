@@ -32,23 +32,23 @@ export default function LoginModal({ onLogin, onClose, isGuestConversion = false
             <Bot className="w-8 h-8" />
           </div>
           <h1 className="text-2xl font-bold text-white text-center">
-            {isGuestConversion ? "Félicitations, votre IA est prête !" : "Bienvenue sur votre Espace IA"}
+            {isGuestConversion ? "Congratulations, your AI is ready!" : "Welcome to your AI Space"}
           </h1>
           <p className="text-gray-400 text-sm mt-2 text-center">
             {isGuestConversion 
-              ? "Entrez votre e-mail professionnel pour sauvegarder votre assistant et obtenir le code d'intégration."
-              : "Entrez votre email professionnel pour vous connecter ou configurer votre assistant."}
+              ? "Enter your work email to save your assistant and get your integration embed code."
+              : "Enter your work email to sign in or configure your assistant."}
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="relative space-y-6">
           <div>
-            <label className="block text-xs font-semibold text-gray-400 mb-2">Adresse Email</label>
+            <label className="block text-xs font-semibold text-gray-400 mb-2">Email Address</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="vous@entreprise.com"
+              placeholder="you@company.com"
               className="w-full bg-dark-800 border border-gray-700 text-white rounded-xl px-4 py-3 text-sm outline-none focus:border-brand-500 transition-colors"
               required
             />
@@ -59,14 +59,14 @@ export default function LoginModal({ onLogin, onClose, isGuestConversion = false
             disabled={loading || !email}
             className="w-full bg-brand-600 hover:bg-brand-500 text-white font-semibold py-3 rounded-xl text-sm flex items-center justify-center gap-2 shadow-lg transition-all disabled:opacity-50"
           >
-            {loading ? 'Sauvegarde en cours...' : (
-              <>{isGuestConversion ? 'Enregistrer mon assistant' : 'Continuer'} <ArrowRight className="w-4 h-4" /></>
+            {loading ? 'Saving...' : (
+              <>{isGuestConversion ? 'Save My Assistant' : 'Continue'} <ArrowRight className="w-4 h-4" /></>
             )}
           </button>
         </form>
 
         <div className="relative mt-8 pt-6 border-t border-white/5 flex items-center justify-center gap-2 text-xs text-gray-500">
-          <ShieldCheck className="w-4 h-4 text-emerald-500/70" /> {isGuestConversion ? "Création de compte sécurisée" : "Connexion sécurisée"}
+          <ShieldCheck className="w-4 h-4 text-emerald-500/70" /> {isGuestConversion ? "Secure account creation" : "Secure sign in"}
         </div>
       </div>
     </div>

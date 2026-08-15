@@ -15,7 +15,7 @@ export default function LeadsTable({ leads }) {
 
   const exportToCSV = () => {
     if (leads.length === 0) return;
-    const headers = ["ID", "Nom", "Email", "Téléphone", "Date de création"];
+    const headers = ["ID", "Name", "Email", "Phone", "Created Date"];
     const rows = leads.map(l => [l.id, l.name || '', l.email || '', l.phone || '', l.created_at]);
     const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
     const encodedUri = encodeURI(csvContent);
@@ -32,9 +32,9 @@ export default function LeadsTable({ leads }) {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
         <div>
           <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <Users className="w-5 h-5 text-emerald-400" /> Prospects Capturés ({filteredLeads.length})
+            <Users className="w-5 h-5 text-emerald-400" /> Captured Leads ({filteredLeads.length})
           </h2>
-          <p className="text-xs text-gray-400">Coordonnées automatiquement extraites par le Chatbot IA lors des conversations.</p>
+          <p className="text-xs text-gray-400">Contact information automatically collected by your AI chatbot during visitor conversations.</p>
         </div>
 
         <div className="flex items-center gap-3 w-full sm:w-auto">
@@ -43,7 +43,7 @@ export default function LeadsTable({ leads }) {
             <Search className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
             <input
               type="text"
-              placeholder="Rechercher un prospect..."
+              placeholder="Search leads..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-dark-900 border border-gray-700 rounded-xl pl-9 pr-4 py-2 text-sm text-white placeholder-gray-500 outline-none focus:border-brand-500"
@@ -56,7 +56,7 @@ export default function LeadsTable({ leads }) {
             disabled={leads.length === 0}
             className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-semibold px-4 py-2.5 rounded-xl flex items-center gap-2 transition-all shadow-md"
           >
-            <Download className="w-4 h-4" /> Exporter CSV
+            <Download className="w-4 h-4" /> Export CSV
           </button>
         </div>
       </div>
@@ -65,7 +65,7 @@ export default function LeadsTable({ leads }) {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredLeads.length === 0 ? (
           <div className="col-span-full py-12 text-center text-gray-500 text-sm border border-dashed border-white/10 rounded-2xl">
-            Aucun prospect enregistré pour le moment. Activez la capture de leads dans les paramètres de votre IA.
+            No leads captured yet. Enable lead capture in your AI settings.
           </div>
         ) : (
           filteredLeads.map((lead) => (
@@ -76,9 +76,9 @@ export default function LeadsTable({ leads }) {
                     <User className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-white">{lead.name || 'Nom inconnu'}</h3>
+                    <h3 className="text-sm font-bold text-white">{lead.name || 'Unknown Name'}</h3>
                     <p className="text-xs text-gray-400 flex items-center gap-1">
-                      <Calendar className="w-3 h-3" /> {new Date(lead.created_at).toLocaleDateString('fr-FR')}
+                      <Calendar className="w-3 h-3" /> {new Date(lead.created_at).toLocaleDateString('en-US')}
                     </p>
                   </div>
                 </div>
@@ -90,7 +90,7 @@ export default function LeadsTable({ leads }) {
                   {lead.email ? (
                     <a href={`mailto:${lead.email}`} className="text-indigo-300 hover:text-indigo-200 truncate">{lead.email}</a>
                   ) : (
-                    <span className="text-gray-600 italic">Non spécifié</span>
+                    <span className="text-gray-600 italic">Not provided</span>
                   )}
                 </div>
                 <div className="flex items-center gap-2 text-sm">
@@ -98,15 +98,15 @@ export default function LeadsTable({ leads }) {
                   {lead.phone ? (
                     <a href={`tel:${lead.phone}`} className="text-emerald-300 hover:text-emerald-200 truncate">{lead.phone}</a>
                   ) : (
-                    <span className="text-gray-600 italic">Non spécifié</span>
+                    <span className="text-gray-600 italic">Not provided</span>
                   )}
                 </div>
               </div>
 
               <div className="mt-auto bg-dark-800/50 p-3 rounded-xl border border-white/5">
-                <h4 className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Résumé du besoin</h4>
+                <h4 className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Inquiry Summary</h4>
                 <p className="text-xs text-gray-300 line-clamp-3">
-                  {lead.summary || <span className="text-gray-600 italic">Aucun résumé généré par l'IA.</span>}
+                  {lead.summary || <span className="text-gray-600 italic">No summary generated by AI.</span>}
                 </p>
               </div>
             </div>

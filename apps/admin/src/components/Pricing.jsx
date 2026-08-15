@@ -4,35 +4,35 @@ import { Check, Zap, Shield, Sparkles, ArrowRight, Loader2, ExternalLink } from 
 const PLANS = [
   {
     id: 'free',
-    name: 'Plan Gratuit',
+    name: 'Free Plan',
     price: '0',
     currency: 'CAD',
-    description: "Pour tester et automatiser vos premiers échanges gratuitement avec nos LLM gratuits.",
+    description: "Test and automate your first customer conversations with free AI models.",
     features: [
-      '1 Assistant IA sur votre site web',
-      'Modèles LLM 100% Gratuits (OpenRouter / Gemini / Llama)',
-      '100 messages / mois offerts',
-      'Indexation de vos pages web',
-      'Capture de prospects (Leads)',
-      'Widget personnalisé',
+      '1 AI Assistant on your website',
+      '100% Free LLM Models (OpenRouter / Gemini / Llama)',
+      '100 messages / month included',
+      'Website content indexing',
+      'Lead capture & email collection',
+      'Customized widget styling',
     ],
     icon: <Sparkles className="w-6 h-6 text-sky-400" />,
     color: 'sky',
   },
   {
     id: 'basic',
-    name: 'Chatbot Basic',
+    name: 'Basic Chatbot',
     price: '45',
     currency: 'CAD',
-    description: "Tout ce qu'il vous faut pour automatiser votre service client avec l'IA.",
+    description: "Everything you need to automate 24/7 customer support with AI.",
     popular: true,
     features: [
-      '1 Assistant IA sur votre site web',
-      "Indexation automatique illimitée",
-      'Recherche sémantique multilingue (FR/EN)',
-      'Capture de prospects (Leads)',
-      'Widget personnalisable (couleur, ton)',
-      'Support prioritaire par email',
+      '1 AI Assistant on your website',
+      "Unlimited automatic website indexing",
+      'Bilingual semantic search (FR/EN)',
+      'Lead capture & export',
+      'Customizable widget (color, tone, goals)',
+      'Priority email support',
     ],
     icon: <Zap className="w-6 h-6 text-emerald-400" />,
     color: 'emerald',
@@ -40,13 +40,13 @@ const PLANS = [
   {
     id: 'enterprise',
     name: 'Enterprise',
-    price: 'Sur mesure',
-    description: 'Pour les grands groupes ayant des besoins spécifiques et un volume élevé.',
+    price: 'Custom',
+    description: 'For organizations with high traffic, custom integrations, and dedicated needs.',
     features: [
-      'Assistants IA illimités',
-      'Intégration CRM (HubSpot, Salesforce)',
-      'Modèles LLM au choix (Claude, OpenAI, Gemini)',
-      'SLA 99.9% & Account Manager dédié',
+      'Unlimited AI Assistants',
+      'CRM Integration (HubSpot, Salesforce)',
+      'Choice of premium LLMs (Claude, OpenAI, Gemini)',
+      '99.9% SLA & Dedicated Account Manager',
     ],
     icon: <Shield className="w-6 h-6 text-brand-400" />,
     color: 'brand',
@@ -59,7 +59,7 @@ export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'free' }
 
   const handleSelectPlan = async (planId) => {
     if (planId === 'enterprise') {
-      window.open('mailto:hello@votre-domaine.com?subject=Demande Enterprise', '_blank');
+      window.open('mailto:hello@your-domain.com?subject=Enterprise Plan Inquiry', '_blank');
       return;
     }
 
@@ -81,7 +81,7 @@ export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'free' }
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || 'Erreur lors de la création de la session');
+        throw new Error(data.error || 'Error creating checkout session');
       }
 
       if (data.url) {
@@ -101,9 +101,9 @@ export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'free' }
   return (
     <div className="py-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="text-center max-w-3xl mx-auto mb-16">
-        <h1 className="text-3xl font-bold text-white mb-4">Passez à la vitesse supérieure</h1>
+        <h1 className="text-3xl font-bold text-white mb-4">Level Up Your Customer Support</h1>
         <p className="text-gray-400 text-lg">
-          Choisissez le plan qui correspond à vos besoins et automatisez votre relation client 24/7.
+          Choose the plan that fits your business needs and automate your customer service 24/7.
         </p>
       </div>
 
@@ -131,12 +131,12 @@ export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'free' }
             >
               {plan.popular && (
                 <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-emerald-500 text-white text-xs font-bold px-4 py-1.5 rounded-full uppercase tracking-wider shadow-lg">
-                  Le plus populaire
+                  Most Popular
                 </div>
               )}
               {isCurrent && (
                 <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-brand-600 text-white text-xs font-bold px-4 py-1.5 rounded-full uppercase tracking-wider shadow-lg flex items-center gap-1">
-                  <Check className="w-3 h-3" /> Votre plan actuel
+                  <Check className="w-3 h-3" /> Your Current Plan
                 </div>
               )}
 
@@ -150,12 +150,12 @@ export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'free' }
               <p className="text-sm text-gray-400 mb-6 min-h-[40px]">{plan.description}</p>
 
               <div className="mb-8">
-                {plan.price === 'Sur mesure' ? (
-                  <span className="text-3xl font-bold text-white">Sur mesure</span>
+                {plan.price === 'Custom' || plan.price === 'Sur mesure' ? (
+                  <span className="text-3xl font-bold text-white">Custom</span>
                 ) : (
                   <div className="flex items-baseline gap-1">
-                    <span className="text-4xl font-bold text-white">{plan.price}$</span>
-                    <span className="text-gray-400 font-medium">{plan.currency || 'CAD'}/mois</span>
+                    <span className="text-4xl font-bold text-white">${plan.price}</span>
+                    <span className="text-gray-400 font-medium">{plan.currency || 'CAD'}/month</span>
                   </div>
                 )}
               </div>
@@ -185,15 +185,15 @@ export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'free' }
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : isCurrent ? (
                   <>
-                    <Check className="w-4 h-4" /> Plan actif
+                    <Check className="w-4 h-4" /> Active Plan
                   </>
-                ) : plan.price === 'Sur mesure' ? (
+                ) : plan.price === 'Custom' || plan.price === 'Sur mesure' ? (
                   <>
-                    Nous contacter <ExternalLink className="w-4 h-4" />
+                    Contact Us <ExternalLink className="w-4 h-4" />
                   </>
                 ) : (
                   <>
-                    Choisir ce plan <ArrowRight className="w-4 h-4" />
+                    Choose Plan <ArrowRight className="w-4 h-4" />
                   </>
                 )}
               </button>
@@ -203,7 +203,7 @@ export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'free' }
       </div>
 
       <p className="text-center text-xs text-gray-600 mt-10">
-        Paiements sécurisés par{' '}
+        Secure payments powered by{' '}
         <a
           href="https://stripe.com"
           target="_blank"
@@ -212,7 +212,7 @@ export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'free' }
         >
           Stripe
         </a>
-        . Annulable à tout moment.
+        . Cancel anytime.
       </p>
     </div>
   );

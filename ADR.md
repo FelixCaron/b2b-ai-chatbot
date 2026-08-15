@@ -4,6 +4,32 @@ Ce document retrace toutes les décisions importantes concernant l'architecture,
 
 ---
 
+## ADR 018 : Simplification de l'Espace Client, Modale de Progression d'Apprentissage & Localisation Anglaise
+**Date:** 15 Août 2026
+**Statut:** Accepté
+
+### Contexte
+Pour un nouvel utilisateur, l'espace d'administration présentait trop d'options simultanément (formulaires de prompt, boutons de tons, gestionnaire de base de connaissances volumineux), ce qui créait de la confusion quant à l'action principale à effectuer ("Où aller ? Que faire maintenant ?"). De plus, l'apprentissage du site web manquait de visibilité et l'ensemble de la plateforme devait être traduit en anglais.
+
+### Décision
+1. **Modale Dédiée d'Apprentissage avec Barre de Progression** :
+   - Affichage d'une fenêtre modale interactive (`showLearningModal`) dès le lancement de l'onboarding ou d'un re-scan.
+   - Barre de progression animée (0% à 100%) avec étapes visuelles détaillées (Découverte des pages du sitemap, Indexation vectorielle sémantique, Génération du résumé d'entreprise par l'IA).
+   - Écran de félicitation avec bouton d'action directe "Test My Bot Now →" ouvrant immédiatement l'aperçu live plein écran.
+2. **Clarification du Dashboard & Regroupement des Options Secondaires** :
+   - Carte Hero épurée mettant en avant le statut de l'assistant (Actif & En Ligne), la clé publique et les 3 actions clés (Test Live, Intégration widget, Re-scan).
+   - Guide d'onboarding rapide en 3 étapes claires (1. Apprentissage IA validé -> 2. Test sandbox en direct -> 3. Intégration du script).
+   - Section accordéon / déroulante "Advanced Settings & Knowledge Base" masquant par défaut les options secondaires (Couleur du widget, Capture de prospects, Objectif, Ton de voix, Éditeur de résumé, Tableau de gestion des URLs).
+3. **Traduction Intégrale en Anglais** :
+   - Traduction complète de l'interface d'administration (Header, Onboarding, Modales, Table de prospects, Pricing, Écran de succès Stripe) et du widget embarqué (salutation par défaut, statuts d'outils, formulaires de secours).
+
+### Conséquences
+- Expérience d'onboarding fluide, guidée et engageante pour tout nouvel arrivant.
+- Tableau de bord ultra épuré tout en conservant l'accès direct aux réglages avancés via l'accordéon.
+- Plateforme 100% bilingue prête pour les marchés anglophones et internationaux.
+
+---
+
 ## ADR 008 : Interdiction des Salutations Répétitives & Fallback de Résumé d'Entreprise
 **Date:** 14 Août 2026
 **Statut:** Accepté
