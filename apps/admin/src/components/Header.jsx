@@ -1,8 +1,17 @@
 import React, { useState } from 'react';
-import { Bot, ShieldCheck, LogOut, Settings, Loader2 } from 'lucide-react';
+import { Bot, ShieldCheck, LogOut, Settings, Loader2, Users, LayoutDashboard, Sparkles } from 'lucide-react';
 import PlanBadge from './PlanBadge';
 
-export default function Header({ tenants, selectedTenant, setSelectedTenant, onLogout, onShowPricing }) {
+export default function Header({ 
+  tenants, 
+  selectedTenant, 
+  setSelectedTenant, 
+  onLogout, 
+  onShowPricing,
+  currentView = 'dashboard',
+  onSelectView,
+  leadsCount = 0
+}) {
   const [portalLoading, setPortalLoading] = useState(false);
 
   const plan = selectedTenant?.plan || 'free';
@@ -31,27 +40,67 @@ export default function Header({ tenants, selectedTenant, setSelectedTenant, onL
 
   return (
     <header className="glass-card sticky top-0 z-50 px-4 sm:px-8 py-3 sm:py-4 mb-6 sm:mb-8">
-      <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
-        <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-400 flex items-center justify-center text-white shadow-lg shadow-brand-500/30 shrink-0">
+      <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+        {/* Brand & Title */}
+        <div className="flex items-center gap-6 w-full md:w-auto justify-between md:justify-start">
+          <div 
+            onClick={() => onSelectView?.('dashboard')}
+            className="flex items-center gap-3 cursor-pointer group"
+          >
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-400 flex items-center justify-center text-white shadow-lg shadow-brand-500/30 shrink-0 group-hover:scale-105 transition-transform">
               <Bot className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
             <div>
-              <h1 className="text-base sm:text-xl font-bold text-white tracking-tight">AI Assistant Platform</h1>
+              <h1 className="text-base sm:text-lg font-bold text-white tracking-tight">AI Assistant Platform</h1>
               <p className="text-[10px] sm:text-xs text-gray-400 flex items-center gap-1">
                 <ShieldCheck className="w-3 h-3 text-emerald-400" /> Secure Workspace
               </p>
             </div>
           </div>
 
-          <button
-            onClick={onLogout}
-            className="sm:hidden text-gray-400 hover:text-white p-2 rounded-lg hover:bg-white/5"
-            title="Sign out"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
+          {/* Navigation Tabs */}
+          <nav className="flex items-center gap-1 bg-dark-900/80 p-1 rounded-xl border border-white/5">
+            <button
+              onClick={() => onSelectView?.('dashboard')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                currentView === 'dashboard' 
+                  ? 'bg-brand-600 text-white shadow-sm' 
+                  : 'text-gray-400 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <LayoutDashboard className="w-3.5 h-3.5" />
+              <span>Dashboard</span>
+            </button>
+
+            <button
+              onClick={() => onSelectView?.('leads')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                currentView === 'leads' 
+                  ? 'bg-brand-600 text-white shadow-sm' 
+                  : 'text-gray-400 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <Users className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Leads</span>
+              {leadsCount > 0 && (
+                <span className="bg-emerald-500/20 text-emerald-300 text-[10px] px-1.5 py-0.2 rounded-full font-bold">
+                  {leadsCount}
+                </span>
+              )}
+            </button>
+
+            <button
+              onClick={() => onSelectView?.('pricing')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                currentView === 'pricing' 
+                  ? 'bg-brand-600 text-white shadow-sm' 
+                  : 'text-gray-400 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <span>Plans</span>
+            </button>
+          </nav>
         </div>
 
         {/* Tenant Selector, Plan Badge & Actions */}

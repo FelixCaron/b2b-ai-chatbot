@@ -196,18 +196,23 @@ export default async function handler(req) {
 
     let pageText = '';
 
-    // 1. Primary: Jina Reader API for LLM-ready markdown
+    // 1. Primary: Jina Reader API with 3.5s timeout
+    const jinaController = new AbortController();
+    const jinaTimer = setTimeout(() => jinaController.abort(), 3500);
+
     try {
       const jinaRes = await fetch(`https://r.jina.ai/${targetUrl}`, {
+        signal: jinaController.signal,
         headers: { 
           'Accept': 'text/plain', 
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
       });
+      clearTimeout(jinaTimer);
 
       if (jinaRes.status === 401 || jinaRes.status === 403 || isAuthUrl) {
         return new Response(
-          JSON.stringify({ success: true, is_protected: true, chunks_count: 0, message: '🔒 Page protégée par connexion / Auth Wall' }),
+          JSON.stringify({ success: true, is_protected: true, chunks_count: 0, message: '🔒 Protected page (Auth Wall)' }),
           { status: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
         );
       }
@@ -216,18 +221,23 @@ export default async function handler(req) {
         pageText = await jinaRes.text();
       }
     } catch (jinaErr) {
-      console.warn('[start-scan] Jina Reader error, trying direct HTML fallback:', jinaErr.message);
+      clearTimeout(jinaTimer);
+      console.warn('[start-scan] Jina Reader timeout/error, falling back to direct HTML:', jinaErr.message);
     }
 
     // 2. Secondary Fallback: Direct HTML fetch if Jina failed or returned empty
     if (!pageText || pageText.length < 50) {
       try {
+        const directController = new AbortController();
+        const directTimer = setTimeout(() => directController.abort(), 2500);
         const directRes = await fetch(targetUrl, {
+          signal: directController.signal,
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
           }
         });
-        if (directRes.ok) {
+        clearTimeout(directTimer);
+        if (directRes && directRes.ok) {
           const rawHtml = await directRes.text();
           pageText = extractTextFromHtml(rawHtml);
         }

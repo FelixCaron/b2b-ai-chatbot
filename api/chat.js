@@ -261,8 +261,16 @@ ${isLeadCaptureEnabled ? "4. CAPTURE DE PROSPECTS : C'est une priorité. Dès qu
             loopCount++;
 
             const tenantPlan = site.tenants?.plan || 'free';
-            const isPaid = tenantPlan !== 'free';
-            const selectedModel = isPaid ? 'openai/gpt-5.6-luna' : 'openrouter/free';
+            let selectedModel = 'google/gemini-2.0-flash-001';
+            if (tenantPlan === 'enterprise') {
+              selectedModel = 'anthropic/claude-3.5-sonnet';
+            } else if (tenantPlan === 'pro' || tenantPlan === 'starter') {
+              selectedModel = 'openai/gpt-4o';
+            } else if (tenantPlan === 'basic') {
+              selectedModel = 'openai/gpt-4o-mini';
+            } else {
+              selectedModel = 'google/gemini-2.0-flash-001';
+            }
 
             const responseData = await generateChatResponse({ 
               systemPrompt, 
@@ -379,7 +387,7 @@ ${isLeadCaptureEnabled ? "4. CAPTURE DE PROSPECTS : C'est une priorité. Dès qu
           for (let i = 0; i < words.length; i++) {
             accumulated += (i === 0 ? '' : ' ') + words[i];
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: accumulated })}\n\n`));
-            await new Promise((r) => setTimeout(r, 20));
+            await new Promise((r) => setTimeout(r, 8));
           }
 
           // Save assistant message to Supabase

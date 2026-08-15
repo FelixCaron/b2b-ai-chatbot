@@ -4,6 +4,43 @@ Ce document retrace toutes les décisions importantes concernant l'architecture,
 
 ---
 
+## ADR 019 : Limites de Forfaits (Sites/Pages/Modèles LLM), Gestion Multi-Sites Non-Bloquante, Navigation Leads & Optimisation du Crawl/Streaming
+**Date:** 15 Août 2026
+**Statut:** Accepté
+
+### Contexte
+1. L'application nécessitait une hiérarchisation claire des forfaits (Free, Basic, Pro, Enterprise) avec des quotas précis de sites web et de pages indexables, et un routage dynamique vers des modèles légers (Free/Basic) ou des modèles avancés de raisonnement (Pro/Enterprise).
+2. L'ajout d'un second site réinitialisait l'interface au lieu d'offrir une expérience multi-sites fluide.
+3. La section des prospects capturés (Leads) n'était pas accessible si la liste était vide ou depuis le menu principal.
+4. L'aperçu du résumé IA présentait des risques de faible contraste (texte blanc sur fond blanc selon les navigateurs).
+5. La performance d'indexation devait être accélérée et les appels d'outils techniques (tool calls) devaient être masqués au profit d'un streaming fluide.
+
+### Décision
+1. **Tiering des Plans et Modèles IA Dédiés** :
+   - **Free ($0)** : 1 site max, 15 pages max, modèle léger `google/gemini-2.0-flash-001`.
+   - **Basic ($45 CAD)** : 1 site max, 50 pages max, modèle rapide optimisé `openai/gpt-4o-mini`.
+   - **Pro ($129 CAD)** : Jusqu'à 5 sites, 250 pages/site, modèle de raisonnement avancé `openai/gpt-4o`.
+   - **Enterprise (Custom)** : Sites et pages illimités, modèle haute fidélité `anthropic/claude-3.5-sonnet`.
+2. **Navigation Principale et Accès Permanent aux Leads** :
+   - Ajout d'onglets de navigation en haut de page (`Dashboard`, `Leads`, `Plans`) dans le Header et le header invité.
+   - La page Leads est toujours consultable (avec tableau de bord, export CSV et message d'accueil explicatif).
+3. **Gestion Multi-Sites Non-Bloquante** :
+   - Ajout d'une barre de sélection de site (pills/onglets) sur le tableau de bord lorsqu'un client possède plusieurs sites.
+   - Modale dédiée non-bloquante `showAddSiteModal` pour ajouter un nouveau domaine avec contrôle des quotas du forfait actif.
+4. **Correction du Contraste de Résumé IA & Éditeur de Pages** :
+   - Application explicite des styles de fond sombre (`#090d16`) et texte clair (`#f3f4f6`) sur tous les textareas.
+5. **Accélération du Pipeline de Crawl et Streaming Chat Épuré** :
+   - Découverte des sitemaps en parallèle avec `Promise.allSettled` et timeout d'abandon de 2.5s.
+   - Concurrence d'indexation des pages augmentée à 10x.
+   - Masquage intégral des blocs bruts de debug `tool_call` dans le widget et l'aperçu, avec streaming direct du texte à 8ms.
+
+### Conséquences
+- Architecture multi-sites robuste sans aucun verrouillage de l'interface.
+- Expérience de discussion épurée et naturelle pour les visiteurs finaux.
+- Offre commerciale et quotas techniques parfaitement alignés sur le backend et le frontend.
+
+---
+
 ## ADR 018 : Simplification de l'Espace Client, Modale de Progression d'Apprentissage & Localisation Anglaise
 **Date:** 15 Août 2026
 **Statut:** Accepté

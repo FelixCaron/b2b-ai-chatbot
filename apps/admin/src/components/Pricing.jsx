@@ -7,13 +7,12 @@ const PLANS = [
     name: 'Free Plan',
     price: '0',
     currency: 'CAD',
-    description: "Test and automate your first customer conversations with free AI models.",
+    description: "For small websites and testing automated AI conversations.",
     features: [
-      '1 AI Assistant on your website',
-      '100% Free LLM Models (OpenRouter / Gemini / Llama)',
-      '100 messages / month included',
-      'Website content indexing',
-      'Lead capture & email collection',
+      '1 Website maximum',
+      'Up to 15 indexed pages',
+      'Fast Lightweight AI (Gemini 2.0 Flash)',
+      '100 messages / month',
       'Customized widget styling',
     ],
     icon: <Sparkles className="w-6 h-6 text-sky-400" />,
@@ -21,31 +20,48 @@ const PLANS = [
   },
   {
     id: 'basic',
-    name: 'Basic Chatbot',
+    name: 'Basic Plan',
     price: '45',
     currency: 'CAD',
-    description: "Everything you need to automate 24/7 customer support with AI.",
+    description: "Ideal for small business websites looking for 24/7 client automation.",
     popular: true,
     features: [
-      '1 AI Assistant on your website',
-      "Unlimited automatic website indexing",
-      'Bilingual semantic search (FR/EN)',
-      'Lead capture & export',
-      'Customizable widget (color, tone, goals)',
+      '1 Website maximum',
+      'Up to 50 indexed pages',
+      'Fast Optimized Model (GPT-4o-mini)',
+      '2,000 messages / month',
+      'Lead capture & CSV export',
       'Priority email support',
     ],
     icon: <Zap className="w-6 h-6 text-emerald-400" />,
     color: 'emerald',
   },
   {
+    id: 'pro',
+    name: 'Pro Growth',
+    price: '129',
+    currency: 'CAD',
+    description: "For growing companies with large websites and multiple domains.",
+    features: [
+      'Up to 5 Websites',
+      'Up to 250 pages per website',
+      'Advanced Reasoning Model (GPT-4o / Claude 3.5)',
+      '10,000 messages / month',
+      'High-speed priority indexing',
+      'VIP customer support',
+    ],
+    icon: <Shield className="w-6 h-6 text-indigo-400" />,
+    color: 'indigo',
+  },
+  {
     id: 'enterprise',
     name: 'Enterprise',
     price: 'Custom',
-    description: 'For organizations with high traffic, custom integrations, and dedicated needs.',
+    description: 'For large organizations with complex catalogues and custom workflows.',
     features: [
-      'Unlimited AI Assistants',
+      'Unlimited Websites & Pages',
+      'Custom fine-tuned LLM routing',
       'CRM Integration (HubSpot, Salesforce)',
-      'Choice of premium LLMs (Claude, OpenAI, Gemini)',
       '99.9% SLA & Dedicated Account Manager',
     ],
     icon: <Shield className="w-6 h-6 text-brand-400" />,
@@ -113,7 +129,7 @@ export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'free' }
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
         {PLANS.map((plan) => {
           const isLoading = loadingPlanId === plan.id;
           const isCurrent = isCurrentPlan(plan.id);

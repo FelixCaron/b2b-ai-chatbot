@@ -233,7 +233,10 @@ export default function App() {
           selectedTenant={selectedTenant}
           setSelectedTenant={setSelectedTenant}
           onLogout={handleLogout}
-          onShowPricing={() => setCurrentView(currentView === 'dashboard' ? 'pricing' : 'dashboard')}
+          currentView={currentView}
+          onSelectView={(v) => setCurrentView(v)}
+          onShowPricing={() => setCurrentView('pricing')}
+          leadsCount={leads.length}
         />
       )}
 
@@ -245,17 +248,50 @@ export default function App() {
         />
       )}
 
-      {/* For Guest, we add a simple brand header instead of the full tenant header */}
+      {/* For Guest, we add a simple brand header with navigation tabs */}
       {!sessionEmail && !showLoginModal && (
-        <header className="glass-card sticky top-0 z-50 px-8 py-4 mb-8">
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-400 flex items-center justify-center text-white shadow-lg">
-                <span className="font-bold">AI</span>
+        <header className="glass-card sticky top-0 z-50 px-4 sm:px-8 py-3 sm:py-4 mb-6 sm:mb-8">
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+            <div className="flex items-center gap-6">
+              <div 
+                onClick={() => setCurrentView('dashboard')}
+                className="flex items-center gap-3 cursor-pointer"
+              >
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-400 flex items-center justify-center text-white shadow-lg">
+                  <span className="font-bold">AI</span>
+                </div>
+                <h1 className="text-base sm:text-lg font-bold text-white tracking-tight">AI Assistant Platform</h1>
               </div>
-              <h1 className="text-xl font-bold text-white tracking-tight">AI Assistant Platform</h1>
+
+              <nav className="flex items-center gap-1 bg-dark-900/80 p-1 rounded-xl border border-white/5">
+                <button
+                  onClick={() => setCurrentView('dashboard')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    currentView === 'dashboard' ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  Dashboard
+                </button>
+                <button
+                  onClick={() => setCurrentView('leads')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    currentView === 'leads' ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  Leads ({leads.length})
+                </button>
+                <button
+                  onClick={() => setCurrentView('pricing')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    currentView === 'pricing' ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  Plans
+                </button>
+              </nav>
             </div>
-            <button onClick={() => setShowLoginModal(true)} className="text-sm font-medium text-gray-300 hover:text-white">
+
+            <button onClick={() => setShowLoginModal(true)} className="text-xs sm:text-sm font-medium bg-white/10 hover:bg-white/20 text-white px-3.5 py-1.5 rounded-lg transition-colors">
               Sign In
             </button>
           </div>
@@ -277,6 +313,27 @@ export default function App() {
           tenantId={selectedTenant?.id}
           currentPlan={selectedTenant?.plan || 'free'}
         />
+      ) : currentView === 'leads' ? (
+        <main className="max-w-7xl mx-auto px-4 sm:px-8 space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center text-indigo-400 border border-indigo-500/30">
+                <Users className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white">Captured Leads & Contacts</h2>
+                <p className="text-xs text-gray-400">Prospects and inquiries collected automatically by your AI assistants</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setCurrentView('dashboard')}
+              className="text-xs text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg border border-white/10"
+            >
+              ← Back to Dashboard
+            </button>
+          </div>
+          <LeadsTable leads={leads} />
+        </main>
       ) : (
         <main className="max-w-7xl mx-auto px-4 sm:px-8 space-y-8 sm:space-y-12">
           <section>
@@ -289,16 +346,29 @@ export default function App() {
               onTriggerScan={handleTriggerScan}
               isGuest={isGuest}
               onRequireLogin={() => setShowLoginModal(true)}
+              onViewLeads={() => setCurrentView('leads')}
+              leadsCount={leads.length}
             />
           </section>
 
-          {!isGuest && sites.length > 0 && leads.length > 0 && (
-            <section>
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center text-indigo-400 border border-indigo-500/30">
-                  <Users className="w-5 h-5" />
+          {leads.length > 0 && (
+            <section className="border-t border-white/5 pt-8">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center text-indigo-400 border border-indigo-500/30">
+                    <Users className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-white">Recent Captured Leads</h2>
+                    <p className="text-xs text-gray-400">{leads.length} prospect{leads.length > 1 ? 's' : ''} captured</p>
+                  </div>
                 </div>
-                <h2 className="text-xl font-bold text-white">Captured Leads</h2>
+                <button
+                  onClick={() => setCurrentView('leads')}
+                  className="text-xs text-brand-400 hover:text-brand-300 font-semibold"
+                >
+                  View All Leads →
+                </button>
               </div>
               <LeadsTable leads={leads} />
             </section>

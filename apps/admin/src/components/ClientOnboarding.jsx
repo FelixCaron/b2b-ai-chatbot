@@ -22,10 +22,26 @@ export default function ClientOnboarding({
   onDeleteDocumentUrls,
   onTriggerScan,
   isGuest,
-  onRequireLogin
+  onRequireLogin,
+  onViewLeads,
+  leadsCount = 0
 }) {
+  const [selectedSiteId, setSelectedSiteId] = useState(null);
   const [localCreatedSite, setLocalCreatedSite] = useState(null);
-  const activeSite = sites[0] || localCreatedSite;
+  const activeSite = (sites && sites.find(s => s.id === selectedSiteId)) || sites?.[0] || localCreatedSite;
+
+  const tenantPlan = selectedTenant?.plan || 'free';
+  const getMaxSitesForPlan = (plan) => {
+    if (plan === 'enterprise') return 999;
+    if (plan === 'pro' || plan === 'starter') return 5;
+    return 1; // free and basic: 1 website
+  };
+  const getMaxPagesForPlan = (plan) => {
+    if (plan === 'enterprise') return 1000;
+    if (plan === 'pro' || plan === 'starter') return 250;
+    if (plan === 'basic') return 50;
+    return 15; // free: 15 pages
+  };
 
   // Onboarding Step State
   const [siteUrl, setSiteUrl] = useState('');
@@ -33,6 +49,12 @@ export default function ClientOnboarding({
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [detectedTheme, setDetectedTheme] = useState(null);
   const [step, setStep] = useState(activeSite ? 'dashboard' : 'input');
+
+  // Add Site Modal state (non-blocking)
+  const [showAddSiteModal, setShowAddSiteModal] = useState(false);
+  const [newSiteUrlInput, setNewSiteUrlInput] = useState('');
+  const [isAddingNewSite, setIsAddingNewSite] = useState(false);
+  const [newSiteError, setNewSiteError] = useState('');
 
   // Sync step if activeSite changes
   useEffect(() => {
@@ -85,7 +107,8 @@ export default function ClientOnboarding({
       if (crawlRes.ok) {
         const crawlData = await crawlRes.json();
         if (crawlData.pages && crawlData.pages.length > 0) {
-          pagesToScan = crawlData.pages.map(p => ({
+          const maxPages = getMaxPagesForPlan(tenantPlan);
+          pagesToScan = crawlData.pages.slice(0, maxPages).map(p => ({
             url: p.url,
             title: p.title || p.url,
             status: 'loading'
@@ -106,8 +129,8 @@ export default function ClientOnboarding({
     let emptyCount = 0;
     let completedPagesCount = 0;
 
-    // 2. Scan pages in parallel batches to speed up ingestion
-    const CONCURRENCY = 5;
+    // 2. Scan pages in parallel batches to speed up ingestion (10x concurrency)
+    const CONCURRENCY = 10;
     for (let i = 0; i < pagesToScan.length; i += CONCURRENCY) {
       const batch = pagesToScan.slice(i, i + CONCURRENCY);
 
@@ -497,6 +520,50 @@ export default function ClientOnboarding({
     }
   };
 
+  // Add Website Modal Submit handler
+  const handleOpenAddSiteModal = () => {
+    setNewSiteUrlInput('');
+    setNewSiteError('');
+    setShowAddSiteModal(true);
+  };
+
+  const handleAddSiteModalSubmit = async (e) => {
+    e.preventDefault();
+    if (!newSiteUrlInput.trim()) return;
+
+    const maxSites = getMaxSitesForPlan(tenantPlan);
+    if (sites && sites.length >= maxSites) {
+      setNewSiteError(`Your plan allows up to ${maxSites} website(s). Please upgrade to add more domains!`);
+      return;
+    }
+
+    let formattedUrl = newSiteUrlInput.trim();
+    if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
+      formattedUrl = `https://${formattedUrl}`;
+    }
+
+    setIsAddingNewSite(true);
+    setNewSiteError('');
+
+    try {
+      let currentDomain = formattedUrl.replace('https://', '').replace('http://', '').replace('www.', '').split('/')[0];
+      const newSiteObj = await onAddSite(currentDomain, '#6366f1');
+
+      if (newSiteObj) {
+        setSelectedSiteId(newSiteObj.id);
+        setShowAddSiteModal(false);
+        setIsAddingNewSite(false);
+        await runSynchronousCrawlAndIndex(newSiteObj, formattedUrl);
+      } else {
+        setNewSiteError('Could not add this website. Please verify domain name.');
+        setIsAddingNewSite(false);
+      }
+    } catch (err) {
+      setNewSiteError(`Error: ${err.message}`);
+      setIsAddingNewSite(false);
+    }
+  };
+
   const handleEditPage = async (pageUrl, e) => {
     e.stopPropagation();
     setEditingPage({ url: pageUrl, content: 'Loading content...', saving: false });
@@ -539,7 +606,7 @@ export default function ClientOnboarding({
     const userText = previewInput.trim();
     setPreviewInput('');
     setPreviewMessages((prev) => [...prev, { role: 'user', text: userText }]);
-    setPreviewStreaming("Searching knowledge base...");
+    setPreviewStreaming("Thinking...");
 
     try {
       const res = await fetch(`${window.location.origin}/api/chat`, {
@@ -557,9 +624,7 @@ export default function ClientOnboarding({
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let assistantText = '';
-
-      setPreviewStreaming("AI is writing a response...");
-      setPreviewMessages((prev) => [...prev, { role: 'assistant', text: '' }]);
+      let hasAssistantBubble = false;
 
       while (true) {
         const { value, done } = await reader.read();
@@ -575,25 +640,22 @@ export default function ClientOnboarding({
             try {
               const parsed = JSON.parse(dataStr);
               if (parsed.tool_call) {
-                setPreviewMessages((prev) => {
-                  const updated = [...prev];
-                  const lastMsg = updated[updated.length - 1];
-                  if (lastMsg && lastMsg.role === 'assistant' && !lastMsg.text) {
-                    updated.splice(updated.length - 1, 0, { role: 'tool', tool_call: parsed.tool_call });
-                  } else {
-                    updated.push({ role: 'tool', tool_call: parsed.tool_call });
-                  }
-                  return updated;
-                });
+                // Subtle thinking state without raw JSON dump
+                setPreviewStreaming("Searching knowledge base & formulating answer...");
               }
               if (parsed.text) {
                 if (previewStreaming) setPreviewStreaming(false);
                 assistantText = parsed.text;
-                setPreviewMessages((prev) => {
-                  const updated = [...prev];
-                  updated[updated.length - 1] = { role: 'assistant', text: assistantText };
-                  return updated;
-                });
+                if (!hasAssistantBubble) {
+                  hasAssistantBubble = true;
+                  setPreviewMessages((prev) => [...prev, { role: 'assistant', text: assistantText }]);
+                } else {
+                  setPreviewMessages((prev) => {
+                    const updated = [...prev];
+                    updated[updated.length - 1] = { role: 'assistant', text: assistantText };
+                    return updated;
+                  });
+                }
               }
             } catch (_e) {}
           }
@@ -671,6 +733,36 @@ export default function ClientOnboarding({
       ) : (
         /* 2. MAIN DASHBOARD CLIENT VIEW */
         <div className="space-y-8">
+          {/* Multi-Site Selector Tabs (if more than 1 site exists) */}
+          {sites && sites.length > 1 && (
+            <div className="flex items-center gap-2 overflow-x-auto pb-1">
+              <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider shrink-0 mr-1">Websites:</span>
+              {sites.map((s) => {
+                const isSelected = activeSite?.id === s.id;
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => setSelectedSiteId(s.id)}
+                    className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 border ${
+                      isSelected
+                        ? 'bg-brand-600/20 text-white border-brand-500/40 shadow-sm'
+                        : 'bg-dark-900/80 text-gray-400 border-white/5 hover:border-white/20 hover:text-gray-200'
+                    }`}
+                  >
+                    <span className={`w-2 h-2 rounded-full ${isSelected ? 'bg-emerald-400 animate-pulse' : 'bg-gray-600'}`} />
+                    <span>{s.domain}</span>
+                  </button>
+                );
+              })}
+              <button
+                onClick={handleOpenAddSiteModal}
+                className="text-xs text-brand-400 hover:text-brand-300 font-semibold px-2.5 py-1.5 rounded-xl border border-brand-500/20 hover:bg-brand-500/10 transition-all shrink-0"
+              >
+                + Add Website
+              </button>
+            </div>
+          )}
+
           {/* Active Site Hero Card */}
           <div className="bg-dark-800/80 p-6 sm:p-8 rounded-2xl border border-white/5 shadow-sm space-y-6">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -734,14 +826,11 @@ export default function ClientOnboarding({
                 </button>
 
                 <button
-                  onClick={() => {
-                    setSiteUrl('');
-                    setStep('input');
-                  }}
+                  onClick={handleOpenAddSiteModal}
                   className="bg-dark-900 hover:bg-gray-800 border border-white/10 text-gray-400 hover:text-white px-3.5 py-3 rounded-xl text-xs font-medium transition-all"
                   title="Add another website"
                 >
-                  + New Site
+                  + Add Website
                 </button>
               </div>
             </div>
@@ -761,17 +850,17 @@ export default function ClientOnboarding({
               </div>
 
               <div 
-                onClick={() => setShowPreviewModal(true)}
-                className="bg-dark-900/60 p-4 rounded-xl border border-white/5 flex items-center gap-3.5 cursor-pointer hover:border-brand-500/30 transition-colors group"
+                onClick={() => !isCrawling && setShowPreviewModal(true)}
+                className="bg-dark-900/60 hover:bg-dark-900 p-4 rounded-xl border border-white/5 flex items-center gap-3.5 cursor-pointer group transition-all"
               >
-                <div className="w-8 h-8 rounded-lg bg-brand-500/10 text-brand-400 flex items-center justify-center shrink-0 border border-brand-500/20 font-bold text-xs group-hover:bg-brand-500 group-hover:text-white transition-colors">
+                <div className="w-8 h-8 rounded-lg bg-brand-500/10 text-brand-400 flex items-center justify-center shrink-0 border border-brand-500/20 font-bold text-xs group-hover:scale-105 transition-transform">
                   2
                 </div>
-                <div>
-                  <div className="text-xs font-bold text-white flex items-center gap-1">
-                    Test Your Bot Live <ArrowUpRight className="w-3 h-3 text-brand-400" />
+                <div className="flex-1">
+                  <div className="text-xs font-bold text-white flex items-center gap-1.5 group-hover:text-brand-300">
+                    Test Your Bot Live <ArrowUpRight className="w-3.5 h-3.5 text-brand-400" />
                   </div>
-                  <div className="text-[11px] text-gray-400">Ask questions in full-screen sandbox</div>
+                  <div className="text-[11px] text-gray-400">Try live questions in sandbox preview</div>
                 </div>
               </div>
 
@@ -780,16 +869,16 @@ export default function ClientOnboarding({
                   if (isGuest) onRequireLogin();
                   else setShowIntegrationModal(true);
                 }}
-                className="bg-dark-900/60 p-4 rounded-xl border border-white/5 flex items-center gap-3.5 cursor-pointer hover:border-indigo-500/30 transition-colors group"
+                className="bg-dark-900/60 hover:bg-dark-900 p-4 rounded-xl border border-white/5 flex items-center gap-3.5 cursor-pointer group transition-all"
               >
-                <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center shrink-0 border border-indigo-500/20 font-bold text-xs group-hover:bg-indigo-500 group-hover:text-white transition-colors">
+                <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center shrink-0 border border-indigo-500/20 font-bold text-xs group-hover:scale-105 transition-transform">
                   3
                 </div>
-                <div>
-                  <div className="text-xs font-bold text-white flex items-center gap-1">
-                    Embed on Website <ArrowUpRight className="w-3 h-3 text-indigo-400" />
+                <div className="flex-1">
+                  <div className="text-xs font-bold text-white flex items-center gap-1.5 group-hover:text-indigo-300">
+                    Embed on Website <Code className="w-3.5 h-3.5 text-indigo-400" />
                   </div>
-                  <div className="text-[11px] text-gray-400">Copy 1-line script tag to your site</div>
+                  <div className="text-[11px] text-gray-400">Copy 1-line script for your site</div>
                 </div>
               </div>
             </div>
@@ -958,7 +1047,8 @@ export default function ClientOnboarding({
                         }
                         onChange={(e) => setSiteSummary(e.target.value)}
                         placeholder="Enter business summary overview here or click regenerate..."
-                        className="w-full bg-dark-950 border border-white/10 text-white rounded-xl p-4 text-xs leading-relaxed outline-none focus:border-brand-500 transition-colors font-mono shadow-inner"
+                        style={{ backgroundColor: '#090d16', color: '#f3f4f6' }}
+                        className="w-full bg-dark-950 border border-white/10 text-gray-100 placeholder-gray-500 rounded-xl p-4 text-xs leading-relaxed outline-none focus:border-brand-500 transition-colors font-mono shadow-inner"
                       />
 
                       <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -1471,7 +1561,8 @@ export default function ClientOnboarding({
                 value={editingPage.content}
                 onChange={(e) => setEditingPage({ ...editingPage, content: e.target.value })}
                 disabled={editingPage.saving || editingPage.content === 'Loading content...'}
-                className="flex-1 w-full bg-dark-800 border border-white/10 rounded-xl p-4 text-sm text-gray-200 font-mono resize-none outline-none focus:border-brand-500 transition-colors"
+                style={{ backgroundColor: '#090d16', color: '#f3f4f6' }}
+                className="flex-1 w-full bg-dark-950 border border-white/10 rounded-xl p-4 text-sm text-gray-100 font-mono resize-none outline-none focus:border-brand-500 transition-colors"
               />
             </div>
 
@@ -1491,6 +1582,72 @@ export default function ClientOnboarding({
                 Save Changes
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 7. NON-BLOCKING ADD WEBSITE MODAL */}
+      {showAddSiteModal && (
+        <div className="fixed inset-0 z-[9999999] bg-black/80 flex items-center justify-center p-4 animate-in fade-in">
+          <div className="glass-card p-8 rounded-3xl w-full max-w-lg border border-white/10 shadow-2xl relative">
+            <button
+              onClick={() => setShowAddSiteModal(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-white p-2 rounded-lg hover:bg-white/5 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
+              <Globe className="w-6 h-6 text-brand-400" /> Add a New Website
+            </h3>
+            <p className="text-sm text-gray-400 mb-6">
+              Connect another website to your account without interrupting your active assistant.
+            </p>
+
+            {newSiteError && (
+              <div className="mb-4 bg-red-500/10 border border-red-500/30 text-red-400 text-xs rounded-xl p-3">
+                ⚠️ {newSiteError}
+              </div>
+            )}
+
+            <form onSubmit={handleAddSiteModalSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-300 mb-2">Website URL / Domain</label>
+                <div className="relative">
+                  <Globe className="w-4 h-4 text-gray-500 absolute left-3.5 top-3" />
+                  <input
+                    type="text"
+                    required
+                    placeholder="https://second-company.com"
+                    value={newSiteUrlInput}
+                    onChange={(e) => setNewSiteUrlInput(e.target.value)}
+                    style={{ backgroundColor: '#090d16', color: '#f3f4f6' }}
+                    className="w-full bg-dark-950 border border-white/10 text-gray-100 placeholder-gray-500 rounded-xl pl-10 pr-4 py-2.5 text-xs outline-none focus:border-brand-500 transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddSiteModal(false)}
+                  className="px-4 py-2 text-xs font-medium text-gray-400 hover:text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isAddingNewSite || !newSiteUrlInput.trim()}
+                  className="bg-brand-600 hover:bg-brand-500 text-white font-semibold px-5 py-2 rounded-xl text-xs flex items-center gap-2 transition-all shadow-md disabled:opacity-50"
+                >
+                  {isAddingNewSite ? (
+                    <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Adding & Learning...</>
+                  ) : (
+                    <>Add & Learn Website →</>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -85,7 +85,26 @@ export default async function handler(req) {
     const discoveredUrls = new Set();
     discoveredUrls.add(initialParsed.href.split('#')[0]);
 
-    // 1. Discover via sitemaps
+    const fetchWithTimeout = async (urlStr, timeoutMs = 2500) => {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const res = await fetch(urlStr, {
+          signal: controller.signal,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+          }
+        });
+        clearTimeout(id);
+        return res;
+      } catch (_e) {
+        clearTimeout(id);
+        return null;
+      }
+    };
+
+    // 1. Discover via sitemaps & direct HTML extraction in parallel
     const sitemapCandidates = [
       `https://${cleanHost}/sitemap.xml`,
       `https://${cleanHost}/sitemap_index.xml`,
@@ -94,11 +113,16 @@ export default async function handler(req) {
 
     const subSitemapUrls = new Set();
 
-    for (const smUrl of sitemapCandidates) {
-      try {
-        const res = await fetch(smUrl, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } });
-        if (res.ok) {
-          const xml = await res.text();
+    // Fetch sitemaps and direct HTML simultaneously
+    const [sitemapResults, htmlRes] = await Promise.all([
+      Promise.allSettled(sitemapCandidates.map(url => fetchWithTimeout(url, 2500))),
+      fetchWithTimeout(initialParsed.href, 3000)
+    ]);
+
+    for (const result of sitemapResults) {
+      if (result.status === 'fulfilled' && result.value && result.value.ok) {
+        try {
+          const xml = await result.value.text();
           const locMatches = xml.match(/<loc>([^<]+)<\/loc>/gi) || [];
           for (const m of locMatches) {
             const loc = m.replace(/<\/?loc>/gi, '').trim();
@@ -110,40 +134,34 @@ export default async function handler(req) {
               discoveredUrls.add(loc.split('#')[0]);
             }
           }
-          if (locMatches.length > 0) break;
-        }
-      } catch (_e) {}
+        } catch (_e) {}
+      }
     }
 
-    // Fetch sub-sitemaps in parallel
-    const subPromises = Array.from(subSitemapUrls).slice(0, 15).map(async (subUrl) => {
-      try {
-        const res = await fetch(subUrl, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } });
-        if (res.ok) {
-          const xml = await res.text();
-          const locMatches = xml.match(/<loc>([^<]+)<\/loc>/gi) || [];
-          for (const m of locMatches) {
-            const loc = m.replace(/<\/?loc>/gi, '').trim();
-            if (!loc.endsWith('.xml') && isValidPageUrl(loc, cleanHost)) {
-              discoveredUrls.add(loc.split('#')[0]);
+    // Fetch sub-sitemaps in parallel if needed
+    if (subSitemapUrls.size > 0) {
+      const subPromises = Array.from(subSitemapUrls).slice(0, 10).map(async (subUrl) => {
+        const res = await fetchWithTimeout(subUrl, 2000);
+        if (res && res.ok) {
+          try {
+            const xml = await res.text();
+            const locMatches = xml.match(/<loc>([^<]+)<\/loc>/gi) || [];
+            for (const m of locMatches) {
+              const loc = m.replace(/<\/?loc>/gi, '').trim();
+              if (!loc.endsWith('.xml') && isValidPageUrl(loc, cleanHost)) {
+                discoveredUrls.add(loc.split('#')[0]);
+              }
             }
-          }
-        }
-      } catch (_e) {}
-    });
-
-    await Promise.all(subPromises);
-
-    // 2. Direct HTML Link Extraction
-    try {
-      const res = await fetch(initialParsed.href, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml'
+          } catch (_e) {}
         }
       });
-      if (res.ok) {
-        const html = await res.text();
+      await Promise.all(subPromises);
+    }
+
+    // Extract links from homepage HTML
+    if (htmlRes && htmlRes.ok) {
+      try {
+        const html = await htmlRes.text();
         const hrefRegex = /href=["']([^"']+)["']/gi;
         let match;
         while ((match = hrefRegex.exec(html)) !== null) {
@@ -155,8 +173,8 @@ export default async function handler(req) {
             }
           } catch (_e) {}
         }
-      }
-    } catch (_e) {}
+      } catch (_e) {}
+    }
 
     // Deduplicate and normalize discovered URLs cleanly
     const normalizedSet = new Set();

@@ -107,23 +107,11 @@ import { ChatManager } from "./chat.js";
       text,
       // On Chunk
       (chunk) => {
-        assistantMsgEl.innerText += chunk;
+        assistantMsgEl.innerText = chunk;
         messagesFeed.scrollTop = messagesFeed.scrollHeight;
       },
-      // On Tool Event
-      (event, data) => {
-        if (event === "tool_start" && data.tool === "search_knowledge_base") {
-          const badge = document.createElement("div");
-          badge.className = "b2b-tool-badge";
-          badge.innerText = "🔍 Searching knowledge base...";
-          assistantMsgEl.appendChild(badge);
-        } else if (event === "tool_end" && data.tool === "capture_lead") {
-          const badge = document.createElement("div");
-          badge.className = "b2b-tool-badge";
-          badge.innerText = "✅ Contact details saved";
-          assistantMsgEl.appendChild(badge);
-        }
-      },
+      // On Tool Event (hidden from conversation feed for clean UX)
+      () => {},
       // On Error
       (errText) => {
         const id = Date.now();
