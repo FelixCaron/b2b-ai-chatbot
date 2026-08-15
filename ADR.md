@@ -383,6 +383,201 @@ Ajout d'un bouton "Ouvrir dans un nouvel onglet" dans la barre de contrôle sup�
 ### Contexte
 L'ingestion des pages web découvertes (crawling) s'effectuait de manière séquentielle (une page à la fois) dans `ClientOnboarding.jsx`. Cela rendait le processus très lent pour les sites contenant beaucoup de pages, car chaque page devait attendre que la précédente termine son scan (`/api/start-scan`) avant de commencer.
 
+- Mise à jour de `match_documents_hybrid` pour supporter les deux langues
+- Utilisation de `plainto_tsquery` (OR souple) plutôt que `websearch_to_tsquery` (AND strict)
+
+**`chat.js` :** Remplacement du `textSearch()` mono-langue par la RPC `search_documents_fts` avec fallback automatique sur l'ancien `textSearch` si la migration n'est pas encore déployée.
+
+**Ré-ingéstion :** Script `reingest-delafontaine.mjs` — 12 pages ingérées via Jina Reader, résultat : 23 chunks propres sur 9 URLs (vs 13 chunks pollus sur 1 URL).
+
+**Tests :** Script `test-rag-search.js` — 17 cas de test couvrant :
+- Groupe A (10) : happy path — contenu métier confirmé
+- Groupe B (2) : bilingue FR→EN (tests informatifs, limite FTS attendue)
+- Groupe C (3) : négatifs stricts (hors-sujet, RGPD, prix absents)
+- Groupe D (2) : qualité — absence de bruit, pertinence du ranking
+
+Résultat final : **17/17 tests passent (100%)**.
+
+### Conséquences
+- **Avantage** : Toute future ingéstion (nouvel onboarding client) bénéficie automatiquement du filtre de bruit et du FTS bilingue.
+- **Avantage** : Le bot peut répondre correctement aux questions en anglais sur des sites anglophones.
+- **Limite restante** : Les requêtes françaises sur du contenu anglais ne sont pas encore couvertes par FTS (nécessite des embeddings sémantiques — étape future).
+- **Règle** : Tout changement à la logique de chunking DOIT être appliqué simultanément dans `start-scan.js` ET `update-document.js` pour garder la cohérence.
+
+---
+
+## ADR 009 : Intégration des Embeddings Sémantiques Multilingues Jina AI v3 (768d)
+**Date:** 10 Août 2026
+**Statut:** Accepté
+
+### Contexte
+Bien que le FTS bilingue (ADR-008) ait résolu les requêtes exactes en français et en anglais, il présentait deux limites fondamentales :
+1. **Match cross-langues** : Une question posée en français (`"entreprise familiale"`) sur un site 100% anglais (`delafontaine.ca`) retournait 0 résultat FTS.
+2. **Recherche conceptuelle** : Les synonymes et requêtes paraphrasées sans mots-clés exacts n'étaient pas capturés.
+
+### Décision
+
+1. **Modèle d'Embeddings** : Adoption de **`jina-embeddings-v3`** (Jina AI) configuré à **768 dimensions**, qui matche exactement la colonne Supabase `embedding vector(768)` sans modification de schéma SQL.
+2. **Task-Specific Embeddings** :
+   - `retrieval.passage` pour le batch chunking lors de l'ingestion (`start-scan.js`, `update-document.js`, `reingest-delafontaine.mjs`).
+   - `retrieval.query` pour les requêtes de recherche utilisateur dans `api/chat.js`.
+3. **Recherche Hybride RRF (Reciprocal Rank Fusion)** : L'API `chat.js` génère l'embedding de la requête utilisateur et appelle la RPC `match_documents_hybrid` qui combine :
+   - Distance cosinus sémantique (`embedding <=> query_embedding`)
+   - Rank FTS bilingue (`fts` FR + `fts_en` EN)
+   - Fallback gracieux sur FTS bilingue pur ou `textSearch` si la clé ou le service d'embeddings est indisponible.
+4. **Validation par Suite de Tests** : 17/17 tests RAG valides avec **100% de réussite** sur `match_documents_hybrid (Semantic Vector 768d + FTS)`. Les requêtes cross-langues FR → EN (`"entreprise familiale"`, `"portes acier coupe-feu"`) retournent les bons chunks pertinents.
+
+### Conséquences
+- **Avantage** : Recherche RAG sémantique multilingue robuste supportant le français, l'anglais, les synonymes et les paraphrases.
+- **Avantage** : Résilience maximale avec fallback automatique sur FTS bilingue si l'API d'embedding échoue.
+- **Sécurité/Performance** : Batching d'embeddings lors de l'ingestion (1 seul appel HTTP par page).
+
+---
+
+## ADR 010 : Intégration du Paiement via Stripe (Subscriptions + Billing Portal)
+**Date:** 11 Août 2026
+**Statut:** Accepté
+
+### Contexte
+La plateforme avait une page `Pricing.jsx` avec des plans (Starter 29$/mois, Pro 99$/mois, Enterprise sur mesure) mais aucun mécanisme de paiement réel. L'objectif est de rendre la plateforme payante en utilisant un fournisseur de paiement standard.
+
+### Décision
+Nous adoptons **Stripe** comme fournisseur de paiement unique, avec les composants suivants :
+
+1. **Stripe Checkout** (mode `subscription`) — Page de paiement hébergée par Stripe, sans PCI-DSS côté client.
+2. **Stripe Billing Portal** — Portail client Stripe pour gérer les abonnements (annulation, changement de CB, factures).
+3. **Stripe Webhooks** — Synchronisation asynchrone de l'état d'abonnement dans Supabase (`tenants.plan`, `plan_status`, `stripe_subscription_id`).
+
+**Fichiers créés :**
+- `api/create-checkout-session.js` — Crée la session Checkout, attache/crée le Customer Stripe.
+- `api/create-portal-session.js` — Crée la session Billing Portal.
+- `api/stripe-webhook.js` — Traite `checkout.session.completed`, `customer.subscription.deleted`, `invoice.payment_failed`, `customer.subscription.updated`.
+- `supabase/migrations/20260811000001_stripe_billing.sql` — Ajoute `stripe_subscription_id`, `plan_status`, `plan_expires_at` sur `tenants`.
+- `src/components/PlanBadge.jsx` — Badge plan actuel visible dans le Header.
+- `src/components/PaymentSuccessPage.jsx` — Page de confirmation post-paiement avec animation.
+
+**Routing Vercel :** `/payment-success` et `/payment-cancel` redirigent vers `index.html` (SPA).
+
+### Conséquences
+- **Avantage** : Aucune donnée de carte ne transite par nos serveurs (Stripe Checkout hébergé).
+- **Avantage** : Le Customer Portal Stripe gère automatiquement les factures PDF, mises à jour CB, et annulations.
+- **Avantage** : Les webhooks garantissent la cohérence de l'état même si le client ferme le navigateur avant la redirection.
+- **Règle** : Toute modification du pricing (ajout de plan, changement de tarif) doit créer un nouveau `Price` dans Stripe (jamais modifier un Price existant) et mettre à jour `STRIPE_PRICE_ID_*` dans `.env.local` + Vercel.
+- **Règle** : Le `SUPABASE_SERVICE_ROLE_KEY` doit être utilisé dans les API routes webhook (et non la clé anon) pour mettre à jour la table `tenants`.
+
+---
+
+## ADR 011 : Optimisation Avancée du Pipeline RAG (Dé-truncation, Overlap Sémantique & Enrichissement Métadonnées)
+**Date:** 13 Août 2026
+**Statut:** Accepté
+
+### Contexte
+Bien que l'ADR-008 et l'ADR-009 aient posé les bases du FTS bilingue et des Embeddings Jina v3 (768d), le pipeline RAG souffrait encore de 3 limites majeures :
+1. **Troncature arbitraire** : `start-scan.js` et `update-document.js` appliquaient `chunks.slice(0, 20)`, ce qui abandonnait le contenu au-delà de 20 chunks (~16 000 caractères).
+2. **Coupure du contexte** : La découpe par paragraphes ne préservait aucun chevauchement, risquant de fragmenter une idée ou une liste à la frontière de deux chunks.
+3. **Absence de métadonnées de source** : Les chunks étaient stockés nus, sans que l'embedding ou le modèle LLM ne sache de quelle URL provient le texte.
+
+### Décision
+1. **Suppression de la limite de 20 chunks** : Indexation intégrale des pages web.
+2. **Génération d'embeddings par lots (Batching pour Free Tier Jina)** : Traitement des embeddings par paquets de 20 chunks (`BATCH_SIZE = 20`) avec une temporisation de 200 ms entre les lots pour respecter strictement les quotas et limites de débit du Tier Gratuit Jina AI.
+3. **Overlap Sémantique** : Injection automatique des 20 derniers mots du chunk précédent au début du chunk suivant (`... [overlap]\n\n[nouveau texte]`) dans `cleanAndChunk`.
+4. **Enrichissement des Métadonnées** : Préfixe explicite `[Source URL: {targetUrl}]\n` ajouté directement à chaque chunk avant son embedding et stockage vectoriel.
+5. **Augmentation de la fenêtre de contexte dans `chat.js`** : Augmentation du nombre de chunks extraits (`match_count` porté de 5 à 10) lors de la recherche hybride `match_documents_hybrid` pour fournir un contexte plus riche et exhaustif au LLM.
+
+### Conséquences
+- **Avantage** : Couverture complète des pages volumineuses sans perte de données.
+- **Avantage** : Amélioration sensible du recall vectoriel grâce aux métadonnées d'URL et à l'overlap sémantique.
+- **Avantage** : Respect garanti des limites d'API pour le tier gratuit de Jina Embeddings.
+- **Règle** : Toute mise à jour de la logique de chunking ou de batching doit impérativement être répercutée de façon identique dans `start-scan.js` et `update-document.js`.
+
+---
+
+## ADR 012 : Flux d'Onboarding Synchrone, Statuts de Pages & Re-crawl avec Nettoyage DB
+**Date:** 13 Août 2026
+**Statut:** Accepté
+
+### Contexte
+L'expérience d'onboarding initiale comportait un écran d'attente bloquant pendant le crawl en arrière-plan, ce qui laissait l'utilisateur dans l'ignorance de l'avancement. De plus, les boutons d'activation individuelle de page et le re-scan complet avec suppression des anciens morceaux de documents n'étaient pas synchronisés de manière transparente.
+
+### Décision
+1. **Transition Immédiate au Dashboard** : Soumettre une URL crée le site et affiche immédiatement le Tableau de Bord client avec le tiroir *Gérer la base de connaissances* ouvert.
+2. **Crawl Synchrone avec Progression Textuelle** : L'exploration (`/api/crawl-site`) et l'indexation (`/api/start-scan`) s'exécutent séquentiellement en direct sous les yeux de l'utilisateur avec des messages de statut explicites (`Indexation page X/N : [URL]`).
+3. **Verrouillage du Bouton Aperçu** : Le bouton "Aperçu Plein Écran & Test Live" est désactivé tant que `isCrawling` est actif (`opacity-70 cursor-not-allowed`) pour éviter de tester un bot partiellement indexé.
+4. **Statuts de Pages Granulaires** : Le tableau des pages affiche pour chaque ligne l'un des trois statuts :
+   - `loading` : Spinner animé + badge ambre (En cours d'indexation)
+   - `loaded` : Badge vert avec coche (Indexé)
+   - `disabled` : Badge gris (Ignoré / Désactivé)
+5. **Actions par Page (Activer / Désactiver)** : Bouton dédié permettant de désactiver une page (suppression des chunks dans Supabase) ou de la réactiver (déclenchement du scan et passage en `loading` -> `loaded`).
+6. **Bouton Re-scanner / Rafraîchir avec Purge DB** : Le bouton de re-scan effectue d'abord un nettoyage complet des anciens chunks de la table Supabase (`DELETE FROM documents WHERE site_id = ...`) avant de relancer le crawl synchrone complet.
+
+### Conséquences
+- **Avantage** : Transparence totale pour l'utilisateur qui suit l'indexation en temps réel.
+- **Avantage** : Prévention des erreurs en empêchant l'ouverture de la démo pendant le crawl.
+- **Avantage** : Nettoyage propre des données obsolètes lors d'un re-crawl d'un site.
+
+---
+
+## ADR 013 : Intégration du Résumé de Site Web (Site Summary RAG Context)
+**Date:** 14 Août 2026
+**Statut:** Accepté
+
+### Contexte
+Lorsqu'un visiteur pose une question générale sur une entreprise (ex: "Que fait votre entreprise ?", "Quels sont vos domaines d'expertise ?"), le chatbot devait précédemment déclencher une recherche RAG par chunks qui pouvait retourner des fragments isolés au lieu d'une vue d'ensemble cohérente du site.
+
+### Décision
+1. **Extraction & Génération AI** : Création du module `api/generate-summary.js` et de la fonction `generateWebsiteSummary` (`api/lib/llm.js`). Le système extrait le contenu brut de la page d'accueil ou des chunks du site et génère un résumé structuré et concis par le LLM.
+2. **Stockage Supabase Dedicated** : Création de la table `site_summaries` (`supabase/migrations/20260814000001_site_summaries.sql`) avec contrainte unique `(tenant_id, site_id)` et Row Level Security (RLS).
+3. **Auto-génération lors de l'ingestion** : `api/start-scan.js` déclenche automatiquement la génération et l'upsert du résumé lors de l'indexation de la page d'accueil.
+4. **Injection dans le Prompt système (`api/chat.js`)** : Le résumé est extrait au début de chaque session de chat et directement injecté dans le prompt système du bot.
+5. **Robustesse et Fallback** : Si aucun résumé n'est présent (ou en cas d'erreur), le chatbot conserve son comportement RAG classique sans aucune interruption.
+
+### Conséquences
+- **Avantage** : Réponses immédiates et exhaustives aux questions d'ensemble sur l'entreprise dès le premier message sans coût d'outil supplémentaire.
+- **Avantage** : Amélioration drastique de la qualité perçue des réponses initiales du chatbot.
+- **Règle** : Toute mise à jour de la table `site_summaries` doit s'effectuer via des requêtes SQL/Supabase brutes (conformément à l'ADR-004).
+
+---
+
+## ADR 014 : Post-traitement Atomique des Statuts de Crawl & Désactivation des Pages Vides
+**Date:** 14 Août 2026
+**Statut:** Accepté
+
+### Contexte
+La détection des pages vides (`empty`) ou protégées (`protected`) et la désactivation des cases à cocher s'exécutaient de manière itérative au sein de la boucle de scan. Cela entraînait des clignotements d'interface, des désactivations prématurées et des conflits d'état pendant que le crawl était encore en cours.
+
+### Décision
+1. **Séparation Stricte entre Scan et Post-Traitement** : Durant la phase de scan, toutes les pages découvertes restent affichées avec le statut `loading` et toutes les URL demeurent sélectionnées dans `selectedUrls`.
+2. **Exécution du Marquage uniquement APRÈS la Fin du Crawl** : Une fois la boucle de scan de toutes les pages 100% terminée, une passe de post-traitement vérifie le nombre réel de morceaux de document enregistrés dans Supabase (`documents`).
+3. **Mise à Jour Atomique** : Les statuts finaux (`loaded`, `empty`, `protected`) et les désactivations de sélection sont appliqués en une seule mise à jour d'état atomique (`setDiscoveredPages` et `setSelectedUrls`).
+
+### Conséquences
+- **Avantage** : Élimination complète des bugs d'affichage et des clignotements de statut durant le crawl.
+- **Avantage** : Garantie que les pages ne sont désactivées que si et seulement si l'indexation globale du site est totalement achevée et vérifiée en base de données.
+
+---
+
+## ADR 015 : Bouton d'Ouverture de l'Aperçu dans un Nouvel Onglet
+**Date:** 14 Août 2026
+**Statut:** Accepté
+
+### Contexte
+Lors de l'utilisation de la modale d'aperçu plein écran (`showPreviewModal`), l'utilisateur souhaitait avoir la possibilité d'ouvrir rapidement le site prévisualisé dans un nouvel onglet du navigateur.
+
+### Décision
+Ajout d'un bouton "Ouvrir dans un nouvel onglet" dans la barre de contrôle supérieure de la modale d'aperçu (`ClientOnboarding.jsx`). Le bouton s'appuie sur une balise `<a>` avec `target="_blank"`, `rel="noopener noreferrer"`, et comporte l'icône `ExternalLink` issue de `lucide-react`.
+
+### Conséquences
+- **Avantage** : Accès direct en 1-clic au site web de destination dans un nouvel onglet sans fermer la session de test ou le tableau de bord d'administration.
+
+---
+
+## ADR 016 : Parallélisation de l'Ingestion (Batching Client-Side)
+**Date:** 14 Août 2026
+**Statut:** Accepté
+
+### Contexte
+L'ingestion des pages web découvertes (crawling) s'effectuait de manière séquentielle (une page à la fois) dans `ClientOnboarding.jsx`. Cela rendait le processus très lent pour les sites contenant beaucoup de pages, car chaque page devait attendre que la précédente termine son scan (`/api/start-scan`) avant de commencer.
+
 ### Décision
 1. **Batching Concurrent (Client-Side)** : Le scan des pages a été parallélisé dans `runSynchronousCrawlAndIndex` en utilisant `Promise.all` avec un niveau de concurrence (`CONCURRENCY = 5`).
 2. **Gestion d'État Sécurisée** : Les mises à jour de l'état React (`setDiscoveredPages`, `setSelectedUrls`) utilisent des fonctions de mise à jour fonctionnelles (`prev => ...`) pour garantir qu'aucune donnée n'est perdue ou écrasée lors des retours de promesses concurrentes.
@@ -406,6 +601,7 @@ Le `systemPrompt` dans `api/chat.js` a été entièrement revu pour :
 2. Interdire formellement les phrases du type "consultez notre site web". S'il faut fournir une information, il la donne ou fournit le lien direct (URL).
 3. Bannir le jargon IA ("contexte", "base de données") pour maintenir l'immersion.
 4. Accentuer la priorité sur la capture de prospects dès qu'un intérêt est montré (si activé).
+5. **Valorisation de la marque** : Consigne explicite de vendre poliment les services et de positionner l'entreprise comme premium, de manière consultative et non agressive.
 
 ### Conséquences
 - **Avantage** : L'expérience utilisateur est nettement plus naturelle et professionnelle. Le bot agit comme un vrai employé.
