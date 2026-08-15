@@ -3,7 +3,7 @@ import {
   Sparkles, Globe, Eye, CheckCircle2, ArrowRight, Settings2, ShieldCheck, 
   ToggleLeft, ToggleRight, Check, RefreshCw, Copy, Layers, Laptop, 
   Smartphone, X, Send, Code, Lock, FileText, Save, Edit3, ExternalLink,
-  ChevronDown, ChevronUp, Bot, ArrowUpRight, Search
+  ChevronDown, ChevronUp, Bot, ArrowUpRight, Search, Trash2, AlertTriangle
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -21,6 +21,7 @@ export default function ClientOnboarding({
   onUpdateSiteSettings,
   onDeleteDocumentUrls,
   onTriggerScan,
+  onDeleteSite,
   isGuest,
   onRequireLogin,
   onViewLeads,
@@ -55,6 +56,34 @@ export default function ClientOnboarding({
   const [newSiteUrlInput, setNewSiteUrlInput] = useState('');
   const [isAddingNewSite, setIsAddingNewSite] = useState(false);
   const [newSiteError, setNewSiteError] = useState('');
+
+  // Delete Site state
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
+  const [isDeletingSite, setIsDeletingSite] = useState(false);
+
+  const handleConfirmDeleteSite = async () => {
+    if (!activeSite?.id || isDeletingSite || !onDeleteSite) return;
+    setIsDeletingSite(true);
+    try {
+      const ok = await onDeleteSite(activeSite.id);
+      if (ok) {
+        setShowDeleteConfirmModal(false);
+        const remaining = sites ? sites.filter(s => s.id !== activeSite.id) : [];
+        if (remaining.length > 0) {
+          setSelectedSiteId(remaining[0].id);
+        } else {
+          setLocalCreatedSite(null);
+          setSelectedSiteId(null);
+          setSiteUrl('');
+          setStep('input');
+        }
+      }
+    } catch (err) {
+      console.error('[handleConfirmDeleteSite] Error:', err);
+    } finally {
+      setIsDeletingSite(false);
+    }
+  };
 
   // Sync step if activeSite changes
   useEffect(() => {
@@ -831,6 +860,14 @@ export default function ClientOnboarding({
                   title="Add another website"
                 >
                   + Add Website
+                </button>
+
+                <button
+                  onClick={() => setShowDeleteConfirmModal(true)}
+                  className="bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 hover:text-red-300 p-3 rounded-xl text-sm transition-all"
+                  title="Delete this website"
+                >
+                  <Trash2 className="w-4 h-4" />
                 </button>
               </div>
             </div>
@@ -1648,6 +1685,47 @@ export default function ClientOnboarding({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 8. DELETE WEBSITE CONFIRMATION MODAL */}
+      {showDeleteConfirmModal && activeSite && (
+        <div className="fixed inset-0 z-[9999999] bg-black/80 flex items-center justify-center p-4 animate-in fade-in">
+          <div className="glass-card p-8 rounded-3xl w-full max-w-md border border-red-500/30 shadow-2xl relative text-center">
+            <div className="w-14 h-14 rounded-2xl bg-red-500/10 text-red-400 border border-red-500/20 flex items-center justify-center mx-auto mb-4">
+              <AlertTriangle className="w-7 h-7" />
+            </div>
+
+            <h3 className="text-xl font-bold text-white mb-2">
+              Delete Website?
+            </h3>
+            <p className="text-sm text-gray-400 mb-6 leading-relaxed">
+              Are you sure you want to delete <strong className="text-white">{activeSite.domain}</strong>? All indexed knowledge pages, business summaries, and the chatbot API key will be permanently removed.
+            </p>
+
+            <div className="flex items-center justify-center gap-3">
+              <button
+                type="button"
+                disabled={isDeletingSite}
+                onClick={() => setShowDeleteConfirmModal(false)}
+                className="px-5 py-2.5 rounded-xl text-xs font-semibold text-gray-300 hover:text-white bg-dark-900 border border-white/10 hover:bg-dark-800 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingSite}
+                onClick={handleConfirmDeleteSite}
+                className="bg-red-600 hover:bg-red-500 text-white font-semibold px-6 py-2.5 rounded-xl text-xs flex items-center gap-2 transition-all shadow-lg shadow-red-900/40 disabled:opacity-50"
+              >
+                {isDeletingSite ? (
+                  <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Deleting...</>
+                ) : (
+                  <><Trash2 className="w-3.5 h-3.5" /> Delete Permanently</>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

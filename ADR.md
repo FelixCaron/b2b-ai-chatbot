@@ -4,6 +4,28 @@ Ce document retrace toutes les décisions importantes concernant l'architecture,
 
 ---
 
+## ADR 020 : Suppression Sécurisée de Sites Web & Nettoyage en Cascade
+**Date:** 15 Août 2026
+**Statut:** Accepté
+
+### Contexte
+Les utilisateurs souhaitaient pouvoir supprimer un site web obsolète ou erroné directement depuis le tableau de bord sans devoir nettoyer la base de données manuellement.
+
+### Décision
+1. **Bouton de Suppression & Modale de Confirmation** :
+   - Ajout d'un bouton de suppression rouge avec icône corbeille (`Trash2`) dans la barre d'action du site actif.
+   - Modale de confirmation explicite (`showDeleteConfirmModal`) pour prévenir toute suppression accidentelle.
+2. **Nettoyage en Cascade des Données** :
+   - Suppression en cascade dans Supabase de tous les documents (`documents`), résumés (`site_summaries`) et de la ligne du site (`sites`).
+3. **Mise à Jour Dynamique de l'UI** :
+   - Si d'autres sites existent, l'interface bascule automatiquement sur le site suivant sans rafraîchissement forcé.
+   - Si le dernier site est supprimé, l'interface revient proprement à l'écran d'accueil d'onboarding.
+
+### Conséquences
+- Gestion du cycle de vie des sites web complète et sécurisée pour les clients et administrateurs.
+
+---
+
 ## ADR 019 : Limites de Forfaits (Sites/Pages/Modèles LLM), Gestion Multi-Sites Non-Bloquante, Navigation Leads & Optimisation du Crawl/Streaming
 **Date:** 15 Août 2026
 **Statut:** Accepté

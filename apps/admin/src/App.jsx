@@ -200,6 +200,22 @@ export default function App() {
     await supabase.from('documents').delete().eq('site_id', siteId).in('url', urlsToDelete);
   };
 
+  // Handler: Delete entire Site and its associated documents/summaries
+  const handleDeleteSite = async (siteId) => {
+    if (!siteId) return false;
+    try {
+      await supabase.from('documents').delete().eq('site_id', siteId);
+      await supabase.from('site_summaries').delete().eq('site_id', siteId).catch(() => {});
+      const { error } = await supabase.from('sites').delete().eq('id', siteId);
+      if (error) throw error;
+      setSites((prev) => prev.filter((s) => s.id !== siteId));
+      return true;
+    } catch (err) {
+      console.error('[handleDeleteSite] Error:', err);
+      return false;
+    }
+  };
+
   // Handler: Trigger Scan Job
   const handleTriggerScan = async (siteId, url, optionalTenantId = null) => {
     const tId = optionalTenantId || selectedTenant?.id;
@@ -344,6 +360,7 @@ export default function App() {
               onUpdateSiteSettings={handleUpdateSiteSettings}
               onDeleteDocumentUrls={handleDeleteDocumentUrls}
               onTriggerScan={handleTriggerScan}
+              onDeleteSite={handleDeleteSite}
               isGuest={isGuest}
               onRequireLogin={() => setShowLoginModal(true)}
               onViewLeads={() => setCurrentView('leads')}
