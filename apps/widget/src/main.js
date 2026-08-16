@@ -20,7 +20,9 @@ import { parseMarkdown } from "./markdown.js";
   // Build Container
   const host = document.createElement("div");
   host.id = "b2b-chatbot-host";
-  document.body.appendChild(host);
+  
+  const targetContainer = document.getElementById("b2b-chatbot-injection-target") || document.body;
+  targetContainer.appendChild(host);
 
   const shadowRoot = host.attachShadow({ mode: "open" });
 

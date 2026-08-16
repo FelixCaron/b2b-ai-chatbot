@@ -117,16 +117,6 @@
       background: rgba(255, 255, 255, 0.12);
       color: #fff;
     }
-    .btn-proxy-toggle {
-      background: rgba(99, 102, 241, 0.15);
-      border-color: rgba(99, 102, 241, 0.3);
-      color: #a5b4fc;
-    }
-    .btn-proxy-toggle.proxy-on {
-      background: rgba(16, 185, 129, 0.15);
-      border-color: rgba(16, 185, 129, 0.3);
-      color: #6ee7b7;
-    }
 
     /* Viewport Area */
     #frame-container {
@@ -147,6 +137,8 @@
       transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
       position: relative;
       background: #fff;
+      /* CRITICAL: transform isolates 'position: fixed' inside the widget to this wrapper */
+      transform: translateZ(0);
     }
     #frame-wrapper.tablet {
       width: 768px;
@@ -170,34 +162,17 @@
       background: #fff;
     }
 
-    /* Fallback Banner */
-    #error-banner {
-      display: none;
+    /* The target container for the widget. Covers the iframe completely, passing pointer events down except for widget contents */
+    #b2b-chatbot-injection-target {
       position: absolute;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(30, 41, 59, 0.95);
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(239, 68, 68, 0.3);
-      padding: 12px 18px;
-      border-radius: 12px;
-      color: #f87171;
-      font-size: 12px;
-      z-index: 1000;
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
-      align-items: center;
-      gap: 12px;
+      top: 0; left: 0; right: 0; bottom: 0;
+      pointer-events: none; /* Let user interact with the iframe underneath */
+      z-index: 10;
     }
-    #error-banner button {
-      background: #ef4444;
-      color: #fff;
-      border: none;
-      padding: 4px 10px;
-      border-radius: 6px;
-      font-size: 11px;
-      font-weight: 600;
-      cursor: pointer;
+    
+    /* Ensure widget components capture pointer events */
+    #b2b-chatbot-injection-target > div {
+      pointer-events: auto;
     }
   </style>
 </head>
@@ -227,9 +202,6 @@
 
     <!-- Actions -->
     <div class="actions-section">
-      <button type="button" id="proxy-btn" class="btn-action btn-proxy-toggle proxy-on" onclick="toggleProxy()" title="Bypasses X-Frame-Options and Content-Security-Policy iframe blockers">
-        🛡️ Anti-Block Proxy: ON
-      </button>
       <button type="button" class="btn-action" onclick="reloadFrame()" title="Reload preview">
         🔄 Refresh
       </button>
@@ -239,16 +211,13 @@
     </div>
   </div>
 
-  <!-- Fallback Error Banner -->
-  <div id="error-banner">
-    <span>⚠️ This website restricts standard embedding.</span>
-    <button type="button" onclick="enableProxyAndReload()">Activate Anti-Block Proxy</button>
-  </div>
-
   <!-- Viewport Frame -->
   <div id="frame-container">
     <div id="frame-wrapper">
       <iframe id="preview-iframe" src="" allow="clipboard-read; clipboard-write; microphone"></iframe>
+      
+      <!-- Widget Injection Target -->
+      <div id="b2b-chatbot-injection-target"></div>
     </div>
   </div>
 
@@ -266,50 +235,20 @@
     // Normalized direct URL
     const rawTargetUrl = (domain.startsWith('http://') || domain.startsWith('https://')) ? domain : `https://${domain}`;
     
-    // State: Use anti-block proxy by default to avoid X-Frame-Options blockers
-    let useProxy = true;
-
     // Update site name and external link
     document.getElementById('site-name').textContent = domain.replace(/^https?:\/\//, '').replace(/\/$/, '') || 'Website Preview';
     document.getElementById('external-link').href = rawTargetUrl;
 
-    function getFrameUrl() {
-      if (!domain) return 'about:blank';
-      if (useProxy) {
-        return `${window.location.origin}/api/preview-proxy?url=${encodeURIComponent(rawTargetUrl)}`;
-      }
-      return rawTargetUrl;
-    }
-
     function updateIframe() {
       const iframe = document.getElementById('preview-iframe');
-      iframe.src = getFrameUrl();
+      if (domain) {
+        iframe.src = rawTargetUrl;
+      } else {
+        iframe.src = 'about:blank';
+      }
     }
 
     function reloadFrame() {
-      const iframe = document.getElementById('preview-iframe');
-      iframe.src = getFrameUrl();
-    }
-
-    function toggleProxy() {
-      useProxy = !useProxy;
-      const btn = document.getElementById('proxy-btn');
-      if (useProxy) {
-        btn.textContent = '🛡️ Anti-Block Proxy: ON';
-        btn.className = 'btn-action btn-proxy-toggle proxy-on';
-      } else {
-        btn.textContent = '🛡️ Anti-Block Proxy: OFF';
-        btn.className = 'btn-action btn-proxy-toggle';
-      }
-      updateIframe();
-    }
-
-    function enableProxyAndReload() {
-      useProxy = true;
-      const btn = document.getElementById('proxy-btn');
-      btn.textContent = '🛡️ Anti-Block Proxy: ON';
-      btn.className = 'btn-action btn-proxy-toggle proxy-on';
-      document.getElementById('error-banner').style.display = 'none';
       updateIframe();
     }
 
@@ -317,7 +256,6 @@
       const wrapper = document.getElementById('frame-wrapper');
       document.querySelectorAll('.vp-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-
       wrapper.className = mode === 'desktop' ? '' : mode;
     }
 
