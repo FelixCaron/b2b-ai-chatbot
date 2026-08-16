@@ -8,6 +8,7 @@ import {
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { createClient } from '@supabase/supabase-js';
+import { fetchEventSource } from '@microsoft/fetch-event-source';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://xuvueegdokgiyedwvmkm.supabase.co";
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh1dnVlZWdkb2tnaXllZHd2bWttIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NjE0ODAxNCwiZXhwIjoyMTAxNzI0MDE0fQ.Z9CsCniLkOuPJZajLzUMfN2FUTbZsvwZC8KD5CXh-7E";
@@ -679,59 +680,56 @@ export default function ClientOnboarding({
     setPreviewMessages((prev) => [...prev, { role: 'user', text: userText }]);
     setPreviewStreaming("Thinking...");
 
+    let assistantText = '';
+    let hasAssistantBubble = false;
+
     try {
-      const res = await fetch(`${window.location.origin}/api/chat`, {
+      await fetchEventSource(`${window.location.origin}/api/chat`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream',
+        },
         body: JSON.stringify({
           message: userText,
           tenant_public_key: activeSite.public_key,
           session_id: previewSessionId
-        })
-      });
-
-      if (!res.ok) throw new Error(`Error ${res.status}`);
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let assistantText = '';
-      let hasAssistantBubble = false;
-
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n\n');
-
-        for (const line of lines) {
-          if (line.includes('data: ')) {
-            const dataStr = line.replace('data: ', '').trim();
-            if (dataStr === '[DONE]') break;
-            try {
-              const parsed = JSON.parse(dataStr);
-              if (parsed.tool_call) {
-                // Subtle thinking state without raw JSON dump
-                setPreviewStreaming("Searching knowledge base & formulating answer...");
-              }
-              if (parsed.text) {
-                if (previewStreaming) setPreviewStreaming(false);
-                assistantText = parsed.text;
-                if (!hasAssistantBubble) {
-                  hasAssistantBubble = true;
-                  setPreviewMessages((prev) => [...prev, { role: 'assistant', text: assistantText }]);
-                } else {
-                  setPreviewMessages((prev) => {
-                    const updated = [...prev];
-                    updated[updated.length - 1] = { role: 'assistant', text: assistantText };
-                    return updated;
-                  });
-                }
-              }
-            } catch (_e) {}
+        }),
+        async onopen(res) {
+          if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
+             const errJson = await res.json().catch(() => ({}));
+             throw new Error(errJson.error || `Error ${res.status}`);
+          } else if (!res.ok) {
+             throw new Error(`Error ${res.status}`);
           }
+        },
+        onmessage(ev) {
+          if (ev.data === '[DONE]') return;
+          try {
+            const parsed = JSON.parse(ev.data);
+            if (ev.event === 'tool_start' || ev.event === 'tool_end' || parsed.tool_call) {
+              setPreviewStreaming("Searching knowledge base & formulating answer...");
+            }
+            if (parsed.text) {
+              if (previewStreaming) setPreviewStreaming(false);
+              assistantText = parsed.text;
+              if (!hasAssistantBubble) {
+                hasAssistantBubble = true;
+                setPreviewMessages((prev) => [...prev, { role: 'assistant', text: assistantText }]);
+              } else {
+                setPreviewMessages((prev) => {
+                  const updated = [...prev];
+                  updated[updated.length - 1] = { role: 'assistant', text: assistantText };
+                  return updated;
+                });
+              }
+            }
+          } catch (e) {}
+        },
+        onerror(err) {
+          throw err;
         }
-      }
+      });
     } catch (err) {
       setPreviewMessages((prev) => [...prev, { role: 'assistant', text: `Error: ${err.message}` }]);
     } finally {

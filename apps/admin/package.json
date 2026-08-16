@@ -8,6 +8,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@microsoft/fetch-event-source": "^2.0.1",
     "@stripe/stripe-js": "^9.13.0",
     "@supabase/supabase-js": "^2.39.8",
     "lucide-react": "^0.344.0",
