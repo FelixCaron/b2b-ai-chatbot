@@ -137,6 +137,9 @@
       transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
       position: relative;
       background: #fff;
+      background-size: cover;
+      background-position: top center;
+      background-repeat: no-repeat;
       /* CRITICAL: transform isolates 'position: fixed' inside the widget to this wrapper */
       transform: translateZ(0);
     }
@@ -159,8 +162,34 @@
       height: 100%;
       border: 0;
       display: block;
-      background: #fff;
+      background: transparent;
+      transition: opacity 0.3s ease;
     }
+
+    /* Loading Overlay */
+    #loading-overlay {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 5;
+      color: #64748b;
+      font-size: 14px;
+      font-weight: 500;
+      transition: opacity 0.3s ease;
+    }
+    .spinner {
+      border: 3px solid rgba(99, 102, 241, 0.2);
+      border-top-color: #6366f1;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      animation: spin 1s linear infinite;
+      margin-right: 10px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
     /* The target container for the widget. Covers the iframe completely, passing pointer events down except for widget contents */
     #b2b-chatbot-injection-target {
@@ -214,6 +243,9 @@
   <!-- Viewport Frame -->
   <div id="frame-container">
     <div id="frame-wrapper">
+      <div id="loading-overlay">
+        <div class="spinner"></div> Checking site security...
+      </div>
       <iframe id="preview-iframe" src="" allow="clipboard-read; clipboard-write; microphone"></iframe>
       
       <!-- Widget Injection Target -->
@@ -239,17 +271,70 @@
     document.getElementById('site-name').textContent = domain.replace(/^https?:\/\//, '').replace(/\/$/, '') || 'Website Preview';
     document.getElementById('external-link').href = rawTargetUrl;
 
-    function updateIframe() {
+    async function loadPreview() {
       const iframe = document.getElementById('preview-iframe');
-      if (domain) {
-        iframe.src = rawTargetUrl;
-      } else {
+      const wrapper = document.getElementById('frame-wrapper');
+      const loading = document.getElementById('loading-overlay');
+      
+      if (!domain) {
         iframe.src = 'about:blank';
+        loading.style.opacity = '0';
+        setTimeout(() => loading.style.display = 'none', 300);
+        return;
+      }
+
+      loading.style.display = 'flex';
+      loading.style.opacity = '1';
+      iframe.style.opacity = '0';
+
+      try {
+        // Check if the site allows iframing
+        const res = await fetch(`${window.location.origin}/api/preview-proxy?url=${encodeURIComponent(rawTargetUrl)}`);
+        const data = await res.json();
+
+        if (data.canFrame) {
+          // Site allows iframes! Load it natively.
+          wrapper.style.backgroundImage = 'none';
+          iframe.src = rawTargetUrl;
+          iframe.onload = () => {
+            iframe.style.opacity = '1';
+            loading.style.opacity = '0';
+            setTimeout(() => loading.style.display = 'none', 300);
+          };
+        } else {
+          // Site blocks iframes. Use screenshot fallback API (thum.io is free and fast)
+          console.log("Site blocks iframes. Using screenshot fallback.");
+          iframe.style.display = 'none';
+          const screenshotUrl = `https://image.thum.io/get/width/1200/crop/800/${rawTargetUrl}`;
+          
+          // Preload image
+          const img = new Image();
+          img.onload = () => {
+            wrapper.style.backgroundImage = `url('${screenshotUrl}')`;
+            loading.style.opacity = '0';
+            setTimeout(() => loading.style.display = 'none', 300);
+          };
+          img.onerror = () => {
+            // If even screenshot fails, just show white background
+            wrapper.style.background = '#f8fafc';
+            loading.style.opacity = '0';
+            setTimeout(() => loading.style.display = 'none', 300);
+          };
+          img.src = screenshotUrl;
+        }
+      } catch (e) {
+        // Fallback to iframe if check fails
+        iframe.src = rawTargetUrl;
+        iframe.onload = () => {
+          iframe.style.opacity = '1';
+          loading.style.opacity = '0';
+          setTimeout(() => loading.style.display = 'none', 300);
+        };
       }
     }
 
     function reloadFrame() {
-      updateIframe();
+      loadPreview();
     }
 
     function setViewport(mode, btn) {
@@ -260,7 +345,7 @@
     }
 
     // Initial frame load
-    updateIframe();
+    loadPreview();
 
     // Inject Chatbot Widget Overlay into the wrapper page
     (function(){
