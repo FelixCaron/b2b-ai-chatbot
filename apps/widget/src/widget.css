@@ -269,11 +269,11 @@
 }
 
 /* Rich Markdown Typography for Messages */
-.b2b-msg .b2b-p {
+.b2b-msg p {
   margin-bottom: 8px;
   line-height: 1.55;
 }
-.b2b-msg .b2b-p:last-child {
+.b2b-msg p:last-child {
   margin-bottom: 0;
 }
 .b2b-msg strong {
@@ -284,7 +284,7 @@
   font-style: italic;
   color: #cbd5e1;
 }
-.b2b-msg .b2b-link {
+.b2b-msg a {
   color: #818cf8;
   text-decoration: underline;
   text-underline-offset: 3px;
@@ -292,24 +292,24 @@
   transition: color 0.15s ease;
   word-break: break-word;
 }
-.b2b-msg .b2b-link:hover {
+.b2b-msg a:hover {
   color: #a5b4fc;
 }
-.b2b-msg .b2b-list {
+.b2b-msg ul, .b2b-msg ol {
   padding-left: 20px;
   margin: 6px 0 8px 0;
 }
-.b2b-msg ul.b2b-list {
+.b2b-msg ul {
   list-style-type: disc;
 }
-.b2b-msg ol.b2b-list {
+.b2b-msg ol {
   list-style-type: decimal;
 }
-.b2b-msg .b2b-list li {
+.b2b-msg li {
   margin-bottom: 4px;
   line-height: 1.5;
 }
-.b2b-msg .b2b-inline-code {
+.b2b-msg p code, .b2b-msg li code {
   background: rgba(255, 255, 255, 0.12);
   padding: 2px 6px;
   border-radius: 5px;
@@ -317,7 +317,7 @@
   font-size: 12px;
   color: #e0e7ff;
 }
-.b2b-msg .b2b-code-block {
+.b2b-msg pre {
   background: #090d16;
   border: 1px solid rgba(255, 255, 255, 0.1);
   padding: 10px 12px;
@@ -328,25 +328,25 @@
   overflow-x: auto;
   margin: 8px 0;
 }
-.b2b-msg .b2b-h1 {
+.b2b-msg h1 {
   font-size: 16px;
   font-weight: 700;
   color: #fff;
   margin: 8px 0 4px 0;
 }
-.b2b-msg .b2b-h2 {
+.b2b-msg h2 {
   font-size: 15px;
   font-weight: 600;
   color: #fff;
   margin: 7px 0 3px 0;
 }
-.b2b-msg .b2b-h3 {
+.b2b-msg h3 {
   font-size: 14px;
   font-weight: 600;
   color: #fff;
   margin: 6px 0 2px 0;
 }
-.b2b-msg .b2b-blockquote {
+.b2b-msg blockquote {
   border-left: 3px solid #6366f1;
   padding-left: 10px;
   margin: 6px 0;

@@ -4,6 +4,26 @@ Ce document retrace toutes les décisions importantes concernant l'architecture,
 
 ---
 
+## ADR 028 : Remplacement des Parseurs Custom par des Bibliothèques Standards (Widget)
+**Date:** 16 Août 2026
+**Statut:** Accepté
+
+### Contexte
+Le projet contenait plusieurs implémentations "maison" fastidieuses et potentiellement fragiles (ou peu sécurisées) dans le widget client Vanilla JS :
+- Un parseur Markdown `apps/widget/src/markdown.js` basé sur des Regex basiques qui présentaient des failles de style sur certains sauts de lignes ou combinaisons de listes.
+- Un gestionnaire de streaming SSE (`apps/widget/src/chat.js`) qui fractionnait manuellement le tampon de texte reçu via `TextDecoder` (risque de coupure au milieu d'un événement `\n\n`).
+
+### Décision
+1. **Markdown & Sécurité** : Suppression du parseur Regex "maison" au profit de la bibliothèque `marked` (robuste et standardisée), couplée à `dompurify` pour garantir une sanétisation XSS stricte avant injection HTML.
+2. **Streaming SSE** : Remplacement de la boucle `reader.read()` manuelle par `@microsoft/fetch-event-source`, qui gère nativement le standard *Server-Sent Events* et prévient les erreurs de découpage de flux réseau.
+3. **Styles CSS** : Nettoyage de `widget.css` pour cibler les balises standards (`p`, `ul`, `a`, `code`) dans `.b2b-msg` plutôt que des classes CSS générées artificiellement (`.b2b-link`, `.b2b-p`).
+
+### Conséquences
+- Code source drastiquement simplifié, plus fiable et sécurisé.
+- Taille du widget très légèrement augmentée (86 Ko), mais un fonctionnement sans failles.
+
+---
+
 ## ADR 027 : Support Intégral du Markdown (Widget Vanilla JS, Sandbox Admin et Prompt Système)
 **Date:** 16 Août 2026
 **Statut:** Accepté

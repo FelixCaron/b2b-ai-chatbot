@@ -11,6 +11,10 @@
     "vite": "^5.0.12"
   },
   "dependencies": {
-    "b2b-ai-chatbot-monorepo": "file:../.."
+    "@microsoft/fetch-event-source": "^2.0.1",
+    "b2b-ai-chatbot-monorepo": "file:../..",
+    "dompurify": "^3.4.13",
+    "eventsource-parser": "^4.0.0",
+    "marked": "^18.0.9"
   }
 }

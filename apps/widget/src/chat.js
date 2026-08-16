@@ -1,3 +1,5 @@
+import { fetchEventSource } from '@microsoft/fetch-event-source';
+
 // SSE Chat Stream Manager
 export class ChatManager {
   constructor(endpoint, tenantPublicKey) {
@@ -16,71 +18,62 @@ export class ChatManager {
   }
 
   async sendMessage(userMessage, onChunk, onToolEvent, onError, onDone) {
+    let doneCalled = false;
     try {
-      const response = await fetch(this.endpoint, {
-        method: "POST",
+      await fetchEventSource(this.endpoint, {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json"
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream',
         },
         body: JSON.stringify({
           message: userMessage,
           tenant_public_key: this.tenantPublicKey,
           session_id: this.sessionId
-        })
-      });
-
-      if (!response.ok) {
-        const errJson = await response.json().catch(() => ({}));
-        throw new Error(errJson.error || `Erreur HTTP ${response.status}`);
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n\n");
-        buffer = lines.pop() || "";
-
-        for (const block of lines) {
-          if (!block.trim()) continue;
-
-          let eventName = "message";
-          let dataStr = "";
-
-          const blockLines = block.split("\n");
-          for (const line of blockLines) {
-            if (line.startsWith("event: ")) {
-              eventName = line.substring(7).trim();
-            } else if (line.startsWith("data: ")) {
-              dataStr = line.substring(6).trim();
-            }
+        }),
+        async onopen(response) {
+          if (response.ok && response.headers.get('content-type')?.includes('application/json')) {
+            const errJson = await response.json().catch(() => ({}));
+            throw new Error(errJson.error || `Erreur HTTP ${response.status}`);
+          } else if (!response.ok) {
+            throw new Error(`Erreur HTTP ${response.status}`);
           }
-
-          if (dataStr === "[DONE]") {
-            onDone();
+        },
+        onmessage(ev) {
+          if (ev.data === '[DONE]') {
+            if (!doneCalled) {
+              doneCalled = true;
+              onDone();
+            }
             return;
           }
-
           try {
-            const data = JSON.parse(dataStr);
-            if (eventName === "tool_start" || eventName === "tool_end") {
-              onToolEvent(eventName, data);
+            const data = JSON.parse(ev.data);
+            if (ev.event === "tool_start" || ev.event === "tool_end") {
+              onToolEvent(ev.event, data);
             } else if (data.text) {
               onChunk(data.text);
             }
-          } catch (_e) {
-            // raw text chunk fallback
+          } catch (e) {
+            // fallback
           }
+        },
+        onclose() {
+          if (!doneCalled) {
+            doneCalled = true;
+            onDone();
+          }
+        },
+        onerror(err) {
+          throw err; // throw to trigger outer catch
         }
-      }
-      onDone();
+      });
     } catch (err) {
       onError(err.message || "Erreur de connexion réseau");
+      if (!doneCalled) {
+        doneCalled = true;
+        onDone();
+      }
     }
   }
 }
