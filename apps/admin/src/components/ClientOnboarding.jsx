@@ -1521,7 +1521,34 @@ export default function ClientOnboarding({
                             }`}
                           >
                             {m.role === 'user' ? m.text : (
-                              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                              <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                components={{
+                                  a: ({ node, ...props }) => (
+                                    <a {...props} target="_blank" rel="noopener noreferrer" className="text-brand-400 hover:text-brand-300 underline font-semibold transition-colors" />
+                                  ),
+                                  strong: ({ node, ...props }) => (
+                                    <strong {...props} className="font-bold text-white" />
+                                  ),
+                                  ul: ({ node, ...props }) => (
+                                    <ul {...props} className="list-disc pl-4 my-1.5 space-y-1" />
+                                  ),
+                                  ol: ({ node, ...props }) => (
+                                    <ol {...props} className="list-decimal pl-4 my-1.5 space-y-1" />
+                                  ),
+                                  li: ({ node, ...props }) => (
+                                    <li {...props} className="text-gray-200 leading-relaxed" />
+                                  ),
+                                  code: ({ node, inline, ...props }) => (
+                                    inline
+                                      ? <code {...props} className="bg-white/10 text-brand-200 text-[11px] px-1.5 py-0.5 rounded font-mono" />
+                                      : <code {...props} className="block bg-black/40 text-gray-200 p-2 rounded text-[11px] font-mono overflow-x-auto my-1.5 border border-white/5" />
+                                  ),
+                                  p: ({ node, ...props }) => (
+                                    <p {...props} className="mb-2 last:mb-0 leading-relaxed" />
+                                  )
+                                }}
+                              >
                                 {m.text}
                               </ReactMarkdown>
                             )}

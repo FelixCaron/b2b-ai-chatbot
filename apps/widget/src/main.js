@@ -1,5 +1,6 @@
 import widgetStyles from "./widget.css?inline";
 import { ChatManager } from "./chat.js";
+import { parseMarkdown } from "./markdown.js";
 
 (function () {
   const scriptTag = document.currentScript || document.querySelector("script[data-tenant-key]");
@@ -34,27 +35,29 @@ import { ChatManager } from "./chat.js";
     <div class="b2b-chat-panel" id="b2b-panel">
       <div class="b2b-chat-header" style="background: rgba(30, 41, 59, 0.9);">
         <div class="b2b-chat-header-info">
-          <div class="b2b-avatar" style="background: ${themeColor}; shadow: 0 4px 12px ${themeColor}44;">AI</div>
+          <div class="b2b-avatar" style="background: ${themeColor}; box-shadow: 0 4px 12px ${themeColor}44;">AI</div>
           <div>
             <div class="b2b-status-title">Virtual Assistant</div>
             <div class="b2b-status-sub"><span class="b2b-status-dot"></span>Online</div>
           </div>
         </div>
-        <button class="b2b-close-btn" id="b2b-close-btn">
+        <button class="b2b-close-btn" id="b2b-close-btn" aria-label="Close chat">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
         </button>
       </div>
       <div class="b2b-chat-messages" id="b2b-messages">
-        <div class="b2b-msg assistant">Hello! How can I help you today?</div>
+        <div class="b2b-msg assistant">
+          <p class="b2b-p">Hello! How can I help you today?</p>
+        </div>
       </div>
       <div class="b2b-chat-footer">
         <input type="text" class="b2b-chat-input" id="b2b-input" placeholder="Ask a question..." />
-        <button class="b2b-send-btn" id="b2b-send-btn" style="background: ${themeColor};">
+        <button class="b2b-send-btn" id="b2b-send-btn" style="background: ${themeColor};" aria-label="Send message">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
         </button>
       </div>
     </div>
-    <button class="b2b-chat-launcher" id="b2b-launcher" style="background: ${themeColor}; box-shadow: 0 10px 25px -5px ${themeColor}66;">
+    <button class="b2b-chat-launcher" id="b2b-launcher" style="background: ${themeColor}; box-shadow: 0 10px 25px -5px ${themeColor}66;" aria-label="Open chat assistant">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
     </button>
   `;
@@ -84,7 +87,11 @@ import { ChatManager } from "./chat.js";
   function appendMessage(role, text) {
     const msgEl = document.createElement("div");
     msgEl.className = `b2b-msg ${role}`;
-    msgEl.innerText = text;
+    if (role === 'assistant') {
+      msgEl.innerHTML = parseMarkdown(text);
+    } else {
+      msgEl.innerText = text;
+    }
     messagesFeed.appendChild(msgEl);
     messagesFeed.scrollTop = messagesFeed.scrollHeight;
     return msgEl;
@@ -98,16 +105,16 @@ import { ChatManager } from "./chat.js";
     appendMessage("user", text);
 
     const assistantMsgEl = appendMessage("assistant", "...");
-    assistantMsgEl.innerText = "";
+    assistantMsgEl.innerHTML = '<span style="opacity:0.6;">...</span>';
 
     isStreaming = true;
     sendBtn.disabled = true;
 
     await chatManager.sendMessage(
       text,
-      // On Chunk
+      // On Chunk (live markdown parsing during stream)
       (chunk) => {
-        assistantMsgEl.innerText = chunk;
+        assistantMsgEl.innerHTML = parseMarkdown(chunk);
         messagesFeed.scrollTop = messagesFeed.scrollHeight;
       },
       // On Tool Event (hidden from conversation feed for clean UX)
@@ -117,7 +124,7 @@ import { ChatManager } from "./chat.js";
         const id = Date.now();
         assistantMsgEl.innerHTML = `<span>Sorry! A technical issue occurred. 😔<br><br><b>Leave us your email so our team can follow up with you:</b></span>
         <div style="display:flex; gap:5px; margin-top:10px;">
-           <input type="email" id="fallback-email-${id}" placeholder="your@email.com" class="b2b-chat-input" style="flex:1; padding:8px; border-radius:6px; border:1px solid #ccc; font-size:12px; color:#333; background:#fff;" />
+           <input type="email" id="fallback-email-${id}" placeholder="your@email.com" class="b2b-chat-input" style="flex:1; padding:8px; border-radius:6px; border:1px solid #334155; font-size:12px; color:#fff; background:#0f172a;" />
            <button id="fallback-btn-${id}" style="padding:8px 12px; border-radius:6px; background:${themeColor}; color:white; border:none; cursor:pointer; font-weight:bold; font-size:12px;">Submit</button>
         </div>`;
         

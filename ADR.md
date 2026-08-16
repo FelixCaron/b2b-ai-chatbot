@@ -4,6 +4,31 @@ Ce document retrace toutes les décisions importantes concernant l'architecture,
 
 ---
 
+## ADR 027 : Support Intégral du Markdown (Widget Vanilla JS, Sandbox Admin et Prompt Système)
+**Date:** 16 Août 2026
+**Statut:** Accepté
+
+### Contexte
+Les réponses de l'assistant contenaient de la syntaxe Markdown (mots en gras `**`, listes à puces `-`, liens cliquables `[texte](url)`, blocs de code) qui s'affichaient sous forme de texte brut avec des astérisques et crochets dans le widget embarqué client. De plus, le prompt système nécessitait des directives explicites pour structurer naturellement les réponses avec des paragraphes aérés et des listes lisibles.
+
+### Décision
+1. **Parseur Markdown Sécurisé & Léger dans le Widget Client (`apps/widget/src/markdown.js`)** :
+   - Sanitization automatique contre les injections XSS.
+   - Parsing en temps réel des éléments Markdown : gras (`**`), italique (`*`), titres (`###`), liens cliquables (`[texte](url)` ouvrant en `target="_blank"` avec icône ↗), listes à puces (`- ` / `* `) et listes numérotées (`1. `), code inline (`` `code` ``) et blocs de code (```` ```code``` ````), citations (`> `), paragraphes et sauts de ligne.
+   - Rendu fluide durant le streaming (`onChunk`) et lors des messages finaux.
+2. **Typographie et Styles CSS Dédiés (`apps/widget/src/widget.css`)** :
+   - Styles dédiés pour les paragraphes (`.b2b-p`), liens avec soulignement contrasté (`.b2b-link`), listes indentées (`.b2b-list`), blocs de code sombres (`.b2b-code-block`) et titres hiérarchisés.
+3. **Rendu Personnalisé dans l'Aperçu Admin (`ClientOnboarding.jsx`)** :
+   - Configuration de `ReactMarkdown` avec des composants sur mesure pour styliser les liens `<a>`, le texte en gras `<strong>`, les listes `<ul>`/`<ol>` et les balises `<code>`.
+4. **Directives de Formatage dans le Prompt Système (`api/chat.js`)** :
+   - Instruction formelle donnée au LLM d'utiliser un Markdown soigné, de mettre en valeur les termes clés en gras, d'énumérer les choix sous forme de listes à puces, de fournir des liens cliquables et de rédiger des paragraphes concis.
+
+### Conséquences
+- Expérience de lecture professionnelle, moderne et fluide tant sur le widget public que dans la console d'administration.
+- Présentation claire des listes de services, garanties, tarifs et liens externes.
+
+---
+
 ## ADR 026 : Contournement Universel des Blocages d'Incrustation Iframe (`X-Frame-Options` / CSP) & Schéma Supabase Consolidé
 **Date:** 16 Août 2026
 **Statut:** Accepté
