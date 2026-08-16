@@ -4,6 +4,34 @@ Ce document retrace toutes les décisions importantes concernant l'architecture,
 
 ---
 
+## ADR 026 : Contournement Universel des Blocages d'Incrustation Iframe (`X-Frame-Options` / CSP) & Schéma Supabase Consolidé
+**Date:** 16 Août 2026
+**Statut:** Accepté
+
+### Contexte
+1. De nombreux sites web clients intègrent des en-têtes HTTP de sécurité stricts (`X-Frame-Options: SAMEORIGIN` ou `DENY`, `Content-Security-Policy: frame-ancestors 'self'`) qui bloquent leur affichage au sein d'une balise `<iframe>` lors de la prévisualisation dans `preview.html`.
+2. La base de données Supabase Cloud présentait un décalage par rapport aux récentes fonctionnalités (colonnes de souscription Stripe sur `tenants`, tables `site_summaries`, `usage_counters` et `scan_jobs`).
+
+### Décision
+1. **Endpoint Proxy Anti-Frame-Blocker (`/api/preview-proxy`)** :
+   - Création de `api/preview-proxy.js` qui récupère le HTML du site distant côté serveur.
+   - Suppression systématique des en-têtes bloquants (`X-Frame-Options`, `Content-Security-Policy`).
+   - Injection automatique de la balise `<base href="...">` afin que tous les scripts, feuilles de style CSS, polices et images relatifs se chargent sans aucune altération visuelle.
+   - Neutralisation des scripts JavaScript de dé-cadrage ("frame-busters").
+2. **Interface de Prévisualisation Enrichie (`preview.html`)** :
+   - Utilisation par défaut du mode Proxy Anti-Blocage avec indicateur d'état actif.
+   - Sélecteur de viewport responsive (Desktop 100%, Tablette 768px, Mobile 390px) avec bordures réalistes.
+   - Boutons de rechargement rapide, d'ouverture directe et de bascule manuelle en cas de besoin.
+3. **Schéma SQL Supabase Consolidé** :
+   - Fichier de migration consolidé `supabase/consolidated_latest_migrations.sql` regroupant l'ensemble des DDLs à jour (`tenants`, `leads`, `site_summaries`, `usage_counters`, `scan_jobs`).
+   - Script de vérification automatisé `scripts/check-supabase-status.js` pour auditer à tout moment la conformité des tables et fonctions RPC.
+
+### Conséquences
+- 100% des sites web clients peuvent être prévisualisés avec le chatbot superposé sans aucun message d'erreur de blocage navigateur.
+- Suivi clair et script prêt à l'emploi pour garantir l'intégrité de la base de données Supabase Cloud.
+
+---
+
 ## ADR 025 : Intégration de la Page de Prévisualisation Dédiée (`preview.html`) et Assainissement de la CI GitHub Actions
 **Date:** 16 Août 2026
 **Statut:** Accepté

@@ -1,56 +1,339 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Preview — Live Assistant</title>
+  <title>Live Assistant Preview</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    html,body,#frame { height:100%; margin:0; }
-    #frame { position:relative; background:#000; }
-    iframe { width:100%; height:100%; border:0; display:block; }
-    /* The widget will be rendered outside the iframe in this wrapper */
-    .preview-banner { position:fixed; top:12px; left:12px; z-index:100001; background:rgba(17,24,39,0.8); color:#fff; padding:8px 12px; border-radius:12px; font-family:Inter,system-ui; font-size:13px; box-shadow:0 6px 18px rgba(2,6,23,0.6);} 
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; width: 100%; font-family: 'Inter', system-ui, -apple-system, sans-serif; background: #0b0f19; color: #f3f4f6; overflow: hidden; }
+
+    /* Top Bar */
+    #top-bar {
+      height: 52px;
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      z-index: 10000;
+      position: relative;
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+      color: #34d399;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 9999px;
+    }
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 8px #10b981;
+    }
+    .domain-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+      max-width: 200px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Controls (Center) */
+    .viewport-controls {
+      display: flex;
+      align-items: center;
+      background: rgba(30, 41, 59, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 3px;
+      gap: 2px;
+    }
+    .vp-btn {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 4px 10px;
+      border-radius: 7px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.15s ease;
+    }
+    .vp-btn:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.05);
+    }
+    .vp-btn.active {
+      background: #6366f1;
+      color: #fff;
+    }
+
+    /* Actions (Right) */
+    .actions-section {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-action {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #e2e8f0;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 5px 11px;
+      border-radius: 8px;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+    .btn-action:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+    }
+    .btn-proxy-toggle {
+      background: rgba(99, 102, 241, 0.15);
+      border-color: rgba(99, 102, 241, 0.3);
+      color: #a5b4fc;
+    }
+    .btn-proxy-toggle.proxy-on {
+      background: rgba(16, 185, 129, 0.15);
+      border-color: rgba(16, 185, 129, 0.3);
+      color: #6ee7b7;
+    }
+
+    /* Viewport Area */
+    #frame-container {
+      height: calc(100% - 52px);
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #07090e;
+      position: relative;
+      overflow: hidden;
+      padding: 0;
+      transition: padding 0.2s ease;
+    }
+    #frame-wrapper {
+      height: 100%;
+      width: 100%;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      background: #fff;
+    }
+    #frame-wrapper.tablet {
+      width: 768px;
+      height: 92%;
+      border-radius: 16px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.1);
+      overflow: hidden;
+    }
+    #frame-wrapper.mobile {
+      width: 390px;
+      height: 88%;
+      border-radius: 28px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 0 4px #1e293b, 0 0 0 5px rgba(255, 255, 255, 0.1);
+      overflow: hidden;
+    }
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      display: block;
+      background: #fff;
+    }
+
+    /* Fallback Banner */
+    #error-banner {
+      display: none;
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(30, 41, 59, 0.95);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      padding: 12px 18px;
+      border-radius: 12px;
+      color: #f87171;
+      font-size: 12px;
+      z-index: 1000;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+      align-items: center;
+      gap: 12px;
+    }
+    #error-banner button {
+      background: #ef4444;
+      color: #fff;
+      border: none;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
-  <div id="frame">
-    <iframe id="preview-iframe" src="" sandbox="allow-scripts allow-forms allow-same-origin"></iframe>
+
+  <!-- Top Bar -->
+  <div id="top-bar">
+    <div class="brand-section">
+      <span class="domain-title" id="site-name">Website Preview</span>
+      <span class="status-badge">
+        <span class="status-dot"></span> Live Assistant
+      </span>
+    </div>
+
+    <!-- Viewport Switcher -->
+    <div class="viewport-controls">
+      <button type="button" class="vp-btn active" onclick="setViewport('desktop', this)">
+        🖥️ Desktop
+      </button>
+      <button type="button" class="vp-btn" onclick="setViewport('tablet', this)">
+        📱 Tablet
+      </button>
+      <button type="button" class="vp-btn" onclick="setViewport('mobile', this)">
+        📲 Mobile
+      </button>
+    </div>
+
+    <!-- Actions -->
+    <div class="actions-section">
+      <button type="button" id="proxy-btn" class="btn-action btn-proxy-toggle proxy-on" onclick="toggleProxy()" title="Bypasses X-Frame-Options and Content-Security-Policy iframe blockers">
+        🛡️ Anti-Block Proxy: ON
+      </button>
+      <button type="button" class="btn-action" onclick="reloadFrame()" title="Reload preview">
+        🔄 Refresh
+      </button>
+      <a id="external-link" href="#" target="_blank" rel="noopener noreferrer" class="btn-action" title="Open live site in fresh tab">
+        ↗ Live Site
+      </a>
+    </div>
   </div>
 
-  <div class="preview-banner">Preview mode — Chatbot overlay from your admin console</div>
+  <!-- Fallback Error Banner -->
+  <div id="error-banner">
+    <span>⚠️ This website restricts standard embedding.</span>
+    <button type="button" onclick="enableProxyAndReload()">Activate Anti-Block Proxy</button>
+  </div>
+
+  <!-- Viewport Frame -->
+  <div id="frame-container">
+    <div id="frame-wrapper">
+      <iframe id="preview-iframe" src="" allow="clipboard-read; clipboard-write; microphone"></iframe>
+    </div>
+  </div>
 
   <script>
     function qs(key) {
       const p = new URLSearchParams(window.location.search);
       return p.get(key);
     }
+
     const domain = qs('domain') || '';
     const tenantKey = qs('tenant_key') || '';
-    const apiUrl = qs('api_url') || `${location.origin}/api/chat`;
+    const apiUrl = qs('api_url') || `${window.location.origin}/api/chat`;
+    const themeColor = qs('theme_color') || '';
 
-    // Normalize domain to absolute URL
-    const url = (domain.startsWith('http://') || domain.startsWith('https://')) ? domain : `https://${domain}`;
-    document.getElementById('preview-iframe').src = url;
+    // Normalized direct URL
+    const rawTargetUrl = (domain.startsWith('http://') || domain.startsWith('https://')) ? domain : `https://${domain}`;
+    
+    // State: Use anti-block proxy by default to avoid X-Frame-Options blockers
+    let useProxy = true;
 
-    // Inject widget overlay in the wrapper (NOT into iframe)
-    // This uses the same script that customers embed on their site.
+    // Update site name and external link
+    document.getElementById('site-name').textContent = domain.replace(/^https?:\/\//, '').replace(/\/$/, '') || 'Website Preview';
+    document.getElementById('external-link').href = rawTargetUrl;
+
+    function getFrameUrl() {
+      if (!domain) return 'about:blank';
+      if (useProxy) {
+        return `${window.location.origin}/api/preview-proxy?url=${encodeURIComponent(rawTargetUrl)}`;
+      }
+      return rawTargetUrl;
+    }
+
+    function updateIframe() {
+      const iframe = document.getElementById('preview-iframe');
+      iframe.src = getFrameUrl();
+    }
+
+    function reloadFrame() {
+      const iframe = document.getElementById('preview-iframe');
+      iframe.src = getFrameUrl();
+    }
+
+    function toggleProxy() {
+      useProxy = !useProxy;
+      const btn = document.getElementById('proxy-btn');
+      if (useProxy) {
+        btn.textContent = '🛡️ Anti-Block Proxy: ON';
+        btn.className = 'btn-action btn-proxy-toggle proxy-on';
+      } else {
+        btn.textContent = '🛡️ Anti-Block Proxy: OFF';
+        btn.className = 'btn-action btn-proxy-toggle';
+      }
+      updateIframe();
+    }
+
+    function enableProxyAndReload() {
+      useProxy = true;
+      const btn = document.getElementById('proxy-btn');
+      btn.textContent = '🛡️ Anti-Block Proxy: ON';
+      btn.className = 'btn-action btn-proxy-toggle proxy-on';
+      document.getElementById('error-banner').style.display = 'none';
+      updateIframe();
+    }
+
+    function setViewport(mode, btn) {
+      const wrapper = document.getElementById('frame-wrapper');
+      document.querySelectorAll('.vp-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      wrapper.className = mode === 'desktop' ? '' : mode;
+    }
+
+    // Initial frame load
+    updateIframe();
+
+    // Inject Chatbot Widget Overlay into the wrapper page
     (function(){
       const s = document.createElement('script');
-      // Load the widget bundle from the same origin — ensure widget.iife.js is available at this path in production
-      s.src = `${location.origin.replace(/\/$/, '')}/widget.iife.js`;
+      s.src = `${window.location.origin.replace(/\/$/, '')}/widget.iife.js`;
       s.defer = true;
       if (tenantKey) s.setAttribute('data-tenant-key', tenantKey);
       if (apiUrl) s.setAttribute('data-api-url', apiUrl);
-      // Optional theme color param can be added by passing &theme_color=%23abcd12
-      const theme = qs('theme_color');
-      if (theme) s.setAttribute('data-theme-color', theme);
+      if (themeColor) s.setAttribute('data-theme-color', themeColor);
       document.body.appendChild(s);
     })();
-
-    // Small protection: warn if preview used without tenant key
-    if (!tenantKey) {
-      console.warn('[preview] No tenant_key provided; the preview will load default public key.');
-    }
   </script>
 </body>
 </html>
