@@ -1,0 +1,45 @@
+name: Monorepo CI Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+# Cancel concurrent in-flight runs on the same branch/PR to save CI runners
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-verify:
+    name: Build & Verify Monorepo
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Monorepo Dependencies
+        run: npm ci
+
+      - name: Build Shared Packages (@b2b-ai-chatbot/shared)
+        run: npm run build --prefix packages/shared
+
+      - name: Build Vanilla JS Widget Bundle (@b2b-ai-chatbot/widget)
+        run: npm run build --prefix apps/widget
+
+      - name: Sync Widget to Admin Static Assets
+        run: cp apps/widget/dist/widget.iife.js apps/admin/public/widget.iife.js
+
+      - name: Build Admin Single Page App (@b2b-ai-chatbot/admin)
+        run: npm run build --prefix apps/admin
+
+      - name: Run Schema Contracts Verification
+        run: node scripts/test-schemas.js

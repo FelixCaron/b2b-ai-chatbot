@@ -13,8 +13,10 @@
     "dev": "npm run dev --workspaces --if-present",
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",
-    "test": "node scripts/test-pipeline.js",
+    "test": "node scripts/test-schemas.js",
+    "test:pipeline": "node scripts/test-pipeline.js",
     "test:rag": "node scripts/test-rag-search.js",
+    "test:schemas": "node scripts/test-schemas.js",
     "reingest:delafontaine": "node scripts/reingest-delafontaine.mjs"
   },
   "dependencies": {

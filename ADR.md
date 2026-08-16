@@ -4,6 +4,34 @@ Ce document retrace toutes les décisions importantes concernant l'architecture,
 
 ---
 
+## ADR 025 : Intégration de la Page de Prévisualisation Dédiée (`preview.html`) et Assainissement de la CI GitHub Actions
+**Date:** 16 Août 2026
+**Statut:** Accepté
+
+### Contexte
+1. L'action d'ouverture de l'aperçu du site dans un nouvel onglet redirigeait directement vers le domaine brut externe sans injecter le chatbot d'assistance. Une page enveloppe dédiée (`preview.html`) a été introduite pour charger le site client dans une iframe tout en superposant le widget d'assistant en direct.
+2. Un commit distant antérieur avait accidentellement écrasé `ClientOnboarding.jsx` avec un extrait textuel de patch git au lieu d'appliquer la modification. Ce composant clé devait être restauré et mis à jour proprement.
+3. Le workflow GitHub Actions initial (`deploy.yml`) exécutait des tests avec effets de bord sur la base de données de production et tentait des déploiements CLI Vercel redondants nécessitant des secrets non configurés, générant des échecs d'exécution récurrents.
+
+### Décision
+1. **Restauration et Intégration Sécurisée de `ClientOnboarding.jsx`** :
+   - Restauration de l'intégralité du composant `ClientOnboarding.jsx`.
+   - Mise à jour du bouton "Ouvrir dans un nouvel onglet" vers `/preview.html?domain=...&tenant_key=...&api_url=...` pour un aperçu dynamique complet.
+2. **Synchronisation du Bundle Widget** :
+   - Mise à disposition de `widget.iife.js` dans les fichiers statiques de l'admin (`apps/admin/public/widget.iife.js`) pour garantir le chargement local et distant immédiat dans `preview.html`.
+3. **Nettoyage et Modernisation de la CI (`.github/workflows/ci.yml`)** :
+   - Remplacement de `deploy.yml` par un pipeline `ci.yml` propre, rapide et sans effets de bord.
+   - Ajout d'un mécanisme d'annulation de concurrence (`concurrency: cancel-in-progress: true`) pour optimiser l'utilisation des runners GitHub.
+   - Compilation et validation automatisées de tous les modules du monorepo (`@b2b-ai-chatbot/shared`, `@b2b-ai-chatbot/widget`, `@b2b-ai-chatbot/admin`).
+   - Ajout d'un script de test unitaire rapide (`scripts/test-schemas.js`) validant les contrats Zod sans polluer la base de données.
+
+### Conséquences
+- Prévisualisation live du chatbot sur n'importe quel site web client dans un onglet dédié.
+- Codebase saine et zéro régression dans l'espace d'onboarding.
+- Pipeline GitHub Actions 100% vert, propre et sans dépendances critiques fragiles.
+
+---
+
 ## ADR 024 : Harmonisation du Moteur IA sur GPT Luna (`openai/gpt-5.6-luna`) pour Tous les Forfaits
 **Date:** 15 Août 2026
 **Statut:** Accepté
