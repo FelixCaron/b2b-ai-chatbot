@@ -880,3 +880,15 @@ Le `systemPrompt` dans `api/chat.js` a Ã©tÃ© entiÃ¨rement revu pour :
 ### ConsÃ©quences
 - **Avantage** : L'expÃ©rience utilisateur est nettement plus naturelle et professionnelle. Le bot agit comme un vrai employÃ©.
 - **Avantage** : Ã‰limination des frictions UX (dire d'aller sur le site alors qu'on y est).
+
+## ADR 029: Ajout du Plan Pro Appointment (80$/mois)
+### Contexte
+Le besoin de générer des conversions de haute valeur nécessite de pouvoir lier l'IA à des systèmes de réservation (Google Calendar, Calendly) et de notifier le support client.
+### Décision
+- Refonte de la page de tarification pour proposer le plan 'Pro Appointment & Support' à 80$.
+- Ajout des champs \calendar_link\ et \support_email\ dans la base de données (\sites\).
+- Mise à jour du système de prompt dynamique pour injecter le lien du calendrier dans les directives de l'agent.
+- Ajout d'un outil agentique \send_support_email\ déclenché uniquement pour les plans payants.
+### Conséquences
+- Le chatbot passe de simple assistant FAQ à un agent de conversion qualifié capable de booker des rendez-vous sans backend OAuth lourd (en relayant des liens Calendly paramétrables par le client).
+- L'injection d'outils est maintenant conditionnée par le statut de l'abonnement Stripe du client.
