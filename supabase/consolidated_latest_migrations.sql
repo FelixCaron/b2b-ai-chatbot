@@ -59,3 +59,7 @@ CREATE INDEX IF NOT EXISTS scan_jobs_tenant_idx ON scan_jobs (tenant_id);
 ALTER TABLE scan_jobs ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow all on scan_jobs" ON scan_jobs;
 CREATE POLICY "Allow all on scan_jobs" ON scan_jobs FOR ALL USING (true);
+
+-- 6. Integrations
+ALTER TABLE sites ADD COLUMN IF NOT EXISTS support_email TEXT;
+ALTER TABLE sites ADD COLUMN IF NOT EXISTS calendar_link TEXT;

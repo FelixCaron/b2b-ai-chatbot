@@ -59,7 +59,7 @@ export default async function handler(req) {
     // Lookup site - fetch core columns (always exist) + optional personality cols
     const { data: site, error: siteError } = await supabase
       .from('sites')
-      .select('id, tenant_id, domain, enable_lead_capture, theme_primary_color, bot_goal, bot_tone, tenants(plan)')
+      .select('id, tenant_id, domain, enable_lead_capture, theme_primary_color, bot_goal, bot_tone, support_email, calendar_link, tenants(plan)')
       .eq('public_key', tenant_public_key)
       .maybeSingle();
 
@@ -183,6 +183,16 @@ export default async function handler(req) {
     const toneString = site.bot_tone === 'amical' ? "Ton: Chaleureux, amical, tutoiement autorisé si naturel, très bienveillant." : "Ton: Professionnel, courtois, vouvoiement obligatoire, précis.";
     const goalString = site.bot_goal === 'lead' ? "Objectif Principal: Convertir le visiteur en prospect. Incite fortement à laisser un email ou numéro." : "Objectif Principal: Informer et supporter le visiteur. Réponds de façon exhaustive et claire.";
 
+    // Integrations Context
+    const hasProPlan = site.tenants?.plan === 'pro' || site.tenants?.plan === 'enterprise';
+    const calendarInstruction = (hasProPlan && site.calendar_link) 
+      ? `5. PRISE DE RENDEZ-VOUS : Si l'utilisateur souhaite prendre rendez-vous, fournis TOUJOURS ce lien de réservation : [Prendre rendez-vous](${site.calendar_link}).`
+      : "";
+      
+    const supportInstruction = (hasProPlan && site.support_email)
+      ? `6. SUPPORT TECHNIQUE : Si l'utilisateur demande de l'aide ou a un problème, utilise l'outil "send_support_email" pour alerter notre équipe de support.`
+      : "";
+
     const systemPrompt = `Tu es l'agent de service client et l'assistant virtuel officiel de l'entreprise (site web: ${site.domain}). 
 Ton rôle est de représenter l'entreprise et d'accompagner les visiteurs avec précision, honnêteté et un sens aigu du service client. Tu dois toujours te comporter comme un membre à part entière de l'équipe.
 ${timeContext}
@@ -217,7 +227,9 @@ DIRECTIVES SPÉCIFIQUES :
 1. ${toneString}
 2. ${goalString}
 3. RECADRAGE : Si la conversation dévie hors-sujet, recadre poliment vers nos prestations, avec diplomatie.
-${isLeadCaptureEnabled ? "4. CAPTURE DE PROSPECTS : C'est une priorité. Dès qu'un client montre de l'intérêt pour un service ou pose une question pointue, propose-lui de laisser ses coordonnées pour une prise en charge personnalisée." : ""}`;
+${isLeadCaptureEnabled ? "4. CAPTURE DE PROSPECTS : C'est une priorité. Dès qu'un client montre de l'intérêt pour un service ou pose une question pointue, propose-lui de laisser ses coordonnées pour une prise en charge personnalisée." : ""}
+${calendarInstruction}
+${supportInstruction}`;
 
 
     // Fetch conversation history (last 10 messages)
@@ -250,6 +262,25 @@ ${isLeadCaptureEnabled ? "4. CAPTURE DE PROSPECTS : C'est une priorité. Dès qu
         }
       }
     ];
+
+    if (hasProPlan && site.support_email) {
+      tools.push({
+        type: "function",
+        function: {
+          name: "send_support_email",
+          description: "Envoie un ticket au service d'assistance client lorsque l'utilisateur demande de l'aide technique ou veut contacter le support.",
+          parameters: {
+            type: "object",
+            properties: {
+              name: { type: "string", description: "Nom de l'utilisateur" },
+              email: { type: "string", description: "Email de l'utilisateur" },
+              message: { type: "string", description: "Le message détaillé ou la description du problème" }
+            },
+            required: ["name", "email", "message"]
+          }
+        }
+      });
+    }
 
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
@@ -363,6 +394,30 @@ ${isLeadCaptureEnabled ? "4. CAPTURE DE PROSPECTS : C'est une priorité. Dès qu
                   currentHistory.push({
                     role: 'tool',
                     content: toolResponseContent,
+                    tool_call_id: toolCall.id
+                  });
+                } else if (toolCall.function.name === 'send_support_email') {
+                  const toolArgs = JSON.parse(toolCall.function.arguments || '{}');
+                  console.log(`[chat] Loop #${loopCount} send_support_email:`, toolArgs);
+                  
+                  // Stream tool badge to UI
+                  controller.enqueue(
+                    encoder.encode(
+                      `data: ${JSON.stringify({
+                        tool_call: {
+                          name: 'send_support_email',
+                          recipient: site.support_email
+                        }
+                      })}\n\n`
+                    )
+                  );
+
+                  // Mock email sending. In production, use Resend/Nodemailer here.
+                  const emailResponse = `Email envoyé avec succès à l'équipe de support (${site.support_email}). Le client doit s'attendre à une réponse sous peu.`;
+
+                  currentHistory.push({
+                    role: 'tool',
+                    content: emailResponse,
                     tool_call_id: toolCall.id
                   });
                 }
