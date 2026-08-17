@@ -326,6 +326,11 @@ ${supportInstruction}`;
           // Allows up to MAX_TURNS iterations of tool calls & query reformulations
           const MAX_TURNS = 4;
           let currentHistory = [...fullHistory];
+          
+          if (isAdminCopilot) {
+            currentHistory.push({ role: 'user', content: message });
+          }
+
           let finalReply = '';
           let loopCount = 0;
 
