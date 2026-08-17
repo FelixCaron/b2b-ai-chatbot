@@ -61,9 +61,18 @@ export default async function handler(req) {
 
     if (tenant_public_key === 'B2B_ADMIN_COPILOT_KEY') {
       isAdminCopilot = true;
+      
+      // Try to find the official B2B AI Chatbot site to inherit its knowledge base
+      const { data: officialSite } = await supabase
+        .from('sites')
+        .select('id, tenant_id, domain')
+        .ilike('domain', '%b2b-ai-chatbot%')
+        .limit(1)
+        .maybeSingle();
+
       site = {
-        id: 'admin-copilot-site',
-        tenant_id: 'admin-copilot-tenant',
+        id: officialSite?.id || 'admin-copilot-site',
+        tenant_id: officialSite?.tenant_id || 'admin-copilot-tenant',
         domain: 'Tableau de bord Admin (B2B AI)',
         enable_lead_capture: false,
         bot_goal: 'support',
@@ -190,7 +199,17 @@ export default async function handler(req) {
       }
     }
 
-    const siteSummaryText = summaryText ? `\nRÉSUMÉ DU SITE WEB ET APERÇU DE L'ENTREPRISE :\n${summaryText}\n` : '';
+    let siteSummaryText = summaryText ? `\nRÉSUMÉ DU SITE WEB ET APERÇU DE L'ENTREPRISE :\n${summaryText}\n` : '';
+
+    if (isAdminCopilot) {
+      siteSummaryText = `\nRÉSUMÉ DE LA PLATEFORME (Copilot Admin) :
+Tu es le Copilot officiel du tableau de bord de B2B AI Chatbot. Ta mission est d'aider les administrateurs à configurer leur propre agent IA.
+- **Prise de Rendez-vous (Calendar) & Support** : Pour configurer un agenda (Google Calendar, Calendly, Cal.com) ou le transfert d'emails de support, l'utilisateur doit souscrire au plan "Pro Appointment & Support" (80$/mois). Une fois abonné, il peut entrer son lien d'agenda et son email de support dans la section "Pro Integrations" du tableau de bord (Dashboard).
+- **Intégration du Widget** : L'utilisateur doit copier la balise <script> fournie dans son Dashboard et la coller dans son site web.
+- **Plans** : Free (Gratuit), Pro (80$/mois), Enterprise.
+- **Outils d'UI** : Tu as accès à l'outil 'navigate_to'. N'hésite pas à l'utiliser si l'utilisateur demande où trouver une fonctionnalité.
+Ne mentionne jamais de portes coupe-feu ou d'autres sujets sans rapport.\n`;
+    }
 
     const apiKey = process.env.OPENROUTER_API_KEY;
 
