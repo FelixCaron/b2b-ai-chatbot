@@ -892,3 +892,14 @@ Le besoin de générer des conversions de haute valeur nécessite de pouvoir lier l
 ### Conséquences
 - Le chatbot passe de simple assistant FAQ à un agent de conversion qualifié capable de booker des rendez-vous sans backend OAuth lourd (en relayant des liens Calendly paramétrables par le client).
 - L'injection d'outils est maintenant conditionnée par le statut de l'abonnement Stripe du client.
+
+## ADR 030: Copilot Admin (Dogfooding) & Page About
+### Contexte
+Le besoin de prouver la flexibilité du système et de fournir un assistant 'Copilot' aux administrateurs de la plateforme.
+### Décision
+- Injection du chatbot natif dans l'application React \pps/admin/index.html\ avec une clé virtuelle \B2B_ADMIN_COPILOT_KEY\.
+- Mise en place d'un pont événementiel global (\window.dispatchEvent('b2b_tool_call')\) dans le widget permettant à la fenêtre parente de réagir aux outils de l'IA sans coupler les deux codebases.
+- L'IA peut déclencher \
+avigate_to\ pour changer la vue (dashboard, pricing, leads, about) dans l'application React.
+### Conséquences
+- L'utilisateur final (admin) peut utiliser le chatbot pour naviguer dans son propre tableau de bord. Cela démontre les capacités agentiques (Tool Calling -> DOM Action) du produit de façon spectaculaire.
