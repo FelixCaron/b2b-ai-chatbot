@@ -51,6 +51,8 @@ export class ChatManager {
             const data = JSON.parse(ev.data);
             if (ev.event === "tool_start" || ev.event === "tool_end") {
               onToolEvent(ev.event, data);
+            } else if (data.tool_call) {
+              window.dispatchEvent(new CustomEvent('b2b_tool_call', { detail: data.tool_call }));
             } else if (data.text) {
               onChunk(data.text);
             }

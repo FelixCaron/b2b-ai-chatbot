@@ -100,6 +100,18 @@ export default function Header({
               <Sparkles className="w-3.5 h-3.5 text-amber-400" />
               <span>Plans</span>
             </button>
+
+            <button
+              onClick={() => onSelectView?.('about')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                currentView === 'about' 
+                  ? 'bg-brand-600 text-white shadow-sm' 
+                  : 'text-gray-400 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <Users className="w-3.5 h-3.5" />
+              <span>About</span>
+            </button>
           </nav>
         </div>
 

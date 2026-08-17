@@ -6,6 +6,7 @@ import LeadsTable from './components/LeadsTable';
 import LoginModal from './components/LoginModal';
 import Pricing from './components/Pricing';
 import PaymentSuccessPage from './components/PaymentSuccessPage';
+import AboutPage from './components/AboutPage';
 import { Users } from 'lucide-react';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://xuvueegdokgiyedwvmkm.supabase.co";
@@ -50,6 +51,16 @@ export default function App() {
       }
     }
     initSession();
+
+    // Listen for B2B Copilot Tool Calls
+    const handleCopilotTool = (e) => {
+      const { name, args } = e.detail;
+      if (name === 'navigate_to' && args?.page) {
+        setCurrentView(args.page.toLowerCase());
+      }
+    };
+    window.addEventListener('b2b_tool_call', handleCopilotTool);
+    return () => window.removeEventListener('b2b_tool_call', handleCopilotTool);
   }, []);
 
   const handleLogin = async (email, isBackgroundSync = false) => {
@@ -329,6 +340,8 @@ export default function App() {
           tenantId={selectedTenant?.id}
           currentPlan={selectedTenant?.plan || 'free'}
         />
+      ) : currentView === 'about' ? (
+        <AboutPage />
       ) : currentView === 'leads' ? (
         <main className="max-w-7xl mx-auto px-4 sm:px-8 space-y-6">
           <div className="flex items-center justify-between">

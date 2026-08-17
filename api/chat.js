@@ -56,38 +56,56 @@ export default async function handler(req) {
       if (rateLimitMap.size > 10000) rateLimitMap.clear();
     }
 
-    // Lookup site - fetch core columns (always exist) + optional personality cols
-    const { data: site, error: siteError } = await supabase
-      .from('sites')
-      .select('id, tenant_id, domain, enable_lead_capture, theme_primary_color, bot_goal, bot_tone, support_email, calendar_link, tenants(plan)')
-      .eq('public_key', tenant_public_key)
-      .maybeSingle();
+    let site = null;
+    let isAdminCopilot = false;
 
-    if (siteError) {
-      console.error('[chat] Supabase site lookup error:', siteError.message, siteError.code);
-      // If error is about missing columns (42703), try fetching without them
-      if (siteError.code === '42703') {
-        const { data: siteCore, error: coreSiteError } = await supabase
-          .from('sites')
-          .select('id, tenant_id, domain')
-          .eq('public_key', tenant_public_key)
-          .maybeSingle();
-        if (coreSiteError || !siteCore) {
-          return new Response(JSON.stringify({ error: 'Site non trouvé (core query failed)' }), {
-            status: 404,
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-          });
+    if (tenant_public_key === 'B2B_ADMIN_COPILOT_KEY') {
+      isAdminCopilot = true;
+      site = {
+        id: 'admin-copilot-site',
+        tenant_id: 'admin-copilot-tenant',
+        domain: 'Tableau de bord Admin (B2B AI)',
+        enable_lead_capture: false,
+        bot_goal: 'support',
+        bot_tone: 'amical',
+        tenants: { plan: 'enterprise' }
+      };
+    } else {
+      const { data: dbSite, error: siteError } = await supabase
+        .from('sites')
+        .select('id, tenant_id, domain, enable_lead_capture, theme_primary_color, bot_goal, bot_tone, support_email, calendar_link, tenants(plan)')
+        .eq('public_key', tenant_public_key)
+        .maybeSingle();
+      
+      site = dbSite;
+      
+      if (siteError) {
+        console.error('[chat] Supabase site lookup error:', siteError.message, siteError.code);
+        // If error is about missing columns (42703), try fetching without them
+        if (siteError.code === '42703') {
+          const { data: siteCore, error: coreSiteError } = await supabase
+            .from('sites')
+            .select('id, tenant_id, domain')
+            .eq('public_key', tenant_public_key)
+            .maybeSingle();
+          if (coreSiteError || !siteCore) {
+            return new Response(JSON.stringify({ error: 'Site non trouvé (core query failed)' }), {
+              status: 404,
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+            });
+          }
+          // Assign defaults for missing cols
+          Object.assign(siteCore, { enable_lead_capture: false, bot_goal: 'support', bot_tone: 'professionnel' });
+          return handleChatRequest(req, siteCore, message, session_id, tenant_public_key, rateLimitMap);
         }
-        // Assign defaults for missing cols
-        Object.assign(siteCore, { enable_lead_capture: false, bot_goal: 'support', bot_tone: 'professionnel' });
-        // Continue with siteCore - reassign to site variable scope by falling through
-        return handleChatRequest(req, siteCore, message, session_id, tenant_public_key, rateLimitMap);
+        return new Response(JSON.stringify({ error: `Erreur base de données: ${siteError.message}` }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
       }
-      return new Response(JSON.stringify({ error: `Erreur base de données: ${siteError.message}` }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-      });
     }
+
+    // (Error handling moved into the else block above)
 
     if (!site) {
       return new Response(JSON.stringify({ error: `Clé de site invalide (${tenant_public_key}). Le site n'a pas été trouvé dans la base de données.` }), {
@@ -101,7 +119,7 @@ export default async function handler(req) {
     const origin = req.headers.get('origin') || req.headers.get('referer') || '';
     const isAdminOrigin = !origin || origin.includes('vercel.app') || origin.includes('localhost') || origin.includes('127.0.0.1');
     const siteDomainClean = site.domain ? site.domain.replace(/^https?:\/\//, '').replace(/^www\./, '') : '';
-    const isDomainMatch = origin.includes(siteDomainClean) || (site.domain && origin.includes(site.domain));
+    const isDomainMatch = isAdminCopilot || origin.includes(siteDomainClean) || (site.domain && origin.includes(site.domain));
 
     if (!isAdminOrigin && !isDomainMatch) {
       return new Response(JSON.stringify({ error: `Origin non autorisée (${origin}) pour le domaine ${site.domain}` }), {
@@ -111,13 +129,15 @@ export default async function handler(req) {
     }
     const isLeadCaptureEnabled = site.enable_lead_capture || false;
 
-    // Save user message
-    await supabase.from('messages').insert({
-      tenant_id: tenantId,
-      session_id,
-      role: 'user',
-      content: message
-    });
+    // Save user message (Skip if Copilot to avoid filling the DB with internal logs, or let it save to the mock ID if it doesn't crash)
+    if (!isAdminCopilot) {
+      await supabase.from('messages').insert({
+        tenant_id: tenantId,
+        session_id,
+        role: 'user',
+        content: message
+      });
+    }
 
     // Fetch site summary from site_summaries if available, with fallback to documents table (#site-summary)
     let summaryText = null;
@@ -282,6 +302,27 @@ ${supportInstruction}`;
       });
     }
 
+    if (isAdminCopilot) {
+      tools.push({
+        type: "function",
+        function: {
+          name: "navigate_to",
+          description: "Ouvre une page spécifique du panneau d'administration pour l'utilisateur. Utilise ceci si l'utilisateur veut voir ses factures (pricing), son tableau de bord (dashboard), ses prospects (leads), ou la page 'A propos' (about).",
+          parameters: {
+            type: "object",
+            properties: {
+              page: { 
+                type: "string", 
+                enum: ["dashboard", "pricing", "leads", "about"],
+                description: "La page cible."
+              }
+            },
+            required: ["page"]
+          }
+        }
+      });
+    }
+
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
@@ -420,6 +461,28 @@ ${supportInstruction}`;
                     content: emailResponse,
                     tool_call_id: toolCall.id
                   });
+                } else if (toolCall.function.name === 'navigate_to') {
+                  const toolArgs = JSON.parse(toolCall.function.arguments || '{}');
+                  
+                  // Stream tool badge to UI
+                  controller.enqueue(
+                    encoder.encode(
+                      `data: ${JSON.stringify({
+                        tool_call: {
+                          name: 'navigate_to',
+                          page: toolArgs.page
+                        }
+                      })}\n\n`
+                    )
+                  );
+
+                  const navResponse = `L'utilisateur a été redirigé avec succès vers la page ${toolArgs.page}.`;
+                  
+                  currentHistory.push({
+                    role: 'tool',
+                    content: navResponse,
+                    tool_call_id: toolCall.id
+                  });
                 }
               }
             } else {
@@ -444,14 +507,16 @@ ${supportInstruction}`;
           }
 
           // Save assistant message to Supabase
-          await supabase.from('messages').insert({
-            tenant_id: tenantId,
-            session_id,
-            role: 'assistant',
-            content: finalReply
-          });
+          if (!isAdminCopilot) {
+            await supabase.from('messages').insert({
+              tenant_id: tenantId,
+              session_id,
+              role: 'assistant',
+              content: finalReply
+            });
 
-          await supabase.rpc('increment_usage', { target_tenant_id: tenantId });
+            await supabase.rpc('increment_usage', { target_tenant_id: tenantId });
+          }
 
           // Lead Extraction Process
           if (isLeadCaptureEnabled) {
