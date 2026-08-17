@@ -56,65 +56,39 @@ export default async function handler(req) {
       if (rateLimitMap.size > 10000) rateLimitMap.clear();
     }
 
-    let site = null;
-    let isAdminCopilot = false;
+    const isAdminCopilot = (tenant_public_key === 'b2b00000-0000-4000-a000-000000000000');
 
-    if (tenant_public_key === 'B2B_ADMIN_COPILOT_KEY') {
-      isAdminCopilot = true;
-      
-      // Try to find the official B2B AI Chatbot site to inherit its knowledge base
-      const { data: officialSite } = await supabase
-        .from('sites')
-        .select('id, tenant_id, domain')
-        .ilike('domain', '%b2b-ai-chatbot%')
-        .limit(1)
-        .maybeSingle();
-
-      site = {
-        id: officialSite?.id || 'admin-copilot-site',
-        tenant_id: officialSite?.tenant_id || 'admin-copilot-tenant',
-        domain: 'Tableau de bord Admin (B2B AI)',
-        enable_lead_capture: false,
-        bot_goal: 'support',
-        bot_tone: 'amical',
-        tenants: { plan: 'enterprise' }
-      };
-    } else {
-      const { data: dbSite, error: siteError } = await supabase
-        .from('sites')
-        .select('id, tenant_id, domain, enable_lead_capture, theme_primary_color, bot_goal, bot_tone, support_email, calendar_link, tenants(plan)')
-        .eq('public_key', tenant_public_key)
-        .maybeSingle();
-      
-      site = dbSite;
-      
-      if (siteError) {
-        console.error('[chat] Supabase site lookup error:', siteError.message, siteError.code);
-        // If error is about missing columns (42703), try fetching without them
-        if (siteError.code === '42703') {
-          const { data: siteCore, error: coreSiteError } = await supabase
-            .from('sites')
-            .select('id, tenant_id, domain')
-            .eq('public_key', tenant_public_key)
-            .maybeSingle();
-          if (coreSiteError || !siteCore) {
-            return new Response(JSON.stringify({ error: 'Site non trouvé (core query failed)' }), {
-              status: 404,
-              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-            });
-          }
-          // Assign defaults for missing cols
-          Object.assign(siteCore, { enable_lead_capture: false, bot_goal: 'support', bot_tone: 'professionnel' });
-          return handleChatRequest(req, siteCore, message, session_id, tenant_public_key, rateLimitMap);
+    // Lookup site - fetch core columns (always exist) + optional personality cols
+    const { data: site, error: siteError } = await supabase
+      .from('sites')
+      .select('id, tenant_id, domain, enable_lead_capture, theme_primary_color, bot_goal, bot_tone, support_email, calendar_link, tenants(plan)')
+      .eq('public_key', tenant_public_key)
+      .maybeSingle();
+    
+    if (siteError) {
+      console.error('[chat] Supabase site lookup error:', siteError.message, siteError.code);
+      // If error is about missing columns (42703), try fetching without them
+      if (siteError.code === '42703') {
+        const { data: siteCore, error: coreSiteError } = await supabase
+          .from('sites')
+          .select('id, tenant_id, domain')
+          .eq('public_key', tenant_public_key)
+          .maybeSingle();
+        if (coreSiteError || !siteCore) {
+          return new Response(JSON.stringify({ error: 'Site non trouvé (core query failed)' }), {
+            status: 404,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
         }
-        return new Response(JSON.stringify({ error: `Erreur base de données: ${siteError.message}` }), {
-          status: 500,
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-        });
+        // Assign defaults for missing cols
+        Object.assign(siteCore, { enable_lead_capture: false, bot_goal: 'support', bot_tone: 'professionnel' });
+        return handleChatRequest(req, siteCore, message, session_id, tenant_public_key, rateLimitMap);
       }
+      return new Response(JSON.stringify({ error: `Erreur base de données: ${siteError.message}` }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
     }
-
-    // (Error handling moved into the else block above)
 
     if (!site) {
       return new Response(JSON.stringify({ error: `Clé de site invalide (${tenant_public_key}). Le site n'a pas été trouvé dans la base de données.` }), {
