@@ -2,6 +2,33 @@
 
 ---
 
+## ADR 032 : Migration de Rattrapage Complète du Schéma Supabase
+
+**Date :** 2026-08-19
+
+### Contexte
+Suite au bug `handleChatRequest is not defined` (ADR 031), l'investigation a révélé que l'erreur `42703` (colonne inexistante) était déclenchée parce que plusieurs migrations n'avaient jamais été appliquées à la base de données Supabase de production. Les colonnes manquantes identifiées :
+- `sites.support_email`, `sites.calendar_link`, `sites.bot_goal`, `sites.bot_tone`, `sites.enable_lead_capture`, `sites.theme_primary_color`
+- `documents.metadata` (JSONB, utilisé par le panneau admin pour afficher les titres de pages)
+- `documents.fts_en` (FTS anglais pour la recherche bilingue)
+- `leads.site_id`, `leads.summary`, `leads.metadata`
+- RLS policies manquantes sur plusieurs tables (`site_summaries`, `usage_counters`, `scan_jobs`, etc.)
+- RPC `search_documents_fts` peut-être absente si la migration FTS n'avait pas été appliquée
+
+### Décision
+Créer une migration de rattrapage unique, idempotente (`20260819000001_complete_schema_catchup.sql`) qui :
+1. Recrée ou met à jour toutes les tables avec `CREATE TABLE IF NOT EXISTS` + `ALTER TABLE ADD COLUMN IF NOT EXISTS`
+2. Ajoute toutes les politiques RLS manquantes avec `DROP POLICY IF EXISTS` + `CREATE POLICY`
+3. Recrée toutes les fonctions RPC avec `CREATE OR REPLACE FUNCTION`
+4. Met à jour `consolidated_latest_migrations.sql` pour refléter l'état complet du schéma
+Cette migration est safe à exécuter plusieurs fois sans effet de bord.
+
+### Consequences
+- La base de données est maintenant propre et cohérente avec le code de l'application.
+- Le bot ne déclenchera plus l'erreur 42703 en conditions normales.
+- **Action requise :** Exécuter `20260819000001_complete_schema_catchup.sql` (ou `consolidated_latest_migrations.sql`) dans l'éditeur SQL de Supabase Cloud pour mettre à jour la base de données de production.
+
+---
 ## ADR 031 : Correction du Bug Critique `handleChatRequest is not defined` dans `api/chat.js`
 
 **Date :** 2026-08-19
@@ -917,4 +944,5 @@ Le besoin de prouver la flexibilitÃ© du systÃ¨me et de fournir un assistant 
 avigate_to\ pour changer la vue (dashboard, pricing, leads, about) dans l'application React.
 ### ConsÃ©quences
 - L'utilisateur final (admin) peut utiliser le chatbot pour naviguer dans son propre tableau de bord. Cela dÃ©montre les capacitÃ©s agentiques (Tool Calling -> DOM Action) du produit de faÃ§on spectaculaire.
+
 
