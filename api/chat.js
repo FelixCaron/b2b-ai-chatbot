@@ -59,35 +59,50 @@ export default async function handler(req) {
     const isAdminCopilot = (tenant_public_key === 'b2b00000-0000-4000-a000-000000000000');
 
     // Lookup site - fetch core columns (always exist) + optional personality cols
-    const { data: site, error: siteError } = await supabase
-      .from('sites')
-      .select('id, tenant_id, domain, enable_lead_capture, theme_primary_color, bot_goal, bot_tone, support_email, calendar_link, tenants(plan)')
-      .eq('public_key', tenant_public_key)
-      .maybeSingle();
-    
-    if (siteError) {
-      console.error('[chat] Supabase site lookup error:', siteError.message, siteError.code);
-      // If error is about missing columns (42703), try fetching without them
-      if (siteError.code === '42703') {
-        const { data: siteCore, error: coreSiteError } = await supabase
-          .from('sites')
-          .select('id, tenant_id, domain')
-          .eq('public_key', tenant_public_key)
-          .maybeSingle();
-        if (coreSiteError || !siteCore) {
-          return new Response(JSON.stringify({ error: 'Site non trouvé (core query failed)' }), {
-            status: 404,
+    // If the full query fails due to a missing column (42703), fall back to core columns only
+    let site = null;
+    {
+      const { data: fullData, error: fullError } = await supabase
+        .from('sites')
+        .select('id, tenant_id, domain, enable_lead_capture, theme_primary_color, bot_goal, bot_tone, support_email, calendar_link, tenants(plan)')
+        .eq('public_key', tenant_public_key)
+        .maybeSingle();
+
+      if (fullError) {
+        console.error('[chat] Supabase site lookup error:', fullError.message, fullError.code);
+        if (fullError.code === '42703') {
+          // One or more optional columns are missing from the schema — fall back to core columns
+          console.warn('[chat] Falling back to core columns due to missing column (42703).');
+          const { data: coreData, error: coreError } = await supabase
+            .from('sites')
+            .select('id, tenant_id, domain')
+            .eq('public_key', tenant_public_key)
+            .maybeSingle();
+          if (coreError || !coreData) {
+            return new Response(JSON.stringify({ error: 'Site non trouvé (core query failed)' }), {
+              status: 404,
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+            });
+          }
+          // Inject safe defaults for missing optional columns
+          site = Object.assign(coreData, {
+            enable_lead_capture: false,
+            bot_goal: 'support',
+            bot_tone: 'professionnel',
+            theme_primary_color: null,
+            support_email: null,
+            calendar_link: null,
+            tenants: null
+          });
+        } else {
+          return new Response(JSON.stringify({ error: `Erreur base de données: ${fullError.message}` }), {
+            status: 500,
             headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
         }
-        // Assign defaults for missing cols
-        Object.assign(siteCore, { enable_lead_capture: false, bot_goal: 'support', bot_tone: 'professionnel' });
-        return handleChatRequest(req, siteCore, message, session_id, tenant_public_key, rateLimitMap);
+      } else {
+        site = fullData;
       }
-      return new Response(JSON.stringify({ error: `Erreur base de données: ${siteError.message}` }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-      });
     }
 
     if (!site) {
