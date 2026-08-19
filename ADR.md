@@ -2,6 +2,21 @@
 
 ---
 
+## ADR 033 : Masquage du Bot Copilot Admin en Mode Prévisualisation
+
+**Date :** 2026-08-19
+
+### Contexte
+Le tableau de bord administrateur dispose de son propre chatbot (Copilot Admin) intégré via `apps/admin/index.html`. Lorsqu'un utilisateur ouvrait le mode "Prévisualisation" (Sandbox Preview) de son site, ce bot administrateur restait visible et superposé par-dessus la prévisualisation, créant un conflit visuel et interférant avec le test du bot du client.
+
+### Décision
+Ajout d'un `useEffect` dans `ClientOnboarding.jsx` qui écoute l'état `showPreviewModal`. Lorsque la modale de prévisualisation s'ouvre, on récupère l'élément racine du Copilot Admin (`#b2b-chatbot-host`) et on lui applique un `style.display = 'none'`. Lorsque la modale se ferme (ou que le composant est démonté), le style est réinitialisé.
+
+### Conséquences
+- L'expérience de prévisualisation est maintenant propre : un seul bot est affiché, celui correspondant au site client.
+- Aucune interférence entre le bot du dashboard et les bots des clients.
+
+---
 ## ADR 032 : Migration de Rattrapage Complète du Schéma Supabase
 
 **Date :** 2026-08-19
@@ -944,5 +959,6 @@ Le besoin de prouver la flexibilitÃ© du systÃ¨me et de fournir un assistant 
 avigate_to\ pour changer la vue (dashboard, pricing, leads, about) dans l'application React.
 ### ConsÃ©quences
 - L'utilisateur final (admin) peut utiliser le chatbot pour naviguer dans son propre tableau de bord. Cela dÃ©montre les capacitÃ©s agentiques (Tool Calling -> DOM Action) du produit de faÃ§on spectaculaire.
+
 
 
