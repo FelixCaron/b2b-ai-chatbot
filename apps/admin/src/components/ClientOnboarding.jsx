@@ -527,6 +527,17 @@ export default function ClientOnboarding({
   ]);
   const [previewInput, setPreviewInput] = useState('');
   const [previewStreaming, setPreviewStreaming] = useState(false);
+
+  // Hide the admin dashboard bot when in preview mode to prevent overlap
+  useEffect(() => {
+    const adminBot = document.getElementById('b2b-chatbot-host');
+    if (adminBot) {
+      adminBot.style.display = showPreviewModal ? 'none' : '';
+    }
+    return () => {
+      if (adminBot) adminBot.style.display = '';
+    };
+  }, [showPreviewModal]);
   const chatMessagesEndRef = useRef(null);
 
   // Reset session and welcome message whenever activeSite changes
