@@ -200,44 +200,44 @@ export default function ChatPreview({
           <div className="absolute bottom-3 right-3 sm:bottom-6 sm:right-6 z-[100000] flex flex-col items-end max-w-[calc(100vw-24px)]">
             {previewChatOpen && (
               <div 
-                className="w-[calc(100vw-24px)] sm:w-[380px] h-[70vh] sm:h-[540px] max-h-[620px] bg-white text-slate-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden mb-3 sm:mb-4 animate-in fade-in slide-in-from-bottom-4 border border-slate-200/80"
+                className="w-[calc(100vw-32px)] sm:w-[360px] h-[70vh] sm:h-[500px] max-h-[540px] bg-white text-slate-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden mb-3 animate-in fade-in slide-in-from-bottom-4 border border-slate-200/80"
                 style={{
-                  boxShadow: `0 20px 45px -10px rgba(0, 0, 0, 0.15), 0 0 25px -5px ${themeColor}25`
+                  boxShadow: `0 18px 40px -10px rgba(0, 0, 0, 0.12), 0 0 18px -4px ${themeColor}20`
                 }}
               >
                 <div 
-                  className="p-4 border-b border-slate-100 flex items-center justify-between bg-white"
+                  className="p-3.5 border-b border-slate-100 flex items-center justify-between bg-white"
                   style={{
                     background: `linear-gradient(135deg, ${themeColor}10 0%, #ffffff 100%)`
                   }}
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2.5">
                     <div
-                      className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs shadow-sm"
+                      className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold text-xs shadow-sm"
                       style={{ backgroundColor: themeColor }}
                     >
                       AI
                     </div>
                     <div>
-                      <div className="text-sm font-bold text-slate-900">Virtual Assistant</div>
-                      <div className="text-[11px] font-medium flex items-center gap-1" style={{ color: themeColor }}>
+                      <div className="text-[13px] font-bold text-slate-900 leading-tight">Virtual Assistant</div>
+                      <div className="text-[10.5px] font-medium flex items-center gap-1 leading-tight mt-0.5" style={{ color: themeColor }}>
                         <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: themeColor }}></span>
                         Live on {activeSite.domain}
                       </div>
                     </div>
                   </div>
-                  <button onClick={() => setPreviewChatOpen(false)} className="text-slate-400 hover:text-slate-700 transition-colors">
+                  <button onClick={() => setPreviewChatOpen(false)} className="text-slate-400 hover:text-slate-700 transition-colors p-1">
                     <X className="w-4 h-4" />
                   </button>
                 </div>
 
-                <div className="flex-1 p-4 overflow-y-auto space-y-3 text-xs bg-slate-50/70">
+                <div className="flex-1 p-3.5 overflow-y-auto space-y-3 text-xs bg-slate-50/70">
                   {previewMessages.map((m, idx) => {
                     if (m.role === 'tool') {
                       return (
                         <div 
                           key={idx} 
-                          className="mr-auto my-1.5 p-3 rounded-xl font-mono text-[11px] space-y-1 shadow-sm animate-in fade-in border"
+                          className="mr-auto my-1.5 p-2.5 rounded-xl font-mono text-[11px] space-y-1 shadow-sm animate-in fade-in border"
                           style={{
                             backgroundColor: `${themeColor}10`,
                             borderColor: `${themeColor}25`,
@@ -254,14 +254,14 @@ export default function ChatPreview({
                     return (
                       <div 
                         key={idx} 
-                        className={`max-w-[85%] p-3.5 rounded-2xl ${
+                        className={`max-w-[85%] p-3 rounded-2xl ${
                           isUser 
-                            ? 'ml-auto text-white rounded-br-none shadow-md' 
+                            ? 'ml-auto text-white rounded-br-none shadow-sm' 
                             : 'mr-auto bg-white text-slate-700 border border-slate-200/80 rounded-bl-none shadow-sm'
                         }`}
                         style={isUser ? {
                           backgroundColor: themeColor,
-                          boxShadow: `0 4px 14px -2px ${themeColor}40`
+                          boxShadow: `0 4px 12px -2px ${themeColor}40`
                         } : {}}
                       >
                         {m.text}
@@ -270,7 +270,7 @@ export default function ChatPreview({
                   })}
 
                   {previewStreaming && (
-                    <div className="mr-auto bg-white text-slate-500 border border-slate-200/80 rounded-xl rounded-bl-none p-3 max-w-[200px] flex items-center gap-2 shadow-sm">
+                    <div className="mr-auto bg-white text-slate-500 border border-slate-200/80 rounded-xl rounded-bl-none p-2.5 max-w-[200px] flex items-center gap-2 shadow-sm">
                       <div className="flex items-center gap-1">
                         <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ backgroundColor: themeColor, animationDelay: '0ms' }}></span>
                         <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ backgroundColor: themeColor, animationDelay: '150ms' }}></span>
@@ -282,23 +282,23 @@ export default function ChatPreview({
                   <div ref={chatMessagesEndRef} />
                 </div>
 
-                <div className="p-3 border-t border-slate-100 bg-white flex items-center gap-2">
+                <div className="p-2.5 border-t border-slate-100 bg-white flex items-center gap-2">
                   <input
                     type="text"
                     placeholder="Ask your assistant anything..."
                     value={previewInput}
                     onChange={(e) => setPreviewInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSendPreviewChat()}
-                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 outline-none transition-all focus:bg-white"
+                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 outline-none transition-all focus:bg-white"
                     style={{ borderColor: `${themeColor}44` }}
                   />
                   <button
                     onClick={handleSendPreviewChat}
                     disabled={!previewInput.trim() || previewStreaming}
-                    className="p-2.5 rounded-xl text-white disabled:opacity-40 transition-all hover:scale-105 active:scale-95 shadow-sm"
+                    className="p-2 rounded-xl text-white disabled:opacity-40 transition-all hover:scale-105 active:scale-95 shadow-sm"
                     style={{ backgroundColor: themeColor }}
                   >
-                    <Send className="w-4 h-4" />
+                    <Send className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
@@ -306,8 +306,8 @@ export default function ChatPreview({
 
             <button
               onClick={() => setPreviewChatOpen(!previewChatOpen)}
-              className="w-14 h-14 rounded-full flex items-center justify-center text-white text-2xl shadow-2xl hover:scale-105 transition-transform"
-              style={{ backgroundColor: themeColor, boxShadow: `0 10px 25px -5px ${themeColor}88` }}
+              className="w-[52px] h-[52px] rounded-full flex items-center justify-center text-white text-xl shadow-xl hover:scale-105 transition-transform"
+              style={{ backgroundColor: themeColor, boxShadow: `0 8px 20px -4px ${themeColor}88` }}
             >
               💬
             </button>

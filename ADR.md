@@ -1250,3 +1250,21 @@ La page de prévisualisation autonome `preview.html` (accessible via "Open in ne
 
 ### Conséquences
 - L'affichage dans un nouvel onglet est totalement propre, automatique et sans action manuelle.
+
+## ADR : Optimisation et réduction des dimensions du panneau de chatbot (360px x 500px)
+**Date:** 20 Août 2026
+**Statut:** Accepté
+
+### Contexte
+Le panneau de chat était trop volumineux (380px de large, 600px de hauteur, bouton déclencheur de 60px), ce qui occupait une part disproportionnée de l'écran dans le nouvel onglet (`preview.html`) et sur les écrans standards.
+
+### Décision
+- Réduction des dimensions globales vers les standards ergonomiques du marché :
+  - Largeur du panneau : **360px** (avec `max-width: calc(100vw - 32px)`).
+  - Hauteur du panneau : **500px** (avec `max-height: calc(100vh - 110px)`).
+  - Bouton déclencheur flottant : **52px** x **52px** avec icône de 24px.
+  - Ajustement des espacements (padding d'en-tête, messages et champ de texte plus compacts et élégants).
+- Application synchronisée dans `widget.css`, `ChatPreview.jsx` et `Dashboard.jsx`.
+
+### Conséquences
+- Le chatbot s'affiche avec des proportions idéales, fines et non envahissantes sur le site web du client.
