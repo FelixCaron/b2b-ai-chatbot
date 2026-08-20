@@ -9,26 +9,13 @@ export function requireServerEnv(...names) {
   return Object.fromEntries(names.map((name) => [name, process.env[name]]));
 }
 
-function normalizeSupabaseUrl(rawUrl) {
-  if (!rawUrl) return rawUrl;
-  let trimmed = rawUrl.trim();
-  if (trimmed.includes('supabase.com/dashboard/project/')) {
-    const ref = trimmed.split('/dashboard/project/')[1]?.split('/')[0]?.split('?')[0];
-    if (ref) return `https://${ref}.supabase.co`;
-  }
-  if (trimmed.endsWith('/')) {
-    trimmed = trimmed.slice(0, -1);
-  }
-  return trimmed;
-}
-
 export function createServiceRoleClient() {
   const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = requireServerEnv(
     'SUPABASE_URL',
     'SUPABASE_SERVICE_ROLE_KEY'
   );
 
-  return createClient(normalizeSupabaseUrl(SUPABASE_URL), SUPABASE_SERVICE_ROLE_KEY.trim());
+  return createClient(SUPABASE_URL.trim(), SUPABASE_SERVICE_ROLE_KEY.trim());
 }
 
 function readAuthorizationHeader(req) {
