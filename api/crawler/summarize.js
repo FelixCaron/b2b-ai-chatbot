@@ -75,7 +75,7 @@ export default async function handler(req) {
     }
 
     if (!websiteContent || websiteContent.length < 50) {
-      return new Response(JSON.stringify({ error: 'Contenu insuffisant pour gÃ©nÃ©rer un rÃ©sumÃ©.' }), {
+      return new Response(JSON.stringify({ error: 'Contenu insuffisant pour générer un résumé.' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
@@ -88,7 +88,7 @@ export default async function handler(req) {
     });
 
     if (!summaryText) {
-      return new Response(JSON.stringify({ error: 'Ã‰chec de la gÃ©nÃ©ration du rÃ©sumÃ© par le modÃ¨le IA.' }), {
+      return new Response(JSON.stringify({ error: 'Échec de la génération du résumé par le modèle IA.' }), {
         status: 500,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });

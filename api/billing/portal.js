@@ -1,5 +1,5 @@
 ﻿// api/create-portal-session.js
-// Vercel Serverless Function â€” Creates a Stripe Billing Portal Session
+// Vercel Serverless Function — Creates a Stripe Billing Portal Session
 import Stripe from 'stripe';
 import WebSocket from 'ws';
 import { createServiceRoleClient, requireServerEnv } from '../lib/server-config.js';

@@ -1,5 +1,5 @@
 // api/stripe-webhook.js
-// Vercel Serverless Function â€” Handles Stripe webhook events
+// Vercel Serverless Function — Handles Stripe webhook events
 import Stripe from 'stripe';
 import WebSocket from 'ws';
 import { createServiceRoleClient, requireServerEnv } from '../lib/server-config.js';
@@ -141,7 +141,7 @@ export default async function handler(req, res) {
             .from('tenants')
             .update({ plan_status: 'past_due' })
             .eq('id', tenant.id);
-          console.log(`[stripe-webhook] Tenant ${tenant.id} payment failed â€” marked past_due`);
+          console.log(`[stripe-webhook] Tenant ${tenant.id} payment failed — marked past_due`);
         }
         break;
       }

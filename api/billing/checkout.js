@@ -1,5 +1,5 @@
 // api/create-checkout-session.js
-// Vercel Serverless Function â€” Creates a Stripe Checkout Session for subscription
+// Vercel Serverless Function — Creates a Stripe Checkout Session for subscription
 import Stripe from 'stripe';
 import WebSocket from 'ws';
 import { createServiceRoleClient, requireServerEnv } from '../lib/server-config.js';

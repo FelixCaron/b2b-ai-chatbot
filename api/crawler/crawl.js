@@ -68,7 +68,7 @@ export default async function handler(req) {
           { url: `https://${cleanHost}`, title: 'Page d\'accueil - Portes Delafontaine' },
           { url: `https://${cleanHost}/portes-coupe-feu`, title: 'Portes Coupe-Feu UL/ULC' },
           { url: `https://${cleanHost}/portes-acoustiques`, title: 'Portes Acoustiques STC 35-55' },
-          { url: `https://${cleanHost}/contact`, title: 'Contact & SiÃ¨ge Social' }
+          { url: `https://${cleanHost}/contact`, title: 'Contact & Siège Social' }
         ]
       }), {
         status: 200,

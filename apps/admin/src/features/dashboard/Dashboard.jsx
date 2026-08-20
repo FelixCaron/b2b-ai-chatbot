@@ -215,7 +215,7 @@ export default function Dashboard({
     });
     setLearningStep(4);
     setLearningProgress(100);
-    setCrawlProgressMsg(`âœ“ Scan finished! ${loadedCount} page(s) indexed.`);
+    setCrawlProgressMsg(`✓ Scan finished! ${loadedCount} page(s) indexed.`);
     setIsCrawling(false);
   };
 
@@ -466,7 +466,7 @@ export default function Dashboard({
         content: `[SITE_SUMMARY]\n${siteSummary.trim()}`
       });
 
-      setSummarySuccessMsg('âœ“ Business summary saved successfully!');
+      setSummarySuccessMsg('✓ Business summary saved successfully!');
       setTimeout(() => setSummarySuccessMsg(''), 3500);
     } catch (err) {
       console.error('[handleSaveSummary] Error:', err);
@@ -493,7 +493,7 @@ export default function Dashboard({
         const data = await res.json();
         if (data.summary) {
           setSiteSummary(data.summary);
-          setSummarySuccessMsg('âœ“ AI Business Summary regenerated successfully!');
+          setSummarySuccessMsg('✓ AI Business Summary regenerated successfully!');
           setTimeout(() => setSummarySuccessMsg(''), 3500);
         }
       }
@@ -1337,7 +1337,7 @@ export default function Dashboard({
 
             {/* Title & Description */}
             <h3 className="text-2xl font-bold text-white mb-2">
-              {learningStep === 4 ? "ðŸŽ‰ Your AI Assistant is Ready!" : `Teaching Your AI from ${learningDomain || 'Website'}`}
+              {learningStep === 4 ? "🎉 Your AI Assistant is Ready!" : `Teaching Your AI from ${learningDomain || 'Website'}`}
             </h3>
             <p className="text-sm text-gray-400 mb-8 max-w-md mx-auto">
               {learningStep === 4
@@ -1402,7 +1402,7 @@ export default function Dashboard({
                   }}
                   className="flex-1 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white font-bold py-3.5 px-6 rounded-xl text-sm flex items-center justify-center gap-2 shadow-lg shadow-brand-900/40 transition-all hover:scale-[1.02] active:scale-98"
                 >
-                  <Eye className="w-4 h-4" /> Test My Bot Now â†’
+                  <Eye className="w-4 h-4" /> Test My Bot Now →
                 </button>
                 <button
                   onClick={() => setShowLearningModal(false)}
@@ -1433,7 +1433,7 @@ export default function Dashboard({
                 }}
                 className="bg-white/10 hover:bg-white/20 text-white text-xs font-semibold px-4 py-2 rounded-xl flex items-center gap-2 transition-all"
               >
-                â† Back to Dashboard
+                ← Back to Dashboard
               </button>
               <div className="hidden sm:flex items-center gap-2 text-xs text-gray-400 font-mono">
                 <Globe className="w-4 h-4 text-emerald-400" /> https://{activeSite.domain}
@@ -1531,18 +1531,18 @@ export default function Dashboard({
                           return (
                             <div key={idx} className="mr-auto my-1.5 p-3 rounded-xl bg-indigo-950/80 border border-brand-500/30 font-mono text-[11px] text-brand-300 space-y-1 shadow-inner animate-in fade-in">
                               <div className="flex items-center gap-1.5 font-bold text-brand-400">
-                                <span>ðŸ› ï¸ Tool Call:</span>
+                                <span>🛠️ Tool Call:</span>
                                 <span className="bg-brand-500/20 px-1.5 py-0.5 rounded text-white">{m.tool_call.name}</span>
                               </div>
                               {m.tool_call.name === 'search_knowledge_base' && (
                                 <div className="space-y-1">
-                                  <div>ðŸ” Search keywords: "{m.tool_call.keywords || m.tool_call.query}"</div>
-                                  <div className="text-[10px] text-gray-400 mb-1">ðŸ“„ {m.tool_call.matched_chunks} chunks matched ({m.tool_call.sources?.length || 0} sources)</div>
+                                  <div>🔍 Search keywords: "{m.tool_call.keywords || m.tool_call.query}"</div>
+                                  <div className="text-[10px] text-gray-400 mb-1">📄 {m.tool_call.matched_chunks} chunks matched ({m.tool_call.sources?.length || 0} sources)</div>
                                   {m.tool_call.sources && m.tool_call.sources.length > 0 && (
                                     <div className="mt-1 flex flex-col gap-1">
                                       {m.tool_call.sources.map((src, i) => (
                                         <a key={i} href={src} target="_blank" rel="noopener noreferrer" className="text-[9px] text-indigo-400 hover:text-indigo-300 truncate max-w-[200px] flex items-center gap-1 bg-indigo-950/50 px-1.5 py-0.5 rounded border border-indigo-500/20">
-                                          ðŸ”— {src.replace(`https://${activeSite.domain}`, '') || '/'}
+                                          🔗 {src.replace(`https://${activeSite.domain}`, '') || '/'}
                                         </a>
                                       ))}
                                     </div>
@@ -1551,8 +1551,8 @@ export default function Dashboard({
                               )}
                               {m.tool_call.name === 'capture_lead' && (
                                 <div className="space-y-0.5">
-                                  <div>ðŸ‘¤ Lead captured: {m.tool_call.lead?.name || m.tool_call.lead?.email || m.tool_call.lead?.phone || 'Visitor'}</div>
-                                  <div className="text-[10px] text-emerald-400">âœ“ Saved in Supabase database</div>
+                                  <div>👤 Lead captured: {m.tool_call.lead?.name || m.tool_call.lead?.email || m.tool_call.lead?.phone || 'Visitor'}</div>
+                                  <div className="text-[10px] text-emerald-400">✓ Saved in Supabase database</div>
                                 </div>
                               )}
                             </div>
@@ -1646,7 +1646,7 @@ export default function Dashboard({
                   className="w-14 h-14 rounded-full flex items-center justify-center text-white text-2xl shadow-2xl hover:scale-105 transition-transform"
                   style={{ backgroundColor: themeColor, boxShadow: `0 10px 25px -5px ${themeColor}88` }}
                 >
-                  ðŸ’¬
+                  💬
                 </button>
               </div>
             </div>
@@ -1719,7 +1719,7 @@ export default function Dashboard({
                       }}
                       className="w-full sm:w-auto px-5 py-2 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-amber-500 to-brand-600 hover:from-amber-400 hover:to-brand-500 shadow-md transition-all flex items-center justify-center gap-1.5"
                     >
-                      <Sparkles className="w-3.5 h-3.5" /> Upgrade Plan â†’
+                      <Sparkles className="w-3.5 h-3.5" /> Upgrade Plan →
                     </button>
                   </div>
                 </div>
@@ -1814,7 +1814,7 @@ export default function Dashboard({
 
             {newSiteError && (
               <div className="mb-4 bg-red-500/10 border border-red-500/30 text-red-400 text-xs rounded-xl p-3">
-                âš ï¸ {newSiteError}
+                ⚠️ {newSiteError}
               </div>
             )}
 
@@ -1851,7 +1851,7 @@ export default function Dashboard({
                   {isAddingNewSite ? (
                     <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Adding & Learning...</>
                   ) : (
-                    <>Add & Learn Website â†’</>
+                    <>Add & Learn Website →</>
                   )}
                 </button>
               </div>
@@ -2025,7 +2025,7 @@ export default function Dashboard({
                 className="w-full sm:w-auto text-xs text-amber-300 hover:text-amber-200 font-semibold flex items-center gap-1.5 px-3 py-2"
               >
                 <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                Upgrade plan for unlimited pages â†’
+                Upgrade plan for unlimited pages →
               </button>
 
               <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
@@ -2042,7 +2042,7 @@ export default function Dashboard({
                   onClick={handleConfirmSelectedPagesAndScan}
                   className="bg-brand-600 hover:bg-brand-500 text-white font-semibold px-6 py-2 rounded-xl text-xs flex items-center gap-2 transition-all shadow-lg disabled:opacity-50"
                 >
-                  Confirm & Index Selected Pages ({selectedUrls.size}) â†’
+                  Confirm & Index Selected Pages ({selectedUrls.size}) →
                 </button>
               </div>
             </div>

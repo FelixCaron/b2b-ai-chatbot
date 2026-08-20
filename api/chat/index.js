@@ -107,7 +107,7 @@ export default async function handler(req) {
       if (fullError) {
         console.error('[chat] Supabase site lookup error:', fullError.message, fullError.code);
         if (fullError.code === '42703') {
-          // One or more optional columns are missing from the schema Ã¢â‚¬â€ fall back to core columns
+          // One or more optional columns are missing from the schema ââ‚¬” fall back to core columns
           console.warn('[chat] Falling back to core columns due to missing column (42703).');
           const { data: coreData, error: coreError } = await supabase
             .from('sites')
@@ -423,7 +423,7 @@ ${supportInstruction}`;
                   const toolArgs = JSON.parse(toolCall.function.arguments || '{}');
                   const toolQuery = toolArgs.query || message;
 
-                  // Ã¢â€â‚¬Ã¢â€â‚¬ HYBRID SEARCH: Embedding sÃƒÂ©mantique + FTS bilingue Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+                  // â”â‚¬â”â‚¬ HYBRID SEARCH: Embedding sÃƒÂ©mantique + FTS bilingue â”â‚¬â”â‚¬â”â‚¬â”â‚¬â”â‚¬â”â‚¬â”â‚¬â”â‚¬â”â‚¬â”â‚¬â”â‚¬â”â‚¬â”â‚¬â”â‚¬â”â‚¬
                   let docs = [];
                   let searchMethod = 'unknown';
 
@@ -539,7 +539,7 @@ ${supportInstruction}`;
               }
             } else {
               // No tool calls requested: LLM provided final response!
-              finalReply = llmMessage?.content || "Ã¢Å¡Â Ã¯Â¸Â Je ne peux pas rÃƒÂ©pondre pour le moment.";
+              finalReply = llmMessage?.content || "âÅ¡Â Ã¯Â¸Â Je ne peux pas rÃƒÂ©pondre pour le moment.";
               break;
             }
           }
@@ -620,7 +620,7 @@ ${supportInstruction}`;
         } catch (_innerErr) {
           console.error(_innerErr);
             sendBugAlertEmail(_innerErr, { source: 'chat_stream', tenantId, siteId }).catch(console.error);
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: 'Ã¢Å¡Â Ã¯Â¸Â [Erreur Interne] ' + _innerErr.message })}\n\n`));
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: 'âÅ¡Â Ã¯Â¸Â [Erreur Interne] ' + _innerErr.message })}\n\n`));
           controller.enqueue(encoder.encode('data: [DONE]\n\n'));
           controller.close();
         }

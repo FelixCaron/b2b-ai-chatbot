@@ -82,18 +82,18 @@ export default function App() {
       if (currentUser?.is_anonymous) {
         const { error } = await supabase.auth.updateUser({ email });
         if (error) throw error;
-        setAuthMessage('VÃ©rifiez votre e-mail pour confirmer et sÃ©curiser votre espace.');
+        setAuthMessage('Vérifiez votre e-mail pour confirmer et sécuriser votre espace.');
       } else {
         const { error } = await supabase.auth.signInWithOtp({
           email,
           options: { emailRedirectTo: window.location.origin }
         });
         if (error) throw error;
-        setAuthMessage('Lien de connexion envoyÃ©. VÃ©rifiez votre e-mail.');
+        setAuthMessage('Lien de connexion envoyé. Vérifiez votre e-mail.');
       }
     } catch (e) {
       console.warn('[handleLogin] error:', e);
-      setAuthMessage(e.message || 'Impossible de dÃ©marrer la connexion.');
+      setAuthMessage(e.message || 'Impossible de démarrer la connexion.');
     } finally {
       setLoading(false);
     }
@@ -374,7 +374,7 @@ export default function App() {
       {/* Payment cancel toast */}
       {paymentToast === 'cancel' && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-dark-800 border border-yellow-500/30 text-yellow-400 text-sm rounded-xl px-6 py-3 shadow-xl animate-in fade-in slide-in-from-bottom-4">
-          âš ï¸ Payment canceled. You can try again at any time.
+          ⚠️ Payment canceled. You can try again at any time.
         </div>
       )}
 
@@ -404,7 +404,7 @@ export default function App() {
               onClick={() => setCurrentView('dashboard')}
               className="text-xs text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg border border-white/10"
             >
-              â† Back to Dashboard
+              ← Back to Dashboard
             </button>
           </div>
           <LeadsTable leads={leads} />
@@ -444,7 +444,7 @@ export default function App() {
                   onClick={() => setCurrentView('leads')}
                   className="text-xs text-brand-400 hover:text-brand-300 font-semibold"
                 >
-                  View All Leads â†’
+                  View All Leads →
                 </button>
               </div>
               <LeadsTable leads={leads} />

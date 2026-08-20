@@ -99,16 +99,16 @@ function extractTextFromHtml(html) {
  */
 function cleanAndChunk(text, targetUrl = '', maxChunkLength = 800) {
   let cleanText = text
-    .replace(/Nous respectons votre vie privÃ©e[\s\S]*?Enregistrer mes prÃ©fÃ©rences[^\n]*/gi, '')
+    .replace(/Nous respectons votre vie privée[\s\S]*?Enregistrer mes préférences[^\n]*/gi, '')
     .replace(/Les cookies [\s\S]*?visiteurs uniques\./gi, '')
-    .replace(/Cookieyes place ce tÃ©moin[\s\S]*?visiteurs uniques\./gi, '');
+    .replace(/Cookieyes place ce témoin[\s\S]*?visiteurs uniques\./gi, '');
 
   const NOISE_PATTERNS = [
     /cookie/i, /cookieyes/i, /Duration\s+\d+/i, /_ga[t_]/i, /VISITOR_INFO/i,
     /yt-remote/i, /innertube/i, /localStorage/i, /sessionStorage/i, /\bGTM-/i,
     /Google Analytics/i, /Google Tag Manager/i, /Reject All/i, /Accept All/i,
     /Save My Preferences/i, /Powered by.*Cookie/i, /Privacy Policy/i, /Terms of Service/i,
-    /Copyright/i, /Tous droits rÃ©servÃ©s/i, /Personnaliser Tout rejeter/i
+    /Copyright/i, /Tous droits réservés/i, /Personnaliser Tout rejeter/i
   ];
 
   const rawParagraphs = cleanText.split(/\n{2,}|\n(?=#{1,3} )/);
@@ -194,7 +194,7 @@ export default async function handler(req) {
     targetUrl = assertSafeExternalUrl(targetUrl).href;
 
     const AUTH_WALL_REGEX = /\/(login|signin|sign-in|sinscrire|s-inscrire|register|account|my-account|mon-compte|connexion|se-connecter|log-in|user-login|members|espace-client|client-portal|dashboard|admin)($|\/|\?|#)/i;
-    const AUTH_CONTENT_REGEX = /(please log in|sign in to access|connexion requise|veuillez vous connecter|accÃ¨s rÃ©servÃ©|connectez-vous|password required|mot de passe requis|authentification requise|member login|espace client|espace membre)/i;
+    const AUTH_CONTENT_REGEX = /(please log in|sign in to access|connexion requise|veuillez vous connecter|accès réservé|connectez-vous|password required|mot de passe requis|authentification requise|member login|espace client|espace membre)/i;
 
     const u = new URL(targetUrl);
     const isAuthUrl = AUTH_WALL_REGEX.test(u.pathname);
@@ -217,7 +217,7 @@ export default async function handler(req) {
 
       if (jinaRes.status === 401 || jinaRes.status === 403 || isAuthUrl) {
         return new Response(
-          JSON.stringify({ success: true, is_protected: true, chunks_count: 0, message: 'ðŸ”’ Protected page (Auth Wall)' }),
+          JSON.stringify({ success: true, is_protected: true, chunks_count: 0, message: '🔍’ Protected page (Auth Wall)' }),
           { status: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
         );
       }
@@ -253,13 +253,13 @@ export default async function handler(req) {
 
     if (AUTH_CONTENT_REGEX.test(pageText) && pageText.length < 500) {
       return new Response(
-        JSON.stringify({ success: true, is_protected: true, chunks_count: 0, message: 'ðŸ”’ Page protÃ©gÃ©e (Formulaire de connexion dÃ©tectÃ©)' }),
+        JSON.stringify({ success: true, is_protected: true, chunks_count: 0, message: '🔍’ Page protégée (Formulaire de connexion détecté)' }),
         { status: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
       );
     }
 
     if (!pageText || pageText.length < 20) {
-      return new Response(JSON.stringify({ success: true, is_empty: true, chunks_count: 0, message: 'Contenu insuffisant retournÃ© par la page' }), {
+      return new Response(JSON.stringify({ success: true, is_empty: true, chunks_count: 0, message: 'Contenu insuffisant retourné par la page' }), {
         status: 200,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
@@ -360,7 +360,7 @@ export default async function handler(req) {
 
 
     return new Response(
-      JSON.stringify({ success: true, message: 'Page scannÃ©e et indexÃ©e via Jina Reader avec succÃ¨s !', chunks_count: records.length }),
+      JSON.stringify({ success: true, message: 'Page scannée et indexée via Jina Reader avec succès !', chunks_count: records.length }),
       {
         status: 200,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
