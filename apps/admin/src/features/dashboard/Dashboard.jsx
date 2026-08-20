@@ -61,17 +61,25 @@ export default function Dashboard({
   const handleConfirmDeleteSite = async () => {
     if (!activeSite?.id || isDeletingSite || !onDeleteSite) return;
     setIsDeletingSite(true);
+    const siteToDeleteId = activeSite.id;
     try {
-      const ok = await onDeleteSite(activeSite.id);
+      const ok = await onDeleteSite(siteToDeleteId);
       if (ok) {
         setShowDeleteConfirmModal(false);
-        const remaining = sites ? sites.filter(s => s.id !== activeSite.id) : [];
+        setShowPreviewModal(false);
+        if (localCreatedSite?.id === siteToDeleteId) {
+          setLocalCreatedSite(null);
+        }
+        const remaining = sites ? sites.filter(s => s.id !== siteToDeleteId) : [];
         if (remaining.length > 0) {
           setSelectedSiteId(remaining[0].id);
         } else {
           setLocalCreatedSite(null);
           setSelectedSiteId(null);
           setSiteUrl('');
+          setDiscoveredPages([]);
+          setSelectedUrls(new Set());
+          setDetectedTheme(null);
           setStep('input');
         }
       }
@@ -82,12 +90,15 @@ export default function Dashboard({
     }
   };
 
-  // Sync step if activeSite changes
+  // Sync step if activeSite or sites changes
   useEffect(() => {
     if (activeSite && step === 'input') {
       setStep('dashboard');
+    } else if ((!sites || sites.length === 0) && !localCreatedSite && step !== 'input') {
+      setSelectedSiteId(null);
+      setStep('input');
     }
-  }, [activeSite]);
+  }, [activeSite, sites, localCreatedSite, step]);
 
   // Page Management & Selection State
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
@@ -1581,6 +1592,16 @@ export default function Dashboard({
             </div>
 
             <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirmModal(true)}
+                className="bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/20 text-xs font-semibold px-3.5 py-1.5 rounded-xl flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+                title="Delete this website"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Delete Website</span>
+              </button>
+
               <a
                 href={`${window.location.origin}/preview.html?domain=${encodeURIComponent(activeSite.domain)}&tenant_key=${encodeURIComponent(activeSite.public_key)}&theme_color=${encodeURIComponent(themeColor)}&api_url=${encodeURIComponent(`${window.location.origin}/api/chat`)}`}
                 target="_blank"

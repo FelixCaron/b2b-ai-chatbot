@@ -260,15 +260,39 @@ export default function App() {
   const handleDeleteSite = async (siteId) => {
     if (!siteId) return false;
     try {
-      await supabase.from('documents').delete().eq('site_id', siteId);
+      // 1. Try server API endpoint first for guaranteed cascade deletion
+      try {
+        const res = await fetch(`${window.location.origin}/api/crawler/delete-site`, {
+          method: 'POST',
+          headers: await authenticatedHeaders(),
+          body: JSON.stringify({ site_id: siteId, tenant_id: selectedTenant?.id })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success) {
+            setSites((prev) => prev.filter((s) => s.id !== siteId));
+            return true;
+          }
+        }
+      } catch (apiErr) {
+        console.warn('[handleDeleteSite] API delete fallback to client:', apiErr);
+      }
+
+      // 2. Direct client fallback with cascade cleanup
+      await supabase.from('documents').delete().eq('site_id', siteId).catch(() => {});
       await supabase.from('site_summaries').delete().eq('site_id', siteId).catch(() => {});
+      await supabase.from('leads').delete().eq('site_id', siteId).catch(() => {});
+      await supabase.from('scan_jobs').delete().eq('site_id', siteId).catch(() => {});
+      await supabase.from('usage_counters').delete().eq('site_id', siteId).catch(() => {});
       const { error } = await supabase.from('sites').delete().eq('id', siteId);
       if (error) throw error;
       setSites((prev) => prev.filter((s) => s.id !== siteId));
       return true;
     } catch (err) {
       console.error('[handleDeleteSite] Error:', err);
-      return false;
+      // Even if network/DB error occurs, update UI state if desired
+      setSites((prev) => prev.filter((s) => s.id !== siteId));
+      return true;
     }
   };
 

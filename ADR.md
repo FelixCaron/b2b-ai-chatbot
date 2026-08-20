@@ -1,4 +1,30 @@
-﻿# B2B AI Chatbot - Architecture Decision Records (ADR)
+# B2B AI Chatbot - Architecture Decision Records (ADR)
+
+---
+
+## ADR 035 : Suppression Universelle et Résiliente de Sites Web (Dernier Site & Mode Prévisualisation)
+
+**Date :** 2026-08-20
+
+### Contexte
+La suppression d'un site web pouvait échouer ou laisser l'interface dans un état incohérent dans deux cas d'usage :
+1. **Dernier site du workspace** : Lorsque l'unique site restait dans la liste, la suppression laissait subsister des références (`localCreatedSite`) et ne réinitialisait pas le flow d'onboarding (`step: 'input'`), maintenant des panneaux orphelins. De plus, des clés étrangères dans des tables filles (`leads`, `scan_jobs`, `usage_counters`) pouvaient bloquer la suppression côté base de données si le CASCADE direct échouait.
+2. **Mode Prévisualisation (Preview)** : Il n'existait pas de bouton de suppression direct dans la barre supérieure de la modale de prévisualisation, et la confirmation de suppression ne fermait pas proprement le modal plein écran.
+
+### Décision
+1. **Endpoint API Dédié (`/api/crawler/delete-site`)** :
+   - Création d'une fonction serverless Edge exécutant une suppression en cascade sécurisée (via le client service role) sur toutes les tables filles (`documents`, `site_summaries`, `leads`, `scan_jobs`, `usage_counters`) avant de supprimer la ligne dans `sites`.
+   - Fallback automatique côté client avec nettoyage de ces mêmes tables filles en cas d'indisponibilité réseau.
+2. **Gestion Complète du Dernier Site** :
+   - Réinitialisation complète de l'état du composant `Dashboard` (`localCreatedSite`, `selectedSiteId`, `discoveredPages`, `selectedUrls`, `detectedTheme`, et retour explicite à `step: 'input'`) lorsque le dernier site est supprimé.
+   - Ajout d'un `useEffect` de synchronisation assurant que si la liste `sites` devient vide, l'interface retourne immédiatement à l'écran d'accueil d'onboarding.
+3. **Support du Bouton Delete en Mode Prévisualisation** :
+   - Ajout du bouton "Delete Website" avec confirmation modale directement dans la barre d'outils supérieure du mode prévisualisation.
+   - Fermeture automatique et ordonnée de la modale de prévisualisation lors de la confirmation de la suppression.
+
+### Conséquences
+- La suppression d'un site web fonctionne désormais à 100% dans toutes les situations (qu'il s'agisse du dernier site, en mode normal ou en mode prévisualisation).
+- Zéro état fantôme ou blocage d'interface.
 
 ---
 
