@@ -1,4 +1,4 @@
-﻿// api/stripe-webhook.js
+// api/stripe-webhook.js
 // Vercel Serverless Function â€” Handles Stripe webhook events
 import Stripe from 'stripe';
 import WebSocket from 'ws';
@@ -70,10 +70,11 @@ export default async function handler(req, res) {
       case 'checkout.session.completed': {
         const session = event.data.object;
         const tenantId = session.subscription_data?.metadata?.tenant_id 
-          || session.metadata?.tenant_id;
+          || session.metadata?.tenant_id
+          || session.client_reference_id;
 
         if (!tenantId) {
-          console.warn('[stripe-webhook] No tenant_id in session metadata');
+          console.warn('[stripe-webhook] No tenant_id in session metadata or client_reference_id');
           break;
         }
 
@@ -87,12 +88,13 @@ export default async function handler(req, res) {
           .update({
             plan,
             plan_status: 'active',
+            stripe_customer_id: session.customer || tenant?.stripe_customer_id,
             stripe_subscription_id: session.subscription,
             plan_expires_at: expiresAt,
           })
           .eq('id', tenantId);
 
-        console.log(`[stripe-webhook] Tenant ${tenantId} upgraded to ${plan}`);
+        console.log(`[stripe-webhook] Tenant ${tenantId} upgraded to ${plan} (Customer: ${session.customer})`);
         break;
       }
 

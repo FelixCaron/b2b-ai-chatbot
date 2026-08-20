@@ -1,4 +1,4 @@
-﻿// api/create-checkout-session.js
+// api/create-checkout-session.js
 // Vercel Serverless Function â€” Creates a Stripe Checkout Session for subscription
 import Stripe from 'stripe';
 import WebSocket from 'ws';
@@ -66,6 +66,8 @@ export default async function handler(req, res) {
 
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
+      client_reference_id: tenantId,
+      metadata: { tenant_id: tenantId },
       mode: 'subscription',
       line_items: [
         {

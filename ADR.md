@@ -1067,3 +1067,24 @@ Lors du build Vercel, l'import `../lib/supabase` dans `src/features/dashboard/Da
 ### Conséquences
 - Le build Vite (`npm run build`) passe avec succès sans erreur de résolution.
 - Tous les tests de schémas, secrets et imports d'API passent au vert (17/17 routes testées).
+
+## ADR : Consolidation du lien Stripe/Tenant et fiabilisation de l'ajout de sites
+**Date:** 20 Août 2026
+**Statut:** Accepté
+
+### Contexte
+1. L'erreur `Error: Unable to add this website domain` se produisait de manière opaque dès qu'une session anonyme n'était pas active ou qu'une insertion Supabase échouait, car les exceptions étaient masquées sans retour explicite.
+2. Le webhook Stripe et la session de paiement ne synchronisaient pas explicitement le `stripe_customer_id` et le `client_reference_id` avec la table `tenants`.
+
+### Décision
+1. **Fiabilisation de `handleAddSite`** :
+   - Initialisation automatique / reprise de la session anonyme Supabase si manquante au moment de l'action.
+   - Création / récupération du tenant associé à l'utilisateur `auth.users(id)`.
+   - Remontée explicite des erreurs SQL / RLS Supabase directement dans l'interface utilisateur pour un diagnostic immédiat.
+2. **Synchronisation Stripe ↔ Tenant** :
+   - Ajout de `client_reference_id` et des métadonnées de session dans `checkout.js`.
+   - Sauvegarde systématique de `stripe_customer_id` et `stripe_subscription_id` dans la table `tenants` dès `checkout.session.completed`.
+
+### Conséquences
+- Les erreurs de création de site sont maintenant explicites et guidées.
+- Le cycle de facturation Stripe met à jour avec certitude le tenant correspondant.

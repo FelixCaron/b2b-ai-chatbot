@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { authenticatedHeaders, supabase, supabaseConfigurationError } from './lib/supabase';
 import Header from './components/Header';
 import Dashboard from './features/dashboard/Dashboard';
@@ -159,27 +159,53 @@ export default function App() {
 
   // Handler: Add new Site
   const handleAddSite = async (domain, primaryColor = '#6366f1') => {
-    let tId = selectedTenant?.id;
-    if (!currentUser) return null;
+    let user = currentUser;
+    if (!user) {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData?.session?.user) {
+        user = sessionData.session.user;
+        setCurrentUser(user);
+      } else {
+        const { data: anonData, error: anonErr } = await supabase.auth.signInAnonymously();
+        if (anonErr || !anonData?.user) {
+          console.error('[handleAddSite] Anonymous sign-in failed:', anonErr);
+          throw new Error(anonErr?.message || 'Session non initialisée. Veuillez activer "Anonymous Sign-in" dans les paramètres Supabase Auth ou vous connecter.');
+        }
+        user = anonData.user;
+        setCurrentUser(user);
+      }
+    }
 
-    // Create guest tenant if absolutely needed
+    let tId = selectedTenant?.id;
     if (!tId) {
-      const { data: guestTenant } = await supabase
+      const { data: existingTenants } = await supabase
         .from('tenants')
-        .insert({ name: currentUser.email || `Guest_${Date.now()}`, owner_user_id: currentUser.id })
-        .select()
-        .single();
-      if (guestTenant) {
+        .select('*')
+        .eq('owner_user_id', user.id);
+
+      if (existingTenants && existingTenants.length > 0) {
+        tId = existingTenants[0].id;
+        setSelectedTenant(existingTenants[0]);
+        setTenants(existingTenants);
+      } else {
+        const { data: guestTenant, error: tErr } = await supabase
+          .from('tenants')
+          .insert({ name: user.email || `Guest_${Date.now()}`, owner_user_id: user.id })
+          .select()
+          .single();
+
+        if (tErr || !guestTenant) {
+          console.error('[handleAddSite] Tenant creation failed:', tErr);
+          throw new Error(`Échec de création du workspace client: ${tErr?.message || 'Erreur base de données'}`);
+        }
         tId = guestTenant.id;
         setTenants([guestTenant]);
         setSelectedTenant(guestTenant);
-      } else {
-        return null;
       }
     }
 
     // 1. Attempt insert
-    const { data: newSite } = await supabase
+    const { data: newSite, error: siteInsertErr } = await supabase
       .from('sites')
       .insert({
         tenant_id: tId,
@@ -195,6 +221,10 @@ export default function App() {
       return newSite;
     }
 
+    if (siteInsertErr) {
+      console.warn('[handleAddSite] Insert site warning, checking existing domain:', siteInsertErr.message);
+    }
+
     // 2. If duplicate domain error, fetch existing site for this domain
     const { data: existingSite } = await supabase
       .from('sites')
@@ -207,6 +237,10 @@ export default function App() {
       existingSite.tenant_id = tId;
       setSites((prev) => [existingSite, ...prev.filter((s) => s.id !== existingSite.id)]);
       return existingSite;
+    }
+
+    if (siteInsertErr) {
+      throw new Error(`Impossible d'ajouter le domaine: ${siteInsertErr.message}`);
     }
 
     return null;
