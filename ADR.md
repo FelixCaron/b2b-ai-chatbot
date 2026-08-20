@@ -1088,3 +1088,21 @@ Lors du build Vercel, l'import `../lib/supabase` dans `src/features/dashboard/Da
 ### Conséquences
 - Les erreurs de création de site sont maintenant explicites et guidées.
 - Le cycle de facturation Stripe met à jour avec certitude le tenant correspondant.
+
+## ADR : Activation et vérification du Row Level Security (RLS) sur 100% des tables
+**Date:** 20 Août 2026
+**Statut:** Accepté
+
+### Contexte
+Pour garantir une étanchéité absolue des données entre les locataires (tenants) et prévenir toute fuite de données lors des accès clients directs via Supabase Anon Key, toutes les tables de la base de données doivent obligatoirement avoir le RLS activé avec des politiques d'isolation par propriétaire.
+
+### Décision
+1. **Migration dédiée `20260820000002_enforce_all_tables_rls.sql`** :
+   - `ALTER TABLE ... ENABLE ROW LEVEL SECURITY;` activé sur les 9 tables : `tenants`, `sites`, `documents`, `messages`, `leads`, `usage`, `site_summaries`, `usage_counters`, `scan_jobs`.
+   - Suppression systématique de toutes les politiques permissives ouvertes (`USING (true)`).
+   - Application de politiques strictes `FOR ALL TO authenticated` utilisant `owner_user_id = auth.uid()` ou la fonction sécurisée `current_user_owns_tenant(tenant_id)` (Security Definer).
+2. **Consolidation du schéma** : Mise à jour de `consolidated_latest_migrations.sql` pour intégrer ce standard de sécurité de base.
+
+### Conséquences
+- Zéro fuite de données possible entre tenants via l'API client Supabase.
+- Chaque utilisateur (anonyme ou connecté) ne peut lire, insérer ou modifier que ses propres données.
