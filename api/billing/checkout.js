@@ -18,9 +18,9 @@ export default async function handler(req, res) {
     const stripe = new Stripe(STRIPE_SECRET_KEY);
     const PRICE_ID = process.env.STRIPE_PRICE_ID;
     const PRICE_IDS = {
-      starter: process.env.STRIPE_PRICE_ID_STARTER || PRICE_ID,
+          basic: process.env.STRIPE_PRICE_ID_BASIC || PRICE_ID,
       pro: process.env.STRIPE_PRICE_ID_PRO || PRICE_ID,
-      basic: PRICE_ID,
+          premium: process.env.STRIPE_PRICE_ID_PREMIUM || process.env.STRIPE_PRICE_ID_ENTERPRISE || PRICE_ID,
     };
     const { planId, tenantId, email } = req.body || {};
 
