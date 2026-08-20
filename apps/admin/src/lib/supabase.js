@@ -1,7 +1,21 @@
 import { createClient } from '@supabase/supabase-js';
 
-const url = import.meta.env.VITE_SUPABASE_URL;
-const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+function normalizeSupabaseUrl(rawUrl) {
+  if (!rawUrl) return rawUrl;
+  let trimmed = rawUrl.trim();
+  if (trimmed.includes('supabase.com/dashboard/project/')) {
+    const ref = trimmed.split('/dashboard/project/')[1]?.split('/')[0]?.split('?')[0];
+    if (ref) return `https://${ref}.supabase.co`;
+  }
+  if (trimmed.endsWith('/')) {
+    trimmed = trimmed.slice(0, -1);
+  }
+  return trimmed;
+}
+
+const rawUrl = import.meta.env.VITE_SUPABASE_URL;
+const url = normalizeSupabaseUrl(rawUrl);
+const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim();
 
 export const supabaseConfigurationError =
   !url || !anonKey
