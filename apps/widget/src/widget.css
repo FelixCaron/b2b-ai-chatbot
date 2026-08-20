@@ -250,33 +250,44 @@
 
 /* Lead Form Modal Popup */
 .b2b-lead-form {
-  background: #1e293b;
-  border: 1px solid rgba(99, 102, 241, 0.3);
+  background: var(--b2b-bg, #ffffff);
+  border: 1px solid var(--b2b-theme-border, #e2e8f0);
   padding: 14px;
   border-radius: 12px;
   display: flex;
   flex-direction: column;
   gap: 8px;
   margin-top: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
 .b2b-lead-form input {
-  background: #0f172a;
-  border: 1px solid #334155;
-  color: #fff;
+  background: var(--b2b-input-bg, #f8fafc);
+  border: 1px solid var(--b2b-input-border, #cbd5e1);
+  color: var(--b2b-input-text, #0f172a);
   padding: 8px 10px;
   border-radius: 6px;
   font-size: 13px;
+  outline: none;
+}
+
+.b2b-lead-form input:focus {
+  border-color: var(--b2b-theme, #6366f1);
 }
 
 .b2b-lead-form button {
-  background: #6366f1;
+  background: var(--b2b-theme, #6366f1);
   color: #fff;
   border: none;
   padding: 8px;
   border-radius: 6px;
   font-weight: 600;
   cursor: pointer;
+  transition: transform 0.2s, opacity 0.2s;
+}
+
+.b2b-lead-form button:hover {
+  transform: translateY(-1px);
 }
 
 /* Rich Markdown Typography for Messages */
@@ -289,22 +300,28 @@
 }
 .b2b-msg strong {
   font-weight: 700;
-  color: #fff;
+  color: inherit;
+}
+.b2b-msg.assistant strong {
+  color: #0f172a;
+}
+.b2b-msg.user strong {
+  color: #ffffff;
 }
 .b2b-msg em {
   font-style: italic;
-  color: #cbd5e1;
+  color: inherit;
 }
 .b2b-msg a {
-  color: #818cf8;
+  color: var(--b2b-theme, #6366f1);
   text-decoration: underline;
   text-underline-offset: 3px;
   font-weight: 600;
   transition: color 0.15s ease;
   word-break: break-word;
 }
-.b2b-msg a:hover {
-  color: #a5b4fc;
+.b2b-msg.user a {
+  color: #ffffff;
 }
 .b2b-msg ul, .b2b-msg ol {
   padding-left: 20px;
@@ -320,13 +337,21 @@
   margin-bottom: 4px;
   line-height: 1.5;
 }
-.b2b-msg p code, .b2b-msg li code {
-  background: rgba(255, 255, 255, 0.12);
+.b2b-msg.assistant p code, .b2b-msg.assistant li code {
+  background: #f1f5f9;
   padding: 2px 6px;
   border-radius: 5px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 12px;
-  color: #e0e7ff;
+  color: var(--b2b-theme, #4f46e5);
+}
+.b2b-msg.user p code, .b2b-msg.user li code {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 2px 6px;
+  border-radius: 5px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  color: #ffffff;
 }
 .b2b-msg pre {
   background: #090d16;
@@ -339,29 +364,19 @@
   overflow-x: auto;
   margin: 8px 0;
 }
-.b2b-msg h1 {
-  font-size: 16px;
+.b2b-msg h1, .b2b-msg h2, .b2b-msg h3 {
   font-weight: 700;
-  color: #fff;
+  color: var(--b2b-text, #0f172a);
   margin: 8px 0 4px 0;
 }
-.b2b-msg h2 {
-  font-size: 15px;
-  font-weight: 600;
-  color: #fff;
-  margin: 7px 0 3px 0;
-}
-.b2b-msg h3 {
-  font-size: 14px;
-  font-weight: 600;
-  color: #fff;
-  margin: 6px 0 2px 0;
+.b2b-msg.user h1, .b2b-msg.user h2, .b2b-msg.user h3 {
+  color: #ffffff;
 }
 .b2b-msg blockquote {
-  border-left: 3px solid #6366f1;
+  border-left: 3px solid var(--b2b-theme, #6366f1);
   padding-left: 10px;
   margin: 6px 0;
-  color: #94a3b8;
+  color: var(--b2b-text-muted, #64748b);
   font-style: italic;
 }
 

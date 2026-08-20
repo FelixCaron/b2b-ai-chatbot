@@ -1192,3 +1192,17 @@ Le commutateur manuel Desktop/Mobile ajoutait de la complexité visuelle inutile
 
 ### Conséquences
 - Interface de prévisualisation plus épurée et affichage naturel de l'appareil utilisateur.
+
+## ADR : Synchronisation automatique du bundle widget.iife.js dans le pipeline de build
+**Date:** 20 Août 2026
+**Statut:** Accepté
+
+### Contexte
+Le widget réel (`apps/widget/src/widget.css` et `main.js`) était compilé dans `apps/widget/dist/`, mais le fichier distribué `apps/admin/public/widget.iife.js` n'était pas automatiquement régénéré lors du `npm run build`. Par conséquent, le script externe intégrable servait encore l'ancien bundle au fond noir.
+
+### Décision
+- Automatisation du pipeline dans `package.json` : `build` compile désormais le workspace `@b2b-ai-chatbot/widget`, copie le bundle généré `widget.iife.js` dans `apps/admin/public/`, puis lance le build de `@b2b-ai-chatbot/admin`.
+- Harmonisation complète du mode clair dans `widget.css` : correction des couleurs de texte pour le Markdown (balises strong, h1/h2/h3, code en ligne, formulaire de lead) afin d'assurer un contraste net et lisible.
+
+### Conséquences
+- Le vrai script widget `<script src=".../widget.iife.js">` dispose désormais systématiquement de la dernière version à jour avec le thème clair moderne et les couleurs d'accent du site client.
