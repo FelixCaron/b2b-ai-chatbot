@@ -32,12 +32,17 @@ import { parseMarkdown } from "./markdown.js";
 
   const container = document.createElement("div");
   container.id = "b2b-chatbot-container";
+  container.style.setProperty("--b2b-theme", themeColor);
+  container.style.setProperty("--b2b-theme-shadow", `${themeColor}66`);
+  container.style.setProperty("--b2b-theme-border", `${themeColor}44`);
+  container.style.setProperty("--b2b-theme-header", `${themeColor}2a`);
+  container.style.setProperty("--b2b-theme-light", `${themeColor}1a`);
 
   container.innerHTML = `
     <div class="b2b-chat-panel" id="b2b-panel">
-      <div class="b2b-chat-header" style="background: rgba(30, 41, 59, 0.9);">
+      <div class="b2b-chat-header">
         <div class="b2b-chat-header-info">
-          <div class="b2b-avatar" style="background: ${themeColor}; box-shadow: 0 4px 12px ${themeColor}44;">AI</div>
+          <div class="b2b-avatar">AI</div>
           <div>
             <div class="b2b-status-title">Virtual Assistant</div>
             <div class="b2b-status-sub"><span class="b2b-status-dot"></span>Online</div>
@@ -54,12 +59,12 @@ import { parseMarkdown } from "./markdown.js";
       </div>
       <div class="b2b-chat-footer">
         <input type="text" class="b2b-chat-input" id="b2b-input" placeholder="Ask a question..." />
-        <button class="b2b-send-btn" id="b2b-send-btn" style="background: ${themeColor};" aria-label="Send message">
+        <button class="b2b-send-btn" id="b2b-send-btn" aria-label="Send message">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
         </button>
       </div>
     </div>
-    <button class="b2b-chat-launcher" id="b2b-launcher" style="background: ${themeColor}; box-shadow: 0 10px 25px -5px ${themeColor}66;" aria-label="Open chat assistant">
+    <button class="b2b-chat-launcher" id="b2b-launcher" aria-label="Open chat assistant">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
     </button>
   `;

@@ -188,8 +188,20 @@ export default function ChatPreview({
 
           <div className="absolute bottom-3 right-3 sm:bottom-6 sm:right-6 z-[100000] flex flex-col items-end max-w-[calc(100vw-24px)]">
             {previewChatOpen && (
-              <div className="w-[calc(100vw-24px)] sm:w-[380px] h-[70vh] sm:h-[520px] max-h-[600px] bg-dark-900 border border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden mb-3 sm:mb-4 animate-in fade-in slide-in-from-bottom-4">
-                <div className="p-4 bg-dark-800 border-b border-white/10 flex items-center justify-between">
+              <div 
+                className="w-[calc(100vw-24px)] sm:w-[380px] h-[70vh] sm:h-[520px] max-h-[600px] bg-dark-900 rounded-2xl shadow-2xl flex flex-col overflow-hidden mb-3 sm:mb-4 animate-in fade-in slide-in-from-bottom-4"
+                style={{
+                  border: `1px solid ${themeColor}44`,
+                  boxShadow: `0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 25px -5px ${themeColor}33`
+                }}
+              >
+                <div 
+                  className="p-4 border-b flex items-center justify-between"
+                  style={{
+                    background: `linear-gradient(135deg, ${themeColor}22 0%, rgba(15, 23, 42, 0.95) 100%)`,
+                    borderBottomColor: `${themeColor}33`
+                  }}
+                >
                   <div className="flex items-center gap-3">
                     <div
                       className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs shadow-md"
@@ -199,8 +211,8 @@ export default function ChatPreview({
                     </div>
                     <div>
                       <div className="text-sm font-bold text-white">Virtual Assistant</div>
-                      <div className="text-[11px] text-emerald-400 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                      <div className="text-[11px] flex items-center gap-1" style={{ color: themeColor }}>
+                        <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: themeColor }}></span>
                         Live on {activeSite.domain}
                       </div>
                     </div>
@@ -214,8 +226,16 @@ export default function ChatPreview({
                   {previewMessages.map((m, idx) => {
                     if (m.role === 'tool') {
                       return (
-                        <div key={idx} className="mr-auto my-1.5 p-3 rounded-xl bg-indigo-950/80 border border-brand-500/30 font-mono text-[11px] text-brand-300 space-y-1 shadow-inner animate-in fade-in">
-                          <div className="flex items-center gap-1.5 font-bold text-brand-400">
+                        <div 
+                          key={idx} 
+                          className="mr-auto my-1.5 p-3 rounded-xl font-mono text-[11px] space-y-1 shadow-inner animate-in fade-in"
+                          style={{
+                            backgroundColor: `${themeColor}15`,
+                            border: `1px solid ${themeColor}33`,
+                            color: themeColor
+                          }}
+                        >
+                          <div className="flex items-center gap-1.5 font-bold">
                             ⚙️ tool_call
                           </div>
                         </div>
@@ -223,11 +243,18 @@ export default function ChatPreview({
                     }
                     const isUser = m.role === 'user';
                     return (
-                      <div key={idx} className={`max-w-[85%] p-3 rounded-xl ${
-                        isUser 
-                          ? 'ml-auto bg-brand-600 text-white rounded-br-none' 
-                          : 'mr-auto bg-dark-800 text-gray-200 border border-white/5 rounded-bl-none'
-                      }`}>
+                      <div 
+                        key={idx} 
+                        className={`max-w-[85%] p-3 rounded-xl ${
+                          isUser 
+                            ? 'ml-auto text-white rounded-br-none' 
+                            : 'mr-auto bg-dark-800 text-gray-200 border border-white/5 rounded-bl-none'
+                        }`}
+                        style={isUser ? {
+                          backgroundColor: themeColor,
+                          boxShadow: `0 4px 12px ${themeColor}44`
+                        } : {}}
+                      >
                         {m.text}
                       </div>
                     );
@@ -236,9 +263,9 @@ export default function ChatPreview({
                   {previewStreaming && (
                     <div className="mr-auto bg-dark-800 text-gray-400 border border-white/5 rounded-xl rounded-bl-none p-3 max-w-[200px] flex items-center gap-2">
                       <div className="flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-brand-400 animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                        <span className="w-1.5 h-1.5 rounded-full bg-brand-400 animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                        <span className="w-1.5 h-1.5 rounded-full bg-brand-400 animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                        <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ backgroundColor: themeColor, animationDelay: '0ms' }}></span>
+                        <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ backgroundColor: themeColor, animationDelay: '150ms' }}></span>
+                        <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ backgroundColor: themeColor, animationDelay: '300ms' }}></span>
                       </div>
                       <span className="text-[10px] text-gray-500 italic">{typeof previewStreaming === 'string' ? previewStreaming : '...'}</span>
                     </div>
@@ -246,14 +273,21 @@ export default function ChatPreview({
                   <div ref={chatMessagesEndRef} />
                 </div>
 
-                <div className="p-3 bg-dark-800 border-t border-white/10 flex items-center gap-2">
+                <div 
+                  className="p-3 border-t flex items-center gap-2"
+                  style={{
+                    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                    borderTopColor: `${themeColor}22`
+                  }}
+                >
                   <input
                     type="text"
                     placeholder="Ask your assistant anything..."
                     value={previewInput}
                     onChange={(e) => setPreviewInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSendPreviewChat()}
-                    className="flex-1 bg-dark-900 border border-gray-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-brand-500"
+                    className="flex-1 bg-dark-900 border rounded-xl px-3 py-2 text-xs text-white outline-none"
+                    style={{ borderColor: `${themeColor}44` }}
                   />
                   <button
                     onClick={handleSendPreviewChat}

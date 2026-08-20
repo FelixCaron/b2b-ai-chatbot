@@ -1106,3 +1106,23 @@ Pour garantir une étanchéité absolue des données entre les locataires (tenan
 ### Conséquences
 - Zéro fuite de données possible entre tenants via l'API client Supabase.
 - Chaque utilisateur (anonyme ou connecté) ne peut lire, insérer ou modifier que ses propres données.
+
+## ADR : Déverrouillage de l'origine pour les previews et thématisation dynamique complète du chatbot
+**Date:** 20 Août 2026
+**Statut:** Accepté
+
+### Contexte
+1. L'API de chat (`api/chat/index.js`) bloquait le preview interactif avec l'erreur `Origin non autorisée pour ce site.` car le verrouillage de domaine ne reconnaissait pas les origines de test/preview (Vercel previews `*.vercel.app`, localhost, domaine de l'admin) pour les bots clients.
+2. Le panneau de chat (preview et widget externe) avait des éléments codés en dur aux couleurs d'indigo par défaut (bulles utilisateur, bordures, badges, liens) au lieu d'épouser le thème de couleur extrait du site web.
+
+### Décision
+1. **Autorisation des origines dans `api/chat/index.js`** :
+   - Maintien de l'isolation de sécurité pour les sites clients finaux.
+   - Autorisation explicite des environnements d'administration, de preview Vercel (`*.vercel.app`), de `localhost` et de `ADMIN_ALLOWED_ORIGINS` pour tester en direct tous les chatbots depuis le dashboard.
+2. **Harmonisation complète du thème du chatbot** :
+   - Application de la couleur de marque `themeColor` dynamique sur : l'en-tête du panneau (dégradé subtil), le halo/bordure du modal, les bulles de messages de l'utilisateur, les liens et surlignages de l'assistant, l'indicateur de frappe, le bouton d'envoi et le bouton flottant (launcher).
+   - Intégration de variables CSS standardisées (`--b2b-theme`, `--b2b-theme-shadow`, `--b2b-theme-border`, `--b2b-theme-header`) dans le composant widget pour un rendu identique en embarqué.
+
+### Conséquences
+- Le test interactif en direct dans le Dashboard fonctionne immédiatement sans erreur 403.
+- Le chatbot s'intègre harmonieusement avec l'identité visuelle de chaque site web client.

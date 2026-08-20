@@ -1501,9 +1501,21 @@ export default function Dashboard({
               <div className="absolute bottom-3 right-3 sm:bottom-6 sm:right-6 z-[100000] flex flex-col items-end max-w-[calc(100vw-24px)]">
                 {/* Chat Panel Modal */}
                 {previewChatOpen && (
-                  <div className="w-[calc(100vw-24px)] sm:w-[380px] h-[70vh] sm:h-[520px] max-h-[600px] bg-dark-900 border border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden mb-3 sm:mb-4 animate-in fade-in slide-in-from-bottom-4">
+                  <div 
+                    className="w-[calc(100vw-24px)] sm:w-[380px] h-[70vh] sm:h-[520px] max-h-[600px] bg-dark-900 rounded-2xl shadow-2xl flex flex-col overflow-hidden mb-3 sm:mb-4 animate-in fade-in slide-in-from-bottom-4"
+                    style={{
+                      border: `1px solid ${themeColor}44`,
+                      boxShadow: `0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 25px -5px ${themeColor}33`
+                    }}
+                  >
                     {/* Header */}
-                    <div className="p-4 bg-dark-800 border-b border-white/10 flex items-center justify-between">
+                    <div 
+                      className="p-4 border-b flex items-center justify-between"
+                      style={{
+                        background: `linear-gradient(135deg, ${themeColor}22 0%, rgba(15, 23, 42, 0.95) 100%)`,
+                        borderBottomColor: `${themeColor}33`
+                      }}
+                    >
                       <div className="flex items-center gap-3">
                         <div
                           className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs shadow-md"
@@ -1513,8 +1525,8 @@ export default function Dashboard({
                         </div>
                         <div>
                           <div className="text-sm font-bold text-white">Virtual Assistant</div>
-                          <div className="text-[11px] text-emerald-400 flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                          <div className="text-[11px] flex items-center gap-1" style={{ color: themeColor }}>
+                            <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: themeColor }}></span>
                             Live on {activeSite.domain}
                           </div>
                         </div>
@@ -1529,19 +1541,27 @@ export default function Dashboard({
                       {previewMessages.map((m, idx) => {
                         if (m.role === 'tool') {
                           return (
-                            <div key={idx} className="mr-auto my-1.5 p-3 rounded-xl bg-indigo-950/80 border border-brand-500/30 font-mono text-[11px] text-brand-300 space-y-1 shadow-inner animate-in fade-in">
-                              <div className="flex items-center gap-1.5 font-bold text-brand-400">
-                                <span>🛠️ Tool Call:</span>
-                                <span className="bg-brand-500/20 px-1.5 py-0.5 rounded text-white">{m.tool_call.name}</span>
+                            <div 
+                              key={idx} 
+                              className="mr-auto my-1.5 p-3 rounded-xl font-mono text-[11px] space-y-1 shadow-inner animate-in fade-in"
+                              style={{
+                                backgroundColor: `${themeColor}15`,
+                                border: `1px solid ${themeColor}33`,
+                                color: themeColor
+                              }}
+                            >
+                              <div className="flex items-center gap-1.5 font-bold">
+                                <span>🛠️  Tool Call:</span>
+                                <span className="px-1.5 py-0.5 rounded text-white" style={{ backgroundColor: `${themeColor}44` }}>{m.tool_call.name}</span>
                               </div>
                               {m.tool_call.name === 'search_knowledge_base' && (
                                 <div className="space-y-1">
-                                  <div>🔍 Search keywords: "{m.tool_call.keywords || m.tool_call.query}"</div>
+                                  <div>🔍  Search keywords: "{m.tool_call.keywords || m.tool_call.query}"</div>
                                   <div className="text-[10px] text-gray-400 mb-1">📄 {m.tool_call.matched_chunks} chunks matched ({m.tool_call.sources?.length || 0} sources)</div>
                                   {m.tool_call.sources && m.tool_call.sources.length > 0 && (
                                     <div className="mt-1 flex flex-col gap-1">
                                       {m.tool_call.sources.map((src, i) => (
-                                        <a key={i} href={src} target="_blank" rel="noopener noreferrer" className="text-[9px] text-indigo-400 hover:text-indigo-300 truncate max-w-[200px] flex items-center gap-1 bg-indigo-950/50 px-1.5 py-0.5 rounded border border-indigo-500/20">
+                                        <a key={i} href={src} target="_blank" rel="noopener noreferrer" className="text-[9px] truncate max-w-[200px] flex items-center gap-1 px-1.5 py-0.5 rounded border" style={{ color: themeColor, backgroundColor: `${themeColor}15`, borderColor: `${themeColor}33` }}>
                                           🔗 {src.replace(`https://${activeSite.domain}`, '') || '/'}
                                         </a>
                                       ))}
@@ -1564,16 +1584,20 @@ export default function Dashboard({
                             key={idx}
                             className={`max-w-[85%] p-3 rounded-xl leading-relaxed ${
                               m.role === 'user'
-                                ? 'ml-auto bg-gradient-to-r from-brand-600 to-indigo-600 text-white rounded-br-none shadow-md'
+                                ? 'ml-auto text-white rounded-br-none shadow-md'
                                 : 'mr-auto bg-dark-800 text-gray-200 border border-white/5 rounded-bl-none shadow-md prose prose-invert prose-sm max-w-none'
                             }`}
+                            style={m.role === 'user' ? {
+                              backgroundColor: themeColor,
+                              boxShadow: `0 4px 14px -2px ${themeColor}66`
+                            } : {}}
                           >
                             {m.role === 'user' ? m.text : (
                               <ReactMarkdown
                                 remarkPlugins={[remarkGfm]}
                                 components={{
                                   a: ({ node, ...props }) => (
-                                    <a {...props} target="_blank" rel="noopener noreferrer" className="text-brand-400 hover:text-brand-300 underline font-semibold transition-colors" />
+                                    <a {...props} target="_blank" rel="noopener noreferrer" className="underline font-semibold transition-colors" style={{ color: themeColor }} />
                                   ),
                                   strong: ({ node, ...props }) => (
                                     <strong {...props} className="font-bold text-white" />
@@ -1589,7 +1613,7 @@ export default function Dashboard({
                                   ),
                                   code: ({ node, inline, ...props }) => (
                                     inline
-                                      ? <code {...props} className="bg-white/10 text-brand-200 text-[11px] px-1.5 py-0.5 rounded font-mono" />
+                                      ? <code {...props} className="bg-white/10 text-[11px] px-1.5 py-0.5 rounded font-mono" style={{ color: themeColor }} />
                                       : <code {...props} className="block bg-black/40 text-gray-200 p-2 rounded text-[11px] font-mono overflow-x-auto my-1.5 border border-white/5" />
                                   ),
                                   p: ({ node, ...props }) => (
@@ -1608,9 +1632,9 @@ export default function Dashboard({
                       {previewStreaming && (
                         <div className="mr-auto bg-dark-800 text-gray-400 border border-white/5 rounded-xl rounded-bl-none p-3 max-w-[200px] flex items-center gap-2">
                           <div className="flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-brand-400 animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                            <span className="w-1.5 h-1.5 rounded-full bg-brand-400 animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                            <span className="w-1.5 h-1.5 rounded-full bg-brand-400 animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                            <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ backgroundColor: themeColor, animationDelay: '0ms' }}></span>
+                            <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ backgroundColor: themeColor, animationDelay: '150ms' }}></span>
+                            <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ backgroundColor: themeColor, animationDelay: '300ms' }}></span>
                           </div>
                           <span className="text-[10px] text-gray-500 italic">{typeof previewStreaming === 'string' ? previewStreaming : '...'}</span>
                         </div>
@@ -1619,14 +1643,21 @@ export default function Dashboard({
                     </div>
 
                     {/* Input */}
-                    <div className="p-3 bg-dark-800 border-t border-white/10 flex items-center gap-2">
+                    <div 
+                      className="p-3 border-t flex items-center gap-2"
+                      style={{
+                        backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                        borderTopColor: `${themeColor}22`
+                      }}
+                    >
                       <input
                         type="text"
                         placeholder="Ask your assistant anything..."
                         value={previewInput}
                         onChange={(e) => setPreviewInput(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleSendPreviewChat()}
-                        className="flex-1 bg-dark-900 border border-gray-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-brand-500"
+                        className="flex-1 bg-dark-900 border rounded-xl px-3 py-2 text-xs text-white outline-none"
+                        style={{ borderColor: `${themeColor}44` }}
                       />
                       <button
                         onClick={handleSendPreviewChat}

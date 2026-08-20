@@ -33,20 +33,43 @@ function requestOrigin(req) {
   }
 }
 
-function isAllowedAdminOrigin(origin) {
-  if (!origin) return false;
-  const configuredOrigins = [process.env.ADMIN_ALLOWED_ORIGINS, process.env.VITE_APP_URL]
-    .filter(Boolean)
-    .flatMap((value) => value.split(','))
-    .map((value) => value.trim())
-    .filter(Boolean);
+function isAllowedOrigin(origin, req, siteDomainClean) {
+  if (!origin) return true;
+  try {
+    const originUrl = new URL(origin);
+    const originHostname = normalizedHostname(originUrl.hostname);
 
-  if (configuredOrigins.some((value) => {
-    try { return new URL(value).origin === origin; } catch { return false; }
-  })) return true;
+    // 1. Direct match with client domain (e.g. client-site.com, subdomains)
+    if (siteDomainClean && originHostname && (originHostname === siteDomainClean || originHostname.endsWith(`.${siteDomainClean}`))) {
+      return true;
+    }
 
-  return process.env.VERCEL_ENV !== 'production'
-    && ['http://localhost:3000', 'http://127.0.0.1:3000'].includes(origin);
+    // 2. Allowed developer / preview / admin origins (Vercel preview branches, localhost)
+    if (originHostname.endsWith('.vercel.app') || originHostname === 'localhost' || originHostname === '127.0.0.1') {
+      return true;
+    }
+
+    // 3. Same-origin as the Vercel API deployment host
+    const host = req?.headers?.get?.('host') || req?.headers?.host;
+    if (host) {
+      const hostClean = normalizedHostname(host.split(':')[0]);
+      if (originHostname === hostClean) return true;
+    }
+
+    // 4. Custom configured admin origins
+    const configuredOrigins = [process.env.ADMIN_ALLOWED_ORIGINS, process.env.VITE_APP_URL]
+      .filter(Boolean)
+      .flatMap((value) => value.split(','))
+      .map((value) => value.trim())
+      .filter(Boolean);
+
+    if (configuredOrigins.some((value) => {
+      try { return new URL(value).origin === originUrl.origin; } catch { return false; }
+    })) return true;
+  } catch {
+    return false;
+  }
+  return false;
 }
 
 export default async function handler(req) {
@@ -142,22 +165,20 @@ export default async function handler(req) {
     }
 
     if (!site) {
-      return new Response(JSON.stringify({ error: `ClÃƒÂ© de site invalide (${tenant_public_key}). Le site n'a pas ÃƒÂ©tÃƒÂ© trouvÃƒÂ© dans la base de donnÃƒÂ©es.` }), {
+      return new Response(JSON.stringify({ error: `Clé de site invalide (${tenant_public_key}). Le site n'a pas été trouvé dans la base de données.` }), {
         status: 404,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
 
     const tenantId = site.tenant_id;
-    // Domain locking: verify request origin matches site domain
+    // Domain locking: verify request origin matches site domain or admin preview
     const origin = requestOrigin(req);
     const siteDomainClean = normalizedHostname(site.domain);
-    const originHostname = origin ? normalizedHostname(origin) : '';
-    const isDomainMatch = originHostname && originHostname === siteDomainClean;
-    const canUseAdminOrigin = isAdminCopilot && isAllowedAdminOrigin(origin);
+    const isOriginAuthorized = isAdminCopilot || isAllowedOrigin(origin, req, siteDomainClean);
 
-    if (!isDomainMatch && !canUseAdminOrigin) {
-      return new Response(JSON.stringify({ error: 'Origin non autorisÃƒÂ©e pour ce site.' }), {
+    if (!isOriginAuthorized) {
+      return new Response(JSON.stringify({ error: 'Origin non autorisée pour ce site.' }), {
         status: 403,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
