@@ -1285,3 +1285,22 @@ Pour protéger la plateforme, le processus d'onboarding, et les endpoints public
 
 ### Conséquences
 - Protection 100% invisible contre les attaques de bots automatisés sans puzzles irritants pour les clients humains.
+
+## ADR : Correction et accessibilité des boutons "Settings" et "Delete Website"
+**Date:** 20 Août 2026
+**Statut:** Accepté
+
+### Contexte
+L'utilisateur a signalé des boutons inactifs ou difficiles d'accès pour l'affichage des paramètres ("Show Settings") et la suppression d'un site web ("Delete Website").
+
+### Décision
+- **Accès direct "Settings"** :
+  - Ajout d'un bouton d'action directe "Settings" dans la barre principale du site actif dans [`Dashboard.jsx`](file:///c:/Users/felix/Desktop/Chatbots/Demos/b2b-ai-chatbot/apps/admin/src/features/dashboard/Dashboard.jsx) qui ouvre et fait défiler automatiquement jusqu'à la section des paramètres avancés (`#advanced-settings-section`).
+  - Sécurisation du bouton accordéon "Show Settings / Hide Settings" avec `type="button"`, `e.preventDefault()`, et gestion explicite de l'état `showAdvancedSettings`.
+- **Suppression de site web ("Delete Website")** :
+  - Ajout d'un libellé clair "Delete" sur le bouton d'action rapide de la carte du site.
+  - Ajout d'un bloc dédié "Danger Zone: Delete Website" dans le panneau des paramètres avancés.
+  - Ajout du bouton de suppression avec confirmation dans [`SitesManager.jsx`](file:///c:/Users/felix/Desktop/Chatbots/Demos/b2b-ai-chatbot/apps/admin/src/components/SitesManager.jsx).
+
+### Conséquences
+- L'utilisateur peut ouvrir et fermer les paramètres en un clic et supprimer n'importe quel site web de manière fluide avec confirmation de sécurité.

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Globe, Plus, Code, Search, Check, CheckSquare, Square, Layers, Loader2, Send } from 'lucide-react';
+import { Globe, Plus, Code, Search, Check, CheckSquare, Square, Layers, Loader2, Send, Trash2 } from 'lucide-react';
 
-export default function SitesManager({ sites, tenant, onAddSite, onTriggerScan }) {
+export default function SitesManager({ sites, tenant, onAddSite, onTriggerScan, onDeleteSite }) {
   const [newDomain, setNewDomain] = useState('');
   const [copiedKey, setCopiedKey] = useState(null);
 
@@ -146,20 +146,38 @@ export default function SitesManager({ sites, tenant, onAddSite, onTriggerScan }
                   </div>
                 </div>
 
-                <button
-                  onClick={() => copySnippet(site.public_key)}
-                  className="bg-dark-800 hover:bg-gray-700 border border-gray-700 text-gray-300 hover:text-white px-4 py-2 rounded-lg text-xs font-medium flex items-center gap-2 transition-all"
-                >
-                  {copiedKey === site.public_key ? (
-                    <>
-                      <Check className="w-3.5 h-3.5 text-emerald-400" /> Copied!
-                    </>
-                  ) : (
-                    <>
-                      <Code className="w-3.5 h-3.5 text-brand-400" /> Copy Embed Code
-                    </>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => copySnippet(site.public_key)}
+                    className="bg-dark-800 hover:bg-gray-700 border border-gray-700 text-gray-300 hover:text-white px-4 py-2 rounded-lg text-xs font-medium flex items-center gap-2 transition-all"
+                  >
+                    {copiedKey === site.public_key ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-400" /> Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Code className="w-3.5 h-3.5 text-brand-400" /> Copy Embed Code
+                      </>
+                    )}
+                  </button>
+
+                  {onDeleteSite && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (window.confirm(`Are you sure you want to delete ${site.domain}?`)) {
+                          onDeleteSite(site.id);
+                        }
+                      }}
+                      className="bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 hover:text-red-300 p-2 rounded-lg text-xs transition-all"
+                      title="Delete site"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   )}
-                </button>
+                </div>
               </div>
             ))}
           </div>

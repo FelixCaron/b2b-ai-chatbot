@@ -988,9 +988,23 @@ export default function Dashboard({
                     if (isGuest) onRequireLogin();
                     else setShowIntegrationModal(true);
                   }}
-                  className="bg-dark-900 hover:bg-gray-800 border border-white/10 text-gray-200 hover:text-white px-5 py-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-all shadow-sm"
+                  className="bg-dark-900 hover:bg-gray-800 border border-white/10 text-gray-200 hover:text-white px-4 py-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-all shadow-sm"
                 >
                   <Code className="w-4 h-4 text-brand-400" /> Embed Widget
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAdvancedSettings(true);
+                    setTimeout(() => {
+                      document.getElementById('advanced-settings-section')?.scrollIntoView({ behavior: 'smooth' });
+                    }, 50);
+                  }}
+                  className="bg-dark-900 hover:bg-gray-800 border border-white/10 text-gray-300 hover:text-white px-4 py-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-all shadow-sm"
+                  title="Configure Bot & Settings"
+                >
+                  <Settings2 className="w-4 h-4 text-indigo-400" /> Settings
                 </button>
 
                 <button
@@ -1011,11 +1025,13 @@ export default function Dashboard({
                 </button>
 
                 <button
+                  type="button"
                   onClick={() => setShowDeleteConfirmModal(true)}
-                  className="bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 hover:text-red-300 p-3 rounded-xl text-sm transition-all"
+                  className="bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 hover:text-red-300 px-3.5 py-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-sm"
                   title="Delete this website"
                 >
                   <Trash2 className="w-4 h-4" />
+                  <span className="hidden sm:inline">Delete</span>
                 </button>
               </div>
             </div>
@@ -1070,10 +1086,14 @@ export default function Dashboard({
           </div>
 
           {/* Collapsible Section for Non-Essential / Advanced Settings */}
-          <div className="bg-dark-800/40 rounded-2xl border border-white/5 overflow-hidden transition-all">
+          <div id="advanced-settings-section" className="bg-dark-800/40 rounded-2xl border border-white/5 overflow-hidden transition-all scroll-mt-20">
             <button
-              onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
-              className="w-full p-5 sm:p-6 flex items-center justify-between text-left hover:bg-white/[0.02] transition-colors"
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                setShowAdvancedSettings((prev) => !prev);
+              }}
+              className="w-full p-5 sm:p-6 flex items-center justify-between text-left hover:bg-white/[0.02] transition-colors cursor-pointer select-none"
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-dark-700/80 border border-white/10 flex items-center justify-center text-indigo-400">
@@ -1410,6 +1430,26 @@ export default function Dashboard({
                       </tbody>
                     </table>
                   </div>
+                </div>
+
+                {/* 4. Danger Zone: Delete Website */}
+                <div className="bg-red-950/20 border border-red-500/20 rounded-xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div>
+                    <h4 className="text-sm font-bold text-red-400 flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-red-400" /> Danger Zone: Delete Website
+                    </h4>
+                    <p className="text-xs text-gray-400 mt-1">
+                      Permanently remove <strong>{activeSite?.domain}</strong>, all indexed vector pages, custom business summaries, and revoke the public API key.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteConfirmModal(true)}
+                    className="bg-red-600/80 hover:bg-red-600 text-white font-semibold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 transition-all shrink-0 shadow-md shadow-red-900/30 cursor-pointer"
+                  >
+                    <Trash2 className="w-4 h-4" /> Delete Website
+                  </button>
                 </div>
               </div>
             )}
