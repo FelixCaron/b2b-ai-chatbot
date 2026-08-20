@@ -261,13 +261,14 @@ Ne mentionne jamais de portes coupe-feu ou d'autres sujets sans rapport.\n`;
     const goalString = site.bot_goal === 'lead' ? "Objectif Principal: Convertir le visiteur en prospect. Incite fortement ÃƒÂ  laisser un email ou numÃƒÂ©ro." : "Objectif Principal: Informer et supporter le visiteur. RÃƒÂ©ponds de faÃƒÂ§on exhaustive et claire.";
 
     // Integrations Context
-    const hasProPlan = site.tenants?.site.tenants?.plan === 'pro' || site.tenants?.site.tenants?.plan === 'enterprise';
+    const tenantPlan = (Array.isArray(site.tenants) ? site.tenants[0]?.plan : site.tenants?.plan) || 'free';
+    const hasProPlan = tenantPlan === 'pro' || tenantPlan === 'enterprise';
     const calendarInstruction = (hasProPlan && site.calendar_link) 
-      ? `5. PRISE DE RENDEZ-VOUS : Si l'utilisateur souhaite prendre rendez-vous, fournis TOUJOURS ce lien de rÃƒÂ©servation : [Prendre rendez-vous](${site.calendar_link}).`
+      ? `5. PRISE DE RENDEZ-VOUS : Si l'utilisateur souhaite prendre rendez-vous, fournis TOUJOURS ce lien de réservation : [Prendre rendez-vous](${site.calendar_link}).`
       : "";
       
     const supportInstruction = (hasProPlan && site.support_email)
-      ? `6. SUPPORT TECHNIQUE : Si l'utilisateur demande de l'aide ou a un problÃƒÂ¨me, utilise l'outil "send_support_email" pour alerter notre ÃƒÂ©quipe de support.`
+      ? `6. SUPPORT TECHNIQUE : Si l'utilisateur demande de l'aide ou a un problème, utilise l'outil "send_support_email" pour alerter notre équipe de support.`
       : "";
 
     const systemPrompt = `Tu es l'agent de service client et l'assistant virtuel officiel de l'entreprise (site web: ${site.domain}). 
@@ -404,7 +405,7 @@ ${supportInstruction}`;
             // Use GPT Luna across all plans for optimal response speed & accuracy
             const defaultModel = process.env.DEFAULT_MODEL || 'openai/gpt-5.6-luna';
             const premiumModel = process.env.PREMIUM_MODEL || 'anthropic/claude-3.5-sonnet';
-            const selectedModel = (site.tenants?.plan === 'pro' || site.tenants?.plan === 'enterprise') ? premiumModel : defaultModel;
+            const selectedModel = hasProPlan ? premiumModel : defaultModel;
 
             const responseData = await generateChatResponse({ 
               systemPrompt, 

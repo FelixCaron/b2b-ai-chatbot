@@ -1142,3 +1142,17 @@ Si l'API de chat autorisait passivement toutes les origines `localhost` ou `*.ve
 ### Conséquences
 - **Sécurité maximale** : Impossible pour un tiers d'utiliser la clé publique d'un client depuis `localhost`, un script ou un domaine concurrent pour consommer ses crédits.
 - **Expérience développeur et preview fluide** : Le propriétaire du bot connecté à son Dashboard peut tester son bot en direct en toute sécurité.
+
+## ADR : Correction du parsing du plan tenant (tenants undefined)
+**Date:** 20 Août 2026
+**Statut:** Accepté
+
+### Contexte
+Une erreur d'accès `Cannot read properties of undefined (reading 'tenants')` survenait dans `api/chat/index.js` en raison d'une duplication d'accès imbriqué `site.tenants?.site.tenants?.plan`.
+
+### Décision
+- Normalisation de l'extraction de `tenantPlan` gérant à la fois les objets et les tableaux retournés par les jointures Supabase : `const tenantPlan = (Array.isArray(site.tenants) ? site.tenants[0]?.plan : site.tenants?.plan) || 'free';`.
+- Réutilisation de `hasProPlan` pour la sélection du modèle LLM et la configuration des intégrations.
+
+### Conséquences
+- Plus d'erreur 500 sur l'API de chat.
