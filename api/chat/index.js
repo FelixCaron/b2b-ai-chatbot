@@ -33,50 +33,11 @@ function requestOrigin(req) {
   }
 }
 
-function isAllowedOrigin(origin, req, siteDomainClean) {
-  if (!origin) return true;
-  try {
-    const originUrl = new URL(origin);
-    const originHostname = normalizedHostname(originUrl.hostname);
-
-    // 1. Direct match with client domain (e.g. client-site.com, subdomains)
-    if (siteDomainClean && originHostname && (originHostname === siteDomainClean || originHostname.endsWith(`.${siteDomainClean}`))) {
-      return true;
-    }
-
-    // 2. Allowed developer / preview / admin origins (Vercel preview branches, localhost)
-    if (originHostname.endsWith('.vercel.app') || originHostname === 'localhost' || originHostname === '127.0.0.1') {
-      return true;
-    }
-
-    // 3. Same-origin as the Vercel API deployment host
-    const host = req?.headers?.get?.('host') || req?.headers?.host;
-    if (host) {
-      const hostClean = normalizedHostname(host.split(':')[0]);
-      if (originHostname === hostClean) return true;
-    }
-
-    // 4. Custom configured admin origins
-    const configuredOrigins = [process.env.ADMIN_ALLOWED_ORIGINS, process.env.VITE_APP_URL]
-      .filter(Boolean)
-      .flatMap((value) => value.split(','))
-      .map((value) => value.trim())
-      .filter(Boolean);
-
-    if (configuredOrigins.some((value) => {
-      try { return new URL(value).origin === originUrl.origin; } catch { return false; }
-    })) return true;
-  } catch {
-    return false;
-  }
-  return false;
-}
-
 export default async function handler(req) {
   if (req.method === 'OPTIONS') {
     return new Response('ok', {
       headers: {
-        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Origin': req.headers.get('origin') || '*',
         'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
         'Access-Control-Allow-Methods': 'POST, GET, OPTIONS'
       }
@@ -172,10 +133,40 @@ export default async function handler(req) {
     }
 
     const tenantId = site.tenant_id;
-    // Domain locking: verify request origin matches site domain or admin preview
+    // Strict Domain Locking: verify request origin strictly matches client's registered domain
     const origin = requestOrigin(req);
     const siteDomainClean = normalizedHostname(site.domain);
-    const isOriginAuthorized = isAdminCopilot || isAllowedOrigin(origin, req, siteDomainClean);
+    const originHostname = origin ? normalizedHostname(origin) : '';
+    const isDomainMatch = originHostname && (originHostname === siteDomainClean || originHostname.endsWith(`.${siteDomainClean}`));
+
+    let isOriginAuthorized = isAdminCopilot || isDomainMatch;
+
+    // If request does NOT come from the client's registered domain (e.g. preview from admin or dev),
+    // require an authenticated session token belonging to the tenant owner.
+    // This strictly prevents attackers from using localhost or random domains to abuse public keys and drain credits.
+    if (!isOriginAuthorized) {
+      const authorization = typeof req.headers?.get === 'function' ? req.headers.get('authorization') : req.headers?.authorization;
+      const token = authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
+      if (token) {
+        try {
+          const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+          if (user && !userError) {
+            const { data: ownerTenant } = await supabase
+              .from('tenants')
+              .select('id')
+              .eq('id', tenantId)
+              .eq('owner_user_id', user.id)
+              .maybeSingle();
+
+            if (ownerTenant) {
+              isOriginAuthorized = true; // Authenticated owner preview authorized
+            }
+          }
+        } catch (authErr) {
+          console.warn('[chat auth validation] error:', authErr.message);
+        }
+      }
+    }
 
     if (!isOriginAuthorized) {
       return new Response(JSON.stringify({ error: 'Origin non autorisée pour ce site.' }), {

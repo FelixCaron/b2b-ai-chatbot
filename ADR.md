@@ -1126,3 +1126,19 @@ Pour garantir une étanchéité absolue des données entre les locataires (tenan
 ### Conséquences
 - Le test interactif en direct dans le Dashboard fonctionne immédiatement sans erreur 403.
 - Le chatbot s'intègre harmonieusement avec l'identité visuelle de chaque site web client.
+
+## ADR : Sécurisation cryptographique de l'origine et protection anti-abus de quota (DDoS / Scraping)
+**Date:** 20 Août 2026
+**Statut:** Accepté
+
+### Contexte
+Si l'API de chat autorisait passivement toutes les origines `localhost` ou `*.vercel.app`, un attaquant aurait pu récupérer la `tenant_public_key` publique d'un client et envoyer des requêtes de chat en boucle depuis sa propre machine ou un site externe pour épuiser les crédits IA et le quota du client.
+
+### Décision
+1. **Verrouillage strict de domaine par défaut** : Si la requête provient du domaine enregistré du client (`origin === site.domain`), elle est autorisée sans authentification préalable (usage normal du widget par les visiteurs du site).
+2. **Authentification cryptographique obligatoire hors-domaine** : Si la requête provient d'une origine différente (comme le Dashboard Admin sur Vercel ou en dev local), l'API `/api/chat` exige impérativement un JWT Supabase valide (`Authorization: Bearer <token>`) ET vérifie que `user.id === tenant.owner_user_id`.
+3. **Rejet strict (403)** : Tout appel tiers non authentifié ou provenant d'un utilisateur ne possédant pas le tenant est immédiatement rejeté avec une erreur 403.
+
+### Conséquences
+- **Sécurité maximale** : Impossible pour un tiers d'utiliser la clé publique d'un client depuis `localhost`, un script ou un domaine concurrent pour consommer ses crédits.
+- **Expérience développeur et preview fluide** : Le propriétaire du bot connecté à son Dashboard peut tester son bot en direct en toute sécurité.

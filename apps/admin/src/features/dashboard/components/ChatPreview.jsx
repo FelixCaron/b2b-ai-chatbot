@@ -60,9 +60,11 @@ export default function ChatPreview({
     let hasAssistantBubble = false;
 
     try {
+      const authHeaders = await authenticatedHeaders();
       await fetchEventSource(`${window.location.origin}/api/chat`, {
         method: 'POST',
         headers: {
+          ...authHeaders,
           'Content-Type': 'application/json',
           'Accept': 'text/event-stream',
         },
