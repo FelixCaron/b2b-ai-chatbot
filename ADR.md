@@ -1,5 +1,8 @@
 # B2B AI Chatbot - Architecture Decision Records (ADR)
 
+Note (English): Plans were updated — Free was removed. New plans are: Basic ($15/month), Pro ($40/month), Premium ($65/month). Update environment variables for Stripe price IDs: STRIPE_PRICE_ID_BASIC, STRIPE_PRICE_ID_PRO, STRIPE_PRICE_ID_PREMIUM.
+
+
 ---
 
 ## ADR 035 : Suppression Universelle et Résiliente de Sites Web (Dernier Site & Mode Prévisualisation)
@@ -331,7 +334,7 @@ Les utilisateurs souhaitaient pouvoir supprimer un site web obsolÃƒÂ¨te ou e
    - **Free ($0)** : 1 site max, 15 pages max, modÃƒÂ¨le lÃƒÂ©ger `google/gemini-2.0-flash-001`.
    - **Basic ($45 CAD)** : 1 site max, 50 pages max, modÃƒÂ¨le rapide optimisÃƒÂ© `openai/gpt-4o-mini`.
    - **Pro ($129 CAD)** : Jusqu'ÃƒÂ  5 sites, 250 pages/site, modÃƒÂ¨le de raisonnement avancÃƒÂ© `openai/gpt-4o`.
-   - **Enterprise (Custom)** : Sites et pages illimitÃƒÂ©s, modÃƒÂ¨le haute fidÃƒÂ©litÃƒÂ© `anthropic/claude-3.5-sonnet`.
+   - **Premium (Custom)**: Unlimited sites & pages, high-fidelity model `anthropic/claude-3.5-sonnet`.
 2. **Navigation Principale et AccÃƒÂ¨s Permanent aux Leads** :
    - Ajout d'onglets de navigation en haut de page (`Dashboard`, `Leads`, `Plans`) dans le Header et le header invitÃƒÂ©.
    - La page Leads est toujours consultable (avec tableau de bord, export CSV et message d'accueil explicatif).
@@ -1068,7 +1071,7 @@ Nous avions besoin de notifier l'administrateur en cas de plantage système (ale
 1. **Librairie Resend** ajoutée et configurée dans \pi/lib/email.js\ pour distribuer les courriels.
 2. **Alertes Bug** branchées dans le bloc try/catch global de \pi/chat/index.js\.
 3. **Alertes Lead** branchées après l'insertion réussie dans la table \leads\.
-4. **Modèles LLM via Env Vars** : \DEFAULT_MODEL\ et \PREMIUM_MODEL\ sont chargés depuis les variables d'environnement. Le LLM Premium (\claude-3.5-sonnet\ par défaut) s'active automatiquement si le \site.tenants.plan\ est \pro\ ou \enterprise\.
+4. **Modèles LLM via Env Vars** : \DEFAULT_MODEL\ et \PREMIUM_MODEL\ sont chargés depuis les variables d'environnement. The premium LLM (e.g. `anthropic/claude-3.5-sonnet`) is activated automatically when the tenant's plan is `pro` or `premium`.
 
 ### Conséquences
 - Une traçabilité parfaite des erreurs système (via courriel) en production.

@@ -29,12 +29,12 @@ const STATUS_DOT = {
 
 /**
  * PlanBadge — displays the tenant's current plan with status indicator.
- * @param {string} plan - 'free' | 'starter' | 'pro' | 'enterprise'
+ * @param {string} plan - 'basic' | 'pro' | 'premium'
  * @param {string} planStatus - 'free' | 'active' | 'trialing' | 'past_due' | 'canceled'
  * @param {boolean} compact - If true, shows only the icon (for mobile)
  */
 export default function PlanBadge({ plan = 'basic', planStatus = 'free', compact = false }) {
-  const config = PLAN_CONFIG[plan] || PLAN_CONFIG.free;
+  const config = PLAN_CONFIG[plan] || PLAN_CONFIG.basic;
   const Icon = config.icon;
   const dotClass = STATUS_DOT[planStatus] || STATUS_DOT.free;
 

@@ -13,7 +13,7 @@ ALTER TABLE tenants ALTER COLUMN plan SET DEFAULT 'free';
 CREATE INDEX IF NOT EXISTS tenants_stripe_customer_id_idx ON tenants(stripe_customer_id);
 
 -- Comment on columns for documentation
-COMMENT ON COLUMN tenants.plan IS 'Current subscription plan: free, starter, pro, enterprise';
+COMMENT ON COLUMN tenants.plan IS 'Current subscription plan: basic, pro, premium';
 COMMENT ON COLUMN tenants.plan_status IS 'Stripe subscription status: free, active, trialing, canceled, past_due';
 COMMENT ON COLUMN tenants.stripe_customer_id IS 'Stripe Customer ID (cus_...)';
 COMMENT ON COLUMN tenants.stripe_subscription_id IS 'Stripe Subscription ID (sub_...)';

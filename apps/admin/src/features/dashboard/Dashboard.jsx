@@ -29,15 +29,15 @@ export default function Dashboard({
   const [localCreatedSite, setLocalCreatedSite] = useState(null);
   const activeSite = (sites && sites.find(s => s.id === selectedSiteId)) || sites?.[0] || localCreatedSite;
 
-  const tenantPlan = selectedTenant?.plan || 'free';
+  const tenantPlan = selectedTenant?.plan || 'basic';
   const getMaxSitesForPlan = (plan) => {
-    if (plan === 'enterprise') return 999;
-    if (plan === 'pro' || plan === 'starter') return 5;
-    return 1; // free and basic: 1 website
+    if (plan === 'premium') return 999;
+    if (plan === 'pro' || plan === 'basic') return 5;
+    return 1; // basic: 1 website
   };
   const getMaxPagesForPlan = (plan) => {
-    if (plan === 'enterprise') return 9999;
-    if (plan === 'pro' || plan === 'starter') return 2000;
+    if (plan === 'premium') return 9999;
+    if (plan === 'pro' || plan === 'basic') return 2000;
     return 500; // Do not block unless over 500 pages
   };
 
@@ -1213,7 +1213,7 @@ export default function Dashboard({
 
                   {/* PRO Integrations: Support Email & Calendar Link */}
                   <div className="bg-dark-900/60 p-5 rounded-xl border border-brand-500/20 flex flex-col gap-4 relative overflow-hidden">
-                    {selectedTenant?.plan !== 'pro' && selectedTenant?.plan !== 'enterprise' && (
+                    {selectedTenant?.plan !== 'pro' && selectedTenant?.plan !== 'premium' && (
                       <div className="absolute inset-0 bg-dark-950/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center p-4 text-center">
                         <Lock className="w-6 h-6 text-brand-400 mb-2" />
                         <h4 className="text-sm font-bold text-white">Pro Feature</h4>

@@ -60,8 +60,8 @@ export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'basic' 
   const [error, setError] = useState(null);
 
   const handleSelectPlan = async (planId) => {
-    if (planId === 'enterprise') {
-      window.open('mailto:hello@your-domain.com?subject=Enterprise Plan Inquiry', '_blank');
+    if (planId === 'premium') {
+      window.open('mailto:hello@your-domain.com?subject=Premium Plan Inquiry', '_blank');
       return;
     }
 

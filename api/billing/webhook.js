@@ -25,8 +25,9 @@ async function getRawBody(req) {
 }
 
 function getPlanFromPriceId(priceId) {
-  if (priceId === process.env.STRIPE_PRICE_ID_STARTER) return 'starter';
+  if (priceId === process.env.STRIPE_PRICE_ID_BASIC) return 'basic';
   if (priceId === process.env.STRIPE_PRICE_ID_PRO) return 'pro';
+  if (priceId === process.env.STRIPE_PRICE_ID_PREMIUM || priceId === process.env.STRIPE_PRICE_ID_ENTERPRISE) return 'premium';
   if (priceId === process.env.STRIPE_PRICE_ID) return 'basic';
   return 'basic';
 }
@@ -111,7 +112,7 @@ export default async function handler(req, res) {
           if (tenant) {
             await supabase
               .from('tenants')
-              .update({ plan: 'free', plan_status: 'canceled', stripe_subscription_id: null })
+              .update({ plan: 'basic', plan_status: 'canceled', stripe_subscription_id: null })
               .eq('id', tenant.id);
           }
           break;
