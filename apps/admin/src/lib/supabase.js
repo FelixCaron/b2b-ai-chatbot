@@ -13,10 +13,19 @@ export const supabaseConfigurationError =
 export const supabase = supabaseConfigurationError ? null : createClient(url, anonKey);
 
 export async function authenticatedHeaders() {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.access_token) throw new Error('Votre session a expiré. Veuillez vous reconnecter.');
+  if (!supabase) return { 'Content-Type': 'application/json' };
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      return {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      };
+    }
+  } catch (err) {
+    console.warn('[authenticatedHeaders] failed to get session:', err);
+  }
   return {
     'Content-Type': 'application/json',
-    Authorization: `Bearer ${session.access_token}`,
   };
 }

@@ -186,7 +186,7 @@ export default function Dashboard({
     try {
       const summaryRes = await fetch(`${window.location.origin}/api/crawler/summarize`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await authenticatedHeaders(),
         body: JSON.stringify({
           tenant_id: siteObj.tenant_id,
           site_id: siteObj.id,
@@ -238,7 +238,7 @@ export default function Dashboard({
     try {
       const crawlRes = await fetch(`${window.location.origin}/api/crawler/crawl`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await authenticatedHeaders(),
         body: JSON.stringify({ url: targetUrl })
       });
 
@@ -422,7 +422,7 @@ export default function Dashboard({
         setIsRegeneratingSummary(true);
         const summaryRes = await fetch(`${window.location.origin}/api/crawler/summarize`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: await authenticatedHeaders(),
           body: JSON.stringify({
             tenant_id: activeSite.tenant_id,
             site_id: activeSite.id,
@@ -481,7 +481,7 @@ export default function Dashboard({
     try {
       const res = await fetch(`${window.location.origin}/api/crawler/summarize`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await authenticatedHeaders(),
         body: JSON.stringify({
           tenant_id: activeSite.tenant_id,
           site_id: activeSite.id,
@@ -575,16 +575,18 @@ export default function Dashboard({
         setLocalCreatedSite(siteObj);
         setIsAnalyzing(false);
 
-        fetch(`${window.location.origin}/api/chat/theme`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: formattedUrl })
-        }).then(res => res.ok ? res.json() : null).then(themeData => {
-          if (themeData?.primary_color) {
-            onUpdateSiteSettings(siteObj.id, { theme_primary_color: themeData.primary_color });
-          }
-          if (themeData?.org_name) setOrgName(themeData.org_name);
-        }).catch(() => {});
+        authenticatedHeaders().then(authHeaders => {
+          fetch(`${window.location.origin}/api/chat/theme`, {
+            method: 'POST',
+            headers: authHeaders,
+            body: JSON.stringify({ url: formattedUrl })
+          }).then(res => res.ok ? res.json() : null).then(themeData => {
+            if (themeData?.primary_color) {
+              onUpdateSiteSettings(siteObj.id, { theme_primary_color: themeData.primary_color });
+            }
+            if (themeData?.org_name) setOrgName(themeData.org_name);
+          }).catch(() => {});
+        });
 
         await runSynchronousCrawlAndIndex(siteObj, formattedUrl);
       } else {
@@ -661,7 +663,7 @@ export default function Dashboard({
     try {
       await fetch(`${window.location.origin}/api/crawler/update`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await authenticatedHeaders(),
         body: JSON.stringify({
           site_id: activeSite.id,
           tenant_id: activeSite.tenant_id,
