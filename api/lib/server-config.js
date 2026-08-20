@@ -23,9 +23,7 @@ function readAuthorizationHeader(req) {
   return req.headers?.authorization;
 }
 
-export async function requireTenantOwnership(req, tenantId) {
-  if (!tenantId) throw new Error('tenant_id is required');
-
+export async function requireAuthentication(req) {
   const authorization = readAuthorizationHeader(req);
   const token = authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
   if (!token) {
@@ -42,6 +40,14 @@ export async function requireTenantOwnership(req, tenantId) {
     throw error;
   }
 
+  return { user, supabase };
+}
+
+export async function requireTenantOwnership(req, tenantId) {
+  if (!tenantId) throw new Error('tenant_id is required');
+
+  const { user, supabase } = await requireAuthentication(req);
+
   const { data: tenant, error: tenantError } = await supabase
     .from('tenants')
     .select('id')
@@ -56,3 +62,23 @@ export async function requireTenantOwnership(req, tenantId) {
 
   return { user, supabase };
 }
+
+export async function requireSiteOwnership(req, tenantId, siteId) {
+  if (!siteId) throw new Error('site_id is required');
+  const { user, supabase } = await requireTenantOwnership(req, tenantId);
+  const { data: site, error: siteError } = await supabase
+    .from('sites')
+    .select('id')
+    .eq('id', siteId)
+    .eq('tenant_id', tenantId)
+    .maybeSingle();
+
+  if (siteError || !site) {
+    const error = new Error('Site access denied');
+    error.statusCode = 403;
+    throw error;
+  }
+
+  return { user, supabase };
+}
+

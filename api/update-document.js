@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { generateEmbedding } from './lib/llm.js';
+import { requireSiteOwnership } from './lib/server-config.js';
 
 export const config = {
   runtime: 'edge',
@@ -99,6 +100,8 @@ export default async function handler(req) {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
+
+    await requireSiteOwnership(req, tenant_id, site_id);
 
     const chunks = cleanAndChunk(content, url, 800);
 

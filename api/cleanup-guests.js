@@ -20,6 +20,10 @@ export default async function handler(req) {
     });
   }
 
+  if (req.headers.get('Authorization') !== `Bearer ${process.env.CRON_SECRET}`) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+  }
+
   try {
     // Delete guest tenants older than 24 hours
     // ON DELETE CASCADE will clean up sites, documents, messages, leads automatically

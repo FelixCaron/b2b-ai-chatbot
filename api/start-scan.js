@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { generateEmbedding, generateWebsiteSummary } from './lib/llm.js';
 import { assertSafeExternalUrl } from './lib/url-security.js';
+import { requireSiteOwnership } from './lib/server-config.js';
 
 export const config = {
   runtime: 'edge',
@@ -167,12 +168,14 @@ export default async function handler(req) {
   try {
     const { site_id, url, tenant_id } = await req.json();
 
-    if (!site_id || !url) {
-      return new Response(JSON.stringify({ error: 'Missing required fields: site_id, url' }), {
+    if (!site_id || !url || !tenant_id) {
+      return new Response(JSON.stringify({ error: 'Missing required fields: site_id, url, tenant_id' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
+
+    await requireSiteOwnership(req, tenant_id, site_id);
 
     if (process.env.TEST_MODE === 'true') {
       return new Response(JSON.stringify({

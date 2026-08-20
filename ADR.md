@@ -996,3 +996,21 @@ Utiliser les utilisateurs anonymes Supabase : un tenant d'essai est lié à cet 
 - Isolation des données par utilisateur.
 - Maintien de l'expérience d'onboarding sans friction (essai immédiat).
 
+
+## ADR : Sécurisation des endpoints API Vercel
+**Date:** 20 Août 2026
+**Statut:** Accepté
+
+### Contexte
+Les fonctions serverless (\start-scan.js\, \update-document.js\, \generate-summary.js\) utilisaient la \SUPABASE_SERVICE_ROLE_KEY\ sans vérifier l'identité de l'appelant. Cela permettait à n'importe quel utilisateur non authentifié de modifier ou supprimer les documents de n'importe quel site/tenant.
+
+### Décision
+1. Mise en place de \equireAuthentication\ et \equireSiteOwnership\ dans \pi/lib/server-config.js\.
+2. Les endpoints API qui modifient des données exigent désormais un header \Authorization: Bearer <token>\ et vérifient que l'utilisateur est bien le propriétaire du \	enant_id\ ET que le \site_id\ appartient bien à ce tenant.
+3. \ClientOnboarding.jsx\ envoie maintenant les headers authentifiés lors de ses appels \etch\.
+4. L'endpoint cron \cleanup-guests.js\ est sécurisé par un \CRON_SECRET\.
+
+### Conséquences
+- Les endpoints backend sont désormais sécurisés contre les accès non autorisés (IDOR).
+- L'application est prête et safe pour la production avec de vrais clients.
+

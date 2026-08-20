@@ -1,5 +1,5 @@
 import { generateWebsiteSummary } from './lib/llm.js';
-import { createServiceRoleClient } from './lib/server-config.js';
+import { createServiceRoleClient, requireSiteOwnership } from './lib/server-config.js';
 import { assertSafeExternalUrl } from './lib/url-security.js';
 
 export const config = {
@@ -22,6 +22,8 @@ export default async function handler(req) {
 
   try {
     const { tenant_id, site_id, url, raw_content } = await req.json();
+
+    await requireSiteOwnership(req, tenant_id, site_id);
 
     if (!tenant_id || !site_id) {
       return new Response(JSON.stringify({ error: 'Missing required fields: tenant_id, site_id' }), {
