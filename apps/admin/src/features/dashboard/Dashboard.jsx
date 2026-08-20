@@ -577,6 +577,49 @@ export default function Dashboard({
     }
   }, [previewMessages, previewChatOpen]);
 
+  // Invisible Turnstile Captcha helper for seamless bot protection
+  const executeTurnstileCaptcha = async () => {
+    return new Promise((resolve) => {
+      if (typeof window === 'undefined') {
+        resolve('');
+        return;
+      }
+      if (!window.turnstile) {
+        resolve('');
+        return;
+      }
+
+      try {
+        const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || '1x00000000000000000000AA';
+        let container = document.getElementById('turnstile-invisible-container');
+        if (!container) {
+          container = document.createElement('div');
+          container.id = 'turnstile-invisible-container';
+          container.style.display = 'none';
+          document.body.appendChild(container);
+        }
+        container.innerHTML = '';
+        const widgetId = window.turnstile.render(container, {
+          sitekey: siteKey,
+          size: 'invisible',
+          callback: (token) => {
+            resolve(token);
+          },
+          'error-callback': () => {
+            resolve('');
+          },
+          'expired-callback': () => {
+            resolve('');
+          }
+        });
+        window.turnstile.execute(widgetId);
+      } catch (e) {
+        console.warn('[Turnstile] Invisible execution notice:', e);
+        resolve('');
+      }
+    });
+  };
+
   // Instant Onboarding: Client enters URL -> Environment created -> Instant Dashboard with synchronous crawl progression!
   const handleAnalyzeSite = async (e) => {
     e.preventDefault();
@@ -589,9 +632,12 @@ export default function Dashboard({
     }
 
     setIsAnalyzing(true);
-    setStatusMsg('Analyzing website brand & visual theme...');
+    setStatusMsg('Securing verification & analyzing brand theme...');
 
     try {
+      // Invisible silent captcha challenge
+      const captchaToken = await executeTurnstileCaptcha();
+
       let currentDomain = formattedUrl.replace('https://', '').replace('http://', '').replace('www.', '').split('/')[0];
       let brandColor = '#4f46e5';
 
@@ -599,8 +645,11 @@ export default function Dashboard({
         const authHeaders = await authenticatedHeaders();
         const themeRes = await fetch(`${window.location.origin}/api/chat/theme`, {
           method: 'POST',
-          headers: authHeaders,
-          body: JSON.stringify({ url: formattedUrl })
+          headers: {
+            ...authHeaders,
+            'cf-turnstile-token': captchaToken
+          },
+          body: JSON.stringify({ url: formattedUrl, cf_turnstile_token: captchaToken })
         });
         if (themeRes.ok) {
           const themeData = await themeRes.json();
@@ -656,6 +705,7 @@ export default function Dashboard({
     setNewSiteError('');
 
     try {
+      const captchaToken = await executeTurnstileCaptcha();
       let currentDomain = formattedUrl.replace('https://', '').replace('http://', '').replace('www.', '').split('/')[0];
       let brandColor = '#6366f1';
 
@@ -663,8 +713,11 @@ export default function Dashboard({
         const authHeaders = await authenticatedHeaders();
         const themeRes = await fetch(`${window.location.origin}/api/chat/theme`, {
           method: 'POST',
-          headers: authHeaders,
-          body: JSON.stringify({ url: formattedUrl })
+          headers: {
+            ...authHeaders,
+            'cf-turnstile-token': captchaToken
+          },
+          body: JSON.stringify({ url: formattedUrl, cf_turnstile_token: captchaToken })
         });
         if (themeRes.ok) {
           const themeData = await themeRes.json();

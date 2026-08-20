@@ -1268,3 +1268,20 @@ Le panneau de chat était trop volumineux (380px de large, 600px de hauteur, bou
 
 ### Conséquences
 - Le chatbot s'affiche avec des proportions idéales, fines et non envahissantes sur le site web du client.
+
+## ADR : Intégration d'un CAPTCHA invisible (Cloudflare Turnstile) à l'entrée
+**Date:** 20 Août 2026
+**Statut:** Accepté
+
+### Contexte
+Pour protéger la plateforme, le processus d'onboarding, et les endpoints publics d'extraction et d'indexation contre le spam de robots et les attaques par déni de service (DOS) sans aucune friction pour les utilisateurs réels.
+
+### Décision
+- Intégration de **Cloudflare Turnstile en mode invisible** (`size: 'invisible'`).
+- Chargement du script officiel Cloudflare Turnstile dans `apps/admin/index.html`.
+- Exécution silencieuse et transparente (`executeTurnstileCaptcha`) lors de la soumission de l'URL sur l'onboarding et l'ajout de sites.
+- Création du module de vérification côté backend [`api/lib/captcha.js`](file:///c:/Users/felix/Desktop/Chatbots/Demos/b2b-ai-chatbot/api/lib/captcha.js) validant les jetons avec l'API Cloudflare Turnstile (`siteverify`).
+- Protection active sur les endpoints d'entrée (`/api/chat/theme`, `/api/crawler/crawl`).
+
+### Conséquences
+- Protection 100% invisible contre les attaques de bots automatisés sans puzzles irritants pour les clients humains.

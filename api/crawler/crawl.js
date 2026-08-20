@@ -1,8 +1,9 @@
-﻿export const config = {
+import { assertSafeExternalUrl, fetchSafeExternalUrl } from '../lib/url-security.js';
+import { verifyTurnstileToken } from '../lib/captcha.js';
+
+export const config = {
   runtime: 'edge',
 };
-
-import { assertSafeExternalUrl, fetchSafeExternalUrl } from '../lib/url-security.js';
 
 function normalizePageUrl(rawUrl) {
   if (!rawUrl) return '';
@@ -45,17 +46,27 @@ export default async function handler(req) {
     return new Response('ok', {
       headers: {
         'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, cf-turnstile-token',
         'Access-Control-Allow-Methods': 'POST, GET, OPTIONS'
       }
     });
   }
 
   try {
-    const { url } = await req.json();
+    const { url, cf_turnstile_token } = await req.json();
     if (!url) {
       return new Response(JSON.stringify({ error: 'Missing required field: url' }), {
         status: 400,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
+    const token = cf_turnstile_token || req.headers.get('cf-turnstile-token');
+    const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0] || '';
+    const captchaCheck = await verifyTurnstileToken(token, clientIp);
+    if (!captchaCheck.success) {
+      return new Response(JSON.stringify({ error: 'Captcha verification failed. Please try again.' }), {
+        status: 403,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
