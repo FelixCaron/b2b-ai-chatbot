@@ -14,18 +14,18 @@ export async function sendBugAlertEmail(error, context) {
 
   try {
     await resend.emails.send({
-      from: \B2B Chatbot System <\>\,
+      from: `B2B Chatbot System <${systemEmail}>`,
       to: adminEmail,
-      subject: \🚨 [BUG ALERT] Error in B2B Chatbot\,
-      html: \
+      subject: `🚨 [BUG ALERT] Error in B2B Chatbot`,
+      html: `
         <h2>An error occurred in the B2B Chatbot application</h2>
         <h3>Error:</h3>
-        <pre>\</pre>
+        <pre>${error?.message || String(error)}</pre>
         <h3>Stack:</h3>
-        <pre>\</pre>
+        <pre>${error?.stack || 'No stack trace'}</pre>
         <h3>Context:</h3>
-        <pre>\</pre>
-      \
+        <pre>${JSON.stringify(context || {}, null, 2)}</pre>
+      `
     });
   } catch (err) {
     console.error('Failed to send bug alert email', err);
@@ -38,25 +38,24 @@ export async function sendLeadEmail(leadData, siteData) {
     return;
   }
 
-  // Send to the tenant's support email or admin as fallback
   const recipient = siteData?.support_email || adminEmail;
 
   try {
     await resend.emails.send({
-      from: \B2B Chatbot System <\>\,
+      from: `B2B Chatbot System <${systemEmail}>`,
       to: recipient,
-      subject: \🚀 Nouveau Lead généré pour \ !\,
-      html: \
+      subject: `🚀 Nouveau Lead généré pour ${siteData?.domain || 'votre site'} !`,
+      html: `
         <h2>Un nouveau lead a été collecté !</h2>
-        <p><strong>Site :</strong> \</p>
-        <p><strong>Nom / Compagnie :</strong> \</p>
-        <p><strong>Email :</strong> \</p>
-        <p><strong>Téléphone :</strong> \</p>
+        <p><strong>Site :</strong> ${siteData?.domain || 'N/A'}</p>
+        <p><strong>Nom / Compagnie :</strong> ${leadData?.name || 'Non spécifié'}</p>
+        <p><strong>Email :</strong> ${leadData?.email || 'N/A'}</p>
+        <p><strong>Téléphone :</strong> ${leadData?.phone || 'Non spécifié'}</p>
         <p><strong>Besoins :</strong></p>
-        <p>\</p>
+        <p>${leadData?.needs || leadData?.summary || 'Non spécifiés'}</p>
         <hr/>
         <p><small>Ce courriel vous a été envoyé car vous bénéficiez du plan Premium/Pro.</small></p>
-      \
+      `
     });
   } catch (err) {
     console.error('Failed to send lead email', err);

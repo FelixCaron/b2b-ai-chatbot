@@ -1,6 +1,6 @@
-﻿import { generateWebsiteSummary } from '../../lib/llm.js';
-import { createServiceRoleClient, requireSiteOwnership } from '../../lib/server-config.js';
-import { assertSafeExternalUrl } from '../../lib/url-security.js';
+﻿import { generateWebsiteSummary } from '../lib/llm.js';
+import { createServiceRoleClient, requireSiteOwnership } from '../lib/server-config.js';
+import { assertSafeExternalUrl } from '../lib/url-security.js';
 
 export const config = {
   runtime: 'edge',

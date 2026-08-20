@@ -1,6 +1,6 @@
-﻿import { createClient } from '@supabase/supabase-js';
-import { generateEmbedding } from '../../lib/llm.js';
-import { requireSiteOwnership } from '../../lib/server-config.js';
+import { createClient } from '@supabase/supabase-js';
+import { generateEmbedding } from '../lib/llm.js';
+import { requireSiteOwnership } from '../lib/server-config.js';
 
 export const config = {
   runtime: 'edge',
@@ -9,7 +9,7 @@ export const config = {
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+const supabase = (SUPABASE_URL && SERVICE_ROLE_KEY) ? createClient(SUPABASE_URL, SERVICE_ROLE_KEY) : null;
 
 // Patterns that identify noise paragraphs (GDPR, cookie banners, nav menus)
 const NOISE_PATTERNS = [

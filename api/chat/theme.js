@@ -1,5 +1,5 @@
-﻿import { extractThemeColors } from '../../lib/llm.js';
-import { assertSafeExternalUrl, fetchSafeExternalUrl } from '../../lib/url-security.js';
+﻿import { extractThemeColors } from '../lib/llm.js';
+import { assertSafeExternalUrl, fetchSafeExternalUrl } from '../lib/url-security.js';
 
 export const config = {
   runtime: 'edge',

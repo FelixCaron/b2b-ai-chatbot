@@ -2,7 +2,7 @@
 // Vercel Serverless Function â€” Creates a Stripe Checkout Session for subscription
 import Stripe from 'stripe';
 import WebSocket from 'ws';
-import { createServiceRoleClient, requireServerEnv } from '../../lib/server-config.js';
+import { createServiceRoleClient, requireServerEnv } from '../lib/server-config.js';
 
 if (typeof globalThis !== 'undefined' && !globalThis.WebSocket) {
   globalThis.WebSocket = WebSocket;

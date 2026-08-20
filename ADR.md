@@ -1049,3 +1049,21 @@ Nous avions besoin de notifier l'administrateur en cas de plantage système (ale
 - Une réactivité accrue pour les leads collectés.
 - La monétisation est justifiée par la différence palpable d'intelligence du bot selon le forfait choisi.
 
+
+## ADR : Résolution des chemins d'importation et validation complète du build
+**Date:** 20 Août 2026
+**Statut:** Accepté
+
+### Contexte
+Lors du build Vercel, l'import `../lib/supabase` dans `src/features/dashboard/Dashboard.jsx` échouait car le composant a été déplacé dans un sous-dossier d'un niveau supplémentaire. De plus, les routes API dans `api/` utilisaient `../../lib/` au lieu de `../lib/` et contenaient des résidus CommonJS (`module.exports`) incompatibles avec le format ES module (`"type": "module"`).
+
+### Décision
+1. **Correction des imports Frontend** : Mise à jour de `Dashboard.jsx` pour pointer vers `../../lib/supabase`.
+2. **Correction des imports API & Edge functions** : Remplacement des chemins d'accès vers `../lib/` pour tous les sous-dossiers (`api/crawler/`, `api/billing/`, `api/chat/`, `api/cron/`).
+3. **Migration ESM des utilitaires** : Conversion des modules `rag-engine.js` et `rate-limiter.js` en ESM (`export default`, `export { ... }`).
+4. **Initialisation sécurisée Supabase** : Protection des instanciations `createClient` au niveau racine des fichiers API contre les variables d'environnement manquantes à l'importation.
+5. **Suite de tests automatisés** : Ajout du script `test:api` dans `npm test` qui valide systématiquement l'importation de 100% des fichiers de l'API et de ses dépendances.
+
+### Conséquences
+- Le build Vite (`npm run build`) passe avec succès sans erreur de résolution.
+- Tous les tests de schémas, secrets et imports d'API passent au vert (17/17 routes testées).

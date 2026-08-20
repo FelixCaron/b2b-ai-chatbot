@@ -62,4 +62,5 @@ class RagEngine {
   }
 }
 
-module.exports = RagEngine;
+export default RagEngine;
+export { RagEngine };

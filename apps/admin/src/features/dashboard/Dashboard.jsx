@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Sparkles, Globe, Eye, CheckCircle2, ArrowRight, Settings2, ShieldCheck, 
   ToggleLeft, ToggleRight, Check, RefreshCw, Copy, Layers, Laptop, 
@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { supabase } from '../lib/supabase';
+import { supabase, authenticatedHeaders } from '../../lib/supabase';
 import { fetchEventSource } from '@microsoft/fetch-event-source';
 
 export default function Dashboard({

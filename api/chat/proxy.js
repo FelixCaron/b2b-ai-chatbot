@@ -1,4 +1,4 @@
-﻿import { fetchSafeExternalUrl } from '../../lib/url-security.js';
+﻿import { fetchSafeExternalUrl } from '../lib/url-security.js';
 
 /**
  * Preview capability check. It intentionally never returns third-party HTML:

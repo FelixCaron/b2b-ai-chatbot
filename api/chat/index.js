@@ -1,5 +1,5 @@
-﻿import { createClient } from '@supabase/supabase-js';
-import { generateEmbedding } from '../../lib/llm.js';
+import { createClient } from '@supabase/supabase-js';
+import { generateEmbedding } from '../lib/llm.js';
 import { sendLeadEmail, sendBugAlertEmail } from '../lib/email.js';
 
 export const config = {
@@ -9,7 +9,7 @@ export const config = {
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+const supabase = (SUPABASE_URL && SERVICE_ROLE_KEY) ? createClient(SUPABASE_URL, SERVICE_ROLE_KEY) : null;
 
 // Simple memory cache for basic Edge Rate Limiting (per isolate)
 const rateLimitMap = new Map();
@@ -372,7 +372,7 @@ ${supportInstruction}`;
     const stream = new ReadableStream({
       async start(controller) {
         try {
-          const { generateChatResponse, extractLeadInfo } = await import('../../lib/llm.js');
+          const { generateChatResponse, extractLeadInfo } = await import('../lib/llm.js');
           
           // MULTI-TURN AGENTIC LOOP (True Reasoning Loop)
           // Allows up to MAX_TURNS iterations of tool calls & query reformulations

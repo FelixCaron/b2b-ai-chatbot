@@ -2,7 +2,7 @@
   runtime: 'edge',
 };
 
-import { assertSafeExternalUrl, fetchSafeExternalUrl } from '../../lib/url-security.js';
+import { assertSafeExternalUrl, fetchSafeExternalUrl } from '../lib/url-security.js';
 
 function normalizePageUrl(rawUrl) {
   if (!rawUrl) return '';
