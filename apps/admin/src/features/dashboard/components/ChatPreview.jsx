@@ -191,49 +191,47 @@ export default function ChatPreview({
           <div className="absolute bottom-3 right-3 sm:bottom-6 sm:right-6 z-[100000] flex flex-col items-end max-w-[calc(100vw-24px)]">
             {previewChatOpen && (
               <div 
-                className="w-[calc(100vw-24px)] sm:w-[380px] h-[70vh] sm:h-[520px] max-h-[600px] bg-dark-900 rounded-2xl shadow-2xl flex flex-col overflow-hidden mb-3 sm:mb-4 animate-in fade-in slide-in-from-bottom-4"
+                className="w-[calc(100vw-24px)] sm:w-[380px] h-[70vh] sm:h-[540px] max-h-[620px] bg-white text-slate-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden mb-3 sm:mb-4 animate-in fade-in slide-in-from-bottom-4 border border-slate-200/80"
                 style={{
-                  border: `1px solid ${themeColor}44`,
-                  boxShadow: `0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 25px -5px ${themeColor}33`
+                  boxShadow: `0 20px 45px -10px rgba(0, 0, 0, 0.15), 0 0 25px -5px ${themeColor}25`
                 }}
               >
                 <div 
-                  className="p-4 border-b flex items-center justify-between"
+                  className="p-4 border-b border-slate-100 flex items-center justify-between bg-white"
                   style={{
-                    background: `linear-gradient(135deg, ${themeColor}22 0%, rgba(15, 23, 42, 0.95) 100%)`,
-                    borderBottomColor: `${themeColor}33`
+                    background: `linear-gradient(135deg, ${themeColor}10 0%, #ffffff 100%)`
                   }}
                 >
                   <div className="flex items-center gap-3">
                     <div
-                      className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs shadow-md"
+                      className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs shadow-sm"
                       style={{ backgroundColor: themeColor }}
                     >
                       AI
                     </div>
                     <div>
-                      <div className="text-sm font-bold text-white">Virtual Assistant</div>
-                      <div className="text-[11px] flex items-center gap-1" style={{ color: themeColor }}>
+                      <div className="text-sm font-bold text-slate-900">Virtual Assistant</div>
+                      <div className="text-[11px] font-medium flex items-center gap-1" style={{ color: themeColor }}>
                         <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: themeColor }}></span>
                         Live on {activeSite.domain}
                       </div>
                     </div>
                   </div>
-                  <button onClick={() => setPreviewChatOpen(false)} className="text-gray-400 hover:text-white">
+                  <button onClick={() => setPreviewChatOpen(false)} className="text-slate-400 hover:text-slate-700 transition-colors">
                     <X className="w-4 h-4" />
                   </button>
                 </div>
 
-                <div className="flex-1 p-4 overflow-y-auto space-y-3 text-xs">
+                <div className="flex-1 p-4 overflow-y-auto space-y-3 text-xs bg-slate-50/70">
                   {previewMessages.map((m, idx) => {
                     if (m.role === 'tool') {
                       return (
                         <div 
                           key={idx} 
-                          className="mr-auto my-1.5 p-3 rounded-xl font-mono text-[11px] space-y-1 shadow-inner animate-in fade-in"
+                          className="mr-auto my-1.5 p-3 rounded-xl font-mono text-[11px] space-y-1 shadow-sm animate-in fade-in border"
                           style={{
-                            backgroundColor: `${themeColor}15`,
-                            border: `1px solid ${themeColor}33`,
+                            backgroundColor: `${themeColor}10`,
+                            borderColor: `${themeColor}25`,
                             color: themeColor
                           }}
                         >
@@ -247,14 +245,14 @@ export default function ChatPreview({
                     return (
                       <div 
                         key={idx} 
-                        className={`max-w-[85%] p-3 rounded-xl ${
+                        className={`max-w-[85%] p-3.5 rounded-2xl ${
                           isUser 
-                            ? 'ml-auto text-white rounded-br-none' 
-                            : 'mr-auto bg-dark-800 text-gray-200 border border-white/5 rounded-bl-none'
+                            ? 'ml-auto text-white rounded-br-none shadow-md' 
+                            : 'mr-auto bg-white text-slate-700 border border-slate-200/80 rounded-bl-none shadow-sm'
                         }`}
                         style={isUser ? {
                           backgroundColor: themeColor,
-                          boxShadow: `0 4px 12px ${themeColor}44`
+                          boxShadow: `0 4px 14px -2px ${themeColor}40`
                         } : {}}
                       >
                         {m.text}
@@ -263,38 +261,32 @@ export default function ChatPreview({
                   })}
 
                   {previewStreaming && (
-                    <div className="mr-auto bg-dark-800 text-gray-400 border border-white/5 rounded-xl rounded-bl-none p-3 max-w-[200px] flex items-center gap-2">
+                    <div className="mr-auto bg-white text-slate-500 border border-slate-200/80 rounded-xl rounded-bl-none p-3 max-w-[200px] flex items-center gap-2 shadow-sm">
                       <div className="flex items-center gap-1">
                         <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ backgroundColor: themeColor, animationDelay: '0ms' }}></span>
                         <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ backgroundColor: themeColor, animationDelay: '150ms' }}></span>
                         <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ backgroundColor: themeColor, animationDelay: '300ms' }}></span>
                       </div>
-                      <span className="text-[10px] text-gray-500 italic">{typeof previewStreaming === 'string' ? previewStreaming : '...'}</span>
+                      <span className="text-[10px] text-slate-500 italic">{typeof previewStreaming === 'string' ? previewStreaming : '...'}</span>
                     </div>
                   )}
                   <div ref={chatMessagesEndRef} />
                 </div>
 
-                <div 
-                  className="p-3 border-t flex items-center gap-2"
-                  style={{
-                    backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                    borderTopColor: `${themeColor}22`
-                  }}
-                >
+                <div className="p-3 border-t border-slate-100 bg-white flex items-center gap-2">
                   <input
                     type="text"
                     placeholder="Ask your assistant anything..."
                     value={previewInput}
                     onChange={(e) => setPreviewInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSendPreviewChat()}
-                    className="flex-1 bg-dark-900 border rounded-xl px-3 py-2 text-xs text-white outline-none"
+                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 outline-none transition-all focus:bg-white"
                     style={{ borderColor: `${themeColor}44` }}
                   />
                   <button
                     onClick={handleSendPreviewChat}
                     disabled={!previewInput.trim() || previewStreaming}
-                    className="p-2 rounded-xl text-white disabled:opacity-50 transition-all hover:scale-105 active:scale-95"
+                    className="p-2.5 rounded-xl text-white disabled:opacity-40 transition-all hover:scale-105 active:scale-95 shadow-sm"
                     style={{ backgroundColor: themeColor }}
                   >
                     <Send className="w-4 h-4" />

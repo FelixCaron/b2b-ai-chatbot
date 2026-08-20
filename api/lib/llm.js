@@ -256,6 +256,9 @@ export async function extractThemeColors({ htmlSnippet, targetUrl, apiKey }) {
     console.log('[TEST_MODE Delafontaine] Extraction thèmes simulée.');
     return {
       primary_color: "#1e3a8a",
+      theme_mode: "light",
+      background_color: "#ffffff",
+      text_color: "#0f172a",
       org_name: "Portes Delafontaine"
     };
   }
@@ -263,11 +266,16 @@ export async function extractThemeColors({ htmlSnippet, targetUrl, apiKey }) {
   const openRouterKey = process.env.OPENROUTER_API_KEY || apiKey;
   if (!openRouterKey) return null;
 
-  const prompt = `Analyze this website HTML snippet for ${targetUrl}. Extract:
-1. The exact primary brand accent hex color code (e.g. #2563eb, #e11d48, #059669, #7c3aed, etc.). Look for theme-color meta tags, CSS primary color variables, inline styles, or logo colors.
-2. The clean official company name.
+  const prompt = `Analyze this website HTML snippet for ${targetUrl}.
+Extract the visual brand identity and color palette:
+1. "primary_color": The exact primary brand accent hex color (e.g. #2563eb, #e11d48, #059669, #7c3aed, etc.). Look for theme-color meta tags, CSS primary color variables, buttons, brand accent, or logo color.
+2. "theme_mode": "light" or "dark" (Is the website background predominantly light/white or dark/black?). Most business websites are "light".
+3. "background_color": The dominant panel background hex (e.g. "#ffffff" for light mode, "#0f172a" or "#18181b" for dark mode).
+4. "text_color": The main text hex color (e.g. "#0f172a" or "#1e293b" for light mode, "#f8fafc" for dark mode).
+5. "org_name": The clean official company name.
 
-Respond strictly in raw JSON format, without backticks: {"primary_color": "#hex", "org_name": "Name"}`;
+Respond strictly in raw JSON format, without markdown or backticks:
+{"primary_color": "#hex", "theme_mode": "light", "background_color": "#ffffff", "text_color": "#0f172a", "org_name": "Company Name"}`;
 
   try {
     const res = await fetch(OPENROUTER_BASE_URL, {

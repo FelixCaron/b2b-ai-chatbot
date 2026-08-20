@@ -1156,3 +1156,25 @@ Une erreur d'accès `Cannot read properties of undefined (reading 'tenants')` su
 
 ### Conséquences
 - Plus d'erreur 500 sur l'API de chat.
+
+## ADR : Modernisation du Chatbot en Mode Clair et extraction automatique du thème complet
+**Date:** 20 Août 2026
+**Statut:** Accepté
+
+### Contexte
+Le chatbot avait par défaut un fond sombre/noir avec un contraste inadéquat sur les sites web d'entreprises majoritairement blancs/clairs. De plus, l'appel d'analyse de thème (`/api/chat/theme`) n'extrayait pas la palette visuelle complète (`theme_mode`, `background_color`, `text_color`).
+
+### Décision
+1. **Extraction de thème enrichie (`api/chat/theme.js` & `api/lib/llm.js`)** :
+   - Détection automatique de la couleur d'accent (`primary_color`), du mode (`theme_mode` : 'light' / 'dark'), de la couleur de fond et du texte.
+   - Intégration synchrone lors de l'onboarding pour créer et configurer le site avec la couleur exacte de la marque dès la première seconde.
+2. **Refonte UI du Chatbot (Mode Clair Moderne)** :
+   - Fond du panneau en blanc pur (`#ffffff`) avec ombre portée douce.
+   - En-tête avec dégradé subtil teinté à la couleur de la marque.
+   - Bulles de messages de l'assistant blanches avec bordure ardoise légère (`#e2e8f0`) et typographie foncée lisible (`#1e293b`).
+   - Bulles utilisateur colorées avec la couleur de marque extraite (`primary_color`) et texte blanc.
+   - Champ de saisie blanc/slate-50 avec bordure focalisée coordonnée à la couleur de la marque.
+   - Adaptabilité complète dans le composant widget (`widget.css`) via des variables CSS standardisées.
+
+### Conséquences
+- Le chatbot s'intègre harmonieusement sur n'importe quel site web blanc ou clair par défaut.

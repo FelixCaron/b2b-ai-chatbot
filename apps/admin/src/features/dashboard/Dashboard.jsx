@@ -563,30 +563,34 @@ export default function Dashboard({
     }
 
     setIsAnalyzing(true);
-    setStatusMsg('Creating your AI Assistant...');
+    setStatusMsg('Analyzing website brand & visual theme...');
 
     try {
       let currentDomain = formattedUrl.replace('https://', '').replace('http://', '').replace('www.', '').split('/')[0];
       let brandColor = '#4f46e5';
 
+      try {
+        const authHeaders = await authenticatedHeaders();
+        const themeRes = await fetch(`${window.location.origin}/api/chat/theme`, {
+          method: 'POST',
+          headers: authHeaders,
+          body: JSON.stringify({ url: formattedUrl })
+        });
+        if (themeRes.ok) {
+          const themeData = await themeRes.json();
+          if (themeData?.primary_color) brandColor = themeData.primary_color;
+          if (themeData?.org_name) setOrgName(themeData.org_name);
+        }
+      } catch (themeErr) {
+        console.warn('Theme extraction fallback:', themeErr);
+      }
+
+      setStatusMsg('Creating your AI Assistant...');
       const siteObj = await onAddSite(currentDomain, brandColor);
 
       if (siteObj) {
         setLocalCreatedSite(siteObj);
         setIsAnalyzing(false);
-
-        authenticatedHeaders().then(authHeaders => {
-          fetch(`${window.location.origin}/api/chat/theme`, {
-            method: 'POST',
-            headers: authHeaders,
-            body: JSON.stringify({ url: formattedUrl })
-          }).then(res => res.ok ? res.json() : null).then(themeData => {
-            if (themeData?.primary_color) {
-              onUpdateSiteSettings(siteObj.id, { theme_primary_color: themeData.primary_color });
-            }
-            if (themeData?.org_name) setOrgName(themeData.org_name);
-          }).catch(() => {});
-        });
 
         await runSynchronousCrawlAndIndex(siteObj, formattedUrl);
       } else {
@@ -627,7 +631,22 @@ export default function Dashboard({
 
     try {
       let currentDomain = formattedUrl.replace('https://', '').replace('http://', '').replace('www.', '').split('/')[0];
-      const newSiteObj = await onAddSite(currentDomain, '#6366f1');
+      let brandColor = '#6366f1';
+
+      try {
+        const authHeaders = await authenticatedHeaders();
+        const themeRes = await fetch(`${window.location.origin}/api/chat/theme`, {
+          method: 'POST',
+          headers: authHeaders,
+          body: JSON.stringify({ url: formattedUrl })
+        });
+        if (themeRes.ok) {
+          const themeData = await themeRes.json();
+          if (themeData?.primary_color) brandColor = themeData.primary_color;
+        }
+      } catch (e) {}
+
+      const newSiteObj = await onAddSite(currentDomain, brandColor);
 
       if (newSiteObj) {
         setSelectedSiteId(newSiteObj.id);
@@ -1504,66 +1523,64 @@ export default function Dashboard({
                 {/* Chat Panel Modal */}
                 {previewChatOpen && (
                   <div 
-                    className="w-[calc(100vw-24px)] sm:w-[380px] h-[70vh] sm:h-[520px] max-h-[600px] bg-dark-900 rounded-2xl shadow-2xl flex flex-col overflow-hidden mb-3 sm:mb-4 animate-in fade-in slide-in-from-bottom-4"
+                    className="w-[calc(100vw-24px)] sm:w-[380px] h-[70vh] sm:h-[540px] max-h-[620px] bg-white text-slate-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden mb-3 sm:mb-4 animate-in fade-in slide-in-from-bottom-4 border border-slate-200/80"
                     style={{
-                      border: `1px solid ${themeColor}44`,
-                      boxShadow: `0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 25px -5px ${themeColor}33`
+                      boxShadow: `0 20px 45px -10px rgba(0, 0, 0, 0.15), 0 0 25px -5px ${themeColor}25`
                     }}
                   >
                     {/* Header */}
                     <div 
-                      className="p-4 border-b flex items-center justify-between"
+                      className="p-4 border-b border-slate-100 flex items-center justify-between bg-white"
                       style={{
-                        background: `linear-gradient(135deg, ${themeColor}22 0%, rgba(15, 23, 42, 0.95) 100%)`,
-                        borderBottomColor: `${themeColor}33`
+                        background: `linear-gradient(135deg, ${themeColor}10 0%, #ffffff 100%)`
                       }}
                     >
                       <div className="flex items-center gap-3">
                         <div
-                          className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs shadow-md"
+                          className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs shadow-sm"
                           style={{ backgroundColor: themeColor }}
                         >
                           AI
                         </div>
                         <div>
-                          <div className="text-sm font-bold text-white">Virtual Assistant</div>
-                          <div className="text-[11px] flex items-center gap-1" style={{ color: themeColor }}>
+                          <div className="text-sm font-bold text-slate-900">Virtual Assistant</div>
+                          <div className="text-[11px] font-medium flex items-center gap-1" style={{ color: themeColor }}>
                             <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: themeColor }}></span>
                             Live on {activeSite.domain}
                           </div>
                         </div>
                       </div>
-                      <button onClick={() => setPreviewChatOpen(false)} className="text-gray-400 hover:text-white">
+                      <button onClick={() => setPreviewChatOpen(false)} className="text-slate-400 hover:text-slate-700 transition-colors">
                         <X className="w-4 h-4" />
                       </button>
                     </div>
 
                     {/* Messages Feed */}
-                    <div className="flex-1 p-4 overflow-y-auto space-y-3 text-xs">
+                    <div className="flex-1 p-4 overflow-y-auto space-y-3 text-xs bg-slate-50/70">
                       {previewMessages.map((m, idx) => {
                         if (m.role === 'tool') {
                           return (
                             <div 
                               key={idx} 
-                              className="mr-auto my-1.5 p-3 rounded-xl font-mono text-[11px] space-y-1 shadow-inner animate-in fade-in"
+                              className="mr-auto my-1.5 p-3 rounded-xl font-mono text-[11px] space-y-1 shadow-sm animate-in fade-in border"
                               style={{
-                                backgroundColor: `${themeColor}15`,
-                                border: `1px solid ${themeColor}33`,
+                                backgroundColor: `${themeColor}10`,
+                                borderColor: `${themeColor}25`,
                                 color: themeColor
                               }}
                             >
                               <div className="flex items-center gap-1.5 font-bold">
                                 <span>🛠️  Tool Call:</span>
-                                <span className="px-1.5 py-0.5 rounded text-white" style={{ backgroundColor: `${themeColor}44` }}>{m.tool_call.name}</span>
+                                <span className="px-1.5 py-0.5 rounded text-white" style={{ backgroundColor: `${themeColor}99` }}>{m.tool_call.name}</span>
                               </div>
                               {m.tool_call.name === 'search_knowledge_base' && (
                                 <div className="space-y-1">
                                   <div>🔍  Search keywords: "{m.tool_call.keywords || m.tool_call.query}"</div>
-                                  <div className="text-[10px] text-gray-400 mb-1">📄 {m.tool_call.matched_chunks} chunks matched ({m.tool_call.sources?.length || 0} sources)</div>
+                                  <div className="text-[10px] text-slate-500 mb-1">📄 {m.tool_call.matched_chunks} chunks matched ({m.tool_call.sources?.length || 0} sources)</div>
                                   {m.tool_call.sources && m.tool_call.sources.length > 0 && (
                                     <div className="mt-1 flex flex-col gap-1">
                                       {m.tool_call.sources.map((src, i) => (
-                                        <a key={i} href={src} target="_blank" rel="noopener noreferrer" className="text-[9px] truncate max-w-[200px] flex items-center gap-1 px-1.5 py-0.5 rounded border" style={{ color: themeColor, backgroundColor: `${themeColor}15`, borderColor: `${themeColor}33` }}>
+                                        <a key={i} href={src} target="_blank" rel="noopener noreferrer" className="text-[9px] truncate max-w-[200px] flex items-center gap-1 px-1.5 py-0.5 rounded border" style={{ color: themeColor, backgroundColor: `${themeColor}10`, borderColor: `${themeColor}25` }}>
                                           🔗 {src.replace(`https://${activeSite.domain}`, '') || '/'}
                                         </a>
                                       ))}
@@ -1574,7 +1591,7 @@ export default function Dashboard({
                               {m.tool_call.name === 'capture_lead' && (
                                 <div className="space-y-0.5">
                                   <div>👤 Lead captured: {m.tool_call.lead?.name || m.tool_call.lead?.email || m.tool_call.lead?.phone || 'Visitor'}</div>
-                                  <div className="text-[10px] text-emerald-400">✓ Saved in Supabase database</div>
+                                  <div className="text-[10px] text-emerald-600 font-semibold">✓ Saved in Supabase database</div>
                                 </div>
                               )}
                             </div>
@@ -1584,14 +1601,14 @@ export default function Dashboard({
                         return (
                           <div
                             key={idx}
-                            className={`max-w-[85%] p-3 rounded-xl leading-relaxed ${
+                            className={`max-w-[85%] p-3.5 rounded-2xl leading-relaxed ${
                               m.role === 'user'
                                 ? 'ml-auto text-white rounded-br-none shadow-md'
-                                : 'mr-auto bg-dark-800 text-gray-200 border border-white/5 rounded-bl-none shadow-md prose prose-invert prose-sm max-w-none'
+                                : 'mr-auto bg-white text-slate-700 border border-slate-200/80 rounded-bl-none shadow-sm prose prose-sm max-w-none'
                             }`}
                             style={m.role === 'user' ? {
                               backgroundColor: themeColor,
-                              boxShadow: `0 4px 14px -2px ${themeColor}66`
+                              boxShadow: `0 4px 14px -2px ${themeColor}40`
                             } : {}}
                           >
                             {m.role === 'user' ? m.text : (
@@ -1602,7 +1619,7 @@ export default function Dashboard({
                                     <a {...props} target="_blank" rel="noopener noreferrer" className="underline font-semibold transition-colors" style={{ color: themeColor }} />
                                   ),
                                   strong: ({ node, ...props }) => (
-                                    <strong {...props} className="font-bold text-white" />
+                                    <strong {...props} className="font-bold text-slate-900" />
                                   ),
                                   ul: ({ node, ...props }) => (
                                     <ul {...props} className="list-disc pl-4 my-1.5 space-y-1" />
@@ -1611,12 +1628,12 @@ export default function Dashboard({
                                     <ol {...props} className="list-decimal pl-4 my-1.5 space-y-1" />
                                   ),
                                   li: ({ node, ...props }) => (
-                                    <li {...props} className="text-gray-200 leading-relaxed" />
+                                    <li {...props} className="text-slate-700 leading-relaxed" />
                                   ),
                                   code: ({ node, inline, ...props }) => (
                                     inline
-                                      ? <code {...props} className="bg-white/10 text-[11px] px-1.5 py-0.5 rounded font-mono" style={{ color: themeColor }} />
-                                      : <code {...props} className="block bg-black/40 text-gray-200 p-2 rounded text-[11px] font-mono overflow-x-auto my-1.5 border border-white/5" />
+                                      ? <code {...props} className="bg-slate-100 text-[11px] px-1.5 py-0.5 rounded font-mono" style={{ color: themeColor }} />
+                                      : <code {...props} className="block bg-slate-900 text-slate-100 p-2 rounded text-[11px] font-mono overflow-x-auto my-1.5 border border-slate-800" />
                                   ),
                                   p: ({ node, ...props }) => (
                                     <p {...props} className="mb-2 last:mb-0 leading-relaxed" />
@@ -1632,39 +1649,33 @@ export default function Dashboard({
 
                       {/* Typing indicator dots when AI is thinking */}
                       {previewStreaming && (
-                        <div className="mr-auto bg-dark-800 text-gray-400 border border-white/5 rounded-xl rounded-bl-none p-3 max-w-[200px] flex items-center gap-2">
+                        <div className="mr-auto bg-white text-slate-500 border border-slate-200/80 rounded-xl rounded-bl-none p-3 max-w-[200px] flex items-center gap-2 shadow-sm">
                           <div className="flex items-center gap-1">
                             <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ backgroundColor: themeColor, animationDelay: '0ms' }}></span>
                             <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ backgroundColor: themeColor, animationDelay: '150ms' }}></span>
                             <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ backgroundColor: themeColor, animationDelay: '300ms' }}></span>
                           </div>
-                          <span className="text-[10px] text-gray-500 italic">{typeof previewStreaming === 'string' ? previewStreaming : '...'}</span>
+                          <span className="text-[10px] text-slate-500 italic">{typeof previewStreaming === 'string' ? previewStreaming : '...'}</span>
                         </div>
                       )}
                       <div ref={chatMessagesEndRef} />
                     </div>
 
                     {/* Input */}
-                    <div 
-                      className="p-3 border-t flex items-center gap-2"
-                      style={{
-                        backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                        borderTopColor: `${themeColor}22`
-                      }}
-                    >
+                    <div className="p-3 border-t border-slate-100 bg-white flex items-center gap-2">
                       <input
                         type="text"
                         placeholder="Ask your assistant anything..."
                         value={previewInput}
                         onChange={(e) => setPreviewInput(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleSendPreviewChat()}
-                        className="flex-1 bg-dark-900 border rounded-xl px-3 py-2 text-xs text-white outline-none"
+                        className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 outline-none transition-all focus:bg-white"
                         style={{ borderColor: `${themeColor}44` }}
                       />
                       <button
                         onClick={handleSendPreviewChat}
                         disabled={!previewInput.trim() || previewStreaming}
-                        className="p-2 rounded-xl text-white disabled:opacity-50 transition-all hover:scale-105 active:scale-95"
+                        className="p-2.5 rounded-xl text-white disabled:opacity-40 transition-all hover:scale-105 active:scale-95 shadow-sm"
                         style={{ backgroundColor: themeColor }}
                       >
                         <Send className="w-4 h-4" />

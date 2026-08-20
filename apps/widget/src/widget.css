@@ -44,11 +44,11 @@
   width: 380px;
   height: 600px;
   max-height: calc(100vh - 100px);
-  background: #0f172a;
-  color: #f8fafc;
+  background: var(--b2b-bg, #ffffff);
+  color: var(--b2b-text, #0f172a);
   border-radius: 20px;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 20px -5px var(--b2b-theme-shadow, rgba(99, 102, 241, 0.2));
-  border: 1px solid var(--b2b-theme-border, rgba(255, 255, 255, 0.1));
+  box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.15), 0 0 20px -5px var(--b2b-theme-shadow, rgba(99, 102, 241, 0.2));
+  border: 1px solid var(--b2b-border, #e2e8f0);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -65,13 +65,13 @@
   pointer-events: all;
 }
 
-/* Glassmorphism Header */
+/* Glassmorphism / Clean Header */
 .b2b-chat-header {
-  padding: 18px 20px;
-  background: linear-gradient(135deg, var(--b2b-theme-header, rgba(30, 41, 59, 0.9)) 0%, rgba(15, 23, 42, 0.95) 100%);
+  padding: 16px 20px;
+  background: var(--b2b-header-bg, linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, #ffffff 100%));
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--b2b-theme-border, rgba(255, 255, 255, 0.08));
+  border-bottom: 1px solid var(--b2b-border, #e2e8f0);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -84,36 +84,36 @@
 }
 
 .b2b-avatar {
-  width: 40px;
-  height: 40px;
+  width: 38px;
+  height: 38px;
   border-radius: 12px;
-  background: var(--b2b-theme, linear-gradient(135deg, #6366f1, #8b5cf6));
+  background: var(--b2b-theme, #6366f1);
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  font-size: 16px;
-  color: #fff;
+  font-size: 15px;
+  color: #ffffff;
   box-shadow: 0 4px 12px var(--b2b-theme-shadow, rgba(99, 102, 241, 0.3));
 }
 
 .b2b-status-title {
-  font-size: 15px;
-  font-weight: 600;
-  color: #f8fafc;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--b2b-text, #0f172a);
 }
 
 .b2b-status-sub {
-  font-size: 12px;
-  color: #94a3b8;
+  font-size: 11px;
+  color: var(--b2b-text-muted, #64748b);
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
 .b2b-status-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: var(--b2b-theme, #10b981);
   box-shadow: 0 0 8px var(--b2b-theme-shadow, #10b981);
@@ -122,7 +122,7 @@
 .b2b-close-btn {
   background: transparent;
   border: none;
-  color: #94a3b8;
+  color: var(--b2b-text-muted, #64748b);
   cursor: pointer;
   padding: 6px;
   border-radius: 8px;
@@ -130,28 +130,29 @@
 }
 
 .b2b-close-btn:hover {
-  color: #f8fafc;
-  background: rgba(255, 255, 255, 0.05);
+  color: var(--b2b-text, #0f172a);
+  background: rgba(0, 0, 0, 0.05);
 }
 
 /* Chat Messages Feed */
 .b2b-chat-messages {
   flex: 1;
-  padding: 20px;
+  padding: 18px;
+  background: var(--b2b-messages-bg, #f8fafc);
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
   scrollbar-width: thin;
-  scrollbar-color: #334155 transparent;
+  scrollbar-color: #cbd5e1 transparent;
 }
 
 .b2b-msg {
   max-width: 85%;
-  padding: 12px 16px;
+  padding: 12px 15px;
   border-radius: 16px;
-  font-size: 14px;
-  line-height: 1.5;
+  font-size: 13px;
+  line-height: 1.55;
   word-wrap: break-word;
   animation: fadeIn 0.25s ease-out forwards;
 }
@@ -163,32 +164,33 @@
 
 .b2b-msg.user {
   align-self: flex-end;
-  background: var(--b2b-theme, linear-gradient(135deg, #6366f1, #4f46e5));
+  background: var(--b2b-theme, #6366f1);
   color: #ffffff;
   border-bottom-right-radius: 4px;
-  box-shadow: 0 4px 12px var(--b2b-theme-shadow, rgba(99, 102, 241, 0.2));
+  box-shadow: 0 4px 12px var(--b2b-theme-shadow, rgba(99, 102, 241, 0.25));
 }
 
 .b2b-msg.assistant {
   align-self: flex-start;
-  background: #1e293b;
-  color: #e2e8f0;
+  background: var(--b2b-assistant-bg, #ffffff);
+  color: var(--b2b-assistant-text, #334155);
   border-bottom-left-radius: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--b2b-border, #e2e8f0);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .b2b-msg.assistant a {
-  color: var(--b2b-theme, #818cf8);
+  color: var(--b2b-theme, #6366f1);
   text-decoration: underline;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 /* Tool indicator badge */
 .b2b-tool-badge {
   font-size: 11px;
-  color: var(--b2b-theme, #818cf8);
-  background: var(--b2b-theme-light, rgba(99, 102, 241, 0.12));
-  border: 1px solid var(--b2b-theme-border, rgba(99, 102, 241, 0.25));
+  color: var(--b2b-theme, #6366f1);
+  background: var(--b2b-theme-light, rgba(99, 102, 241, 0.1));
+  border: 1px solid var(--b2b-theme-border, rgba(99, 102, 241, 0.2));
   padding: 4px 8px;
   border-radius: 6px;
   margin-bottom: 4px;
@@ -197,9 +199,9 @@
 
 /* Input Footer */
 .b2b-chat-footer {
-  padding: 14px 16px;
-  background: #1e293b;
-  border-top: 1px solid var(--b2b-theme-border, rgba(255, 255, 255, 0.08));
+  padding: 12px 16px;
+  background: var(--b2b-footer-bg, #ffffff);
+  border-top: 1px solid var(--b2b-border, #e2e8f0);
   display: flex;
   gap: 10px;
   align-items: center;
@@ -207,26 +209,27 @@
 
 .b2b-chat-input {
   flex: 1;
-  background: #0f172a;
-  border: 1px solid #334155;
+  background: var(--b2b-input-bg, #f8fafc);
+  border: 1px solid var(--b2b-input-border, #cbd5e1);
   border-radius: 12px;
-  padding: 12px 14px;
-  color: #f8fafc;
-  font-size: 14px;
+  padding: 10px 14px;
+  color: var(--b2b-input-text, #0f172a);
+  font-size: 13px;
   outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
 }
 
 .b2b-chat-input:focus {
+  background: #ffffff;
   border-color: var(--b2b-theme, #6366f1);
-  box-shadow: 0 0 0 2px var(--b2b-theme-shadow, rgba(99, 102, 241, 0.25));
+  box-shadow: 0 0 0 2px var(--b2b-theme-shadow, rgba(99, 102, 241, 0.2));
 }
 
 .b2b-send-btn {
-  background: var(--b2b-theme, linear-gradient(135deg, #6366f1, #4f46e5));
+  background: var(--b2b-theme, #6366f1);
   border: none;
-  width: 42px;
-  height: 42px;
+  width: 40px;
+  height: 40px;
   border-radius: 12px;
   color: #fff;
   cursor: pointer;

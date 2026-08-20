@@ -1,4 +1,4 @@
-﻿import { extractThemeColors } from '../lib/llm.js';
+import { extractThemeColors } from '../lib/llm.js';
 import { assertSafeExternalUrl, fetchSafeExternalUrl } from '../lib/url-security.js';
 
 export const config = {
@@ -70,8 +70,10 @@ export default async function handler(req) {
     }
 
     let detectedOrgName = cleanHost.charAt(0).toUpperCase() + cleanHost.slice(1);
-
     let primaryColor = '#6366f1';
+    let themeMode = 'light';
+    let backgroundColor = '#ffffff';
+    let textColor = '#0f172a';
 
     const apiKey = process.env.OPENROUTER_API_KEY;
     if (apiKey && htmlSnippet) {
@@ -83,6 +85,15 @@ export default async function handler(req) {
         if (extracted.org_name && extracted.org_name.length > 1) {
           detectedOrgName = extracted.org_name;
         }
+        if (extracted.theme_mode === 'dark' || extracted.theme_mode === 'light') {
+          themeMode = extracted.theme_mode;
+        }
+        if (extracted.background_color && extracted.background_color.startsWith('#')) {
+          backgroundColor = extracted.background_color;
+        }
+        if (extracted.text_color && extracted.text_color.startsWith('#')) {
+          textColor = extracted.text_color;
+        }
       }
     }
 
@@ -91,7 +102,10 @@ export default async function handler(req) {
         success: true,
         url: targetUrl,
         org_name: detectedOrgName,
-        primary_color: primaryColor
+        primary_color: primaryColor,
+        theme_mode: themeMode,
+        background_color: backgroundColor,
+        text_color: textColor
       }),
       {
         status: 200,
