@@ -11,9 +11,10 @@ if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
   } catch {}
 }
 
-const SUPABASE_URL = process.env.SUPABASE_URL || "https://xuvueegdokgiyedwvmkm.supabase.co";
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh1dnVlZWdkb2tnaXllZHd2bWttIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NjE0ODAxNCwiZXhwIjoyMTAxNzI0MDE0fQ.Z9CsCniLkOuPJZajLzUMfN2FUTbZsvwZC8KD5CXh-7E";
-const JINA_API_KEY = process.env.JINA_API_KEY || "jina_a3a7f0f5caf740fd9f8ccb5f9e210dc0XEJZsmGiCUxvqqwqtZL8fgJ-ypXI";
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const JINA_API_KEY = process.env.JINA_API_KEY;
+if (!SUPABASE_URL || !SERVICE_ROLE_KEY || !JINA_API_KEY) throw new Error('SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY and JINA_API_KEY are required');
 
 import { createClient } from "@supabase/supabase-js";
 import WebSocket from "ws";

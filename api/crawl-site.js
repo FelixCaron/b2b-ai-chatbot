@@ -2,6 +2,8 @@ export const config = {
   runtime: 'edge',
 };
 
+import { assertSafeExternalUrl, fetchSafeExternalUrl } from './lib/url-security.js';
+
 function normalizePageUrl(rawUrl) {
   if (!rawUrl) return '';
   try {
@@ -79,7 +81,7 @@ export default async function handler(req) {
       targetUrl = `https://${targetUrl}`;
     }
 
-    const initialParsed = new URL(targetUrl);
+    const initialParsed = assertSafeExternalUrl(targetUrl);
     const cleanHost = initialParsed.hostname.replace(/^www\./, '');
 
     const discoveredUrls = new Set();
@@ -89,7 +91,7 @@ export default async function handler(req) {
       const controller = new AbortController();
       const id = setTimeout(() => controller.abort(), timeoutMs);
       try {
-        const res = await fetch(urlStr, {
+        const res = await fetchSafeExternalUrl(urlStr, {
           signal: controller.signal,
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',

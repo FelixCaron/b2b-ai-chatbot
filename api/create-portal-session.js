@@ -1,17 +1,12 @@
 // api/create-portal-session.js
 // Vercel Serverless Function — Creates a Stripe Billing Portal Session
 import Stripe from 'stripe';
-import { createClient } from '@supabase/supabase-js';
 import WebSocket from 'ws';
+import { createServiceRoleClient, requireServerEnv } from './lib/server-config.js';
 
 if (typeof globalThis !== 'undefined' && !globalThis.WebSocket) {
   globalThis.WebSocket = WebSocket;
 }
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-
-const DEFAULT_SUPABASE_URL = "https://xuvueegdokgiyedwvmkm.supabase.co";
-const DEFAULT_SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh1dnVlZWdkb2tnaXllZHd2bWttIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NjE0ODAxNCwiZXhwIjoyMTAxNzI0MDE0fQ.Z9CsCniLkOuPJZajLzUMfN2FUTbZsvwZC8KD5CXh-7E";
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -19,16 +14,15 @@ export default async function handler(req, res) {
   }
 
   try {
+    const { STRIPE_SECRET_KEY } = requireServerEnv('STRIPE_SECRET_KEY');
+    const stripe = new Stripe(STRIPE_SECRET_KEY);
     const { tenantId } = req.body || {};
 
     if (!tenantId) {
       return res.status(400).json({ error: 'tenantId is required' });
     }
 
-    const supabase = createClient(
-      process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || DEFAULT_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || DEFAULT_SUPABASE_KEY
-    );
+    const supabase = createServiceRoleClient();
 
     const { data: tenant } = await supabase
       .from('tenants')

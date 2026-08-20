@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { generateEmbedding, generateWebsiteSummary } from './lib/llm.js';
+import { assertSafeExternalUrl } from './lib/url-security.js';
 
 export const config = {
   runtime: 'edge',
@@ -187,6 +188,7 @@ export default async function handler(req) {
     }
 
     let targetUrl = normalizePageUrl(url);
+    targetUrl = assertSafeExternalUrl(targetUrl).href;
 
     const AUTH_WALL_REGEX = /\/(login|signin|sign-in|sinscrire|s-inscrire|register|account|my-account|mon-compte|connexion|se-connecter|log-in|user-login|members|espace-client|client-portal|dashboard|admin)($|\/|\?|#)/i;
     const AUTH_CONTENT_REGEX = /(please log in|sign in to access|connexion requise|veuillez vous connecter|accès réservé|connectez-vous|password required|mot de passe requis|authentification requise|member login|espace client|espace membre)/i;

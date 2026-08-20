@@ -11,7 +11,7 @@ Multi-tenant B2B AI Chatbot SaaS built with Supabase (pgvector, FTS, RLS, Raw SQ
 - `/scripts`: Admin dev tools & E2E tests.
 
 ## API Architecture
-All API endpoints live in `/apps/admin/api/` (deployed as Vercel Serverless Edge Functions):
+All API endpoints live in `/api/` and are deployed with the root Vercel project:
 - `chat.js` — Agentic loop: LLM decides when to call `search_knowledge_base` tool → RAG → synthesize response. SSE streaming.
 - `start-scan.js` — Fetches page via Jina Reader, chunks text, inserts into `documents` table with FTS indexing.
 - `crawl-site.js` — Discovers subpages via sitemaps and HTML link extraction.
@@ -43,6 +43,6 @@ All API endpoints live in `/apps/admin/api/` (deployed as Vercel Serverless Edge
 4. **API in apps/admin/api/**: All serverless functions MUST live in `apps/admin/api/` since deployment runs from `apps/admin/`. Never put API routes at monorepo root.
 
 ## Deployment
-- **Admin SPA + API**: Deployed via `vercel --prod` from `apps/admin/` directory. Vercel auto-detects `api/` as serverless functions.
+- **Admin SPA + API**: Deployed via `vercel --prod` from the repository root. The root build writes the SPA to `apps/admin/dist` and Vercel discovers the root `api/` functions.
 - **Widget**: Deployed via `vercel --prod` from `apps/widget/` directory. Serves `widget.iife.js` as CDN asset.
 - **CI/CD**: GitHub Actions workflow (`.github/workflows/deploy.yml`) runs tests, builds, and deploys both apps.

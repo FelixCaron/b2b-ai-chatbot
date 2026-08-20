@@ -1,4 +1,5 @@
 import { extractThemeColors } from './lib/llm.js';
+import { assertSafeExternalUrl, fetchSafeExternalUrl } from './lib/url-security.js';
 
 export const config = {
   runtime: 'edge',
@@ -36,7 +37,7 @@ export default async function handler(req) {
       targetUrl = `https://${targetUrl}`;
     }
 
-    const initialParsed = new URL(targetUrl);
+    const initialParsed = assertSafeExternalUrl(targetUrl);
     const cleanHost = initialParsed.hostname.replace(/^www\./, '');
 
     const candidates = [
@@ -53,7 +54,7 @@ export default async function handler(req) {
 
     for (const candidate of uniqueCandidates) {
       try {
-        const pageRes = await fetch(candidate, {
+        const pageRes = await fetchSafeExternalUrl(candidate, {
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Accept': 'text/html'

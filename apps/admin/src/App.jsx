@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { authenticatedHeaders, supabase, supabaseConfigurationError } from './lib/supabase';
 import Header from './components/Header';
 import ClientOnboarding from './components/ClientOnboarding';
 import LeadsTable from './components/LeadsTable';
@@ -9,27 +9,27 @@ import PaymentSuccessPage from './components/PaymentSuccessPage';
 import AboutPage from './components/AboutPage';
 import { Users } from 'lucide-react';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://xuvueegdokgiyedwvmkm.supabase.co";
-const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh1dnVlZWdkb2tnaXllZHd2bWttIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NjE0ODAxNCwiZXhwIjoyMTAxNzI0MDE0fQ.Z9CsCniLkOuPJZajLzUMfN2FUTbZsvwZC8KD5CXh-7E";
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-
 export default function App() {
-  const [sessionEmail, setSessionEmail] = useState(() => localStorage.getItem('b2b_session_email') || null);
-  const [selectedTenant, setSelectedTenant] = useState(() => {
-    try {
-      const saved = localStorage.getItem('b2b_selected_tenant');
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
-  });
-  const [tenants, setTenants] = useState(() => (selectedTenant ? [selectedTenant] : []));
+  if (supabaseConfigurationError) {
+    return (
+      <main className="min-h-screen bg-dark-900 flex items-center justify-center p-6 text-slate-100">
+        <div className="max-w-lg rounded-xl border border-red-400/40 bg-red-950/30 p-6">
+          <h1 className="text-lg font-semibold">Configuration requise</h1>
+          <p className="mt-2 text-sm text-slate-300">{supabaseConfigurationError}</p>
+        </div>
+      </main>
+    );
+  }
+  const [currentUser, setCurrentUser] = useState(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [selectedTenant, setSelectedTenant] = useState(null);
+  const [tenants, setTenants] = useState([]);
   const [sites, setSites] = useState([]);
   const [leads, setLeads] = useState([]);
   const [usage, setUsage] = useState(null);
   const [loading, setLoading] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [authMessage, setAuthMessage] = useState('');
   const [paymentToast, setPaymentToast] = useState(null); // 'success' | 'cancel' | null
 
   // Detect Stripe redirect routes
@@ -40,17 +40,26 @@ export default function App() {
     'dashboard'
   );
 
-  const isGuest = !sessionEmail && selectedTenant?.name?.startsWith('Guest_');
+  const sessionEmail = currentUser?.email || null;
+  const isGuest = Boolean(currentUser?.is_anonymous);
 
-  // Check LocalStorage & sync session silently in background on boot
   useEffect(() => {
     async function initSession() {
-      const savedEmail = localStorage.getItem('b2b_session_email');
-      if (savedEmail) {
-        await handleLogin(savedEmail, true);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        setCurrentUser(session.user);
+      } else {
+        const { data, error } = await supabase.auth.signInAnonymously();
+        if (error) console.warn('[auth] anonymous sign-in failed:', error.message);
+        setCurrentUser(data.user || null);
       }
+      setAuthReady(true);
     }
     initSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setCurrentUser(session?.user || null);
+    });
 
     // Listen for B2B Copilot Tool Calls
     const handleCopilotTool = (e) => {
@@ -60,54 +69,44 @@ export default function App() {
       }
     };
     window.addEventListener('b2b_tool_call', handleCopilotTool);
-    return () => window.removeEventListener('b2b_tool_call', handleCopilotTool);
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener('b2b_tool_call', handleCopilotTool);
+    };
   }, []);
 
-  const handleLogin = async (email, isBackgroundSync = false) => {
-    if (!isBackgroundSync) setLoading(true);
-    let currentGuestTenant = (selectedTenant && selectedTenant.name.startsWith('Guest_')) ? selectedTenant : null;
-
+  const handleLogin = async (email) => {
+    setLoading(true);
+    setAuthMessage('');
     try {
-      const { data: existingTenants } = await supabase.from('tenants').select('*').eq('name', email);
-      let finalTenant = null;
-
-      if (existingTenants && existingTenants.length > 0) {
-        finalTenant = existingTenants[0];
-        if (currentGuestTenant) {
-          await supabase.from('sites').update({ tenant_id: finalTenant.id }).eq('tenant_id', currentGuestTenant.id);
-        }
+      if (currentUser?.is_anonymous) {
+        const { error } = await supabase.auth.updateUser({ email });
+        if (error) throw error;
+        setAuthMessage('Vérifiez votre e-mail pour confirmer et sécuriser votre espace.');
       } else {
-        if (currentGuestTenant) {
-          const { data: updated } = await supabase.from('tenants').update({ name: email }).eq('id', currentGuestTenant.id).select().single();
-          finalTenant = updated;
-        } else {
-          const { data: newTenant } = await supabase.from('tenants').insert({ name: email }).select().single();
-          finalTenant = newTenant;
-        }
-      }
-
-      if (finalTenant) {
-        setTenants([finalTenant]);
-        setSelectedTenant(finalTenant);
-        setSessionEmail(email);
-        localStorage.setItem('b2b_session_email', email);
-        localStorage.setItem('b2b_selected_tenant', JSON.stringify(finalTenant));
-        setShowLoginModal(false);
+        const { error } = await supabase.auth.signInWithOtp({
+          email,
+          options: { emailRedirectTo: window.location.origin }
+        });
+        if (error) throw error;
+        setAuthMessage('Lien de connexion envoyé. Vérifiez votre e-mail.');
       }
     } catch (e) {
       console.warn('[handleLogin] error:', e);
+      setAuthMessage(e.message || 'Impossible de démarrer la connexion.');
     } finally {
-      if (!isBackgroundSync) setLoading(false);
+      setLoading(false);
     }
   };
 
-  const handleLogout = () => {
-    setSessionEmail(null);
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     setSelectedTenant(null);
+    setTenants([]);
     setSites([]);
     setLeads([]);
-    localStorage.removeItem('b2b_session_email');
-    localStorage.removeItem('b2b_selected_tenant');
+    const { data } = await supabase.auth.signInAnonymously();
+    setCurrentUser(data.user || null);
   };
 
   // Show toast on payment redirect
@@ -123,6 +122,17 @@ export default function App() {
       return () => clearTimeout(t);
     }
   }, []);
+
+  useEffect(() => {
+    if (!currentUser || !authReady) return;
+    async function loadOwnedTenants() {
+      const { data } = await supabase.from('tenants').select('*').eq('owner_user_id', currentUser.id);
+      const ownedTenants = data || [];
+      setTenants(ownedTenants);
+      setSelectedTenant((current) => ownedTenants.find((tenant) => tenant.id === current?.id) || ownedTenants[0] || null);
+    }
+    loadOwnedTenants();
+  }, [currentUser?.id, authReady]);
 
   // Fetch tenant-specific resources whenever selectedTenant changes
   useEffect(() => {
@@ -150,10 +160,15 @@ export default function App() {
   // Handler: Add new Site
   const handleAddSite = async (domain, primaryColor = '#6366f1') => {
     let tId = selectedTenant?.id;
+    if (!currentUser) return null;
 
     // Create guest tenant if absolutely needed
     if (!tId) {
-      const { data: guestTenant } = await supabase.from('tenants').insert({ name: 'Guest_' + Date.now() }).select().single();
+      const { data: guestTenant } = await supabase
+        .from('tenants')
+        .insert({ name: currentUser.email || `Guest_${Date.now()}`, owner_user_id: currentUser.id })
+        .select()
+        .single();
       if (guestTenant) {
         tId = guestTenant.id;
         setTenants([guestTenant]);
@@ -234,7 +249,7 @@ export default function App() {
     try {
       const res = await fetch(`${window.location.origin}/api/start-scan`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await authenticatedHeaders(),
         body: JSON.stringify({ site_id: siteId, tenant_id: tId, url: url })
       });
       const data = await res.json();
@@ -244,7 +259,7 @@ export default function App() {
     }
   };
 
-  if (loading) {
+  if (loading || !authReady) {
     return (
       <div className="min-h-screen bg-dark-900 flex items-center justify-center text-brand-400 text-sm font-medium animate-pulse">
         Loading Client Workspace...
@@ -272,6 +287,7 @@ export default function App() {
           onLogin={handleLogin} 
           onClose={!isGuest ? () => setShowLoginModal(false) : undefined}
           isGuestConversion={isGuest} 
+          message={authMessage}
         />
       )}
 

@@ -13,6 +13,41 @@ const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 // Simple memory cache for basic Edge Rate Limiting (per isolate)
 const rateLimitMap = new Map();
 
+function normalizedHostname(value) {
+  try {
+    const candidate = /^https?:\/\//i.test(value) ? value : `https://${value}`;
+    return new URL(candidate).hostname.toLowerCase().replace(/^www\./, '');
+  } catch {
+    return '';
+  }
+}
+
+function requestOrigin(req) {
+  const rawOrigin = req.headers.get('origin') || req.headers.get('referer');
+  if (!rawOrigin) return null;
+  try {
+    return new URL(rawOrigin).origin;
+  } catch {
+    return null;
+  }
+}
+
+function isAllowedAdminOrigin(origin) {
+  if (!origin) return false;
+  const configuredOrigins = [process.env.ADMIN_ALLOWED_ORIGINS, process.env.VITE_APP_URL]
+    .filter(Boolean)
+    .flatMap((value) => value.split(','))
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  if (configuredOrigins.some((value) => {
+    try { return new URL(value).origin === origin; } catch { return false; }
+  })) return true;
+
+  return process.env.VERCEL_ENV !== 'production'
+    && ['http://localhost:3000', 'http://127.0.0.1:3000'].includes(origin);
+}
+
 export default async function handler(req) {
   if (req.method === 'OPTIONS') {
     return new Response('ok', {
@@ -114,13 +149,14 @@ export default async function handler(req) {
 
     const tenantId = site.tenant_id;
     // Domain locking: verify request origin matches site domain
-    const origin = req.headers.get('origin') || req.headers.get('referer') || '';
-    const isAdminOrigin = !origin || origin.includes('vercel.app') || origin.includes('localhost') || origin.includes('127.0.0.1');
-    const siteDomainClean = site.domain ? site.domain.replace(/^https?:\/\//, '').replace(/^www\./, '') : '';
-    const isDomainMatch = isAdminCopilot || origin.includes(siteDomainClean) || (site.domain && origin.includes(site.domain));
+    const origin = requestOrigin(req);
+    const siteDomainClean = normalizedHostname(site.domain);
+    const originHostname = origin ? normalizedHostname(origin) : '';
+    const isDomainMatch = originHostname && originHostname === siteDomainClean;
+    const canUseAdminOrigin = isAdminCopilot && isAllowedAdminOrigin(origin);
 
-    if (!isAdminOrigin && !isDomainMatch) {
-      return new Response(JSON.stringify({ error: `Origin non autorisée (${origin}) pour le domaine ${site.domain}` }), {
+    if (!isDomainMatch && !canUseAdminOrigin) {
+      return new Response(JSON.stringify({ error: 'Origin non autorisée pour ce site.' }), {
         status: 403,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });

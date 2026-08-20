@@ -1,5 +1,6 @@
-import { createClient } from '@supabase/supabase-js';
 import { generateWebsiteSummary } from './lib/llm.js';
+import { createServiceRoleClient } from './lib/server-config.js';
+import { assertSafeExternalUrl } from './lib/url-security.js';
 
 export const config = {
   runtime: 'edge',
@@ -16,9 +17,7 @@ export default async function handler(req) {
     });
   }
 
-  const SUPABASE_URL = process.env.SUPABASE_URL || 'https://xuvueegdokgiyedwvmkm.supabase.co';
-  const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh1dnVlZWdkb2tnaXllZHd2bWttIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NjE0ODAxNCwiZXhwIjoyMTAxNzI0MDE0fQ.Z9CsCniLkOuPJZajLzUMfN2FUTbZsvwZC8KD5CXh-7E';
-  const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+  const supabase = createServiceRoleClient();
 
 
   try {
@@ -36,10 +35,10 @@ export default async function handler(req) {
       const { data: siteData } = await supabase.from('sites').select('domain').eq('id', site_id).maybeSingle();
       if (siteData) targetUrl = siteData.domain;
     }
-
     if (targetUrl && !targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
       targetUrl = `https://${targetUrl}`;
     }
+    targetUrl = assertSafeExternalUrl(targetUrl).href;
 
     let websiteContent = raw_content || '';
 

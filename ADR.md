@@ -981,3 +981,18 @@ avigate_to\ pour changer la vue (dashboard, pricing, leads, about) dans l'applic
 
 
 
+
+## ADR : Isolation des données via Utilisateurs Anonymes Supabase
+**Date:** 20 Août 2026
+**Statut:** Accepté
+
+### Contexte
+La première couche est validée sans modifier l'expérience d'onboarding. Pour isoler réellement les données tout en conservant l'essai immédiat, il est nécessaire d'éviter de forcer une connexion avant le premier scan.
+
+### Décision
+Utiliser les utilisateurs anonymes Supabase : un tenant d'essai est lié à cet utilisateur, puis conservé lors de la conversion par e-mail. Les règles RLS (Row Level Security) ont été mises à jour pour lier les tenants à un owner_user_id (auth.users).
+
+### Conséquences
+- Isolation des données par utilisateur.
+- Maintien de l'expérience d'onboarding sans friction (essai immédiat).
+

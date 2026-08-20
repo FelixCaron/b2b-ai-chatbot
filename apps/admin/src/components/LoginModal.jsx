@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Bot, ArrowRight, ShieldCheck, X } from 'lucide-react';
 
-export default function LoginModal({ onLogin, onClose, isGuestConversion = false }) {
+export default function LoginModal({ onLogin, onClose, isGuestConversion = false, message = '' }) {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -64,6 +64,8 @@ export default function LoginModal({ onLogin, onClose, isGuestConversion = false
             )}
           </button>
         </form>
+
+        {message && <p className="relative mt-4 text-center text-sm text-emerald-300">{message}</p>}
 
         <div className="relative mt-8 pt-6 border-t border-white/5 flex items-center justify-center gap-2 text-xs text-gray-500">
           <ShieldCheck className="w-4 h-4 text-emerald-500/70" /> {isGuestConversion ? "Secure account creation" : "Secure sign in"}

@@ -43,3 +43,6 @@ jobs:
 
       - name: Run Schema Contracts Verification
         run: node scripts/test-schemas.js
+
+      - name: Reject committed credentials
+        run: npm run test:secrets
