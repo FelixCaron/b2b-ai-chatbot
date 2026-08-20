@@ -588,7 +588,7 @@ export default function Dashboard({
 
         await runSynchronousCrawlAndIndex(siteObj, formattedUrl);
       } else {
-        setStatusMsg('Error: Unable to add this website domain.');
+        setStatusMsg('Erreur : Impossible d\'ajouter ce site. Vérifiez que votre session Supabase est active.');
         setIsAnalyzing(false);
       }
     } catch (err) {

@@ -239,11 +239,7 @@ export default function App() {
       return existingSite;
     }
 
-    if (siteInsertErr) {
-      throw new Error(`Impossible d'ajouter le domaine: ${siteInsertErr.message}`);
-    }
-
-    return null;
+    throw new Error(siteInsertErr?.message || "Échec de l'enregistrement du domaine dans la base de données.");
   };
 
   // Handler: Update site settings
