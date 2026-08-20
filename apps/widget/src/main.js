@@ -74,13 +74,18 @@ import { parseMarkdown } from "./markdown.js";
   const input = shadowRoot.getElementById("b2b-input");
   const sendBtn = shadowRoot.getElementById("b2b-send-btn");
 
-  let isOpen = false;
+  let isOpen = scriptTag?.hasAttribute("data-auto-open") || false;
   let isStreaming = false;
 
   function toggleWidget() {
     isOpen = !isOpen;
     panel.classList.toggle("active", isOpen);
     if (isOpen) input.focus();
+  }
+
+  // Force initial state if auto-open is enabled
+  if (isOpen) {
+    panel.classList.add("active");
   }
 
   launcher.addEventListener("click", toggleWidget);
