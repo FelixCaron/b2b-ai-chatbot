@@ -1178,3 +1178,17 @@ Le chatbot avait par défaut un fond sombre/noir avec un contraste inadéquat su
 
 ### Conséquences
 - Le chatbot s'intègre harmonieusement sur n'importe quel site web blanc ou clair par défaut.
+
+## ADR : Suppression du toggle Desktop/Mobile et affichage natif 100% responsive
+**Date:** 20 Août 2026
+**Statut:** Accepté
+
+### Contexte
+Le commutateur manuel Desktop/Mobile ajoutait de la complexité visuelle inutile dans la modal de prévisualisation du chatbot.
+
+### Décision
+- Suppression du toggle Desktop / Mobile et de l'état `previewViewport`.
+- La vue de prévisualisation utilise désormais directement l'écran / appareil actuel (`w-full h-full`) pour une expérience fluide et réactive naturelle sur tout appareil (smartphone, tablette ou desktop).
+
+### Conséquences
+- Interface de prévisualisation plus épurée et affichage naturel de l'appareil utilisateur.

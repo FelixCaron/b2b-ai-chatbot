@@ -511,7 +511,6 @@ export default function Dashboard({
 
   // Full-Screen Preview & Live Bot Testing State
   const [showPreviewModal, setShowPreviewModal] = useState(false);
-  const [previewViewport, setPreviewViewport] = useState('desktop'); // 'desktop' | 'mobile'
   const [copiedScriptKey, setCopiedScriptKey] = useState(null);
 
   // Live Preview Chatbot State
@@ -1463,25 +1462,6 @@ export default function Dashboard({
 
             {/* Viewport Switcher & New Tab Button */}
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1 bg-dark-800 p-1 rounded-xl border border-white/5">
-                <button
-                  onClick={() => setPreviewViewport('desktop')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    previewViewport === 'desktop' ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-white'
-                  }`}
-                >
-                  <Laptop className="w-3.5 h-3.5" /> Desktop
-                </button>
-                <button
-                  onClick={() => setPreviewViewport('mobile')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    previewViewport === 'mobile' ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-white'
-                  }`}
-                >
-                  <Smartphone className="w-3.5 h-3.5" /> Mobile
-                </button>
-              </div>
-
               <a
                 href={`${window.location.origin}/preview.html?domain=${encodeURIComponent(activeSite.domain)}&tenant_key=${encodeURIComponent(activeSite.public_key)}&theme_color=${encodeURIComponent(themeColor)}&api_url=${encodeURIComponent(`${window.location.origin}/api/chat`)}`}
                 target="_blank"
@@ -1506,12 +1486,8 @@ export default function Dashboard({
           </div>
 
           {/* Main Viewport */}
-          <div className="flex-1 bg-gray-950 flex items-center justify-center relative overflow-hidden">
-            <div
-              className={`h-full transition-all duration-300 relative ${
-                previewViewport === 'mobile' ? 'w-[390px] h-[780px] my-auto rounded-3xl border-8 border-gray-800 overflow-hidden shadow-2xl' : 'w-full h-full'
-              }`}
-            >
+          <div className="flex-1 bg-white flex items-center justify-center relative overflow-hidden">
+            <div className="w-full h-full relative">
               <iframe
                 src={activeSite.domain.startsWith('http') ? activeSite.domain : `https://${activeSite.domain}`}
                 className="w-full h-full border-0 bg-white"
