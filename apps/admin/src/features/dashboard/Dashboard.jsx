@@ -512,8 +512,10 @@ export default function Dashboard({
 
   // Full-Screen Preview & Live Bot Testing State
   const [showPreviewModal, setShowPreviewModal] = useState(false);
-  const [zoomLevel, setZoomLevel] = useState(1);
+  const [autoScale, setAutoScale] = useState(1);
   const [copiedScriptKey, setCopiedScriptKey] = useState(null);
+
+  const previewContainerRef = useRef(null);
 
   // Live Preview Chatbot State
   const [previewSessionId, setPreviewSessionId] = useState(() => 'preview_sess_' + Date.now());
@@ -523,6 +525,29 @@ export default function Dashboard({
   ]);
   const [previewInput, setPreviewInput] = useState('');
   const [previewStreaming, setPreviewStreaming] = useState(false);
+
+  // Automatically calculate ideal viewport scale so ANY website fits 100% horizontally without clipping
+  useEffect(() => {
+    if (!showPreviewModal) return;
+    const calculateScale = () => {
+      if (!previewContainerRef.current) return;
+      const width = previewContainerRef.current.clientWidth;
+      if (width && width < 1280) {
+        setAutoScale(width / 1280);
+      } else {
+        setAutoScale(1);
+      }
+    };
+
+    calculateScale();
+    const ro = new ResizeObserver(calculateScale);
+    if (previewContainerRef.current) ro.observe(previewContainerRef.current);
+    window.addEventListener('resize', calculateScale);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', calculateScale);
+    };
+  }, [showPreviewModal]);
 
   // Hide the admin dashboard bot when in preview mode to prevent overlap
   useEffect(() => {
@@ -1462,37 +1487,7 @@ export default function Dashboard({
               </div>
             </div>
 
-            {/* Zoom / Scale Controller & New Tab Button */}
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1 bg-dark-800 p-1 rounded-xl border border-white/5 text-xs text-gray-300">
-                <button
-                  onClick={() => setZoomLevel((prev) => Math.max(0.5, Number((prev - 0.1).toFixed(2))))}
-                  className="p-1 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
-                  title="Zoom out (fit wider sites)"
-                >
-                  <ZoomOut className="w-3.5 h-3.5" />
-                </button>
-                <span className="px-1.5 font-mono text-[11px] min-w-[42px] text-center font-medium">
-                  {Math.round(zoomLevel * 100)}%
-                </span>
-                <button
-                  onClick={() => setZoomLevel((prev) => Math.min(1.5, Number((prev + 0.1).toFixed(2))))}
-                  className="p-1 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
-                  title="Zoom in"
-                >
-                  <ZoomIn className="w-3.5 h-3.5" />
-                </button>
-                {zoomLevel !== 1 && (
-                  <button
-                    onClick={() => setZoomLevel(1)}
-                    className="p-1 rounded-lg hover:bg-white/10 text-brand-400 hover:text-brand-300 transition-colors"
-                    title="Reset zoom to 100%"
-                  >
-                    <RotateCcw className="w-3 h-3" />
-                  </button>
-                )}
-              </div>
-
               <a
                 href={`${window.location.origin}/preview.html?domain=${encodeURIComponent(activeSite.domain)}&tenant_key=${encodeURIComponent(activeSite.public_key)}&theme_color=${encodeURIComponent(themeColor)}&api_url=${encodeURIComponent(`${window.location.origin}/api/chat`)}`}
                 target="_blank"
@@ -1517,15 +1512,15 @@ export default function Dashboard({
           </div>
 
           {/* Main Viewport */}
-          <div className="flex-1 bg-white flex items-center justify-center relative overflow-hidden">
+          <div ref={previewContainerRef} className="flex-1 bg-white flex items-center justify-center relative overflow-hidden">
             <div className="w-full h-full relative overflow-auto">
               <iframe
                 src={activeSite.domain.startsWith('http') ? activeSite.domain : `https://${activeSite.domain}`}
                 className="border-0 bg-white block"
                 style={{
-                  width: `${100 / zoomLevel}%`,
-                  height: `${100 / zoomLevel}%`,
-                  transform: `scale(${zoomLevel})`,
+                  width: `${100 / autoScale}%`,
+                  height: `${100 / autoScale}%`,
+                  transform: `scale(${autoScale})`,
                   transformOrigin: 'top left',
                   transition: 'transform 0.15s ease, width 0.15s ease, height 0.15s ease'
                 }}

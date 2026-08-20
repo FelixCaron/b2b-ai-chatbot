@@ -1221,3 +1221,18 @@ Certains sites web externes possèdent des conteneurs fixes à largeur minimale 
 
 ### Conséquences
 - L'utilisateur peut ajuster et faire rentrer n'importe quel site web complexe à 100% dans la fenêtre de prévisualisation sans coupure.
+
+## ADR : Cadrage 100% automatique et invisible (Auto-Fit Dynamique par ResizeObserver)
+**Date:** 20 Août 2026
+**Statut:** Accepté
+
+### Contexte
+L'utilisateur a demandé que l'ajustement du site web dans la prévisualisation soit 100% automatique et transparent sans aucun bouton ni contrôle manuel visible pour le client.
+
+### Décision
+- Suppression complète des boutons manuels de zoom/échelle dans la barre d'en-tête.
+- Implémentation d'un calcul dynamique automatique (`autoScale`) piloté par `ResizeObserver` : dès que la largeur disponible est inférieure à 1280px, l'iframe calcule et applique instantanément le ratio d'échelle parfait (`scale = width / 1280`) avec `transform-origin: top left`.
+- L'expérience est 100% transparente et fluide pour le client sur n'importe quel écran.
+
+### Conséquences
+- N'importe quel site web (même avec une largeur fixe de 1280px+) rentre automatiquement et parfaitement à 100% dans le cadre du preview sans aucune action de l'utilisateur.
