@@ -21,7 +21,7 @@ export default function SitesManager({ sites, tenant, onAddSite, onTriggerScan }
     setNewDomain('');
   };
 
-  // Step 1: Trigger Crawler Edge Function (/api/crawl-site)
+  // Step 1: Trigger Crawler Edge Function (/api/crawler/crawl)
   const handleCrawlSubmit = async (e) => {
     e.preventDefault();
     if (!crawlUrl) return;
@@ -32,7 +32,7 @@ export default function SitesManager({ sites, tenant, onAddSite, onTriggerScan }
     setSelectedUrls(new Set());
 
     try {
-      const crawlEndpoint = `${window.location.origin}/api/crawl-site`;
+      const crawlEndpoint = `${window.location.origin}/api/crawler/crawl`;
       const res = await fetch(crawlEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -76,7 +76,7 @@ export default function SitesManager({ sites, tenant, onAddSite, onTriggerScan }
     }
   };
 
-  // Step 3: Queue selected pages to PGMQ via /api/start-scan
+  // Step 3: Queue selected pages to PGMQ via /api/crawler/scan
   const handleBatchIndex = async () => {
     if (!selectedSiteForScan || selectedUrls.size === 0) return;
 

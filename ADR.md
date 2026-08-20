@@ -1014,3 +1014,19 @@ Les fonctions serverless (\start-scan.js\, \update-document.js\, \generate-summa
 - Les endpoints backend sont désormais sécurisés contre les accès non autorisés (IDOR).
 - L'application est prête et safe pour la production avec de vrais clients.
 
+
+## ADR : Refactoring architectural (Moteur et Cylindres)
+**Date:** 20 Août 2026
+**Statut:** Accepté
+
+### Contexte
+L'application était plate : un énorme monolithe de 2000 lignes (ClientOnboarding.jsx) et un dossier d'API sans structure métier. Les scripts s'accumulaient sans tri.
+
+### Décision
+1. **API** : Regroupées par domaine métier (pi/crawler/, pi/billing/, pi/chat/, pi/cron/).
+2. **Scripts** : Triés en sous-dossiers (scripts/tests/, scripts/ops/, scripts/adhoc/).
+3. **Frontend** : Création du dossier eatures/dashboard/. Renommage de ClientOnboarding.jsx en Dashboard.jsx. Les APIs fetch ont été mises à jour.
+
+### Conséquences
+- Une architecture claire, évolutive et facile à naviguer pour l'équipe de développement.
+

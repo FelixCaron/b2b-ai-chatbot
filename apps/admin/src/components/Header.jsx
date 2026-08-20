@@ -22,7 +22,7 @@ export default function Header({
     if (!selectedTenant?.id) return;
     setPortalLoading(true);
     try {
-      const res = await fetch('/api/create-portal-session', {
+      const res = await fetch('/api/billing/portal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tenantId: selectedTenant.id }),

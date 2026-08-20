@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "b2b-ai-chatbot-monorepo",
   "private": true,
   "version": "1.0.0",
@@ -13,12 +13,12 @@
     "dev": "npm run dev --workspaces --if-present",
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",
-    "test": "node scripts/test-schemas.js",
-    "test:secrets": "node scripts/check-no-secrets.cjs",
-    "test:pipeline": "node scripts/test-pipeline.js",
-    "test:rag": "node scripts/test-rag-search.js",
-    "test:schemas": "node scripts/test-schemas.js",
-    "reingest:delafontaine": "node scripts/reingest-delafontaine.mjs"
+    "test": "node scripts/tests/test-schemas.js",
+    "test:secrets": "node scripts/ops/check-no-secrets.cjs",
+    "test:pipeline": "node scripts/tests/test-pipeline.js",
+    "test:rag": "node scripts/tests/test-rag-search.js",
+    "test:schemas": "node scripts/tests/test-schemas.js",
+    "reingest:delafontaine": "node scripts/adhoc/reingest-delafontaine.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.8",
