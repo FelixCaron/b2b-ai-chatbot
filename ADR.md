@@ -2,6 +2,24 @@
 
 ---
 
+## ADR 034 : Ouverture Automatique du Chatbot sur la page de Prévisualisation (preview.html)
+
+**Date :** 2026-08-19
+
+### Contexte
+Dans l'interface administrateur (ClientOnboarding), la prévisualisation du chatbot sur le site du client simulait un panneau de chat toujours ouvert (overlay natif en React). Cependant, lorsque l'utilisateur cliquait sur "Ouvrir dans un nouvel onglet" (\preview.html\), le widget de chat réel (\widget.iife.js\) était injecté et apparaissait par défaut sous forme de "bulle" fermée (launcher) en bas à droite, donnant l'impression à l'utilisateur que le bot était "absent" de la page.
+De plus, la couleur d'accentuation n'était pas passée correctement en paramètre d'URL lors de l'ouverture du nouvel onglet.
+
+### Décision
+1. Ajout de la capacité d'auto-ouverture (auto-open) au \widget.iife.js\. Le widget vérifie désormais l'attribut \data-auto-open="true"\ sur sa propre balise script pour forcer l'état initial ouvert (\isOpen = true\).
+2. Ajout du paramètre d'URL \	heme_color\ dans \ClientOnboarding.jsx\ pour qu'il soit propagé à \preview.html\.
+3. Modification de \preview.html\ pour inclure l'attribut \data-auto-open="true"\ et relayer correctement la couleur de thème lors de l'injection du script.
+
+### Conséquences
+- L'expérience dans le nouvel onglet (\preview.html\) est désormais identique à celle affichée dans la modale : le panneau du chatbot s'ouvre de lui-même dès le chargement de la page, rendant la prévisualisation immédiatement évidente.
+- L'esthétique de la prévisualisation en plein écran correspond aux couleurs choisies dans le tableau de bord administrateur.
+
+---
 ## ADR 033 : Masquage du Bot Copilot Admin en Mode Prévisualisation
 
 **Date :** 2026-08-19
@@ -959,6 +977,7 @@ Le besoin de prouver la flexibilitÃ© du systÃ¨me et de fournir un assistant 
 avigate_to\ pour changer la vue (dashboard, pricing, leads, about) dans l'application React.
 ### ConsÃ©quences
 - L'utilisateur final (admin) peut utiliser le chatbot pour naviguer dans son propre tableau de bord. Cela dÃ©montre les capacitÃ©s agentiques (Tool Calling -> DOM Action) du produit de faÃ§on spectaculaire.
+
 
 
 
