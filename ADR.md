@@ -1236,3 +1236,17 @@ L'utilisateur a demandé que l'ajustement du site web dans la prévisualisation 
 
 ### Conséquences
 - N'importe quel site web (même avec une largeur fixe de 1280px+) rentre automatiquement et parfaitement à 100% dans le cadre du preview sans aucune action de l'utilisateur.
+
+## ADR : Cadrage automatique et suppression des boutons manuels dans preview.html (Open in new tab)
+**Date:** 20 Août 2026
+**Statut:** Accepté
+
+### Contexte
+La page de prévisualisation autonome `preview.html` (accessible via "Open in new tab") contenait encore des contrôles manuels et n'appliquait pas le redimensionnement automatique de l'iframe.
+
+### Décision
+- Suppression des sélecteurs manuels de viewport dans la barre supérieure de `preview.html`.
+- Implémentation du cadrage automatique par `ResizeObserver` dans `preview.html` (`autoScaleFrame`) : l'iframe est automatiquement adaptée à la largeur de la fenêtre et mise à l'échelle sans aucune coupure.
+
+### Conséquences
+- L'affichage dans un nouvel onglet est totalement propre, automatique et sans action manuelle.

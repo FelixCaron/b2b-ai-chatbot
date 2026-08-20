@@ -59,39 +59,6 @@
       text-overflow: ellipsis;
     }
 
-    /* Controls (Center) */
-    .viewport-controls {
-      display: flex;
-      align-items: center;
-      background: rgba(30, 41, 59, 0.6);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 10px;
-      padding: 3px;
-      gap: 2px;
-    }
-    .vp-btn {
-      background: transparent;
-      border: none;
-      color: #94a3b8;
-      font-size: 12px;
-      font-weight: 500;
-      padding: 4px 10px;
-      border-radius: 7px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      transition: all 0.15s ease;
-    }
-    .vp-btn:hover {
-      color: #fff;
-      background: rgba(255, 255, 255, 0.05);
-    }
-    .vp-btn.active {
-      background: #6366f1;
-      color: #fff;
-    }
-
     /* Actions (Right) */
     .actions-section {
       display: flex;
@@ -129,33 +96,17 @@
       position: relative;
       overflow: hidden;
       padding: 0;
-      transition: padding 0.2s ease;
     }
     #frame-wrapper {
       height: 100%;
       width: 100%;
-      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
       position: relative;
       background: #fff;
       background-size: cover;
       background-position: top center;
       background-repeat: no-repeat;
-      /* CRITICAL: transform isolates 'position: fixed' inside the widget to this wrapper */
+      overflow: auto;
       transform: translateZ(0);
-    }
-    #frame-wrapper.tablet {
-      width: 768px;
-      height: 92%;
-      border-radius: 16px;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.1);
-      overflow: hidden;
-    }
-    #frame-wrapper.mobile {
-      width: 390px;
-      height: 88%;
-      border-radius: 28px;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 0 4px #1e293b, 0 0 0 5px rgba(255, 255, 255, 0.1);
-      overflow: hidden;
     }
     iframe {
       width: 100%;
@@ -163,7 +114,7 @@
       border: 0;
       display: block;
       background: transparent;
-      transition: opacity 0.3s ease;
+      transition: opacity 0.3s ease, transform 0.15s ease, width 0.15s ease, height 0.15s ease;
     }
 
     /* Loading Overlay */
@@ -214,19 +165,6 @@
       <span class="status-badge">
         <span class="status-dot"></span> Live Assistant
       </span>
-    </div>
-
-    <!-- Viewport Switcher -->
-    <div class="viewport-controls">
-      <button type="button" class="vp-btn active" onclick="setViewport('desktop', this)">
-        🖥️ Desktop
-      </button>
-      <button type="button" class="vp-btn" onclick="setViewport('tablet', this)">
-        📱 Tablet
-      </button>
-      <button type="button" class="vp-btn" onclick="setViewport('mobile', this)">
-        📲 Mobile
-      </button>
     </div>
 
     <!-- Actions -->
@@ -337,14 +275,31 @@
       loadPreview();
     }
 
-    function setViewport(mode, btn) {
-      const wrapper = document.getElementById('frame-wrapper');
-      document.querySelectorAll('.vp-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      wrapper.className = mode === 'desktop' ? '' : mode;
+    // Automatically calculate ideal viewport scale so ANY website fits 100% horizontally without clipping
+    function autoScaleFrame() {
+      const container = document.getElementById('frame-container');
+      const iframe = document.getElementById('preview-iframe');
+      if (!container || !iframe) return;
+      const width = container.clientWidth;
+      if (width && width < 1280) {
+        const scale = width / 1280;
+        iframe.style.width = (100 / scale) + '%';
+        iframe.style.height = (100 / scale) + '%';
+        iframe.style.transform = 'scale(' + scale + ')';
+        iframe.style.transformOrigin = 'top left';
+      } else {
+        iframe.style.width = '100%';
+        iframe.style.height = '100%';
+        iframe.style.transform = 'none';
+      }
     }
 
-    // Initial frame load
+    const ro = new ResizeObserver(autoScaleFrame);
+    ro.observe(document.getElementById('frame-container'));
+    window.addEventListener('resize', autoScaleFrame);
+
+    // Initial frame load and scale
+    autoScaleFrame();
     loadPreview();
 
     // Inject Chatbot Widget Overlay into the wrapper page
