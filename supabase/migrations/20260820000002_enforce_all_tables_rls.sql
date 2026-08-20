@@ -1,7 +1,7 @@
 ﻿-- ==============================================================================
 -- Migration: Enforce Row Level Security (RLS) on ALL Supabase Tables
 -- Date: 2026-08-20
--- Description: Ensures 100% table coverage with strict tenant isolation RLS.
+-- Description: Supports both UUID and TEXT tenant_id columns with strict multi-tenant RLS.
 -- ==============================================================================
 
 -- 1. Ensure owner_user_id exists on tenants
@@ -10,7 +10,7 @@ ALTER TABLE public.tenants
 
 CREATE INDEX IF NOT EXISTS tenants_owner_user_id_idx ON public.tenants(owner_user_id);
 
--- 2. Helper function to check tenant ownership (Security Definer)
+-- 2. Overloaded Helper Functions to check tenant ownership (handles both UUID and TEXT)
 CREATE OR REPLACE FUNCTION public.current_user_owns_tenant(target_tenant_id UUID)
 RETURNS BOOLEAN
 LANGUAGE sql
@@ -24,8 +24,23 @@ AS $$
   );
 $$;
 
+CREATE OR REPLACE FUNCTION public.current_user_owns_tenant(target_tenant_id TEXT)
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.tenants
+    WHERE id::text = target_tenant_id AND owner_user_id = auth.uid()
+  );
+$$;
+
 REVOKE ALL ON FUNCTION public.current_user_owns_tenant(UUID) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.current_user_owns_tenant(TEXT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.current_user_owns_tenant(UUID) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.current_user_owns_tenant(TEXT) TO anon, authenticated;
 
 -- ==============================================================================
 -- 3. ENABLE RLS ON ALL PUBLIC TABLES
