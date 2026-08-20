@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Globe, ExternalLink, Send } from 'lucide-react';
+import { X, Globe, ExternalLink, Send, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import { fetchEventSource } from '@microsoft/fetch-event-source';
 
 export default function ChatPreview({
@@ -11,6 +11,7 @@ export default function ChatPreview({
   onRequireLogin
 }) {
   const [previewSessionId, setPreviewSessionId] = useState(() => 'preview_sess_' + Date.now());
+  const [zoomLevel, setZoomLevel] = useState(1);
   const [previewChatOpen, setPreviewChatOpen] = useState(true);
   const [previewMessages, setPreviewMessages] = useState([
     { role: 'assistant', text: "Hello! I am your website's virtual assistant. Ask me any question to test my live responses!" }
@@ -133,6 +134,36 @@ export default function ChatPreview({
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Zoom / Scale Controller to fit any website width perfectly */}
+          <div className="flex items-center gap-1 bg-dark-800 p-1 rounded-xl border border-white/5 text-xs text-gray-300">
+            <button
+              onClick={() => setZoomLevel((prev) => Math.max(0.5, Number((prev - 0.1).toFixed(2))))}
+              className="p-1 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+              title="Zoom out (fit wider sites)"
+            >
+              <ZoomOut className="w-3.5 h-3.5" />
+            </button>
+            <span className="px-1.5 font-mono text-[11px] min-w-[42px] text-center font-medium">
+              {Math.round(zoomLevel * 100)}%
+            </span>
+            <button
+              onClick={() => setZoomLevel((prev) => Math.min(1.5, Number((prev + 0.1).toFixed(2))))}
+              className="p-1 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+              title="Zoom in"
+            >
+              <ZoomIn className="w-3.5 h-3.5" />
+            </button>
+            {zoomLevel !== 1 && (
+              <button
+                onClick={() => setZoomLevel(1)}
+                className="p-1 rounded-lg hover:bg-white/10 text-brand-400 hover:text-brand-300 transition-colors"
+                title="Reset zoom to 100%"
+              >
+                <RotateCcw className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+
           <a
             href={`${window.location.origin}/preview.html?domain=${encodeURIComponent(activeSite.domain)}&tenant_key=${encodeURIComponent(activeSite.public_key)}&theme_color=${encodeURIComponent(themeColor)}&api_url=${encodeURIComponent(`${window.location.origin}/api/chat`)}`}
             target="_blank"
@@ -157,10 +188,17 @@ export default function ChatPreview({
       </div>
 
       <div className="flex-1 bg-white flex items-center justify-center relative overflow-hidden">
-        <div className="w-full h-full relative">
+        <div className="w-full h-full relative overflow-auto">
           <iframe
             src={activeSite.domain.startsWith('http') ? activeSite.domain : `https://${activeSite.domain}`}
-            className="w-full h-full border-0 bg-white"
+            className="border-0 bg-white block"
+            style={{
+              width: `${100 / zoomLevel}%`,
+              height: `${100 / zoomLevel}%`,
+              transform: `scale(${zoomLevel})`,
+              transformOrigin: 'top left',
+              transition: 'transform 0.15s ease, width 0.15s ease, height 0.15s ease'
+            }}
             title="Website Preview"
           />
 

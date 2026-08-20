@@ -3,7 +3,8 @@ import {
   Sparkles, Globe, Eye, CheckCircle2, ArrowRight, Settings2, ShieldCheck, 
   ToggleLeft, ToggleRight, Check, RefreshCw, Copy, Layers, Laptop, 
   Smartphone, X, Send, Code, Lock, FileText, Save, Edit3, ExternalLink,
-  ChevronDown, ChevronUp, Bot, ArrowUpRight, Search, Trash2, AlertTriangle
+  ChevronDown, ChevronUp, Bot, ArrowUpRight, Search, Trash2, AlertTriangle,
+  ZoomIn, ZoomOut, RotateCcw
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -511,6 +512,7 @@ export default function Dashboard({
 
   // Full-Screen Preview & Live Bot Testing State
   const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState(1);
   const [copiedScriptKey, setCopiedScriptKey] = useState(null);
 
   // Live Preview Chatbot State
@@ -1460,8 +1462,37 @@ export default function Dashboard({
               </div>
             </div>
 
-            {/* Viewport Switcher & New Tab Button */}
+            {/* Zoom / Scale Controller & New Tab Button */}
             <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1 bg-dark-800 p-1 rounded-xl border border-white/5 text-xs text-gray-300">
+                <button
+                  onClick={() => setZoomLevel((prev) => Math.max(0.5, Number((prev - 0.1).toFixed(2))))}
+                  className="p-1 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+                  title="Zoom out (fit wider sites)"
+                >
+                  <ZoomOut className="w-3.5 h-3.5" />
+                </button>
+                <span className="px-1.5 font-mono text-[11px] min-w-[42px] text-center font-medium">
+                  {Math.round(zoomLevel * 100)}%
+                </span>
+                <button
+                  onClick={() => setZoomLevel((prev) => Math.min(1.5, Number((prev + 0.1).toFixed(2))))}
+                  className="p-1 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+                  title="Zoom in"
+                >
+                  <ZoomIn className="w-3.5 h-3.5" />
+                </button>
+                {zoomLevel !== 1 && (
+                  <button
+                    onClick={() => setZoomLevel(1)}
+                    className="p-1 rounded-lg hover:bg-white/10 text-brand-400 hover:text-brand-300 transition-colors"
+                    title="Reset zoom to 100%"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+
               <a
                 href={`${window.location.origin}/preview.html?domain=${encodeURIComponent(activeSite.domain)}&tenant_key=${encodeURIComponent(activeSite.public_key)}&theme_color=${encodeURIComponent(themeColor)}&api_url=${encodeURIComponent(`${window.location.origin}/api/chat`)}`}
                 target="_blank"
@@ -1487,10 +1518,17 @@ export default function Dashboard({
 
           {/* Main Viewport */}
           <div className="flex-1 bg-white flex items-center justify-center relative overflow-hidden">
-            <div className="w-full h-full relative">
+            <div className="w-full h-full relative overflow-auto">
               <iframe
                 src={activeSite.domain.startsWith('http') ? activeSite.domain : `https://${activeSite.domain}`}
-                className="w-full h-full border-0 bg-white"
+                className="border-0 bg-white block"
+                style={{
+                  width: `${100 / zoomLevel}%`,
+                  height: `${100 / zoomLevel}%`,
+                  transform: `scale(${zoomLevel})`,
+                  transformOrigin: 'top left',
+                  transition: 'transform 0.15s ease, width 0.15s ease, height 0.15s ease'
+                }}
                 title="Website Preview"
               />
 

@@ -1206,3 +1206,18 @@ Le widget réel (`apps/widget/src/widget.css` et `main.js`) était compilé dans
 
 ### Conséquences
 - Le vrai script widget `<script src=".../widget.iife.js">` dispose désormais systématiquement de la dernière version à jour avec le thème clair moderne et les couleurs d'accent du site client.
+
+## ADR : Contrôle de zoom et cadrage dynamique pour l'iframe de prévisualisation
+**Date:** 20 Août 2026
+**Statut:** Accepté
+
+### Contexte
+Certains sites web externes possèdent des conteneurs fixes à largeur minimale (ex. 1200px / 1440px) ou des mises en page qui dépassent la largeur disponible de la fenêtre de prévisualisation, entraînant un rognage horizontal.
+
+### Décision
+- Ajout d'un système de zoom/échelle fluide (`zoomLevel`) dans la barre supérieure de prévisualisation (boutons Zoom - / Zoom + / Reset 100%).
+- Application de la transformation adaptative `scale(${zoomLevel})` et `width: ${100 / zoomLevel}%` sur l'iframe afin de redimensionner n'importe quel site web de manière à ce qu'il rentre à 100% dans l'espace disponible.
+- Activation du défilement naturel (`overflow-auto`) dans le conteneur de prévisualisation.
+
+### Conséquences
+- L'utilisateur peut ajuster et faire rentrer n'importe quel site web complexe à 100% dans la fenêtre de prévisualisation sans coupure.
