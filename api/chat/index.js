@@ -1,5 +1,6 @@
 ﻿import { createClient } from '@supabase/supabase-js';
 import { generateEmbedding } from '../../lib/llm.js';
+import { sendLeadEmail, sendBugAlertEmail } from '../lib/email.js';
 
 export const config = {
   runtime: 'edge',
@@ -80,7 +81,7 @@ export default async function handler(req) {
       } else {
         record.count++;
         if (record.count > 10) {
-          return new Response(JSON.stringify({ error: 'Limite de requÃªtes atteinte. Veuillez patienter.' }), {
+          return new Response(JSON.stringify({ error: 'Limite de requÃƒÂªtes atteinte. Veuillez patienter.' }), {
             status: 429,
             headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
@@ -106,7 +107,7 @@ export default async function handler(req) {
       if (fullError) {
         console.error('[chat] Supabase site lookup error:', fullError.message, fullError.code);
         if (fullError.code === '42703') {
-          // One or more optional columns are missing from the schema â€” fall back to core columns
+          // One or more optional columns are missing from the schema Ã¢â‚¬â€ fall back to core columns
           console.warn('[chat] Falling back to core columns due to missing column (42703).');
           const { data: coreData, error: coreError } = await supabase
             .from('sites')
@@ -114,7 +115,7 @@ export default async function handler(req) {
             .eq('public_key', tenant_public_key)
             .maybeSingle();
           if (coreError || !coreData) {
-            return new Response(JSON.stringify({ error: 'Site non trouvÃ© (core query failed)' }), {
+            return new Response(JSON.stringify({ error: 'Site non trouvÃƒÂ© (core query failed)' }), {
               status: 404,
               headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
             });
@@ -130,7 +131,7 @@ export default async function handler(req) {
             tenants: null
           });
         } else {
-          return new Response(JSON.stringify({ error: `Erreur base de donnÃ©es: ${fullError.message}` }), {
+          return new Response(JSON.stringify({ error: `Erreur base de donnÃƒÂ©es: ${fullError.message}` }), {
             status: 500,
             headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
@@ -141,7 +142,7 @@ export default async function handler(req) {
     }
 
     if (!site) {
-      return new Response(JSON.stringify({ error: `ClÃ© de site invalide (${tenant_public_key}). Le site n'a pas Ã©tÃ© trouvÃ© dans la base de donnÃ©es.` }), {
+      return new Response(JSON.stringify({ error: `ClÃƒÂ© de site invalide (${tenant_public_key}). Le site n'a pas ÃƒÂ©tÃƒÂ© trouvÃƒÂ© dans la base de donnÃƒÂ©es.` }), {
         status: 404,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
@@ -156,7 +157,7 @@ export default async function handler(req) {
     const canUseAdminOrigin = isAdminCopilot && isAllowedAdminOrigin(origin);
 
     if (!isDomainMatch && !canUseAdminOrigin) {
-      return new Response(JSON.stringify({ error: 'Origin non autorisÃ©e pour ce site.' }), {
+      return new Response(JSON.stringify({ error: 'Origin non autorisÃƒÂ©e pour ce site.' }), {
         status: 403,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
@@ -224,15 +225,15 @@ export default async function handler(req) {
       }
     }
 
-    let siteSummaryText = summaryText ? `\nRÃ‰SUMÃ‰ DU SITE WEB ET APERÃ‡U DE L'ENTREPRISE :\n${summaryText}\n` : '';
+    let siteSummaryText = summaryText ? `\nRÃƒâ€°SUMÃƒâ€° DU SITE WEB ET APERÃƒâ€¡U DE L'ENTREPRISE :\n${summaryText}\n` : '';
 
     if (isAdminCopilot) {
-      siteSummaryText = `\nRÃ‰SUMÃ‰ DE LA PLATEFORME (Copilot Admin) :
-Tu es le Copilot officiel du tableau de bord de B2B AI Chatbot. Ta mission est d'aider les administrateurs Ã  configurer leur propre agent IA.
-- **Prise de Rendez-vous (Calendar) & Support** : Pour configurer un agenda (Google Calendar, Calendly, Cal.com) ou le transfert d'emails de support, l'utilisateur doit souscrire au plan "Pro Appointment & Support" (80$/mois). Une fois abonnÃ©, il peut entrer son lien d'agenda et son email de support dans la section "Pro Integrations" du tableau de bord (Dashboard).
-- **IntÃ©gration du Widget** : L'utilisateur doit copier la balise <script> fournie dans son Dashboard et la coller dans son site web.
+      siteSummaryText = `\nRÃƒâ€°SUMÃƒâ€° DE LA PLATEFORME (Copilot Admin) :
+Tu es le Copilot officiel du tableau de bord de B2B AI Chatbot. Ta mission est d'aider les administrateurs ÃƒÂ  configurer leur propre agent IA.
+- **Prise de Rendez-vous (Calendar) & Support** : Pour configurer un agenda (Google Calendar, Calendly, Cal.com) ou le transfert d'emails de support, l'utilisateur doit souscrire au plan "Pro Appointment & Support" (80$/mois). Une fois abonnÃƒÂ©, il peut entrer son lien d'agenda et son email de support dans la section "Pro Integrations" du tableau de bord (Dashboard).
+- **IntÃƒÂ©gration du Widget** : L'utilisateur doit copier la balise <script> fournie dans son Dashboard et la coller dans son site web.
 - **Plans** : Free (Gratuit), Pro (80$/mois), Enterprise.
-- **Outils d'UI** : Tu as accÃ¨s Ã  l'outil 'navigate_to'. N'hÃ©site pas Ã  l'utiliser si l'utilisateur demande oÃ¹ trouver une fonctionnalitÃ©.
+- **Outils d'UI** : Tu as accÃƒÂ¨s ÃƒÂ  l'outil 'navigate_to'. N'hÃƒÂ©site pas ÃƒÂ  l'utiliser si l'utilisateur demande oÃƒÂ¹ trouver une fonctionnalitÃƒÂ©.
 Ne mentionne jamais de portes coupe-feu ou d'autres sujets sans rapport.\n`;
     }
 
@@ -244,54 +245,54 @@ Ne mentionne jamais de portes coupe-feu ou d'autres sujets sans rapport.\n`;
     const timeContext = `CONTEXTE TEMPOREL ACTUEL : Nous sommes le ${currentDateStr}, il est ${currentTimeStr}.`;
 
     // Build system prompt
-    const toneString = site.bot_tone === 'amical' ? "Ton: Chaleureux, amical, tutoiement autorisÃ© si naturel, trÃ¨s bienveillant." : "Ton: Professionnel, courtois, vouvoiement obligatoire, prÃ©cis.";
-    const goalString = site.bot_goal === 'lead' ? "Objectif Principal: Convertir le visiteur en prospect. Incite fortement Ã  laisser un email ou numÃ©ro." : "Objectif Principal: Informer et supporter le visiteur. RÃ©ponds de faÃ§on exhaustive et claire.";
+    const toneString = site.bot_tone === 'amical' ? "Ton: Chaleureux, amical, tutoiement autorisÃƒÂ© si naturel, trÃƒÂ¨s bienveillant." : "Ton: Professionnel, courtois, vouvoiement obligatoire, prÃƒÂ©cis.";
+    const goalString = site.bot_goal === 'lead' ? "Objectif Principal: Convertir le visiteur en prospect. Incite fortement ÃƒÂ  laisser un email ou numÃƒÂ©ro." : "Objectif Principal: Informer et supporter le visiteur. RÃƒÂ©ponds de faÃƒÂ§on exhaustive et claire.";
 
     // Integrations Context
-    const hasProPlan = site.tenants?.plan === 'pro' || site.tenants?.plan === 'enterprise';
+    const hasProPlan = site.tenants?.site.tenants?.plan === 'pro' || site.tenants?.site.tenants?.plan === 'enterprise';
     const calendarInstruction = (hasProPlan && site.calendar_link) 
-      ? `5. PRISE DE RENDEZ-VOUS : Si l'utilisateur souhaite prendre rendez-vous, fournis TOUJOURS ce lien de rÃ©servation : [Prendre rendez-vous](${site.calendar_link}).`
+      ? `5. PRISE DE RENDEZ-VOUS : Si l'utilisateur souhaite prendre rendez-vous, fournis TOUJOURS ce lien de rÃƒÂ©servation : [Prendre rendez-vous](${site.calendar_link}).`
       : "";
       
     const supportInstruction = (hasProPlan && site.support_email)
-      ? `6. SUPPORT TECHNIQUE : Si l'utilisateur demande de l'aide ou a un problÃ¨me, utilise l'outil "send_support_email" pour alerter notre Ã©quipe de support.`
+      ? `6. SUPPORT TECHNIQUE : Si l'utilisateur demande de l'aide ou a un problÃƒÂ¨me, utilise l'outil "send_support_email" pour alerter notre ÃƒÂ©quipe de support.`
       : "";
 
     const systemPrompt = `Tu es l'agent de service client et l'assistant virtuel officiel de l'entreprise (site web: ${site.domain}). 
-Ton rÃ´le est de reprÃ©senter l'entreprise et d'accompagner les visiteurs avec prÃ©cision, honnÃªtetÃ© et un sens aigu du service client. Tu dois toujours te comporter comme un membre Ã  part entiÃ¨re de l'Ã©quipe.
+Ton rÃƒÂ´le est de reprÃƒÂ©senter l'entreprise et d'accompagner les visiteurs avec prÃƒÂ©cision, honnÃƒÂªtetÃƒÂ© et un sens aigu du service client. Tu dois toujours te comporter comme un membre ÃƒÂ  part entiÃƒÂ¨re de l'ÃƒÂ©quipe.
 ${timeContext}
 ${siteSummaryText}
 
-RÃˆGLES DE COMMUNICATION ET POSTURE (SERVICE CLIENT) :
-1. POSTURE INTERNE : Tu fais partie de l'entreprise. Utilise TOUJOURS "nous", "notre", "nos". Ne dis JAMAIS "ils", "leur site" ou "l'entreprise" Ã  la troisiÃ¨me personne.
-2. PAS DE PRÃ‰SENTATION RÃ‰PÃ‰TITIVE : L'interface affiche DÃ‰JÃ€ ton message d'accueil. Ne commence JAMAIS tes rÃ©ponses par "Bonjour, je suis l'assistant...". RÃ©ponds DIRECTEMENT Ã  la question posÃ©e.
-3. LIENS ET NAVIGATION : L'utilisateur est DÃ‰JÃ€ sur notre site web. Ne dis JAMAIS "Veuillez consulter notre site web" ou "Allez sur notre site". Si tu as l'information, donne-la. Si tu as l'URL prÃ©cise d'une page (trouvÃ©e via la recherche), donne le lien direct sous forme cliquable.
-4. RÃ‰PONSES AUX QUESTIONS GÃ‰NÃ‰RALES : Si l'utilisateur demande ce que nous faisons, utilise IMPÃ‰RATIVEMENT le RÃ‰SUMÃ‰ DU SITE ci-dessus pour expliquer concrÃ¨tement nos produits/services, en te positionnant comme un reprÃ©sentant fier de son entreprise.
-5. VALORISATION DE LA MARQUE ET VENTE SUBTILE : Mets toujours poliment en valeur la qualitÃ© de nos services et l'expertise de notre marque. Agis comme un ambassadeur enthousiaste de l'entreprise. Propose naturellement nos solutions aux besoins du client de faÃ§on consultative, sans jamais Ãªtre agressif ou insistant, pour conserver une image de marque premium.
+RÃƒË†GLES DE COMMUNICATION ET POSTURE (SERVICE CLIENT) :
+1. POSTURE INTERNE : Tu fais partie de l'entreprise. Utilise TOUJOURS "nous", "notre", "nos". Ne dis JAMAIS "ils", "leur site" ou "l'entreprise" ÃƒÂ  la troisiÃƒÂ¨me personne.
+2. PAS DE PRÃƒâ€°SENTATION RÃƒâ€°PÃƒâ€°TITIVE : L'interface affiche DÃƒâ€°JÃƒâ‚¬ ton message d'accueil. Ne commence JAMAIS tes rÃƒÂ©ponses par "Bonjour, je suis l'assistant...". RÃƒÂ©ponds DIRECTEMENT ÃƒÂ  la question posÃƒÂ©e.
+3. LIENS ET NAVIGATION : L'utilisateur est DÃƒâ€°JÃƒâ‚¬ sur notre site web. Ne dis JAMAIS "Veuillez consulter notre site web" ou "Allez sur notre site". Si tu as l'information, donne-la. Si tu as l'URL prÃƒÂ©cise d'une page (trouvÃƒÂ©e via la recherche), donne le lien direct sous forme cliquable.
+4. RÃƒâ€°PONSES AUX QUESTIONS GÃƒâ€°NÃƒâ€°RALES : Si l'utilisateur demande ce que nous faisons, utilise IMPÃƒâ€°RATIVEMENT le RÃƒâ€°SUMÃƒâ€° DU SITE ci-dessus pour expliquer concrÃƒÂ¨tement nos produits/services, en te positionnant comme un reprÃƒÂ©sentant fier de son entreprise.
+5. VALORISATION DE LA MARQUE ET VENTE SUBTILE : Mets toujours poliment en valeur la qualitÃƒÂ© de nos services et l'expertise de notre marque. Agis comme un ambassadeur enthousiaste de l'entreprise. Propose naturellement nos solutions aux besoins du client de faÃƒÂ§on consultative, sans jamais ÃƒÂªtre agressif ou insistant, pour conserver une image de marque premium.
 
-RÃˆGLES D'OR DE VÃ‰RITÃ‰ ET ANTI-HALLUCINATION :
+RÃƒË†GLES D'OR DE VÃƒâ€°RITÃƒâ€° ET ANTI-HALLUCINATION :
 1. TU NE DOIS JAMAIS INVENTER D'INFORMATIONS OU DE SERVICES.
-2. OBLIGATION STRICTE DE RECHERCHE RAG : Il est STRICTEMENT INTERDIT de dire "Je n'ai pas cette information" SANS AVOIR D'ABORD EXÃ‰CUTÃ‰ l'outil "search_knowledge_base" avec plusieurs mots-clÃ©s.
-3. COORDONNÃ‰ES ET HORAIRES STRICTS : Ne donne JAMAIS de numÃ©ro de tÃ©lÃ©phone, courriel, adresse ou heures d'ouverture s'ils ne sont pas EXPLICITEMENT dans le contexte ou la recherche.
-4. INTERDICTION DES PLACEHOLDERS : AUCUN crochet ou texte de remplacement ("[[numÃ©ro]]", "[email]").
-5. GESTION DES INFORMATIONS MANQUANTES : APRÃˆS avoir cherchÃ© et confirmÃ© que l'info est absente, sois un bon agent de service client : excuse-toi poliment et ${isLeadCaptureEnabled ? "propose IMMÃ‰DIATEMENT Ã  l'utilisateur de laisser son nom et son numÃ©ro de tÃ©lÃ©phone ou courriel pour qu'un conseiller humain le recontacte rapidement." : "invite-le Ã  nous contacter via la page de contact ou le formulaire du site."}
+2. OBLIGATION STRICTE DE RECHERCHE RAG : Il est STRICTEMENT INTERDIT de dire "Je n'ai pas cette information" SANS AVOIR D'ABORD EXÃƒâ€°CUTÃƒâ€° l'outil "search_knowledge_base" avec plusieurs mots-clÃƒÂ©s.
+3. COORDONNÃƒâ€°ES ET HORAIRES STRICTS : Ne donne JAMAIS de numÃƒÂ©ro de tÃƒÂ©lÃƒÂ©phone, courriel, adresse ou heures d'ouverture s'ils ne sont pas EXPLICITEMENT dans le contexte ou la recherche.
+4. INTERDICTION DES PLACEHOLDERS : AUCUN crochet ou texte de remplacement ("[[numÃƒÂ©ro]]", "[email]").
+5. GESTION DES INFORMATIONS MANQUANTES : APRÃƒË†S avoir cherchÃƒÂ© et confirmÃƒÂ© que l'info est absente, sois un bon agent de service client : excuse-toi poliment et ${isLeadCaptureEnabled ? "propose IMMÃƒâ€°DIATEMENT ÃƒÂ  l'utilisateur de laisser son nom et son numÃƒÂ©ro de tÃƒÂ©lÃƒÂ©phone ou courriel pour qu'un conseiller humain le recontacte rapidement." : "invite-le ÃƒÂ  nous contacter via la page de contact ou le formulaire du site."}
 
-RÃˆGLES DE FORMATAGE ET STRUCTURE (MARKDOWN) :
-1. UTILISE UN MARKDOWN Ã‰LÃ‰GANT ET STRUCTURÃ‰ :
-   - Mets en GRAS (**terme**) les points clÃ©s, noms de produits, garanties, tarifs ou Ã©tapes importantes.
-   - Utilise des LISTES Ã€ PUCES (- Ã©lÃ©ment) ou NUMÃ‰ROTÃ‰ES (1. Ã©tape) dÃ¨s que tu prÃ©sentes plus de 2 Ã©lÃ©ments, options ou services pour aÃ©rer la rÃ©ponse.
+RÃƒË†GLES DE FORMATAGE ET STRUCTURE (MARKDOWN) :
+1. UTILISE UN MARKDOWN Ãƒâ€°LÃƒâ€°GANT ET STRUCTURÃƒâ€° :
+   - Mets en GRAS (**terme**) les points clÃƒÂ©s, noms de produits, garanties, tarifs ou ÃƒÂ©tapes importantes.
+   - Utilise des LISTES Ãƒâ‚¬ PUCES (- ÃƒÂ©lÃƒÂ©ment) ou NUMÃƒâ€°ROTÃƒâ€°ES (1. ÃƒÂ©tape) dÃƒÂ¨s que tu prÃƒÂ©sentes plus de 2 ÃƒÂ©lÃƒÂ©ments, options ou services pour aÃƒÂ©rer la rÃƒÂ©ponse.
    - Formate TOUS les liens web sous forme de liens cliquables Markdown : [Titre du lien](https://url-exacte).
-   - RÃ©dige des paragraphes courts (2 Ã  3 phrases maximum) sÃ©parÃ©s par un saut de ligne double pour une lisibilitÃ© mobile et desktop optimale.
+   - RÃƒÂ©dige des paragraphes courts (2 ÃƒÂ  3 phrases maximum) sÃƒÂ©parÃƒÂ©s par un saut de ligne double pour une lisibilitÃƒÂ© mobile et desktop optimale.
 
 INTERDICTIONS ABSOLUES :
 - INTERDIT d'inventer des prix, des services ou des horaires.
-- INTERDIT d'utiliser le jargon technique IA : ne dis JAMAIS "base de connaissances", "base de donnÃ©es", "contexte", "rÃ©sultat de recherche" ou "donnÃ©es fournies".
+- INTERDIT d'utiliser le jargon technique IA : ne dis JAMAIS "base de connaissances", "base de donnÃƒÂ©es", "contexte", "rÃƒÂ©sultat de recherche" ou "donnÃƒÂ©es fournies".
 
-DIRECTIVES SPÃ‰CIFIQUES :
+DIRECTIVES SPÃƒâ€°CIFIQUES :
 1. ${toneString}
 2. ${goalString}
-3. RECADRAGE : Si la conversation dÃ©vie hors-sujet, recadre poliment vers nos prestations, avec diplomatie.
-${isLeadCaptureEnabled ? "4. CAPTURE DE PROSPECTS : C'est une prioritÃ©. DÃ¨s qu'un client montre de l'intÃ©rÃªt pour un service ou pose une question pointue, propose-lui de laisser ses coordonnÃ©es pour une prise en charge personnalisÃ©e." : ""}
+3. RECADRAGE : Si la conversation dÃƒÂ©vie hors-sujet, recadre poliment vers nos prestations, avec diplomatie.
+${isLeadCaptureEnabled ? "4. CAPTURE DE PROSPECTS : C'est une prioritÃƒÂ©. DÃƒÂ¨s qu'un client montre de l'intÃƒÂ©rÃƒÂªt pour un service ou pose une question pointue, propose-lui de laisser ses coordonnÃƒÂ©es pour une prise en charge personnalisÃƒÂ©e." : ""}
 ${calendarInstruction}
 ${supportInstruction}`;
 
@@ -312,13 +313,13 @@ ${supportInstruction}`;
         type: "function",
         function: {
           name: "search_knowledge_base",
-          description: "Recherche dans la documentation et la base de connaissances du site. Utilise cet outil pour toute question sur les produits, services, caractÃ©ristiques ou spÃ©cifications techniques. Pour des rÃ©sultats optimaux sur des sites bilingues ou techniques, inclus les termes clÃ©s pertinents en anglais et en franÃ§ais (ex: 'core polystyrene honeycomb doors').",
+          description: "Recherche dans la documentation et la base de connaissances du site. Utilise cet outil pour toute question sur les produits, services, caractÃƒÂ©ristiques ou spÃƒÂ©cifications techniques. Pour des rÃƒÂ©sultats optimaux sur des sites bilingues ou techniques, inclus les termes clÃƒÂ©s pertinents en anglais et en franÃƒÂ§ais (ex: 'core polystyrene honeycomb doors').",
           parameters: {
             type: "object",
             properties: {
               query: {
                 type: "string",
-                description: "La requÃªte ou les mots-clÃ©s de recherche (en franÃ§ais et/ou anglais si pertinent)."
+                description: "La requÃƒÂªte ou les mots-clÃƒÂ©s de recherche (en franÃƒÂ§ais et/ou anglais si pertinent)."
               }
             },
             required: ["query"]
@@ -338,7 +339,7 @@ ${supportInstruction}`;
             properties: {
               name: { type: "string", description: "Nom de l'utilisateur" },
               email: { type: "string", description: "Email de l'utilisateur" },
-              message: { type: "string", description: "Le message dÃ©taillÃ© ou la description du problÃ¨me" }
+              message: { type: "string", description: "Le message dÃƒÂ©taillÃƒÂ© ou la description du problÃƒÂ¨me" }
             },
             required: ["name", "email", "message"]
           }
@@ -351,7 +352,7 @@ ${supportInstruction}`;
         type: "function",
         function: {
           name: "navigate_to",
-          description: "Ouvre une page spÃ©cifique du panneau d'administration pour l'utilisateur. Utilise ceci si l'utilisateur veut voir ses factures (pricing), son tableau de bord (dashboard), ses prospects (leads), ou la page 'A propos' (about).",
+          description: "Ouvre une page spÃƒÂ©cifique du panneau d'administration pour l'utilisateur. Utilise ceci si l'utilisateur veut voir ses factures (pricing), son tableau de bord (dashboard), ses prospects (leads), ou la page 'A propos' (about).",
           parameters: {
             type: "object",
             properties: {
@@ -389,7 +390,9 @@ ${supportInstruction}`;
             loopCount++;
 
             // Use GPT Luna across all plans for optimal response speed & accuracy
-            const selectedModel = 'openai/gpt-5.6-luna';
+            const defaultModel = process.env.DEFAULT_MODEL || 'openai/gpt-5.6-luna';
+            const premiumModel = process.env.PREMIUM_MODEL || 'anthropic/claude-3.5-sonnet';
+            const selectedModel = (site.tenants?.plan === 'pro' || site.tenants?.plan === 'enterprise') ? premiumModel : defaultModel;
 
             const responseData = await generateChatResponse({ 
               systemPrompt, 
@@ -420,7 +423,7 @@ ${supportInstruction}`;
                   const toolArgs = JSON.parse(toolCall.function.arguments || '{}');
                   const toolQuery = toolArgs.query || message;
 
-                  // â”€â”€ HYBRID SEARCH: Embedding sÃ©mantique + FTS bilingue â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                  // Ã¢â€â‚¬Ã¢â€â‚¬ HYBRID SEARCH: Embedding sÃƒÂ©mantique + FTS bilingue Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
                   let docs = [];
                   let searchMethod = 'unknown';
 
@@ -478,7 +481,7 @@ ${supportInstruction}`;
                   );
 
                   const contextText = docs.map((d) => d.content).join('\n---\n');
-                  const toolResponseContent = contextText || "Aucune information trouvÃ©e pour cette recherche spÃ©cifique. Essaye de reformuler avec des mots-clÃ©s Ã©quivalents ou en anglais si pertinent.";
+                  const toolResponseContent = contextText || "Aucune information trouvÃƒÂ©e pour cette recherche spÃƒÂ©cifique. Essaye de reformuler avec des mots-clÃƒÂ©s ÃƒÂ©quivalents ou en anglais si pertinent.";
 
                   // Append tool result to currentHistory for next reasoning loop
                   currentHistory.push({
@@ -503,7 +506,7 @@ ${supportInstruction}`;
                   );
 
                   // Mock email sending. In production, use Resend/Nodemailer here.
-                  const emailResponse = `Email envoyÃ© avec succÃ¨s Ã  l'Ã©quipe de support (${site.support_email}). Le client doit s'attendre Ã  une rÃ©ponse sous peu.`;
+                  const emailResponse = `Email envoyÃƒÂ© avec succÃƒÂ¨s ÃƒÂ  l'ÃƒÂ©quipe de support (${site.support_email}). Le client doit s'attendre ÃƒÂ  une rÃƒÂ©ponse sous peu.`;
 
                   currentHistory.push({
                     role: 'tool',
@@ -525,7 +528,7 @@ ${supportInstruction}`;
                     )
                   );
 
-                  const navResponse = `L'utilisateur a Ã©tÃ© redirigÃ© avec succÃ¨s vers la page ${toolArgs.page}.`;
+                  const navResponse = `L'utilisateur a ÃƒÂ©tÃƒÂ© redirigÃƒÂ© avec succÃƒÂ¨s vers la page ${toolArgs.page}.`;
                   
                   currentHistory.push({
                     role: 'tool',
@@ -536,13 +539,13 @@ ${supportInstruction}`;
               }
             } else {
               // No tool calls requested: LLM provided final response!
-              finalReply = llmMessage?.content || "âš ï¸ Je ne peux pas rÃ©pondre pour le moment.";
+              finalReply = llmMessage?.content || "Ã¢Å¡Â Ã¯Â¸Â Je ne peux pas rÃƒÂ©pondre pour le moment.";
               break;
             }
           }
 
           if (!finalReply && loopCount >= MAX_TURNS) {
-            finalReply = "DÃ©solÃ©, j'ai recherchÃ© dans nos informations mais je n'ai pas pu trouver les Ã©lÃ©ments nÃ©cessaires.";
+            finalReply = "DÃƒÂ©solÃƒÂ©, j'ai recherchÃƒÂ© dans nos informations mais je n'ai pas pu trouver les ÃƒÂ©lÃƒÂ©ments nÃƒÂ©cessaires.";
           }
 
           // Stream out assistant response in smooth visual chunks
@@ -600,6 +603,11 @@ ${supportInstruction}`;
                     phone: leadData.phone || null,
                     summary: leadData.summary || null
                   });
+                  
+                  if (hasProPlan) {
+                    // Fire and forget email
+                    sendLeadEmail(leadData, site).catch(console.error);
+                  }
                 }
               }
             } catch (e) {
@@ -611,7 +619,8 @@ ${supportInstruction}`;
           controller.close();
         } catch (_innerErr) {
           console.error(_innerErr);
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: 'âš ï¸ [Erreur Interne] ' + _innerErr.message })}\n\n`));
+            sendBugAlertEmail(_innerErr, { source: 'chat_stream', tenantId, siteId }).catch(console.error);
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: 'Ã¢Å¡Â Ã¯Â¸Â [Erreur Interne] ' + _innerErr.message })}\n\n`));
           controller.enqueue(encoder.encode('data: [DONE]\n\n'));
           controller.close();
         }
@@ -627,7 +636,8 @@ ${supportInstruction}`;
       }
     });
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
+    sendBugAlertEmail(err, { source: 'chat_init' }).catch(console.error);
+      return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     });

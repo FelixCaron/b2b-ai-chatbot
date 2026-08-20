@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "b2b-ai-chatbot-monorepo",
   "private": true,
   "version": "1.0.0",
@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.8",
+    "resend": "^6.20.0",
     "ws": "^8.21.3"
   }
 }

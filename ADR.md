@@ -1030,3 +1030,22 @@ L'application était plate : un énorme monolithe de 2000 lignes (ClientOnboardi
 ### Conséquences
 - Une architecture claire, évolutive et facile à naviguer pour l'équipe de développement.
 
+
+## ADR : Finalisation du Lancement (Emails, Alertes et LLM Premium)
+**Date:** 20 Août 2026
+**Statut:** Accepté
+
+### Contexte
+Nous avions besoin de notifier l'administrateur en cas de plantage système (alertes bug) et de notifier les locataires (tenants) lorsqu'un prospect laissait ses coordonnées sur leur agent (lead alert). Par ailleurs, les forfaits Pro/Enterprise devaient bénéficier d'un modèle plus performant.
+
+### Décision
+1. **Librairie Resend** ajoutée et configurée dans \pi/lib/email.js\ pour distribuer les courriels.
+2. **Alertes Bug** branchées dans le bloc try/catch global de \pi/chat/index.js\.
+3. **Alertes Lead** branchées après l'insertion réussie dans la table \leads\.
+4. **Modèles LLM via Env Vars** : \DEFAULT_MODEL\ et \PREMIUM_MODEL\ sont chargés depuis les variables d'environnement. Le LLM Premium (\claude-3.5-sonnet\ par défaut) s'active automatiquement si le \site.tenants.plan\ est \pro\ ou \enterprise\.
+
+### Conséquences
+- Une traçabilité parfaite des erreurs système (via courriel) en production.
+- Une réactivité accrue pour les leads collectés.
+- La monétisation est justifiée par la différence palpable d'intelligence du bot selon le forfait choisi.
+
