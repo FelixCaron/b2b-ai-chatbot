@@ -907,16 +907,16 @@ export default function Dashboard({
     <div className="space-y-8">
       {/* 1. HERO ONBOARDING (When no site exists) */}
       {(!activeSite || step !== 'dashboard') ? (
-        <div className="relative max-w-2xl mx-auto mt-12">
-          <div className="relative bg-dark-800/50 backdrop-blur-sm p-10 rounded-2xl border border-white/10 text-center shadow-lg overflow-hidden">
-            <div className="w-16 h-16 rounded-2xl bg-dark-700 border border-white/10 flex items-center justify-center mx-auto mb-6 text-brand-400 shadow-sm">
-              <Globe className="w-8 h-8" />
+        <div className="relative max-w-2xl mx-auto mt-6 sm:mt-12">
+          <div className="relative bg-dark-800/50 backdrop-blur-sm p-6 sm:p-10 rounded-2xl border border-white/10 text-center shadow-lg overflow-hidden">
+            <div className="relative w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-tr from-brand-600 to-indigo-400 mx-auto mb-4 sm:mb-6 shadow-sm">
+              <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-emerald-500 border-2 border-dark-800" />
             </div>
-            
-            <h2 className="text-3xl font-bold text-white tracking-tight mb-3">
+
+            <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight leading-tight mb-2.5 sm:mb-3">
               Deploy Your AI Assistant in 30 Seconds
             </h2>
-            <p className="text-base text-gray-400 mb-10 max-w-lg mx-auto">
+            <p className="text-sm sm:text-base text-gray-400 mb-6 sm:mb-10 max-w-lg mx-auto">
               Enter your website address. Our system will automatically crawl your site, learn your business, and configure your custom AI assistant.
             </p>
 
