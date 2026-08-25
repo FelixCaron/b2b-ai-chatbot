@@ -44,3 +44,11 @@ Ajouté le 2026-08-25 suite à la création des pages `Privacy Policy` / `Terms 
 - [ ] Décider si la TPS/TVQ s'applique aux ventes et configurer Stripe Tax en conséquence (`Pricing.jsx` affiche actuellement des prix sans taxe).
 - [ ] Basculer Stripe du mode sandbox/test vers le mode live une fois la vérification d'entreprise complétée côté Stripe, et confirmer que `STRIPE_WEBHOOK_SECRET` en prod correspond bien à l'endpoint live.
 - [ ] Définir une politique de remboursement explicite (les CGU actuelles disent « non remboursable sauf obligation légale » par défaut).
+
+## Go-to-market — landing pages par niche
+
+Ajouté le 2026-08-25 suite à la création de la première landing page niche (ostéopathes, `/solutions/osteopathes`, `apps/admin/src/components/OsteopathyLanding.jsx`). Voir ADR 040.
+
+- [ ] Faire tourner l'onboarding réel (coller une vraie URL de clinique dans le flow live) pour obtenir un premier tenant de démo réel et valider la qualité du RAG sur un site réel et connu — je n'ai pas pu l'exécuter moi-même depuis ce sandbox (proxy sortant qui bloque Chromium en prod, Turnstile qui bloque l'appel API direct, aucune clé locale). À faire côté utilisateur, ou en me fournissant des clés de test jetables.
+- [ ] Une fois ce tenant de démo réel créé, remplacer l'aperçu de conversation statique de `OsteopathyLanding.jsx` par un vrai embed du widget pointé sur son `public_key` (avec l'accord explicite du·de la propriétaire du site utilisé, avant de publier son nom/site sur une page marketing publique).
+- [ ] Si le créneau ostéopathes convertit, répliquer le même gabarit de page pour 2-3 autres niches candidates (cliniques dentaires, esthétique/med-spa, physio-chiro) pour tester en parallèle côté SEO/self-serve.

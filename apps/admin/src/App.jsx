@@ -8,6 +8,7 @@ import Pricing from './components/Pricing';
 import PaymentSuccessPage from './components/PaymentSuccessPage';
 import AboutPage from './components/AboutPage';
 import { PrivacyPolicy, TermsOfService } from './components/LegalPages';
+import OsteopathyLanding from './components/OsteopathyLanding';
 import { Users } from 'lucide-react';
 
 export default function App() {
@@ -38,6 +39,7 @@ export default function App() {
   const [currentView, setCurrentView] = useState(
     path === '/payment-success' ? 'payment-success' :
     path === '/payment-cancel' ? 'pricing' :
+    path === '/solutions/osteopathes' ? 'osteopathes' :
     'dashboard'
   );
 
@@ -413,6 +415,8 @@ export default function App() {
         />
       ) : currentView === 'about' ? (
         <AboutPage />
+      ) : currentView === 'osteopathes' ? (
+        <OsteopathyLanding onNavigate={setCurrentView} />
       ) : currentView === 'privacy' ? (
         <PrivacyPolicy />
       ) : currentView === 'terms' ? (

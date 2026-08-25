@@ -5,6 +5,28 @@ Note (English): Plans were updated — Free was removed. New plans are: Basic ($
 
 ---
 
+## ADR 040 : Première landing page niche (Ostéopathes) & amorce de stratégie GTM par verticale
+
+**Date :** 2026-08-25
+
+### Contexte
+
+Analyse de segmentation (chapeau PO) : le produit sert bien les commerces de services sur rendez-vous à trafic FAQ répétitif (contenu statique crawlable, réservation de calendrier déjà en Pro, cycle de vente court, décideur unique). Créneau retenu en premier : cliniques d'ostéopathie/thérapie manuelle au Québec — risque de responsabilité plus faible qu'un créneau juridique/médical-conseil, marché homogène et réplicable, feature de réservation de calendrier au cœur de leur besoin.
+
+### Décision
+
+1. Nouvelle page marketing statique `apps/admin/src/components/OsteopathyLanding.jsx`, routée sur `/solutions/osteopathes` (`App.jsx`, chargement direct de l'URL via le rewrite Vercel existant `/(.*) -> /index.html`). Contenu genericisé (pas de nom de praticien réel) mais informé par la présentation publique réelle de cliniques d'ostéopathie québécoises (tarification, questions fréquentes : couverture d'assurance, grossesse/nourrissons, tenue vestimentaire).
+2. L'aperçu de conversation sur la page est un **script statique** (aucun appel réseau), volontairement, pour livrer une page stable et testable sans dépendre d'un tenant de démo réel — les CTA réutilisent le vrai flow d'onboarding existant (`onNavigate('dashboard')`) plutôt que d'en dupliquer un.
+3. Couverture E2E ajoutée (`tests/e2e/niche-landing.spec.js`) : chargement direct de l'URL, titre/meta SEO, CTA vers l'onboarding réel et vers Pricing, absence de débordement horizontal mobile.
+4. `TODO.md` : ajout d'une section GTM listant l'étape suivante (onboarding réel sur un site de clinique pour obtenir un tenant de démo et valider la qualité RAG sur du contenu réel — bloqué depuis ce sandbox par le proxy sortant/Turnstile/absence de clés locales, donc laissé en TODO explicite plutôt que simulé) et la réplication du gabarit vers d'autres niches si celle-ci convertit.
+
+### Conséquences
+
+- Premier canal SEO/self-serve ciblé livré sans risque pour la stabilité de l'app (page isolée, zéro dépendance backend nouvelle).
+- La bascule vers un vrai embed de démo (au lieu du script statique) reste une étape delibérée et explicite, pas automatique, pour ne pas publier l'identité d'un site réel sans accord explicite.
+
+---
+
 ## ADR 039 : Pages légales (Privacy Policy / Terms), badge "Powered by" sur le widget, TODO administratif
 
 **Date :** 2026-08-25
