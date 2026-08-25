@@ -2,8 +2,18 @@
 globalThis.WebSocket = WebSocket;
 const { createClient } = require('@supabase/supabase-js');
 
-const SUPABASE_URL = 'https://xuvueegdokgiyedwvmkm.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh1dnVlZWdkb2tnaXllZHd2bWttIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYxNDgwMTQsImV4cCI6MjEwMTcyNDAxNH0.5lRBtyKO-VOzkgqJeWrulLnrMFxruzcF__suzxFiUOQ';
+// Read from env rather than hardcoding — even though the anon key is meant
+// to be public, hardcoding *any* credential (even a benign one) in a script
+// makes it indistinguishable from a real leak at a glance, and trips the
+// repo's committed-secrets scanner (scripts/ops/check-no-secrets.cjs) on
+// every run. Set SUPABASE_URL / SUPABASE_ANON_KEY (or VITE_SUPABASE_URL /
+// VITE_SUPABASE_ANON_KEY, same values apps/admin uses) before running this.
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  throw new Error('SUPABASE_URL and SUPABASE_ANON_KEY (or VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY) are required');
+}
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
