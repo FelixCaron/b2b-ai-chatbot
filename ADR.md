@@ -5,6 +5,26 @@ Note (English): Plans were updated — Free was removed. New plans are: Basic ($
 
 ---
 
+## ADR 037 : Suite de tests fonctionnels Playwright (flows, UI, intégrité)
+
+**Date :** 2026-08-25
+
+### Contexte
+Aucune couverture automatisée n'existait pour l'interface admin elle-même (uniquement des scripts backend contre une base Supabase réelle). Impossible de valider en continu que l'onboarding, la suppression de site, les réglages ou la navigation fonctionnent réellement dans un navigateur — les régressions (comme le champ d'onboarding injoignable sur mobile, ou la fuite cross-tenant de session) n'étaient détectées qu'après coup, manuellement.
+
+### Décision
+1. **Backend entièrement mocké au niveau réseau** (`tests/e2e/support/mock-backend.js`) : interception de Supabase Auth, Supabase REST (`/rest/v1/<table>`) et de nos routes `/api/**` avec un jeu de données en mémoire. Nécessaire car `vite dev` n'exécute jamais les vraies fonctions serverless `/api/**`, et aucun projet Supabase réel n'est disponible en CI/sandbox — ces tests valident donc le rendu et les transitions UI, pas la logique serveur (RLS, la fonction SQL `delete_site_cascade`), qui reste couverte par `scripts/tests/test-e2e-chat.js` contre un vrai projet.
+2. **Session authentifiée simulée** (`tests/e2e/support/auth-session.js`) : injection d'une session Supabase valide dans `localStorage` avant chargement, pour couvrir les flows réservés aux utilisateurs connectés (Header complet avec onglet About, Embed Widget) — impossible à exercer autrement sans un vrai flow magic-link.
+3. **Suite de specs** couvrant : onboarding (y compris régression du bug de clic à travers le widget), navigation, réglages avancés (toggle lead capture — accessibilité corrigée au passage avec `role="switch"` + `aria-label`), suppression de site (succès, échec réel avec message d'erreur, retry — régression du bug de suppression fantôme), et un balayage responsive sur 5 largeurs d'écran (320px à 1280px) vérifiant l'absence de débordement horizontal et que chaque bouton d'action a une zone de clic réelle et visible.
+4. **Bug réel détecté et corrigé pendant l'écriture des tests** : le bouton "Sign out" du Header était `hidden` en dessous de 640px sans aucune alternative — un utilisateur connecté sur mobile ne pouvait pas se déconnecter.
+5. **Projets Playwright** : Desktop Chrome + Mobile Chrome (Pixel 7). Un troisième projet "iPhone 13 via Chromium" a été volontairement écarté (même moteur de rendu, pas de vrai WebKit disponement dans cet environnement) — les tailles d'écran iPhone restent couvertes explicitement dans le balayage responsive.
+
+### Conséquences
+- `npm run test:e2e` valide en quelques dizaines de secondes, sans infrastructure externe, que l'onboarding, la suppression de site, les réglages, la navigation et le rendu responsive fonctionnent réellement dans un navigateur — pas seulement que le code compile.
+- Les deux bugs corrigés plus tôt dans la session (widget bloquant les clics, fuite de session cross-tenant) ont désormais une régression automatisée dédiée.
+
+---
+
 ## ADR 036 : Suppression Atomique & Sécurisée des Sites + Correction d'une Fuite Cross-Tenant liée à la Session Navigateur, et Responsive Mobile
 
 **Date :** 2026-08-25

@@ -1181,8 +1181,12 @@ export default function Dashboard({
                     </div>
 
                     <button
+                      type="button"
                       onClick={() => onUpdateSiteSettings(activeSite.id, { enable_lead_capture: !activeSite.enable_lead_capture })}
                       className="p-1 cursor-pointer transition-transform hover:scale-105"
+                      role="switch"
+                      aria-checked={!!activeSite.enable_lead_capture}
+                      aria-label="Toggle lead capture & email collection"
                     >
                       {activeSite.enable_lead_capture ? (
                         <ToggleRight className="w-9 h-9 text-emerald-400" />

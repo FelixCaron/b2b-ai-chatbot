@@ -20,11 +20,16 @@
     "test:pipeline": "node scripts/tests/test-pipeline.js",
     "test:rag": "node scripts/tests/test-rag-search.js",
     "test:schemas": "node scripts/tests/test-schemas.js",
+    "test:e2e": "playwright test",
+    "test:e2e:report": "playwright show-report",
     "reingest:delafontaine": "node scripts/adhoc/reingest-delafontaine.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.8",
     "resend": "^6.20.0",
     "ws": "^8.21.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1"
   }
 }

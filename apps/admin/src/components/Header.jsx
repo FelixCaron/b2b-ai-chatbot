@@ -166,7 +166,7 @@ export default function Header({
 
           <button
             onClick={onLogout}
-            className="hidden sm:block text-gray-400 hover:text-white p-2 rounded-lg hover:bg-white/5 transition-colors"
+            className="shrink-0 text-gray-400 hover:text-white p-2 rounded-lg hover:bg-white/5 transition-colors"
             title="Sign out"
           >
             <LogOut className="w-4 h-4" />
