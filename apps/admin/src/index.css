@@ -4,12 +4,42 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
+html {
+  /* Prevent any single element with a slightly-too-wide layout (a wide table,
+     a long public key, a fixed-width preview iframe) from creating horizontal
+     page scroll/jitter on narrow phone screens. */
+  overflow-x: hidden;
+}
+
 body {
   font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   background-color: #0b0f19;
   color: #f3f4f6;
   margin: 0;
   padding: 0;
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Respect the safe area on notched / home-indicator devices (iPhone, etc.)
+   for our full-bleed fixed elements (modals, preview bars). */
+@supports (padding: max(0px)) {
+  .safe-bottom {
+    padding-bottom: max(env(safe-area-inset-bottom), 0px);
+  }
+  .safe-top {
+    padding-top: max(env(safe-area-inset-top), 0px);
+  }
+}
+
+/* Utility to hide scrollbars on horizontally-scrollable rows (site tabs,
+   filter chips) while keeping them scrollable via touch/trackpad. */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 .glass-card {

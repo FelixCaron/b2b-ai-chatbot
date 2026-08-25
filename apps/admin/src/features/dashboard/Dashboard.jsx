@@ -57,20 +57,44 @@ export default function Dashboard({
   // Delete Site state
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
   const [isDeletingSite, setIsDeletingSite] = useState(false);
+  const [deleteSiteError, setDeleteSiteError] = useState('');
+
+  // Best-effort cleanup of any browser-side (this admin session's own origin)
+  // references to a deleted site: the Live Preview widget (injected by
+  // preview.html on this same origin) keeps its own chat session in
+  // localStorage, scoped per public_key. If we don't clear it, re-adding a
+  // site with a reused domain — or simply the browser tab sticking around —
+  // could keep pointing at conversation state tied to the now-deleted site.
+  const purgeLocalSiteReferences = (site) => {
+    if (!site) return;
+    try {
+      window.localStorage?.removeItem(`b2b_chat_session_id_${site.public_key}`);
+    } catch (e) {
+      // localStorage unavailable (private mode, SSR, etc.) — nothing to clean up
+    }
+  };
+
+  // Clear any stale error message whenever the confirm modal is (re)opened,
+  // regardless of which of the several "Delete" buttons triggered it.
+  useEffect(() => {
+    if (showDeleteConfirmModal) setDeleteSiteError('');
+  }, [showDeleteConfirmModal]);
 
   const handleConfirmDeleteSite = async () => {
     if (!activeSite?.id || isDeletingSite || !onDeleteSite) return;
     setIsDeletingSite(true);
-    const siteToDeleteId = activeSite.id;
+    setDeleteSiteError('');
+    const siteToDelete = activeSite;
     try {
-      const ok = await onDeleteSite(siteToDeleteId);
-      if (ok) {
+      const result = await onDeleteSite(siteToDelete.id);
+      if (result?.success) {
+        purgeLocalSiteReferences(siteToDelete);
         setShowDeleteConfirmModal(false);
         setShowPreviewModal(false);
-        if (localCreatedSite?.id === siteToDeleteId) {
+        if (localCreatedSite?.id === siteToDelete.id) {
           setLocalCreatedSite(null);
         }
-        const remaining = sites ? sites.filter(s => s.id !== siteToDeleteId) : [];
+        const remaining = sites ? sites.filter(s => s.id !== siteToDelete.id) : [];
         if (remaining.length > 0) {
           setSelectedSiteId(remaining[0].id);
         } else {
@@ -82,9 +106,16 @@ export default function Dashboard({
           setDetectedTheme(null);
           setStep('input');
         }
+      } else {
+        // Deletion genuinely failed server-side — keep the modal open and the
+        // site in the list, and tell the user exactly what happened instead of
+        // silently pretending it worked (the previous behavior left "ghost"
+        // sites: gone from the UI, still present with all their data in the DB).
+        setDeleteSiteError(result?.error || 'Deletion failed. Please try again.');
       }
     } catch (err) {
       console.error('[handleConfirmDeleteSite] Error:', err);
+      setDeleteSiteError(err.message || 'Unexpected error while deleting the site.');
     } finally {
       setIsDeletingSite(false);
     }
@@ -972,14 +1003,16 @@ export default function Dashboard({
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex items-center gap-3 w-full md:w-auto flex-wrap">
+              {/* Action Buttons — stacked & grouped on mobile so nothing wraps
+                  raggedly or ends up too small to tap comfortably; unchanged
+                  single-row layout from md (≥768px) upward. */}
+              <div className="flex flex-col gap-2.5 w-full md:w-auto md:flex-row md:flex-wrap md:items-center md:gap-3">
                 <button
                   disabled={isCrawling}
                   onClick={() => setShowPreviewModal(true)}
-                  className={`flex-1 sm:flex-initial text-white font-semibold px-6 py-3 rounded-xl text-sm flex items-center justify-center gap-2 shadow-lg transition-all ${
-                    isCrawling 
-                      ? 'bg-gray-800 text-gray-400 cursor-not-allowed border border-white/10 opacity-70' 
+                  className={`w-full md:w-auto text-white font-semibold px-6 py-3 rounded-xl text-sm flex items-center justify-center gap-2 shadow-lg transition-all ${
+                    isCrawling
+                      ? 'bg-gray-800 text-gray-400 cursor-not-allowed border border-white/10 opacity-70'
                       : 'bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 shadow-brand-900/50 hover:scale-[1.02] active:scale-98'
                   }`}
                 >
@@ -993,56 +1026,61 @@ export default function Dashboard({
                     </>
                   )}
                 </button>
-                
-                <button
-                  onClick={() => {
-                    if (isGuest) onRequireLogin();
-                    else setShowIntegrationModal(true);
-                  }}
-                  className="bg-dark-900 hover:bg-gray-800 border border-white/10 text-gray-200 hover:text-white px-4 py-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-all shadow-sm"
-                >
-                  <Code className="w-4 h-4 text-brand-400" /> Embed Widget
-                </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowAdvancedSettings(true);
-                    setTimeout(() => {
-                      document.getElementById('advanced-settings-section')?.scrollIntoView({ behavior: 'smooth' });
-                    }, 50);
-                  }}
-                  className="bg-dark-900 hover:bg-gray-800 border border-white/10 text-gray-300 hover:text-white px-4 py-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-all shadow-sm"
-                  title="Configure Bot & Settings"
-                >
-                  <Settings2 className="w-4 h-4 text-indigo-400" /> Settings
-                </button>
+                <div className="grid grid-cols-2 gap-2.5 md:contents">
+                  <button
+                    onClick={() => {
+                      if (isGuest) onRequireLogin();
+                      else setShowIntegrationModal(true);
+                    }}
+                    className="bg-dark-900 hover:bg-gray-800 border border-white/10 text-gray-200 hover:text-white px-3 sm:px-4 py-3 rounded-xl text-xs sm:text-sm font-medium flex items-center justify-center gap-2 transition-all shadow-sm"
+                  >
+                    <Code className="w-4 h-4 text-brand-400 shrink-0" /> <span className="truncate">Embed Widget</span>
+                  </button>
 
-                <button
-                  onClick={handleRecrawlSite}
-                  disabled={isCrawling}
-                  className="bg-dark-900 hover:bg-gray-800 border border-white/10 text-gray-400 hover:text-white p-3 rounded-xl text-sm transition-all"
-                  title="Re-scan and re-learn website"
-                >
-                  <RefreshCw className={`w-4 h-4 ${isCrawling ? 'animate-spin text-brand-400' : ''}`} />
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAdvancedSettings(true);
+                      setTimeout(() => {
+                        document.getElementById('advanced-settings-section')?.scrollIntoView({ behavior: 'smooth' });
+                      }, 50);
+                    }}
+                    className="bg-dark-900 hover:bg-gray-800 border border-white/10 text-gray-300 hover:text-white px-3 sm:px-4 py-3 rounded-xl text-xs sm:text-sm font-medium flex items-center justify-center gap-2 transition-all shadow-sm"
+                    title="Configure Bot & Settings"
+                  >
+                    <Settings2 className="w-4 h-4 text-indigo-400 shrink-0" /> Settings
+                  </button>
+                </div>
 
-                <button
-                  onClick={handleOpenAddSiteModal}
-                  className="bg-dark-900 hover:bg-gray-800 border border-white/10 text-gray-400 hover:text-white px-3.5 py-3 rounded-xl text-xs font-medium transition-all"
-                  title="Add another website"
-                >
-                  + Add Website
-                </button>
+                <div className="grid grid-cols-2 gap-2.5 md:contents">
+                  <button
+                    onClick={handleRecrawlSite}
+                    disabled={isCrawling}
+                    className="bg-dark-900 hover:bg-gray-800 border border-white/10 text-gray-400 hover:text-white px-3 py-3 rounded-xl text-xs sm:text-sm font-medium flex items-center justify-center gap-2 transition-all md:p-3"
+                    title="Re-scan and re-learn website"
+                  >
+                    <RefreshCw className={`w-4 h-4 shrink-0 ${isCrawling ? 'animate-spin text-brand-400' : ''}`} />
+                    <span className="md:hidden">Re-scan</span>
+                  </button>
+
+                  <button
+                    onClick={handleOpenAddSiteModal}
+                    className="bg-dark-900 hover:bg-gray-800 border border-white/10 text-gray-400 hover:text-white px-3 sm:px-3.5 py-3 rounded-xl text-xs font-medium transition-all whitespace-nowrap"
+                    title="Add another website"
+                  >
+                    + Add Website
+                  </button>
+                </div>
 
                 <button
                   type="button"
                   onClick={() => setShowDeleteConfirmModal(true)}
-                  className="bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 hover:text-red-300 px-3.5 py-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-sm"
+                  className="w-full md:w-auto bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 hover:text-red-300 px-3.5 py-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-sm"
                   title="Delete this website"
                 >
                   <Trash2 className="w-4 h-4" />
-                  <span className="hidden sm:inline">Delete</span>
+                  <span>Delete</span>
                 </button>
               </div>
             </div>
@@ -1575,27 +1613,27 @@ export default function Dashboard({
       {showPreviewModal && activeSite && (
         <div className="fixed inset-0 z-[999999] w-screen h-screen bg-black flex flex-col">
           {/* Top Control Bar */}
-          <div className="h-14 px-6 bg-dark-900 border-b border-white/10 flex items-center justify-between text-white shrink-0">
-            <div className="flex items-center gap-4">
+          <div className="h-14 px-2.5 sm:px-6 bg-dark-900 border-b border-white/10 flex items-center justify-between text-white shrink-0 gap-1.5 sm:gap-4">
+            <div className="flex items-center gap-2 sm:gap-4 min-w-0">
               <button
                 onClick={() => {
                   setShowPreviewModal(false);
                   if (isGuest) onRequireLogin();
                 }}
-                className="bg-white/10 hover:bg-white/20 text-white text-xs font-semibold px-4 py-2 rounded-xl flex items-center gap-2 transition-all"
+                className="bg-white/10 hover:bg-white/20 text-white text-xs font-semibold px-2.5 sm:px-4 py-2 rounded-xl flex items-center gap-1.5 sm:gap-2 transition-all shrink-0"
               >
-                ← Back to Dashboard
+                ← <span className="hidden sm:inline">Back to Dashboard</span><span className="sm:hidden">Back</span>
               </button>
-              <div className="hidden sm:flex items-center gap-2 text-xs text-gray-400 font-mono">
-                <Globe className="w-4 h-4 text-emerald-400" /> https://{activeSite.domain}
+              <div className="hidden md:flex items-center gap-2 text-xs text-gray-400 font-mono min-w-0">
+                <Globe className="w-4 h-4 text-emerald-400 shrink-0" /> <span className="truncate">https://{activeSite.domain}</span>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
               <button
                 type="button"
                 onClick={() => setShowDeleteConfirmModal(true)}
-                className="bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/20 text-xs font-semibold px-3.5 py-1.5 rounded-xl flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+                className="bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/20 text-xs font-semibold px-2.5 sm:px-3.5 py-1.5 rounded-xl flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
                 title="Delete this website"
               >
                 <Trash2 className="w-3.5 h-3.5" />
@@ -1606,7 +1644,7 @@ export default function Dashboard({
                 href={`${window.location.origin}/preview.html?domain=${encodeURIComponent(activeSite.domain)}&tenant_key=${encodeURIComponent(activeSite.public_key)}&theme_color=${encodeURIComponent(themeColor)}&api_url=${encodeURIComponent(`${window.location.origin}/api/chat`)}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="bg-white/10 hover:bg-white/20 text-white text-xs font-semibold px-3.5 py-1.5 rounded-xl flex items-center gap-2 transition-all border border-white/5 shadow-sm"
+                className="bg-white/10 hover:bg-white/20 text-white text-xs font-semibold px-2.5 sm:px-3.5 py-1.5 rounded-xl flex items-center gap-2 transition-all border border-white/5 shadow-sm"
                 title="Open site preview with chatbot"
               >
                 <ExternalLink className="w-3.5 h-3.5 text-brand-400" />
@@ -1619,7 +1657,7 @@ export default function Dashboard({
                 setShowPreviewModal(false);
                 if (isGuest) onRequireLogin();
               }}
-              className="text-gray-400 hover:text-white p-2 rounded-lg"
+              className="text-gray-400 hover:text-white p-2 rounded-lg shrink-0"
             >
               <X className="w-5 h-5" />
             </button>
@@ -2042,12 +2080,22 @@ export default function Dashboard({
               Are you sure you want to delete <strong className="text-white">{activeSite.domain}</strong>? All indexed knowledge pages, business summaries, and the chatbot API key will be permanently removed.
             </p>
 
-            <div className="flex items-center justify-center gap-3">
+            {deleteSiteError && (
+              <div className="mb-5 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-xs font-medium text-red-300 text-left flex items-start gap-2 animate-in fade-in">
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{deleteSiteError}</span>
+              </div>
+            )}
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               <button
                 type="button"
                 disabled={isDeletingSite}
-                onClick={() => setShowDeleteConfirmModal(false)}
-                className="px-5 py-2.5 rounded-xl text-xs font-semibold text-gray-300 hover:text-white bg-dark-900 border border-white/10 hover:bg-dark-800 transition-all"
+                onClick={() => {
+                  setShowDeleteConfirmModal(false);
+                  setDeleteSiteError('');
+                }}
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-semibold text-gray-300 hover:text-white bg-dark-900 border border-white/10 hover:bg-dark-800 transition-all"
               >
                 Cancel
               </button>
@@ -2055,10 +2103,12 @@ export default function Dashboard({
                 type="button"
                 disabled={isDeletingSite}
                 onClick={handleConfirmDeleteSite}
-                className="bg-red-600 hover:bg-red-500 text-white font-semibold px-6 py-2.5 rounded-xl text-xs flex items-center gap-2 transition-all shadow-lg shadow-red-900/40 disabled:opacity-50"
+                className="w-full sm:w-auto bg-red-600 hover:bg-red-500 text-white font-semibold px-6 py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-all shadow-lg shadow-red-900/40 disabled:opacity-50"
               >
                 {isDeletingSite ? (
                   <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Deleting...</>
+                ) : deleteSiteError ? (
+                  <><RefreshCw className="w-3.5 h-3.5" /> Retry Delete</>
                 ) : (
                   <><Trash2 className="w-3.5 h-3.5" /> Delete Permanently</>
                 )}

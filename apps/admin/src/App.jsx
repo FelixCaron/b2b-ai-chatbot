@@ -256,43 +256,42 @@ export default function App() {
     await supabase.from('documents').delete().eq('site_id', siteId).in('url', urlsToDelete);
   };
 
-  // Handler: Delete entire Site and its associated documents/summaries
+  // Handler: Delete entire Site and its associated documents/summaries.
+  // This calls the atomic server-side RPC (delete_site_cascade) via the API
+  // route so the deletion either fully succeeds or fully fails — never a
+  // partial deletion. Only on a *confirmed* success do we touch local/UI
+  // state; on failure we surface the real error instead of silently pretending
+  // the site is gone (which used to leave "ghost" sites: removed from the UI
+  // but still present, along with their data, in the database).
   const handleDeleteSite = async (siteId) => {
-    if (!siteId) return false;
+    if (!siteId || !selectedTenant?.id) {
+      return { success: false, error: 'Missing site or workspace context.' };
+    }
     try {
-      // 1. Try server API endpoint first for guaranteed cascade deletion
+      const res = await fetch(`${window.location.origin}/api/crawler/delete-site`, {
+        method: 'POST',
+        headers: await authenticatedHeaders(),
+        body: JSON.stringify({ site_id: siteId, tenant_id: selectedTenant.id })
+      });
+
+      let data = null;
       try {
-        const res = await fetch(`${window.location.origin}/api/crawler/delete-site`, {
-          method: 'POST',
-          headers: await authenticatedHeaders(),
-          body: JSON.stringify({ site_id: siteId, tenant_id: selectedTenant?.id })
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.success) {
-            setSites((prev) => prev.filter((s) => s.id !== siteId));
-            return true;
-          }
-        }
-      } catch (apiErr) {
-        console.warn('[handleDeleteSite] API delete fallback to client:', apiErr);
+        data = await res.json();
+      } catch (parseErr) {
+        // response had no/invalid JSON body — fall through to error handling below
       }
 
-      // 2. Direct client fallback with cascade cleanup
-      await supabase.from('documents').delete().eq('site_id', siteId).catch(() => {});
-      await supabase.from('site_summaries').delete().eq('site_id', siteId).catch(() => {});
-      await supabase.from('leads').delete().eq('site_id', siteId).catch(() => {});
-      await supabase.from('scan_jobs').delete().eq('site_id', siteId).catch(() => {});
-      await supabase.from('usage_counters').delete().eq('site_id', siteId).catch(() => {});
-      const { error } = await supabase.from('sites').delete().eq('id', siteId);
-      if (error) throw error;
-      setSites((prev) => prev.filter((s) => s.id !== siteId));
-      return true;
+      if (res.ok && data?.success) {
+        setSites((prev) => prev.filter((s) => s.id !== siteId));
+        return { success: true };
+      }
+
+      const errorMessage = data?.error || `Deletion failed (HTTP ${res.status}). Please try again.`;
+      console.error('[handleDeleteSite] Server refused/failed deletion:', errorMessage);
+      return { success: false, error: errorMessage };
     } catch (err) {
-      console.error('[handleDeleteSite] Error:', err);
-      // Even if network/DB error occurs, update UI state if desired
-      setSites((prev) => prev.filter((s) => s.id !== siteId));
-      return true;
+      console.error('[handleDeleteSite] Network/exception error:', err);
+      return { success: false, error: err.message || 'Network error while deleting the site. Please check your connection and try again.' };
     }
   };
 

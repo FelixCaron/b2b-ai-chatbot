@@ -5,6 +5,31 @@ Note (English): Plans were updated — Free was removed. New plans are: Basic ($
 
 ---
 
+## ADR 036 : Suppression Atomique & Sécurisée des Sites + Correction d'une Fuite Cross-Tenant liée à la Session Navigateur, et Responsive Mobile
+
+**Date :** 2026-08-25
+
+### Contexte
+Deux problèmes concrets ont été remontés sur le flow de suppression d'un site web :
+1. **La suppression ne supprimait pas réellement tout, silencieusement.** `api/crawler/delete-site.js` et le fallback client dans `App.jsx` enchaînaient des `DELETE` table par table, chacun encapsulé dans un `.catch(() => {})`. Concrètement, la ligne `DELETE FROM usage_counters WHERE site_id = ...` échouait **à chaque suppression** car `usage_counters` est une table d'agrégats **par tenant** et ne possède pas de colonne `site_id` — l'erreur Postgres était systématiquement avalée. Pire, `handleDeleteSite` retournait `true` (et retirait le site de l'UI) **même en cas d'erreur reçue**, créant des sites "fantômes" : disparus de l'interface mais toujours présents en base avec toutes leurs données.
+2. **Faille IDOR** : `delete-site.js` ne vérifiait jamais que l'utilisateur authentifié possédait réellement le tenant/site ciblé (`requireAuthentication` sans `requireSiteOwnership`), et retombait sur le client `service role` (bypass RLS) dès que l'en-tête d'autorisation était absent.
+3. **"Session navigateur" gardant des références au site (bug confirmé, plus grave que prévu)** : le widget (`apps/widget/src/chat.js`) stockait son `session_id` de conversation dans **une seule clé `localStorage` globale, non scopée par site/tenant** (`b2b_chat_session_id`). Or `apps/admin/public/preview.html` (bouton "Open in new tab") injecte ce même widget sur l'origine unique de l'admin pour prévisualiser N'IMPORTE QUEL site du compte. Résultat : deux previews de sites différents (ou d'un site supprimé puis recréé) dans le même navigateur réutilisaient le **même** `session_id`. Et côté serveur, `api/chat/index.js` récupérait l'historique de conversation avec `.eq('session_id', session_id)` **sans filtrer par `tenant_id`** — un `session_id` réutilisé pouvait donc faire fuiter l'historique de messages d'un tenant vers un autre.
+
+### Décision
+1. **Suppression atomique en base** : nouvelle fonction `public.delete_site_cascade(p_site_id, p_tenant_id)` (migration `20260825000001_atomic_site_delete.sql`), `SECURITY DEFINER`, qui vérifie l'appartenance du site au tenant puis supprime `documents`, `site_summaries`, `leads`, `scan_jobs` et enfin `sites` **dans une seule transaction implicite** : toute erreur fait un rollback complet, plus de suppression partielle. `usage_counters` n'est volontairement plus touché (table tenant-level).
+2. **API sécurisée** : `api/crawler/delete-site.js` exige désormais `requireSiteOwnership` (auth + vérification que le tenant appartient bien à l'utilisateur, y compris invité via l'auth anonyme Supabase) avant d'appeler le RPC atomique. Suppression du fallback "service role sans authentification".
+3. **Honnêteté du client** : `handleDeleteSite` (`App.jsx`) retourne désormais `{ success, error }` et ne touche l'état `sites` que sur un succès confirmé. `Dashboard.jsx` affiche l'erreur réelle dans la modale de confirmation (bouton "Retry Delete") au lieu de faire disparaître le site de l'UI en mentant sur le résultat.
+4. **Isolation de session** : `ChatManager.getOrCreateSessionId()` scope désormais la clé `localStorage` par `tenant_public_key` (`b2b_chat_session_id_<public_key>`) — deux sites/tenants ne partagent plus jamais la même conversation, et un site supprimé-puis-recréé démarre automatiquement une session neuve. En défense en profondeur, `api/chat/index.js` filtre maintenant l'historique de messages par `session_id` **ET** `tenant_id`. Côté dashboard, la suppression purge aussi en best-effort la clé `localStorage` du site supprimé sur l'origine de l'admin.
+5. **Responsive mobile/desktop** : refonte de la rangée d'actions de la carte "site actif" (CTA principal pleine largeur + grille 2 colonnes pour les actions secondaires sur mobile, rangée unique inchangée dès `md`), correction du chevauchement possible de la barre supérieure de la modale de prévisualisation plein écran sur petits écrans (<375px), ajout du support `env(safe-area-inset-*)` pour le widget flottant et les modales plein écran sur iOS (encoche / home indicator), et garde globale anti-scroll-horizontal (`overflow-x: hidden`) dans `index.css`.
+
+### Conséquences
+- Une suppression de site est désormais **tout ou rien** : jamais de site "fantôme", jamais d'erreur silencieuse.
+- Seul le propriétaire réel d'un tenant peut supprimer l'un de ses sites (faille IDOR corrigée).
+- Deux sites (ou tenants) ne peuvent plus jamais partager la même conversation/historique via un `session_id` de navigateur réutilisé, que ce soit en prévisualisation admin ou via le widget public.
+- Le tableau de bord reste utilisable et lisible sur petit écran (téléphone) sans rangées de boutons désordonnées ni dépassement horizontal, et le widget flottant respecte les zones sûres des appareils à encoche.
+
+---
+
 ## ADR 035 : Suppression Universelle et Résiliente de Sites Web (Dernier Site & Mode Prévisualisation)
 
 **Date :** 2026-08-20

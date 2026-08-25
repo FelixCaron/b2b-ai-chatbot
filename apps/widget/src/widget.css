@@ -4,8 +4,8 @@
 #b2b-chatbot-container {
   font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   position: fixed;
-  bottom: 20px;
-  right: 20px;
+  bottom: max(20px, env(safe-area-inset-bottom, 0px));
+  right: max(20px, env(safe-area-inset-right, 0px));
   z-index: 999999;
   display: flex;
   flex-direction: column;

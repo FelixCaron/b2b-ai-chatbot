@@ -1,4 +1,4 @@
-import { createServiceRoleClient, requireAuthentication } from '../lib/server-config.js';
+import { requireSiteOwnership } from '../lib/server-config.js';
 
 export const config = {
   runtime: 'edge',
@@ -25,39 +25,41 @@ export default async function handler(req) {
   try {
     const { site_id, tenant_id } = await req.json();
 
-    if (!site_id) {
-      return new Response(JSON.stringify({ error: 'Missing required field: site_id' }), {
+    if (!site_id || !tenant_id) {
+      return new Response(JSON.stringify({ error: 'Missing required fields: site_id, tenant_id' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
 
+    // Always require authentication AND verify the caller actually owns this
+    // tenant/site before deleting anything. There is no "unauthenticated
+    // fallback" here: every real user (including guests) goes through
+    // Supabase anonymous auth, so a valid bearer token is always present.
+    // Skipping this check previously meant any authenticated user could
+    // delete any site by guessing/knowing its id (IDOR).
     let supabase;
     try {
-      const auth = await requireAuthentication(req);
-      supabase = auth.supabase;
-    } catch {
-      // Fallback to service role client if authorization header is not available (e.g., guest session)
-      supabase = createServiceRoleClient();
+      ({ supabase } = await requireSiteOwnership(req, tenant_id, site_id));
+    } catch (authErr) {
+      const status = authErr.statusCode || 401;
+      return new Response(JSON.stringify({ error: authErr.message || 'Unauthorized' }), {
+        status,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
     }
 
-    // 1. Cascade cleanup on all child tables referencing this site_id
-    await supabase.from('documents').delete().eq('site_id', site_id).catch(() => {});
-    await supabase.from('site_summaries').delete().eq('site_id', site_id).catch(() => {});
-    await supabase.from('leads').delete().eq('site_id', site_id).catch(() => {});
-    await supabase.from('scan_jobs').delete().eq('site_id', site_id).catch(() => {});
-    await supabase.from('usage_counters').delete().eq('site_id', site_id).catch(() => {});
+    // Single atomic transaction: either everything (documents, site_summaries,
+    // leads, scan_jobs, and the site row itself) is deleted, or nothing is —
+    // no more partial deletes from swallowed per-table errors.
+    const { data, error } = await supabase.rpc('delete_site_cascade', {
+      p_site_id: site_id,
+      p_tenant_id: tenant_id
+    });
 
-    // 2. Delete the site itself
-    let deleteQuery = supabase.from('sites').delete().eq('id', site_id);
-    if (tenant_id) {
-      deleteQuery = deleteQuery.eq('tenant_id', tenant_id);
-    }
-    const { error: deleteError } = await deleteQuery;
-
-    if (deleteError) {
-      console.error('[delete-site] Error deleting site:', deleteError);
-      return new Response(JSON.stringify({ error: deleteError.message }), {
+    if (error) {
+      console.error('[delete-site] Cascade delete failed:', error);
+      return new Response(JSON.stringify({ error: error.message || 'Failed to delete site' }), {
         status: 500,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
@@ -66,7 +68,8 @@ export default async function handler(req) {
     return new Response(
       JSON.stringify({
         success: true,
-        site_id
+        site_id,
+        deleted: data || null
       }),
       {
         status: 200,

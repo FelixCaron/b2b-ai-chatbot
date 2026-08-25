@@ -314,11 +314,18 @@ ${calendarInstruction}
 ${supportInstruction}`;
 
 
-    // Fetch conversation history (last 10 messages)
+    // Fetch conversation history (last 10 messages).
+    // IMPORTANT: session_id alone is not a safe scope — it is a client-generated
+    // value (see widget ChatManager) and could theoretically collide or be reused
+    // across different tenants/sites in the same browser (e.g. testing multiple
+    // sites back to back from the admin preview). Always scope by tenant_id too,
+    // otherwise a stale/shared session_id could leak another tenant's messages
+    // into this conversation's context.
     const { data: historyData } = await supabase
       .from('messages')
       .select('role, content')
       .eq('session_id', session_id)
+      .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false })
       .limit(10);
 

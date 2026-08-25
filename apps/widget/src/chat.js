@@ -9,10 +9,26 @@ export class ChatManager {
   }
 
   getOrCreateSessionId() {
-    let id = localStorage.getItem("b2b_chat_session_id");
+    // Scope the session key by tenant public key rather than a single global
+    // key. A single shared key means any two sites/tenants tested in the same
+    // browser (e.g. the admin's own preview.html, which re-injects this same
+    // widget bundle on ONE origin for every site being previewed) would reuse
+    // the exact same session_id — so a deleted site's conversation could keep
+    // being extended, or two unrelated sites' chat histories could bleed into
+    // each other. Scoping by tenant key means a new/different/recreated site
+    // always starts its own fresh, isolated session automatically.
+    const storageKey = `b2b_chat_session_id_${this.tenantPublicKey || "default"}`;
+    let id = localStorage.getItem(storageKey);
     if (!id) {
       id = "sess_" + Math.random().toString(36).substring(2, 11) + Date.now().toString(36);
-      localStorage.setItem("b2b_chat_session_id", id);
+      localStorage.setItem(storageKey, id);
+    }
+    // Best-effort cleanup of the old unscoped key from previous widget versions
+    // so it doesn't linger around or get confused with the new scoped ones.
+    try {
+      localStorage.removeItem("b2b_chat_session_id");
+    } catch (e) {
+      // ignore
     }
     return id;
   }
