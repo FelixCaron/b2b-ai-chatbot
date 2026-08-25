@@ -21,14 +21,14 @@ export function assertSafeExternalUrl(value) {
   try {
     url = new URL(value);
   } catch {
-    throw new Error('URL invalide');
+    throw new Error('Invalid URL');
   }
 
   if (!['http:', 'https:'].includes(url.protocol)) {
-    throw new Error('Seules les URLs HTTP(S) sont autorisées');
+    throw new Error('Only HTTP(S) URLs are allowed');
   }
   if (url.username || url.password) {
-    throw new Error('Les URLs avec identifiants sont interdites');
+    throw new Error('URLs with embedded credentials are not allowed');
   }
 
   const hostname = url.hostname.toLowerCase().replace(/^\[|\]$/g, '');
@@ -44,7 +44,7 @@ export function assertSafeExternalUrl(value) {
     || hostname.startsWith('fd')
     || hostname.startsWith('fe80:')
   ) {
-    throw new Error('Cette destination réseau est interdite');
+    throw new Error('This network destination is not allowed');
   }
 
   return url;
@@ -58,10 +58,10 @@ export async function fetchSafeExternalUrl(value, options = {}) {
     if (![301, 302, 303, 307, 308].includes(response.status)) return response;
 
     const location = response.headers.get('location');
-    if (!location) throw new Error('Redirection sans destination');
-    if (redirectCount === MAX_REDIRECTS) throw new Error('Trop de redirections');
+    if (!location) throw new Error('Redirect with no destination');
+    if (redirectCount === MAX_REDIRECTS) throw new Error('Too many redirects');
     url = assertSafeExternalUrl(new URL(location, url).href);
   }
 
-  throw new Error('Redirection invalide');
+  throw new Error('Invalid redirect');
 }

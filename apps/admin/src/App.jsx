@@ -86,18 +86,18 @@ export default function App() {
       if (currentUser?.is_anonymous) {
         const { error } = await supabase.auth.updateUser({ email });
         if (error) throw error;
-        setAuthMessage('Vérifiez votre e-mail pour confirmer et sécuriser votre espace.');
+        setAuthMessage('Check your email to confirm and secure your workspace.');
       } else {
         const { error } = await supabase.auth.signInWithOtp({
           email,
           options: { emailRedirectTo: window.location.origin }
         });
         if (error) throw error;
-        setAuthMessage('Lien de connexion envoyé. Vérifiez votre e-mail.');
+        setAuthMessage('Sign-in link sent. Check your email.');
       }
     } catch (e) {
       console.warn('[handleLogin] error:', e);
-      setAuthMessage(e.message || 'Impossible de démarrer la connexion.');
+      setAuthMessage(e.message || 'Could not start sign-in.');
     } finally {
       setLoading(false);
     }
@@ -173,7 +173,7 @@ export default function App() {
         const { data: anonData, error: anonErr } = await supabase.auth.signInAnonymously();
         if (anonErr || !anonData?.user) {
           console.error('[handleAddSite] Anonymous sign-in failed:', anonErr);
-          throw new Error(anonErr?.message || 'Session non initialisée. Veuillez activer "Anonymous Sign-in" dans les paramètres Supabase Auth ou vous connecter.');
+          throw new Error(anonErr?.message || 'Session not initialized. Enable "Anonymous Sign-in" in your Supabase Auth settings, or sign in.');
         }
         user = anonData.user;
         setCurrentUser(user);
@@ -200,7 +200,7 @@ export default function App() {
 
         if (tErr || !guestTenant) {
           console.error('[handleAddSite] Tenant creation failed:', tErr);
-          throw new Error(`Échec de création du workspace client: ${tErr?.message || 'Erreur base de données'}`);
+          throw new Error(`Failed to create workspace: ${tErr?.message || 'Database error'}`);
         }
         tId = guestTenant.id;
         setTenants([guestTenant]);
@@ -243,7 +243,7 @@ export default function App() {
       return existingSite;
     }
 
-    throw new Error(siteInsertErr?.message || "Échec de l'enregistrement du domaine dans la base de données.");
+    throw new Error(siteInsertErr?.message || 'Failed to save the domain to the database.');
   };
 
   // Handler: Update site settings

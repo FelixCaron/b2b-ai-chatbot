@@ -5,7 +5,7 @@ const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim();
 
 export const supabaseConfigurationError =
   !url || !anonKey
-    ? 'La configuration Supabase est incomplète. Définissez VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY.'
+    ? 'Supabase configuration is incomplete. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.'
     : null;
 
 // Only the publishable anon key may be supplied to Vite. Server credentials

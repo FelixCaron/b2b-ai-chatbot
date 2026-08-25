@@ -50,9 +50,9 @@ export class ChatManager {
         async onopen(response) {
           if (response.ok && response.headers.get('content-type')?.includes('application/json')) {
             const errJson = await response.json().catch(() => ({}));
-            throw new Error(errJson.error || `Erreur HTTP ${response.status}`);
+            throw new Error(errJson.error || `HTTP Error ${response.status}`);
           } else if (!response.ok) {
-            throw new Error(`Erreur HTTP ${response.status}`);
+            throw new Error(`HTTP Error ${response.status}`);
           }
         },
         onmessage(ev) {
@@ -87,7 +87,7 @@ export class ChatManager {
         }
       });
     } catch (err) {
-      onError(err.message || "Erreur de connexion réseau");
+      onError(err.message || "Network connection error");
       if (!doneCalled) {
         doneCalled = true;
         onDone();

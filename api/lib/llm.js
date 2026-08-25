@@ -141,7 +141,7 @@ export async function generateChatResponse({ systemPrompt, messagesHistory, apiK
   const openRouterKey = process.env.OPENROUTER_API_KEY || apiKey;
 
   if (!openRouterKey) {
-    return { error: "⚠️ [Erreur Système IA] Aucune clé d'environnement (OPENROUTER_API_KEY) n'est configurée." };
+    return { error: "⚠️ [AI System Error] No environment key configured (OPENROUTER_API_KEY)." };
   }
 
   try {
@@ -183,13 +183,13 @@ export async function generateChatResponse({ systemPrompt, messagesHistory, apiK
       return { message: data.choices?.[0]?.message };
     } else {
       const errText = await res.text();
-      return { error: `⚠️ [Erreur OpenRouter ${res.status}]\n${errText}` };
+      return { error: `⚠️ [OpenRouter Error ${res.status}]\n${errText}` };
     }
   } catch (err) {
-    return { error: `⚠️ [Erreur Connexion OpenRouter] ${err.message}` };
+    return { error: `⚠️ [OpenRouter Connection Error] ${err.message}` };
   }
 
-  return { error: "⚠️ [Erreur IA] Impossible d'obtenir une réponse de l'IA." };
+  return { error: "⚠️ [AI Error] Could not get a response from the AI." };
 }
 
 export async function extractLeadInfo({ messagesHistory, apiKey }) {
@@ -207,19 +207,19 @@ export async function extractLeadInfo({ messagesHistory, apiKey }) {
   if (!openRouterKey) return null;
 
   const transcript = messagesHistory.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
-  const prompt = `Tu es un extracteur de données CRM très précis. Voici la transcription d'une conversation entre un visiteur et notre assistant IA.
-Ta tâche est d'extraire les coordonnées du visiteur et de rédiger un court résumé de son besoin.
+  const prompt = `You are a highly precise CRM data extractor. Below is the transcript of a conversation between a visitor and our AI assistant.
+Your task is to extract the visitor's contact details and write a short summary of their need.
 
-TRANSCRIPTION:
+TRANSCRIPT:
 ${transcript}
 
 Instructions:
-1. "name": Le nom du visiteur s'il l'a donné, sinon "".
-2. "email": L'email du visiteur s'il l'a donné, sinon "".
-3. "phone": Le numéro de téléphone s'il l'a donné, sinon "".
-4. "summary": Un résumé très concis (1 à 2 phrases max) du besoin ou de la question principale du visiteur pour qu'un agent commercial comprenne le contexte d'un coup d'oeil. S'il n'y a pas de besoin clair, "".
+1. "name": The visitor's name if they gave it, otherwise "".
+2. "email": The visitor's email if they gave it, otherwise "".
+3. "phone": The visitor's phone number if they gave it, otherwise "".
+4. "summary": A very concise summary (1-2 sentences max) of the visitor's need or main question, so a sales rep can understand the context at a glance. If there's no clear need, "".
 
-Réponds STRICTEMENT en format JSON brut, sans backticks, sans markdown:
+Respond STRICTLY in raw JSON format, without backticks, without markdown:
 {"name": "...", "email": "...", "phone": "...", "summary": "..."}
 `;
 
@@ -314,17 +314,17 @@ export async function generateWebsiteSummary({ content, targetUrl, apiKey }) {
   const openRouterKey = process.env.OPENROUTER_API_KEY || apiKey;
   if (!openRouterKey) return null;
 
-  const prompt = `Tu es un expert en synthèse d'entreprise B2B. Voici le contenu brut extrait du site web ${targetUrl}.
-Rédige un résumé clair, structuré et concis (3 à 5 paragraphes max) présentable à un assistant virtuel.
+  const prompt = `You are a B2B business-summary expert. Below is the raw content extracted from the website ${targetUrl}.
+Write a clear, structured, concise summary (3-5 paragraphs max) suitable for a virtual assistant to use as context.
 
-Le résumé doit impérativement inclure :
-1. La présentation générale de l'entreprise / organisation (domaine d'activité principal).
-2. Les produits, services ou prestations phares proposés.
-3. Le public cible / les clients types.
-4. Les points forts, valeurs ou avantages concurrentiels clés.
-5. Les informations de contact ou localisation si disponibles.
+The summary must include:
+1. A general presentation of the company/organization (main line of business).
+2. The flagship products, services, or offerings.
+3. The target audience / typical customers.
+4. Key strengths, values, or competitive advantages.
+5. Contact information or location if available.
 
-CONSIGNE STRICTE : Sois factuel et direct. N'ajoute AUCUN préambule, ni métadonnée système (ne commence PAS par "Voici le résumé" et n'ajoute pas de ligne "User Safety: safe"). Rédige uniquement le texte du résumé en français sous forme de texte structuré et naturel.`;
+STRICT INSTRUCTION: Be factual and direct. Do NOT add any preamble or system metadata (do NOT start with "Here is the summary" and do not add a "User Safety: safe" line). Write only the summary text itself, as clear, natural, structured prose in English.`;
 
   try {
     const res = await fetch(OPENROUTER_BASE_URL, {
@@ -337,26 +337,26 @@ CONSIGNE STRICTE : Sois factuel et direct. N'ajoute AUCUN préambule, ni métado
       },
       body: JSON.stringify({
         model: 'openai/gpt-5.6-luna',
-        messages: [{ role: 'user', content: `${prompt}\n\nContenu du site web :\n${content.slice(0, 12000)}` }],
+        messages: [{ role: 'user', content: `${prompt}\n\nWebsite content:\n${content.slice(0, 12000)}` }],
         temperature: 0.3
       })
     });
 
     if (!res.ok) {
       const errText = await res.text();
-      console.error(`[generateWebsiteSummary] Erreur OpenRouter ${res.status}:`, errText);
+      console.error(`[generateWebsiteSummary] OpenRouter error ${res.status}:`, errText);
       throw new Error(`OpenRouter API Error (${res.status}): ${errText}`);
     }
 
     const data = await res.json();
     if (data.error) {
-      console.error('[generateWebsiteSummary] Erreur JSON API:', data.error);
+      console.error('[generateWebsiteSummary] OpenRouter JSON error:', data.error);
       throw new Error(`OpenRouter JSON Error: ${data.error.message || JSON.stringify(data.error)}`);
     }
 
     let summaryText = data.choices?.[0]?.message?.content?.trim();
     if (!summaryText) {
-      throw new Error('Réponse OpenRouter vide ou format inattendu.');
+      throw new Error('Empty or unexpected OpenRouter response.');
     }
 
     summaryText = summaryText
@@ -366,14 +366,14 @@ CONSIGNE STRICTE : Sois factuel et direct. N'ajoute AUCUN préambule, ni métado
       .replace(/Safety:\s*safe\s*$/gi, '')
       .replace(/^\*\*User Safety:\*\*\s*safe\s*/gi, '')
       .replace(/\*\*User Safety:\*\*\s*safe\s*$/gi, '')
-      .replace(/^(Voici le résumé|Voici une synthèse|Résumé du site|Présentation de l'entreprise)\s*:\s*/gi, '')
+      .replace(/^(Here is the summary|Here's the summary|Summary of the site|Company overview|Voici le résumé|Voici une synthèse|Résumé du site|Présentation de l'entreprise)\s*:\s*/gi, '')
       .trim();
 
     return summaryText;
 
   } catch (e) {
-    console.error('[generateWebsiteSummary] Erreur fatale:', e);
-    throw e; // Pas de fallback
+    console.error('[generateWebsiteSummary] Fatal error:', e);
+    throw e; // No fallback
   }
 }
 

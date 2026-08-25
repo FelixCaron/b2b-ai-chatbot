@@ -76,10 +76,10 @@ export default async function handler(req) {
       return new Response(JSON.stringify({
         url,
         pages: [
-          { url: `https://${cleanHost}`, title: 'Page d\'accueil - Portes Delafontaine' },
-          { url: `https://${cleanHost}/portes-coupe-feu`, title: 'Portes Coupe-Feu UL/ULC' },
-          { url: `https://${cleanHost}/portes-acoustiques`, title: 'Portes Acoustiques STC 35-55' },
-          { url: `https://${cleanHost}/contact`, title: 'Contact & Siège Social' }
+          { url: `https://${cleanHost}`, title: 'Home' },
+          { url: `https://${cleanHost}/products`, title: 'Products' },
+          { url: `https://${cleanHost}/services`, title: 'Services' },
+          { url: `https://${cleanHost}/contact`, title: 'Contact & Head Office' }
         ]
       }), {
         status: 200,

@@ -217,7 +217,7 @@ export default async function handler(req) {
 
       if (jinaRes.status === 401 || jinaRes.status === 403 || isAuthUrl) {
         return new Response(
-          JSON.stringify({ success: true, is_protected: true, chunks_count: 0, message: '🔍’ Protected page (Auth Wall)' }),
+          JSON.stringify({ success: true, is_protected: true, chunks_count: 0, message: '🔒 Protected page (Auth Wall)' }),
           { status: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
         );
       }
@@ -253,13 +253,13 @@ export default async function handler(req) {
 
     if (AUTH_CONTENT_REGEX.test(pageText) && pageText.length < 500) {
       return new Response(
-        JSON.stringify({ success: true, is_protected: true, chunks_count: 0, message: '🔍’ Page protégée (Formulaire de connexion détecté)' }),
+        JSON.stringify({ success: true, is_protected: true, chunks_count: 0, message: '🔒 Protected page (login form detected)' }),
         { status: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
       );
     }
 
     if (!pageText || pageText.length < 20) {
-      return new Response(JSON.stringify({ success: true, is_empty: true, chunks_count: 0, message: 'Contenu insuffisant retourné par la page' }), {
+      return new Response(JSON.stringify({ success: true, is_empty: true, chunks_count: 0, message: 'Insufficient content returned by the page' }), {
         status: 200,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
@@ -360,7 +360,7 @@ export default async function handler(req) {
 
 
     return new Response(
-      JSON.stringify({ success: true, message: 'Page scannée et indexée via Jina Reader avec succès !', chunks_count: records.length }),
+      JSON.stringify({ success: true, message: 'Page scanned and indexed via Jina Reader successfully!', chunks_count: records.length }),
       {
         status: 200,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }

@@ -2,7 +2,7 @@
 
 const resendApiKey = process.env.RESEND_API_KEY;
 const adminEmail = process.env.ADMIN_EMAIL || 'admin@example.com';
-const systemEmail = 'noreply@b2b-chatbot.com';
+const systemEmail = 'noreply@b2b-chatbot.com'; // TODO: swap for a real Repondo domain once one is registered (see TODO.md)
 
 const resend = resendApiKey ? new Resend(resendApiKey) : null;
 
@@ -14,11 +14,11 @@ export async function sendBugAlertEmail(error, context) {
 
   try {
     await resend.emails.send({
-      from: `B2B Chatbot System <${systemEmail}>`,
+      from: `Repondo <${systemEmail}>`,
       to: adminEmail,
-      subject: `🚨 [BUG ALERT] Error in B2B Chatbot`,
+      subject: `🚨 [BUG ALERT] Error in Repondo`,
       html: `
-        <h2>An error occurred in the B2B Chatbot application</h2>
+        <h2>An error occurred in the Repondo application</h2>
         <h3>Error:</h3>
         <pre>${error?.message || String(error)}</pre>
         <h3>Stack:</h3>
@@ -42,19 +42,19 @@ export async function sendLeadEmail(leadData, siteData) {
 
   try {
     await resend.emails.send({
-      from: `B2B Chatbot System <${systemEmail}>`,
+      from: `Repondo <${systemEmail}>`,
       to: recipient,
-      subject: `🚀 Nouveau Lead généré pour ${siteData?.domain || 'votre site'} !`,
+      subject: `🚀 New lead captured on ${siteData?.domain || 'your site'}!`,
       html: `
-        <h2>Un nouveau lead a été collecté !</h2>
-        <p><strong>Site :</strong> ${siteData?.domain || 'N/A'}</p>
-        <p><strong>Nom / Compagnie :</strong> ${leadData?.name || 'Non spécifié'}</p>
-        <p><strong>Email :</strong> ${leadData?.email || 'N/A'}</p>
-        <p><strong>Téléphone :</strong> ${leadData?.phone || 'Non spécifié'}</p>
-        <p><strong>Besoins :</strong></p>
-        <p>${leadData?.needs || leadData?.summary || 'Non spécifiés'}</p>
+        <h2>A new lead was captured!</h2>
+        <p><strong>Site:</strong> ${siteData?.domain || 'N/A'}</p>
+        <p><strong>Name / Company:</strong> ${leadData?.name || 'Not specified'}</p>
+        <p><strong>Email:</strong> ${leadData?.email || 'N/A'}</p>
+        <p><strong>Phone:</strong> ${leadData?.phone || 'Not specified'}</p>
+        <p><strong>Needs:</strong></p>
+        <p>${leadData?.needs || leadData?.summary || 'Not specified'}</p>
         <hr/>
-        <p><small>Ce courriel vous a été envoyé car vous bénéficiez du plan Premium/Pro.</small></p>
+        <p><small>You're receiving this email because your plan includes lead notifications (Pro/Premium).</small></p>
       `
     });
   } catch (err) {

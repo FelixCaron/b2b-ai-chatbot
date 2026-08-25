@@ -75,7 +75,7 @@ export default async function handler(req) {
     }
 
     if (!websiteContent || websiteContent.length < 50) {
-      return new Response(JSON.stringify({ error: 'Contenu insuffisant pour générer un résumé.' }), {
+      return new Response(JSON.stringify({ error: 'Insufficient content to generate a summary.' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
@@ -83,12 +83,12 @@ export default async function handler(req) {
 
     const summaryText = await generateWebsiteSummary({
       content: websiteContent,
-      targetUrl: targetUrl || 'Site Web',
+      targetUrl: targetUrl || 'Website',
       apiKey: process.env.OPENROUTER_API_KEY
     });
 
     if (!summaryText) {
-      return new Response(JSON.stringify({ error: 'Échec de la génération du résumé par le modèle IA.' }), {
+      return new Response(JSON.stringify({ error: 'Failed to generate the summary with the AI model.' }), {
         status: 500,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });

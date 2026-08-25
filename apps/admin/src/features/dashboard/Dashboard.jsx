@@ -711,7 +711,7 @@ export default function Dashboard({
 
         await runSynchronousCrawlAndIndex(siteObj, formattedUrl);
       } else {
-        setStatusMsg('Erreur : Impossible d\'ajouter ce site. Vérifiez que votre session Supabase est active.');
+        setStatusMsg('Error: could not add this site. Check that your Supabase session is active.');
         setIsAnalyzing(false);
       }
     } catch (err) {

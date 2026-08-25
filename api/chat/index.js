@@ -65,7 +65,7 @@ export default async function handler(req) {
       } else {
         record.count++;
         if (record.count > 10) {
-          return new Response(JSON.stringify({ error: 'Limite de requÃƒÂªtes atteinte. Veuillez patienter.' }), {
+          return new Response(JSON.stringify({ error: 'Rate limit reached. Please wait a moment.' }), {
             status: 429,
             headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
@@ -91,7 +91,7 @@ export default async function handler(req) {
       if (fullError) {
         console.error('[chat] Supabase site lookup error:', fullError.message, fullError.code);
         if (fullError.code === '42703') {
-          // One or more optional columns are missing from the schema ââ‚¬” fall back to core columns
+          // One or more optional columns are missing from the schema — fall back to core columns
           console.warn('[chat] Falling back to core columns due to missing column (42703).');
           const { data: coreData, error: coreError } = await supabase
             .from('sites')
@@ -99,7 +99,7 @@ export default async function handler(req) {
             .eq('public_key', tenant_public_key)
             .maybeSingle();
           if (coreError || !coreData) {
-            return new Response(JSON.stringify({ error: 'Site non trouvÃƒÂ© (core query failed)' }), {
+            return new Response(JSON.stringify({ error: 'Site not found (core query failed)' }), {
               status: 404,
               headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
             });
@@ -115,7 +115,7 @@ export default async function handler(req) {
             tenants: null
           });
         } else {
-          return new Response(JSON.stringify({ error: `Erreur base de donnÃƒÂ©es: ${fullError.message}` }), {
+          return new Response(JSON.stringify({ error: `Database error: ${fullError.message}` }), {
             status: 500,
             headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
@@ -126,7 +126,7 @@ export default async function handler(req) {
     }
 
     if (!site) {
-      return new Response(JSON.stringify({ error: `Clé de site invalide (${tenant_public_key}). Le site n'a pas été trouvé dans la base de données.` }), {
+      return new Response(JSON.stringify({ error: `Invalid site key (${tenant_public_key}). The site was not found in the database.` }), {
         status: 404,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
@@ -169,7 +169,7 @@ export default async function handler(req) {
     }
 
     if (!isOriginAuthorized) {
-      return new Response(JSON.stringify({ error: 'Origin non autorisée pour ce site.' }), {
+      return new Response(JSON.stringify({ error: 'Origin not authorized for this site.' }), {
         status: 403,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
@@ -237,19 +237,10 @@ export default async function handler(req) {
       }
     }
 
-    let siteSummaryText = summaryText ? `\nRÃƒâ€°SUMÃƒâ€° DU SITE WEB ET APERÃƒâ€¡U DE L'ENTREPRISE :\n${summaryText}\n` : '';
+    let siteSummaryText = summaryText ? `\nWEBSITE SUMMARY AND COMPANY OVERVIEW:\n${summaryText}\n` : '';
 
-    if (isAdminCopilot) {
-      siteSummaryText = `\nRÃƒâ€°SUMÃƒâ€° DE LA PLATEFORME (Copilot Admin) :
-Tu es le Copilot officiel du tableau de bord de B2B AI Chatbot. Ta mission est d'aider les administrateurs ÃƒÂ  configurer leur propre agent IA.
-- **Prise de Rendez-vous (Calendar) & Support** : Pour configurer un agenda (Google Calendar, Calendly, Cal.com) ou le transfert d'emails de support, l'utilisateur doit souscrire au plan "Pro Appointment & Support" (80$/mois). Une fois abonnÃƒÂ©, il peut entrer son lien d'agenda et son email de support dans la section "Pro Integrations" du tableau de bord (Dashboard).
-- **IntÃƒÂ©gration du Widget** : L'utilisateur doit copier la balise <script> fournie dans son Dashboard et la coller dans son site web.
-- **Plans** : Free (Gratuit), Pro (80$/mois), Enterprise.
-- **Outils d'UI** : Tu as accÃƒÂ¨s ÃƒÂ  l'outil 'navigate_to'. N'hÃƒÂ©site pas ÃƒÂ  l'utiliser si l'utilisateur demande oÃƒÂ¹ trouver une fonctionnalitÃƒÂ©.
-Ne mentionne jamais de portes coupe-feu ou d'autres sujets sans rapport.\n`;
-    }
-
-    // Admin Copilot override (English): provide admin-facing platform summary and plan info
+    // Admin Copilot: provide admin-facing platform summary and plan info instead
+    // of a crawled-site summary (there's no customer site to summarize here).
     if (isAdminCopilot) {
       siteSummaryText = `\nPLATFORM SUMMARY (Admin Copilot):\nYou are the official Copilot for the Repondo admin dashboard. Your role is to help administrators configure their AI agent.\n- APPOINTMENTS & SUPPORT: To enable calendar booking or support email forwarding, the tenant must subscribe to the Pro plan ($40/month) or higher. After subscribing, they can enter their calendar link and support email in the Dashboard under Pro Integrations.\n- WIDGET INTEGRATION: Copy the <script> snippet provided in the Dashboard and paste it into the tenant's website.\n- PLANS: Basic ($15/month), Pro ($40/month), Premium ($65/month).\n- UI TOOLS: You have access to the 'navigate_to' tool; use it when the user asks where to find a feature.\nDo not mention unrelated internal topics or implementation details.\n`;
     }
@@ -257,13 +248,13 @@ Ne mentionne jamais de portes coupe-feu ou d'autres sujets sans rapport.\n`;
     const apiKey = process.env.OPENROUTER_API_KEY;
 
     // Temporal & Date Context
-    const currentDateStr = new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-    const currentTimeStr = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-    const timeContext = `CONTEXTE TEMPOREL ACTUEL : Nous sommes le ${currentDateStr}, il est ${currentTimeStr}.`;
+    const currentDateStr = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const currentTimeStr = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const timeContext = `CURRENT DATE & TIME: Today is ${currentDateStr}, it is ${currentTimeStr}.`;
 
     // Build system prompt
-    const toneString = site.bot_tone === 'amical' ? "Ton: Chaleureux, amical, tutoiement autorisÃƒÂ© si naturel, trÃƒÂ¨s bienveillant." : "Ton: Professionnel, courtois, vouvoiement obligatoire, prÃƒÂ©cis.";
-    const goalString = site.bot_goal === 'lead' ? "Objectif Principal: Convertir le visiteur en prospect. Incite fortement ÃƒÂ  laisser un email ou numÃƒÂ©ro." : "Objectif Principal: Informer et supporter le visiteur. RÃƒÂ©ponds de faÃƒÂ§on exhaustive et claire.";
+    const toneString = site.bot_tone === 'amical' ? "Tone: Warm, friendly, informal when natural, very approachable." : "Tone: Professional, courteous, formal, precise.";
+    const goalString = site.bot_goal === 'lead' ? "Primary Objective: Convert the visitor into a lead. Strongly encourage them to leave an email or phone number." : "Primary Objective: Inform and support the visitor. Answer thoroughly and clearly.";
 
     // Integrations Context
     const tenantPlan = (Array.isArray(site.tenants) ? site.tenants[0]?.plan : site.tenants?.plan) || 'basic';
@@ -337,13 +328,13 @@ ${supportInstruction}`;
         type: "function",
         function: {
           name: "search_knowledge_base",
-          description: "Recherche dans la documentation et la base de connaissances du site. Utilise cet outil pour toute question sur les produits, services, caractÃƒÂ©ristiques ou spÃƒÂ©cifications techniques. Pour des rÃƒÂ©sultats optimaux sur des sites bilingues ou techniques, inclus les termes clÃƒÂ©s pertinents en anglais et en franÃƒÂ§ais (ex: 'core polystyrene honeycomb doors').",
+          description: "Searches the site's documentation and knowledge base. Use this tool for any question about products, services, features, or technical specifications. For best results on bilingual or technical sites, include relevant keywords in both English and French (e.g. 'core polystyrene honeycomb doors').",
           parameters: {
             type: "object",
             properties: {
               query: {
                 type: "string",
-                description: "La requÃƒÂªte ou les mots-clÃƒÂ©s de recherche (en franÃƒÂ§ais et/ou anglais si pertinent)."
+                description: "The search query or keywords (in English and/or French if relevant)."
               }
             },
             required: ["query"]
@@ -357,13 +348,13 @@ ${supportInstruction}`;
         type: "function",
         function: {
           name: "send_support_email",
-          description: "Envoie un ticket au service d'assistance client lorsque l'utilisateur demande de l'aide technique ou veut contacter le support.",
+          description: "Sends a ticket to customer support when the user asks for technical help or wants to contact support.",
           parameters: {
             type: "object",
             properties: {
-              name: { type: "string", description: "Nom de l'utilisateur" },
-              email: { type: "string", description: "Email de l'utilisateur" },
-              message: { type: "string", description: "Le message dÃƒÂ©taillÃƒÂ© ou la description du problÃƒÂ¨me" }
+              name: { type: "string", description: "User's name" },
+              email: { type: "string", description: "User's email" },
+              message: { type: "string", description: "The detailed message or description of the issue" }
             },
             required: ["name", "email", "message"]
           }
@@ -376,14 +367,14 @@ ${supportInstruction}`;
         type: "function",
         function: {
           name: "navigate_to",
-          description: "Ouvre une page spÃƒÂ©cifique du panneau d'administration pour l'utilisateur. Utilise ceci si l'utilisateur veut voir ses factures (pricing), son tableau de bord (dashboard), ses prospects (leads), ou la page 'A propos' (about).",
+          description: "Opens a specific page of the admin panel for the user. Use this if the user wants to see their invoices (pricing), their dashboard, their leads, or the 'About' page.",
           parameters: {
             type: "object",
             properties: {
               page: { 
                 type: "string", 
                 enum: ["dashboard", "pricing", "leads", "about"],
-                description: "La page cible."
+                description: "The target page."
               }
             },
             required: ["page"]
@@ -447,7 +438,7 @@ ${supportInstruction}`;
                   const toolArgs = JSON.parse(toolCall.function.arguments || '{}');
                   const toolQuery = toolArgs.query || message;
 
-                  // â”â‚¬â”â‚¬ HYBRID SEARCH: Embedding sÃƒÂ©mantique + FTS bilingue â”â‚¬â”â‚¬â”â‚¬â”â‚¬â”â‚¬â”â‚¬â”â‚¬â”â‚¬â”â‚¬â”â‚¬â”â‚¬â”â‚¬â”â‚¬â”â‚¬â”â‚¬
+                  // HYBRID SEARCH: semantic embedding + bilingual FTS
                   let docs = [];
                   let searchMethod = 'unknown';
 
@@ -505,7 +496,7 @@ ${supportInstruction}`;
                   );
 
                   const contextText = docs.map((d) => d.content).join('\n---\n');
-                  const toolResponseContent = contextText || "Aucune information trouvÃƒÂ©e pour cette recherche spÃƒÂ©cifique. Essaye de reformuler avec des mots-clÃƒÂ©s ÃƒÂ©quivalents ou en anglais si pertinent.";
+                  const toolResponseContent = contextText || "No information found for this specific search. Try rephrasing with equivalent keywords, or in French if relevant.";
 
                   // Append tool result to currentHistory for next reasoning loop
                   currentHistory.push({
@@ -530,7 +521,7 @@ ${supportInstruction}`;
                   );
 
                   // Mock email sending. In production, use Resend/Nodemailer here.
-                  const emailResponse = `Email envoyÃƒÂ© avec succÃƒÂ¨s ÃƒÂ  l'ÃƒÂ©quipe de support (${site.support_email}). Le client doit s'attendre ÃƒÂ  une rÃƒÂ©ponse sous peu.`;
+                  const emailResponse = `Email successfully sent to the support team (${site.support_email}). The customer should expect a reply shortly.`;
 
                   currentHistory.push({
                     role: 'tool',
@@ -552,7 +543,7 @@ ${supportInstruction}`;
                     )
                   );
 
-                  const navResponse = `L'utilisateur a ÃƒÂ©tÃƒÂ© redirigÃƒÂ© avec succÃƒÂ¨s vers la page ${toolArgs.page}.`;
+                  const navResponse = `Successfully redirected the user to the ${toolArgs.page} page.`;
                   
                   currentHistory.push({
                     role: 'tool',
@@ -563,13 +554,13 @@ ${supportInstruction}`;
               }
             } else {
               // No tool calls requested: LLM provided final response!
-              finalReply = llmMessage?.content || "âÅ¡Â Ã¯Â¸Â Je ne peux pas rÃƒÂ©pondre pour le moment.";
+              finalReply = llmMessage?.content || "⚠️ I can't answer right now.";
               break;
             }
           }
 
           if (!finalReply && loopCount >= MAX_TURNS) {
-            finalReply = "DÃƒÂ©solÃƒÂ©, j'ai recherchÃƒÂ© dans nos informations mais je n'ai pas pu trouver les ÃƒÂ©lÃƒÂ©ments nÃƒÂ©cessaires.";
+            finalReply = "Sorry, I searched our information but couldn't find what was needed.";
           }
 
           // Stream out assistant response in smooth visual chunks
@@ -643,8 +634,8 @@ ${supportInstruction}`;
           controller.close();
         } catch (_innerErr) {
           console.error(_innerErr);
-            sendBugAlertEmail(_innerErr, { source: 'chat_stream', tenantId, siteId }).catch(console.error);
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: 'âÅ¡Â Ã¯Â¸Â [Erreur Interne] ' + _innerErr.message })}\n\n`));
+          sendBugAlertEmail(_innerErr, { source: 'chat_stream', tenantId, siteId: site?.id }).catch(console.error);
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: '⚠️ [Internal Error] ' + _innerErr.message })}\n\n`));
           controller.enqueue(encoder.encode('data: [DONE]\n\n'));
           controller.close();
         }

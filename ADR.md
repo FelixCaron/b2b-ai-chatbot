@@ -5,6 +5,30 @@ Note (English): Plans were updated — Free was removed. New plans are: Basic ($
 
 ---
 
+## ADR 042 : Passage complet du produit en anglais et corrections trouvées en chemin
+
+**Date :** 2026-08-25
+
+### Contexte
+
+Demande explicite : « review le UI pour rendre ça clair et épuré, tout en anglais ». Un audit du code (pas seulement de l'UI visible) a révélé que du français traînait bien au-delà de l'admin : messages d'erreur retournés par plusieurs endpoints, l'email de notification de lead envoyé aux clients, et surtout — le plus impactant — une partie du **prompt système réel du chatbot** (`api/chat/index.js`, `api/lib/llm.js`) était en français, y compris une instruction explicite forçant `generateWebsiteSummary` à rédiger *« uniquement en français »*. Concrètement, chaque résumé de site généré pour n'importe quel client anglophone était produit en français par construction, indépendamment de la langue réelle du site scanné.
+
+### Décision
+
+1. **Traduction systématique** de tout texte réellement utilisateur/visiteur : messages d'authentification et d'erreur (`App.jsx`, `Dashboard.jsx`, `lib/supabase.js`), l'erreur réseau du widget embarqué (`apps/widget/src/chat.js`, visible par les visiteurs de n'importe quel site client), l'email de notification de lead (`api/lib/email.js`, avec expéditeur renommé « Repondo »), les réponses d'erreur JSON de `api/chat/index.js` et `api/lib/url-security.js`, les descriptions d'outils passées au LLM et le prompt système complet (ton, objectif, ⚠️ messages de repli streamés directement dans le chat), les prompts réels (hors `TEST_MODE`) d'`extractLeadInfo` et `generateWebsiteSummary` dans `api/lib/llm.js`, et les messages de statut de scan dans `api/crawler/scan.js`/`summarize.js`/`crawl.js`.
+2. **Nettoyage de l'encodage mojibake** qui accompagnait une bonne partie de ce texte français dans `api/chat/index.js` (double/triple mauvais décodage UTF-8 visible en `ÃƒÂ...`) — corrigé en même temps que la traduction plutôt que rafistolé.
+3. **Bloc mort supprimé** : l'ancien prompt admin-copilot en français dans `api/chat/index.js` était systématiquement écrasé par un second bloc (en anglais) juste après — donc jamais exécuté. Supprimé plutôt que traduit, pour ne pas laisser deux versions divergentes d'un même prompt.
+4. **Bug corrigé en chemin** : `sendBugAlertEmail(..., { tenantId, siteId })` dans le catch interne du stream de chat référençait une variable `siteId` jamais déclarée — une `ReferenceError` non interceptée qui empêchait silencieusement l'utilisateur de recevoir le moindre message d'erreur en cas de plantage interne. Corrigé en `site?.id`.
+5. **Hors périmètre, volontairement** : `LegalPages.jsx` et `OsteopathyLanding.jsx` (contenu français ciblé/juridique, voir ADR 039 et 040), le bloc `TEST_MODE` de démonstration (« Delafontaine », jamais actif en production — `TEST_MODE = false` en dur dans `api/lib/llm.js`), et les regex de détection de mur d'authentification/contenu qui doivent rester bilingues pour fonctionner sur des sites clients francophones.
+
+### Conséquences
+
+- Le produit ne mélange plus le français et l'anglais côté utilisateur ; en particulier, les résumés de site générés automatiquement seront désormais en anglais par défaut au lieu d'être forcés en français.
+- Un vrai bug (erreur interne du chat silencieuse) est corrigé au passage, découvert uniquement parce que le texte autour a été relu attentivement pour la traduction.
+- Suite E2E complète (66/66), imports API, schémas et scan de secrets revalidés après le changement ; widget reconstruit et resynchronisé.
+
+---
+
 ## ADR 041 : Identité de marque « Repondo » et application dans le produit
 
 **Date :** 2026-08-25
