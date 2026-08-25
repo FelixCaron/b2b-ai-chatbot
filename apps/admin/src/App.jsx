@@ -347,8 +347,11 @@ export default function App() {
         />
       )}
 
-      {/* For Guest, we add a simple brand header with navigation tabs */}
-      {!sessionEmail && !showLoginModal && (
+      {/* For Guest, we add a simple brand header with navigation tabs.
+          Niche landing pages (e.g. /solutions/osteopathes) render their own
+          hero and CTAs; the app-shell nav (Dashboard/Leads/Plans/Sign In)
+          doesn't belong on a marketing page, so it's skipped there. */}
+      {!sessionEmail && !showLoginModal && currentView !== 'osteopathes' && (
         <header className="glass-card sticky top-0 z-50 px-4 sm:px-8 py-3 sm:py-4 mb-6 sm:mb-8">
           <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
             <div className="flex items-center gap-6">
