@@ -9,7 +9,7 @@ import PaymentSuccessPage from './components/PaymentSuccessPage';
 import AboutPage from './components/AboutPage';
 import { PrivacyPolicy, TermsOfService } from './components/LegalPages';
 import OsteopathyLanding from './components/OsteopathyLanding';
-import { Users } from 'lucide-react';
+import { Users, Menu, X } from 'lucide-react';
 
 export default function App() {
   if (supabaseConfigurationError) {
@@ -31,6 +31,7 @@ export default function App() {
   const [usage, setUsage] = useState(null);
   const [loading, setLoading] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [authMessage, setAuthMessage] = useState('');
   const [paymentToast, setPaymentToast] = useState(null); // 'success' | 'cancel' | null
 
@@ -348,15 +349,17 @@ export default function App() {
       )}
 
       {/* For Guest, we add a simple brand header with navigation tabs.
-          Niche landing pages (e.g. /solutions/osteopathes) render their own
-          hero and CTAs; the app-shell nav (Dashboard/Leads/Plans/Sign In)
-          doesn't belong on a marketing page, so it's skipped there. */}
-      {!sessionEmail && !showLoginModal && currentView !== 'osteopathes' && (
+          It's skipped on marketing/landing screens (the niche pages, and
+          the root onboarding hero before a site exists) - the app-shell
+          nav (Dashboard/Leads/Plans/Sign In) doesn't belong there, only
+          once there's an actual workspace to navigate. */}
+      {!sessionEmail && !showLoginModal && currentView !== 'osteopathes' &&
+        !(currentView === 'dashboard' && sites.length === 0) && (
         <header className="glass-card sticky top-0 z-50 px-4 sm:px-8 py-3 sm:py-4 mb-6 sm:mb-8">
           <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
             <div className="flex items-center gap-6">
-              <div 
-                onClick={() => setCurrentView('dashboard')}
+              <div
+                onClick={() => { setCurrentView('dashboard'); setMobileMenuOpen(false); }}
                 className="flex items-center gap-3 cursor-pointer"
               >
                 <div className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-400 shadow-lg">
@@ -365,7 +368,8 @@ export default function App() {
                 <h1 className="text-base sm:text-lg font-bold text-white tracking-tight lowercase">repondo</h1>
               </div>
 
-              <nav className="flex items-center gap-1 bg-dark-900/80 p-1 rounded-xl border border-white/5">
+              {/* Desktop nav */}
+              <nav className="hidden sm:flex items-center gap-1 bg-dark-900/80 p-1 rounded-xl border border-white/5">
                 <button
                   onClick={() => setCurrentView('dashboard')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
@@ -393,10 +397,60 @@ export default function App() {
               </nav>
             </div>
 
-            <button onClick={() => setShowLoginModal(true)} className="text-xs sm:text-sm font-medium bg-white/10 hover:bg-white/20 text-white px-3.5 py-1.5 rounded-lg transition-colors">
+            {/* Desktop Sign In */}
+            <button
+              onClick={() => setShowLoginModal(true)}
+              className="hidden sm:inline-flex text-xs sm:text-sm font-medium bg-white/10 hover:bg-white/20 text-white px-3.5 py-1.5 rounded-lg transition-colors"
+            >
               Sign In
             </button>
+
+            {/* Mobile menu toggle */}
+            <button
+              onClick={() => setMobileMenuOpen((open) => !open)}
+              className="sm:hidden w-9 h-9 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-gray-300 transition-colors"
+              aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={mobileMenuOpen}
+            >
+              {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+            </button>
           </div>
+
+          {/* Mobile dropdown */}
+          {mobileMenuOpen && (
+            <div className="sm:hidden max-w-7xl mx-auto mt-3 pt-3 border-t border-white/10 flex flex-col gap-1 animate-in fade-in slide-in-from-top-2 duration-150">
+              <button
+                onClick={() => { setCurrentView('dashboard'); setMobileMenuOpen(false); }}
+                className={`text-left px-3.5 py-2.5 rounded-lg text-sm font-semibold transition-colors ${
+                  currentView === 'dashboard' ? 'bg-brand-600 text-white' : 'text-gray-300 hover:bg-white/5'
+                }`}
+              >
+                Dashboard
+              </button>
+              <button
+                onClick={() => { setCurrentView('leads'); setMobileMenuOpen(false); }}
+                className={`text-left px-3.5 py-2.5 rounded-lg text-sm font-semibold transition-colors ${
+                  currentView === 'leads' ? 'bg-brand-600 text-white' : 'text-gray-300 hover:bg-white/5'
+                }`}
+              >
+                Leads ({leads.length})
+              </button>
+              <button
+                onClick={() => { setCurrentView('pricing'); setMobileMenuOpen(false); }}
+                className={`text-left px-3.5 py-2.5 rounded-lg text-sm font-semibold transition-colors ${
+                  currentView === 'pricing' ? 'bg-brand-600 text-white' : 'text-gray-300 hover:bg-white/5'
+                }`}
+              >
+                Plans
+              </button>
+              <button
+                onClick={() => { setShowLoginModal(true); setMobileMenuOpen(false); }}
+                className="text-left px-3.5 py-2.5 rounded-lg text-sm font-semibold text-white bg-white/10 hover:bg-white/20 mt-1 transition-colors"
+              >
+                Sign In
+              </button>
+            </div>
+          )}
         </header>
       )}
 

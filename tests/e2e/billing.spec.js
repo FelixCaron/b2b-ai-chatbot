@@ -1,4 +1,4 @@
-import { test, expect } from './support/test.js';
+import { test, expect, clickGuestNavButton } from './support/test.js';
 
 // Regression coverage for an IDOR fixed in api/billing/checkout.js and
 // api/billing/portal.js: neither endpoint verified the caller actually owned
@@ -10,7 +10,8 @@ import { test, expect } from './support/test.js';
 test.describe('Billing — checkout & portal send auth', () => {
   test('selecting a plan sends an Authorization header to /api/billing/checkout', async ({ page, mock }) => {
     await page.goto('/');
-    await page.getByRole('button', { name: /^Plans/i }).click();
+    await expect(page.getByText('acme.example.com')).toBeVisible();
+    await clickGuestNavButton(page, /^Plans/i);
     await expect(page.getByRole('heading', { name: /Level Up Your Customer Support/i })).toBeVisible();
 
     // Fixture tenant is on 'pro', so the 'basic' plan button is clickable

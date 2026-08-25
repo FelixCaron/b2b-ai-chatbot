@@ -1,4 +1,4 @@
-import { test, expect, trackConsoleErrors } from './support/test.js';
+import { test, expect, trackConsoleErrors, clickGuestNavButton } from './support/test.js';
 
 // A sweep across common device widths, checking that nothing in the app
 // forces horizontal page scroll (the #1 "this looks broken on my phone"
@@ -24,11 +24,11 @@ for (const viewport of VIEWPORTS) {
       await expect(page.getByText('acme.example.com')).toBeVisible();
       await assertNoHorizontalOverflow(page, 'dashboard');
 
-      await page.getByRole('button', { name: /^Leads/i }).click();
+      await clickGuestNavButton(page, /^Leads/i);
       await expect(page.getByRole('heading', { name: /Captured Leads & Contacts/i })).toBeVisible();
       await assertNoHorizontalOverflow(page, 'leads');
 
-      await page.getByRole('button', { name: /^Plans/i }).click();
+      await clickGuestNavButton(page, /^Plans/i);
       await expect(page.getByRole('heading', { name: /Level Up Your Customer Support/i })).toBeVisible();
       await assertNoHorizontalOverflow(page, 'pricing');
 

@@ -40,8 +40,11 @@ test.describe('Full header (authenticated user)', () => {
     await page.goto('/');
     await expect(page.getByTitle('Sign out')).toBeVisible();
     await page.getByTitle('Sign out').click();
-    // Signing out drops back to an anonymous session, so the lightweight
-    // guest header (with its own "Sign In" affordance) takes over.
-    await expect(page.getByRole('button', { name: /Sign In/i })).toBeVisible({ timeout: 10_000 });
+    // Signing out drops back to a fresh anonymous session with no sites of
+    // its own (App.jsx's handleLogout resets `sites` to []), which lands on
+    // the same clean, header-free onboarding hero a first-time visitor gets
+    // — not the tenant's dashboard they just signed out of.
+    await expect(page.getByRole('heading', { name: /Deploy Your AI Assistant/i })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('button', { name: /Sign In/i })).not.toBeVisible();
   });
 });

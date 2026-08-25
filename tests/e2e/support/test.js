@@ -51,4 +51,16 @@ export function trackConsoleErrors(page) {
   };
 }
 
+/** Clicks a nav item in App.jsx's guest header. Below the sm breakpoint that
+ * header collapses its nav into a hamburger dropdown (which closes itself
+ * after each selection), so this opens the menu first when the toggle is
+ * visible; on wider viewports the toggle is `sm:hidden` and this is a no-op. */
+export async function clickGuestNavButton(page, name) {
+  const menuToggle = page.getByRole('button', { name: /open menu/i });
+  if (await menuToggle.isVisible().catch(() => false)) {
+    await menuToggle.click();
+  }
+  await page.getByRole('button', { name }).click();
+}
+
 export { expect };

@@ -1,4 +1,4 @@
-import { test, expect, trackConsoleErrors } from './support/test.js';
+import { test, expect, trackConsoleErrors, clickGuestNavButton } from './support/test.js';
 
 test.describe('Header navigation', () => {
   // A fresh session with our mocked auth backend always comes back as a
@@ -13,14 +13,14 @@ test.describe('Header navigation', () => {
     // Dashboard (default view) — the existing fixture site should render.
     await expect(page.getByText('acme.example.com')).toBeVisible();
 
-    await page.getByRole('button', { name: /^Leads/i }).click();
+    await clickGuestNavButton(page, /^Leads/i);
     await expect(page.getByRole('heading', { name: /Captured Leads & Contacts/i })).toBeVisible();
     await expect(page.getByText('jane@example.com')).toBeVisible();
 
-    await page.getByRole('button', { name: /^Plans/i }).click();
+    await clickGuestNavButton(page, /^Plans/i);
     await expect(page.getByRole('heading', { name: /Level Up Your Customer Support/i })).toBeVisible();
 
-    await page.getByRole('button', { name: /^Dashboard/i }).click();
+    await clickGuestNavButton(page, /^Dashboard/i);
     await expect(page.getByText('acme.example.com')).toBeVisible();
 
     consoleTracker.assertNone();
@@ -28,6 +28,24 @@ test.describe('Header navigation', () => {
 
   test('the "Sign In" affordance is offered to guests', async ({ page, mock }) => {
     await page.goto('/');
+    await expect(page.getByText('acme.example.com')).toBeVisible();
+    const menuToggle = page.getByRole('button', { name: /open menu/i });
+    if (await menuToggle.isVisible().catch(() => false)) {
+      await menuToggle.click();
+    }
     await expect(page.getByRole('button', { name: /Sign In/i })).toBeVisible();
+  });
+});
+
+test.describe('Header navigation (no site yet)', () => {
+  // No site on the fixture tenant, so '/' shows the URL-paste onboarding
+  // hero instead of an existing site's dashboard.
+  test.use({ mockOverrides: { db: { sites: [], leads: [], documents: [], site_summaries: [] } } });
+
+  test('the app-shell header is hidden on the root onboarding hero before any site exists', async ({ page, mock }) => {
+    await page.goto('/');
+    await expect(page.getByRole('heading', { name: /Deploy Your AI Assistant/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Sign In/i })).not.toBeVisible();
+    await expect(page.getByRole('button', { name: /open menu/i })).not.toBeVisible();
   });
 });
