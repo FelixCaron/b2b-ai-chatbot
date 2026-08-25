@@ -42,6 +42,24 @@ body {
   display: none;
 }
 
+/* iOS Safari auto-zooms the whole page when focusing a text input whose
+   computed font-size is below 16px. On a form like the onboarding URL field
+   (text-sm = 14px) that produces a jarring page-zoom on focus that can make
+   the field look broken/unresponsive. Force 16px on all text inputs while on
+   a small screen, regardless of the Tailwind text-size utility applied. */
+@media (max-width: 640px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="url"],
+  input[type="tel"],
+  input[type="search"],
+  input[type="password"],
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
 .glass-card {
   background: rgba(17, 24, 39, 0.75);
   backdrop-filter: blur(20px);

@@ -915,7 +915,7 @@ export default function Dashboard({
 
             <form onSubmit={handleAnalyzeSite} className="space-y-4">
               <div className="relative max-w-lg mx-auto">
-                <Globe className="w-5 h-5 text-gray-400 absolute left-4 top-3.5" />
+                <Globe className="w-5 h-5 text-gray-400 absolute left-4 top-3.5 pointer-events-none" />
                 <input
                   type="text"
                   placeholder="https://your-company.com or your-company.com"
@@ -1382,7 +1382,7 @@ export default function Dashboard({
 
                     <div className="flex items-center gap-2 w-full sm:w-auto">
                       <div className="relative flex-1 sm:w-60">
-                        <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-2.5" />
+                        <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-2.5 pointer-events-none" />
                         <input
                           type="text"
                           placeholder="Filter URLs or titles..."
@@ -2027,7 +2027,7 @@ export default function Dashboard({
               <div>
                 <label className="block text-xs font-semibold text-gray-300 mb-2">Website URL / Domain</label>
                 <div className="relative">
-                  <Globe className="w-4 h-4 text-gray-500 absolute left-3.5 top-3" />
+                  <Globe className="w-4 h-4 text-gray-500 absolute left-3.5 top-3 pointer-events-none" />
                   <input
                     type="text"
                     required
@@ -2149,7 +2149,7 @@ export default function Dashboard({
             {/* Quick Actions & Search */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pb-3 border-b border-white/5">
               <div className="relative w-full sm:w-72">
-                <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-2.5" />
+                <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-2.5 pointer-events-none" />
                 <input
                   type="text"
                   placeholder="Filter pages by URL or title..."

@@ -40,7 +40,7 @@ export default function LeadsTable({ leads }) {
         <div className="flex items-center gap-3 w-full sm:w-auto">
           {/* Search bar */}
           <div className="relative flex-1 sm:w-64">
-            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
+            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-3 pointer-events-none" />
             <input
               type="text"
               placeholder="Search leads..."
