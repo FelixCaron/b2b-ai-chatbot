@@ -260,6 +260,29 @@
   cursor: not-allowed;
 }
 
+/* "Powered by" growth badge — shown on the free/basic tier, hidden on
+   Pro/Premium (see main.js's data-hide-branding + Dashboard.jsx's
+   copyWidgetScript). Deliberately understated: a thin footer strip, not a
+   banner, so it doesn't compete with the client's own branding. */
+.b2b-branding {
+  display: block;
+  text-align: center;
+  padding: 6px 12px 10px;
+  font-size: 10.5px;
+  color: var(--b2b-text-muted, #94a3b8);
+  background: var(--b2b-footer-bg, #ffffff);
+  text-decoration: none;
+  border-top: 1px solid var(--b2b-border, #e2e8f0);
+  transition: color 0.15s ease;
+}
+.b2b-branding:hover {
+  color: var(--b2b-theme, #6366f1);
+}
+.b2b-branding strong {
+  font-weight: 700;
+  color: inherit;
+}
+
 /* Lead Form Modal Popup */
 .b2b-lead-form {
   background: var(--b2b-bg, #ffffff);

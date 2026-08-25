@@ -7,6 +7,7 @@ import LoginModal from './components/LoginModal';
 import Pricing from './components/Pricing';
 import PaymentSuccessPage from './components/PaymentSuccessPage';
 import AboutPage from './components/AboutPage';
+import { PrivacyPolicy, TermsOfService } from './components/LegalPages';
 import { Users } from 'lucide-react';
 
 export default function App() {
@@ -408,9 +409,14 @@ export default function App() {
           onSelectPlan={() => setCurrentView('dashboard')}
           tenantId={selectedTenant?.id}
           currentPlan={selectedTenant?.plan || 'free'}
+          onNavigate={setCurrentView}
         />
       ) : currentView === 'about' ? (
         <AboutPage />
+      ) : currentView === 'privacy' ? (
+        <PrivacyPolicy />
+      ) : currentView === 'terms' ? (
+        <TermsOfService />
       ) : currentView === 'leads' ? (
         <main className="max-w-7xl mx-auto px-4 sm:px-8 space-y-6">
           <div className="flex items-center justify-between">
@@ -475,6 +481,16 @@ export default function App() {
           )}
         </main>
       )}
+
+      <footer className="max-w-7xl mx-auto px-4 sm:px-8 py-8 mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-gray-500 border-t border-white/5">
+        <button onClick={() => setCurrentView('privacy')} className="hover:text-gray-300 transition-colors">
+          Privacy Policy
+        </button>
+        <button onClick={() => setCurrentView('terms')} className="hover:text-gray-300 transition-colors">
+          Terms of Service
+        </button>
+        <span>&copy; {new Date().getFullYear()} AI Assistant Platform</span>
+      </footer>
     </div>
   );
 }

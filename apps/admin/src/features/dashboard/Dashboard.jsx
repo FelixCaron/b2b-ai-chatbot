@@ -887,9 +887,16 @@ export default function Dashboard({
     }
   };
 
+  // Single source of truth for the embed snippet, used both for the visible
+  // <pre> block and the "Copy Code" button — keeps them from drifting apart.
+  const buildWidgetSnippet = (key) => {
+    // "Powered by" badge shows on Basic (growth lever), hidden on Pro/Premium.
+    const hideBrandingAttr = tenantPlan !== 'basic' ? ' data-hide-branding="true"' : '';
+    return `<script src="${window.location.origin}/widget.iife.js" data-tenant-key="${key}" data-api-url="${window.location.origin}/api/chat" data-theme-color="${activeSite?.theme_primary_color || '#6366f1'}"${hideBrandingAttr}></script>`;
+  };
+
   const copyWidgetScript = (key) => {
-    const snippet = `<script src="${window.location.origin}/widget.iife.js" data-tenant-key="${key}" data-api-url="${window.location.origin}/api/chat" data-theme-color="${activeSite?.theme_primary_color || '#6366f1'}"></script>`;
-    navigator.clipboard.writeText(snippet);
+    navigator.clipboard.writeText(buildWidgetSnippet(key));
     setCopiedScriptKey(key);
     setTimeout(() => setCopiedScriptKey(null), 2000);
   };
@@ -1936,7 +1943,7 @@ export default function Dashboard({
 
               <div className="relative group">
                 <pre className="bg-dark-900 border border-white/10 p-4 rounded-xl text-xs text-emerald-400 font-mono overflow-x-auto">
-                  {`<script src="${window.location.origin}/widget.iife.js" data-tenant-key="${activeSite.public_key}" data-api-url="${window.location.origin}/api/chat" data-theme-color="${themeColor}"></script>`}
+                  {buildWidgetSnippet(activeSite.public_key)}
                 </pre>
                 <button
                   onClick={() => copyWidgetScript(activeSite.public_key)}

@@ -168,6 +168,13 @@ function applyOrder(rows, searchParams) {
 export async function installMockBackend(page, overrides = {}) {
   const anonUser = overrides.anonUser || makeAnonUser();
   const fixtures = defaultFixtures(anonUser);
+  // Patch fields onto the auto-generated default tenant (e.g. { plan: 'basic' })
+  // rather than replacing db.tenants wholesale — the default tenant's id is
+  // generated here and every fixture site/lead/etc. already points at it, so
+  // a full-array override would silently break those foreign keys.
+  if (overrides.tenantPatch) {
+    Object.assign(fixtures.db.tenants[0], overrides.tenantPatch);
+  }
   const db = { ...fixtures.db, ...(overrides.db || {}) };
   const state = {
     deleteSiteShouldFail: false,

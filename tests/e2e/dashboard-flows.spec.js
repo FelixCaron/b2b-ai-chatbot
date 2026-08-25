@@ -46,8 +46,28 @@ test.describe('Dashboard — embed flow (authenticated)', () => {
     const snippet = page.locator('pre');
     await expect(snippet).toContainText('widget.iife.js');
     await expect(snippet).toContainText(mock.db.sites[0].public_key);
+    // Fixture tenant is on 'pro' — the "Powered by" badge should be hidden.
+    expect(mock.db.tenants[0].plan).toBe('pro');
+    await expect(snippet).toContainText('data-hide-branding="true"');
 
     await page.getByRole('button', { name: /Copy Code/i }).click();
     await expect(page.getByRole('button', { name: /^Copied$/ })).toBeVisible();
+  });
+});
+
+// The "Powered by" badge is a growth lever: shown by default (Basic tier),
+// removed for Pro/Premium via the data-hide-branding embed attribute (see
+// Dashboard.jsx's buildWidgetSnippet and apps/widget/src/main.js).
+test.describe('Dashboard — embed snippet branding by plan', () => {
+  test.use({
+    authenticated: true,
+    mockOverrides: { tenantPatch: { plan: 'basic', plan_status: 'active' } },
+  });
+
+  test('a Basic-tier tenant\'s snippet does NOT hide the branding badge', async ({ page, mock }) => {
+    await page.goto('/');
+    await page.getByRole('button', { name: /Embed Widget/i }).first().click();
+    await expect(page.getByRole('heading', { name: /Embed Widget on Your Website/i })).toBeVisible();
+    await expect(page.locator('pre')).not.toContainText('data-hide-branding');
   });
 });

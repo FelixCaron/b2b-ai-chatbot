@@ -15,6 +15,21 @@ import { parseMarkdown } from "./markdown.js";
   const apiEndpoint = scriptTag?.getAttribute("data-api-url") || defaultApiUrl;
   const themeColor = scriptTag?.getAttribute("data-theme-color") || "#6366f1";
 
+  // Growth lever: a small "Powered by" badge shown on the free/basic tier,
+  // removed on Pro/Premium. The embed snippet (see Dashboard.jsx's
+  // copyWidgetScript) sets data-hide-branding="true" for paid tenants above
+  // basic; absence of the attribute means "show it" — a safe default so a
+  // missing/stripped attribute never accidentally hides it for a tenant who
+  // should still be showing it. Note this is a soft, client-side nudge like
+  // most embeddable widgets' badges, not a hard anti-tamper mechanism.
+  const hideBranding = scriptTag?.getAttribute("data-hide-branding") === "true";
+  let brandingHost = "https://admin-seven-alpha-37.vercel.app";
+  try {
+    brandingHost = new URL(apiEndpoint).origin;
+  } catch (e) {
+    // keep the fallback above
+  }
+
   const chatManager = new ChatManager(apiEndpoint, tenantPublicKey);
 
   // Build Container
@@ -63,6 +78,10 @@ import { parseMarkdown } from "./markdown.js";
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
         </button>
       </div>
+      ${hideBranding ? "" : `
+      <a class="b2b-branding" id="b2b-branding" href="${brandingHost}" target="_blank" rel="noopener noreferrer">
+        Powered by <strong>AI Assistant Platform</strong>
+      </a>`}
     </div>
     <button class="b2b-chat-launcher" id="b2b-launcher" aria-label="Open chat assistant">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>

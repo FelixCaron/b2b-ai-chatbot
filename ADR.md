@@ -5,6 +5,25 @@ Note (English): Plans were updated — Free was removed. New plans are: Basic ($
 
 ---
 
+## ADR 039 : Pages légales (Privacy Policy / Terms), badge "Powered by" sur le widget, TODO administratif
+
+**Date :** 2026-08-25
+
+### Contexte
+Deux manques identifiés côté "prêt pour de vrais clients payants" : (1) aucune page de confidentialité ou de conditions d'utilisation n'existait, alors que le produit scrape le contenu du site d'un client et stocke les conversations de ses visiteurs — un vrai acheteur B2B (ou son service juridique) ne signera pas sans ça ; (2) le widget embarqué n'avait aucun levier de croissance/upsell visuel (pas de "Powered by").
+
+### Décision
+1. **Pages légales** (`apps/admin/src/components/LegalPages.jsx`) : Privacy Policy et Terms of Service, routées via `currentView === 'privacy'/'terms'` dans `App.jsx`, liées depuis un nouveau footer global et depuis une ligne de consentement sous les boutons de `Pricing.jsx`. Le contenu reflète fidèlement les pratiques techniques réelles du produit (sous-traitants listés : Supabase, Vercel, OpenRouter, Jina AI, Stripe, Resend, Cloudflare Turnstile ; purge des tenants invités après 24h ; suppression de site à la demande). Juridiction : Québec, Canada. Un bandeau d'avertissement explicite indique que le document est un brouillon technique, pas un avis juridique final, et plusieurs champs restent en placeholder `[entre crochets]` (nom d'entité légale, emails de contact) faute d'entité enregistrée à ce jour.
+2. **Badge "Powered by" sur le widget** (`apps/widget/src/main.js`, `widget.css`) : affiché par défaut (plan Basic), masqué via l'attribut `data-hide-branding="true"` que `Dashboard.jsx` (`buildWidgetSnippet`, factorisé pour éviter la duplication entre l'aperçu `<pre>` et le bouton "Copy Code") ajoute automatiquement pour les tenants Pro/Premium. Le lien pointe vers l'origine réelle de la plateforme (dérivée de `data-api-url`), pas vers le site du client qui l'embarque. C'est un levier logiciel/visuel comme la plupart des badges de widgets SaaS, pas un mécanisme anti-contournement.
+3. **TODO administratif** ajouté à `TODO.md` : choix du nom de marque définitif, enregistrement d'une entité légale, nom de domaine définitif, emails dédiés, désignation nommée du responsable de la protection des renseignements personnels (Loi 25), révision par un·e avocat·e avant client payant, décision TPS/TVQ, bascule Stripe sandbox → live.
+
+### Conséquences
+- Le produit a maintenant une base légale minimale consultable, avec une checklist explicite de ce qui reste à finaliser avant d'accepter de vrais paiements.
+- Le plan Basic gagne une boucle de distribution gratuite ; upgrader vers Pro/Premium retire visiblement le badge.
+- Couverture E2E ajoutée (`dashboard-flows.spec.js`) validant que le snippet généré cache/affiche bien le badge selon le plan du tenant.
+
+---
+
 ## ADR 038 : Audit d'ownership sur les endpoints admin/facturation restants (P0 du TODO)
 
 **Date :** 2026-08-25

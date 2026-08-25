@@ -56,7 +56,7 @@ const PLANS = [
   },
 ];
 
-export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'basic' }) {
+export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'basic', onNavigate }) {
   const [loadingPlanId, setLoadingPlanId] = useState(null);
   const [error, setError] = useState(null);
 
@@ -216,6 +216,17 @@ export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'basic' 
           Stripe
         </a>
         . Cancel anytime.
+      </p>
+      <p className="text-center text-[11px] text-gray-600 mt-2">
+        By subscribing, you agree to our{' '}
+        <button onClick={() => onNavigate?.('terms')} className="underline hover:text-gray-400">
+          Terms of Service
+        </button>{' '}
+        and{' '}
+        <button onClick={() => onNavigate?.('privacy')} className="underline hover:text-gray-400">
+          Privacy Policy
+        </button>
+        .
       </p>
     </div>
   );
