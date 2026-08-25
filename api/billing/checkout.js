@@ -2,7 +2,7 @@
 // Vercel Serverless Function — Creates a Stripe Checkout Session for subscription
 import Stripe from 'stripe';
 import WebSocket from 'ws';
-import { createServiceRoleClient, requireServerEnv } from '../lib/server-config.js';
+import { createServiceRoleClient, requireServerEnv, requireTenantOwnership } from '../lib/server-config.js';
 
 if (typeof globalThis !== 'undefined' && !globalThis.WebSocket) {
   globalThis.WebSocket = WebSocket;
@@ -26,6 +26,15 @@ export default async function handler(req, res) {
 
     if (!planId || !tenantId) {
       return res.status(400).json({ error: 'planId and tenantId are required' });
+    }
+
+    // Without this, anyone who knows/guesses a tenantId could point that
+    // tenant's stripe_customer_id at a Stripe customer they control, or
+    // trigger checkout sessions for a tenant they don't own.
+    try {
+      await requireTenantOwnership(req, tenantId);
+    } catch (authErr) {
+      return res.status(authErr.statusCode || 401).json({ error: authErr.message || 'Unauthorized' });
     }
 
     const priceId = PRICE_IDS[planId];

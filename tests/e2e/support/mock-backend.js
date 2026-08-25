@@ -366,6 +366,29 @@ export async function installMockBackend(page, overrides = {}) {
     });
   });
 
+  // Both billing routes used to accept a bare tenantId with no proof the
+  // caller owns it (IDOR — see ADR). Record the Authorization header so
+  // tests can confirm the frontend actually sends one now.
+  await page.route('**/api/billing/checkout', async (route) => {
+    const authHeader = route.request().headers()['authorization'];
+    state.calls.push({ type: 'api', path: 'billing/checkout', authHeader });
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ url: 'https://checkout.stripe.com/mock-session', sessionId: 'sess_mock' }),
+    });
+  });
+
+  await page.route('**/api/billing/portal', async (route) => {
+    const authHeader = route.request().headers()['authorization'];
+    state.calls.push({ type: 'api', path: 'billing/portal', authHeader });
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ url: 'https://billing.stripe.com/mock-portal' }),
+    });
+  });
+
   await page.route('**/api/chat', async (route) => {
     state.calls.push({ type: 'api', path: 'chat' });
     const sseBody = [
@@ -391,6 +414,15 @@ export async function installMockBackend(page, overrides = {}) {
   // Fulfill (not abort) so the browser doesn't log a real network-failure
   // console error for an intentionally-stubbed request — we just don't want
   // these tests depending on a real network round-trip to Google's CDN.
+  // Stub out the actual Stripe redirect targets so a checkout/portal click
+  // in a test doesn't try to navigate to the real (unreachable) internet.
+  await page.route('**/checkout.stripe.com/**', (route) =>
+    route.fulfill({ status: 200, contentType: 'text/html', body: '<html><body>mock stripe checkout</body></html>' })
+  );
+  await page.route('**/billing.stripe.com/**', (route) =>
+    route.fulfill({ status: 200, contentType: 'text/html', body: '<html><body>mock stripe portal</body></html>' })
+  );
+
   await page.route('**/fonts.googleapis.com/**', (route) =>
     route.fulfill({ status: 200, contentType: 'text/css', body: '/* fonts stubbed out for tests */' })
   );

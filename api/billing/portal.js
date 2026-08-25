@@ -2,7 +2,7 @@
 // Vercel Serverless Function — Creates a Stripe Billing Portal Session
 import Stripe from 'stripe';
 import WebSocket from 'ws';
-import { createServiceRoleClient, requireServerEnv } from '../lib/server-config.js';
+import { createServiceRoleClient, requireServerEnv, requireTenantOwnership } from '../lib/server-config.js';
 
 if (typeof globalThis !== 'undefined' && !globalThis.WebSocket) {
   globalThis.WebSocket = WebSocket;
@@ -20,6 +20,15 @@ export default async function handler(req, res) {
 
     if (!tenantId) {
       return res.status(400).json({ error: 'tenantId is required' });
+    }
+
+    // Without this, anyone who knows/guesses a tenantId could open the
+    // Stripe billing portal for a DIFFERENT tenant's customer — viewing
+    // invoices, changing payment methods, or cancelling their subscription.
+    try {
+      await requireTenantOwnership(req, tenantId);
+    } catch (authErr) {
+      return res.status(authErr.statusCode || 401).json({ error: authErr.message || 'Unauthorized' });
     }
 
     const supabase = createServiceRoleClient();

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Bot, ShieldCheck, LogOut, Settings, Loader2, Users, LayoutDashboard, Sparkles } from 'lucide-react';
 import PlanBadge from './PlanBadge';
+import { authenticatedHeaders } from '../lib/supabase';
 
 export default function Header({ 
   tenants, 
@@ -24,7 +25,7 @@ export default function Header({
     try {
       const res = await fetch('/api/billing/portal', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await authenticatedHeaders(),
         body: JSON.stringify({ tenantId: selectedTenant.id }),
       });
       const data = await res.json();

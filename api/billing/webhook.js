@@ -120,7 +120,7 @@ export default async function handler(req, res) {
 
         await supabase
           .from('tenants')
-          .update({ plan: 'free', plan_status: 'canceled', stripe_subscription_id: null })
+          .update({ plan: 'basic', plan_status: 'canceled', stripe_subscription_id: null })
           .eq('id', tenantId);
 
         console.log(`[stripe-webhook] Tenant ${tenantId} subscription canceled`);

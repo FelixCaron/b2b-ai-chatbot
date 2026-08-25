@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Check, Zap, Shield, Sparkles, ArrowRight, Loader2, ExternalLink } from 'lucide-react';
+import { authenticatedHeaders } from '../lib/supabase';
 
 const PLANS = [
   {
@@ -76,7 +77,7 @@ export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'basic' 
     try {
       const res = await fetch('/api/billing/checkout', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await authenticatedHeaders(),
         body: JSON.stringify({ planId, tenantId }),
       });
 

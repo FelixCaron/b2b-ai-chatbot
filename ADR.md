@@ -5,6 +5,34 @@ Note (English): Plans were updated — Free was removed. New plans are: Basic ($
 
 ---
 
+## ADR 038 : Audit d'ownership sur les endpoints admin/facturation restants (P0 du TODO)
+
+**Date :** 2026-08-25
+
+### Contexte
+Suite à ADR 036 (faille IDOR corrigée sur `delete-site`), audit des autres endpoints listés en P0 dans `TODO.md` ("Vérifier systématiquement que l'utilisateur authentifié possède le tenant ciblé"). Bonne nouvelle partielle : `api/crawler/scan.js`, `api/crawler/update.js` et `api/crawler/summarize.js` avaient déjà `requireSiteOwnership`. `api/crawler/crawl.js` et `api/chat/theme.js` n'en ont pas besoin (ils s'exécutent *avant* la création d'un site, pendant l'onboarding — protégés par le captcha Turnstile à la place) et `api/lib/url-security.js` bloque déjà correctement les URLs non-http(s), les identifiants dans l'URL, les IP privées/loopback/link-local (v4 et v6) et revalide chaque redirection — le SSRF listé en P0 est donc déjà largement mitigé (résidu : pas de résolution DNS préalable pour détecter un DNS rebinding, difficile à faire proprement en runtime Edge).
+
+En revanche, deux endpoints de facturation avaient un vrai trou : `api/billing/checkout.js` et `api/billing/portal.js` acceptaient un `tenantId` brut dans le corps de la requête **sans jamais vérifier que l'appelant possède ce tenant**. Concrètement, n'importe qui connaissant/devinant un `tenantId` pouvait :
+- pointer le `stripe_customer_id` d'un tenant arbitraire vers un client Stripe qu'il contrôle (`checkout.js`), ou
+- ouvrir le portail de facturation Stripe d'un **autre** tenant (`portal.js`) — factures, moyens de paiement, annulation d'abonnement inclus.
+
+Ni `Pricing.jsx` ni `Header.jsx` (composant "Manage Subscription") n'envoyaient d'en-tête d'authentification sur ces appels — l'API n'aurait de toute façon rien eu à vérifier.
+
+Bonus trouvé au passage dans `api/billing/webhook.js` : la branche `customer.subscription.deleted` (cas sans `metadata.tenant_id`, lookup par `stripe_customer_id`) rétrogradait vers le plan `'free'`, un plan qui n'existe plus depuis le renommage Basic/Pro/Premium (ADR sur le renommage des plans) — incohérent avec l'autre branche qui utilise correctement `'basic'`.
+
+### Décision
+1. `api/billing/checkout.js` et `api/billing/portal.js` appellent désormais `requireTenantOwnership(req, tenantId)` avant toute opération, avec le même pattern d'erreur (401/403) que `delete-site.js`.
+2. `Pricing.jsx` et `Header.jsx` envoient maintenant `authenticatedHeaders()` (avec le Bearer token Supabase) sur ces deux appels.
+3. `api/billing/webhook.js` : `'free'` → `'basic'` dans la branche de fallback de désabonnement.
+4. Nouvelle couverture E2E (`tests/e2e/billing.spec.js`) vérifiant que l'en-tête `Authorization` part bien sur les deux flows (sélection de plan, gestion d'abonnement) — régression directe du bug corrigé.
+
+### Conséquences
+- Les trois endpoints admin (`delete-site`, `checkout`, `portal`) qui acceptaient un identifiant de tenant/site depuis le client exigent maintenant tous une preuve de possession.
+- `start-scan`/`update-document`/`generate-summary` (renommés `scan.js`/`update.js`/`summarize.js`) étaient déjà protégés — pas de changement nécessaire.
+- Items P0 restants du `TODO.md` non traités dans cette passe : remplacement de `preview-proxy` (rendu HTML injecté sous l'origine admin depuis une URL arbitraire) et rate limiting distribué (le `Map` en mémoire Edge ne protège pas entre instances).
+
+---
+
 ## ADR 037 : Suite de tests fonctionnels Playwright (flows, UI, intégrité)
 
 **Date :** 2026-08-25
