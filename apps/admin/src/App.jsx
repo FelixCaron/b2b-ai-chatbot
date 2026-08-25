@@ -356,10 +356,10 @@ export default function App() {
                 onClick={() => setCurrentView('dashboard')}
                 className="flex items-center gap-3 cursor-pointer"
               >
-                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-400 flex items-center justify-center text-white shadow-lg">
-                  <span className="font-bold">AI</span>
+                <div className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-400 shadow-lg">
+                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-dark-900" />
                 </div>
-                <h1 className="text-base sm:text-lg font-bold text-white tracking-tight">AI Assistant Platform</h1>
+                <h1 className="text-base sm:text-lg font-bold text-white tracking-tight lowercase">repondo</h1>
               </div>
 
               <nav className="flex items-center gap-1 bg-dark-900/80 p-1 rounded-xl border border-white/5">
@@ -493,7 +493,7 @@ export default function App() {
         <button onClick={() => setCurrentView('terms')} className="hover:text-gray-300 transition-colors">
           Terms of Service
         </button>
-        <span>&copy; {new Date().getFullYear()} AI Assistant Platform</span>
+        <span>&copy; {new Date().getFullYear()} Repondo</span>
       </footer>
     </div>
   );

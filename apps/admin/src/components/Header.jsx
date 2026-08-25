@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bot, ShieldCheck, LogOut, Settings, Loader2, Users, LayoutDashboard, Sparkles } from 'lucide-react';
+import { ShieldCheck, LogOut, Settings, Loader2, Users, LayoutDashboard, Sparkles } from 'lucide-react';
 import PlanBadge from './PlanBadge';
 import { authenticatedHeaders } from '../lib/supabase';
 
@@ -48,11 +48,11 @@ export default function Header({
             onClick={() => onSelectView?.('dashboard')}
             className="flex items-center gap-3 cursor-pointer group"
           >
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-400 flex items-center justify-center text-white shadow-lg shadow-brand-500/30 shrink-0 group-hover:scale-105 transition-transform">
-              <Bot className="w-5 h-5 sm:w-6 sm:h-6" />
+            <div className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-400 shadow-lg shadow-brand-500/30 shrink-0 group-hover:scale-105 transition-transform">
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-dark-900" />
             </div>
             <div>
-              <h1 className="text-base sm:text-lg font-bold text-white tracking-tight">AI Assistant Platform</h1>
+              <h1 className="text-base sm:text-lg font-bold text-white tracking-tight lowercase">repondo</h1>
               <p className="text-[10px] sm:text-xs text-gray-400 flex items-center gap-1">
                 <ShieldCheck className="w-3 h-3 text-emerald-400" /> Secure Workspace
               </p>

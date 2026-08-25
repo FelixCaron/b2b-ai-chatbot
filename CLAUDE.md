@@ -1,7 +1,7 @@
 # CLAUDE.md - Development & Architecture Guide
 
 ## Project Overview
-Multi-tenant B2B AI Chatbot SaaS built with Supabase (pgvector, FTS, RLS, Raw SQL), Vercel Edge Functions, OpenRouter Free Models (`openrouter/free`), Vanilla JS Widget, and React Admin SPA.
+Repondo — a multi-tenant B2B AI Chatbot SaaS built with Supabase (pgvector, FTS, RLS, Raw SQL), Vercel Edge Functions, OpenRouter Free Models (`openrouter/free`), Vanilla JS Widget, and React Admin SPA. "Repondo" is the working brand name (see `ADR.md` and `TODO.md`'s "Administratif" section) — repo/package names still use the original `b2b-ai-chatbot` identifier and are out of scope for the rename.
 
 ## Monorepo Layout
 - `/packages/shared`: Shared Zod schemas & TypeScript types.

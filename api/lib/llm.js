@@ -172,7 +172,7 @@ export async function generateChatResponse({ systemPrompt, messagesHistory, apiK
       headers: {
         'Authorization': `Bearer ${openRouterKey}`,
         'HTTP-Referer': 'https://admin-seven-alpha-37.vercel.app',
-        'X-Title': 'B2B AI Chatbot',
+        'X-Title': 'Repondo',
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(reqBody)
@@ -229,7 +229,7 @@ Réponds STRICTEMENT en format JSON brut, sans backticks, sans markdown:
       headers: {
         'Authorization': `Bearer ${openRouterKey}`,
         'HTTP-Referer': 'https://admin-seven-alpha-37.vercel.app',
-        'X-Title': 'B2B AI Chatbot',
+        'X-Title': 'Repondo',
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -283,7 +283,7 @@ Respond strictly in raw JSON format, without markdown or backticks:
       headers: {
         'Authorization': `Bearer ${openRouterKey}`,
         'HTTP-Referer': 'https://admin-seven-alpha-37.vercel.app',
-        'X-Title': 'B2B AI Chatbot',
+        'X-Title': 'Repondo',
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -332,7 +332,7 @@ CONSIGNE STRICTE : Sois factuel et direct. N'ajoute AUCUN préambule, ni métado
       headers: {
         'Authorization': `Bearer ${openRouterKey}`,
         'HTTP-Referer': 'https://admin-seven-alpha-37.vercel.app',
-        'X-Title': 'B2B AI Chatbot',
+        'X-Title': 'Repondo',
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({

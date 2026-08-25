@@ -5,6 +5,29 @@ Note (English): Plans were updated — Free was removed. New plans are: Basic ($
 
 ---
 
+## ADR 041 : Identité de marque « Repondo » et application dans le produit
+
+**Date :** 2026-08-25
+
+### Contexte
+
+Le produit n'avait qu'un nom placeholder générique (« AI Assistant Platform ») dans l'UI, les pages légales, le badge du widget et l'en-tête `X-Title` envoyé à OpenRouter — identifié comme item ouvert dans la section « Administratif » de `TODO.md`.
+
+### Décision
+
+1. Nom retenu : **Repondo** (du verbe « répondre » — se lit et s'épelle pareil en français et en anglais, sans accent). Recherche rapide effectuée sans conflit direct trouvé dans le secteur des assistants conversationnels (le plus proche : Respond.io, racine et orthographe différentes) — **à confirmer par une vraie recherche de marque avant tout dépôt de domaine ou d'entité légale**, TODO.md mis à jour en conséquence.
+2. Identité complète (mark, palette, typographie, ton de voix, signatures FR/EN) déposée dans un board de référence (lien partagé séparément avec l'utilisateur) avant application — palette et typographie reprennent exactement l'existant en production (`tailwind.config.js`, Plus Jakarta Sans), donc aucune reprise visuelle nécessaire ailleurs dans l'app.
+3. Application dans le produit : titre et favicon (`apps/admin/index.html`, nouveau `apps/admin/public/favicon.svg` — remplace un `/vite.svg` déjà cassé/absent), en-têtes `App.jsx`/`Header.jsx` (le badge « Bot »/texte « AI » générique devient le mark de marque : tuile dégradée + point actif), `PRODUCT_NAME` dans `LegalPages.jsx`, badge « Powered by » du widget (`apps/widget/src/main.js`, widget reconstruit et resynchronisé dans `apps/admin/public/widget.iife.js`), en-tête `X-Title` OpenRouter (`api/lib/llm.js`, 4 occurrences), et le prompt système du Copilot admin (`api/chat/index.js`).
+4. `Bot` (icône générique robot, un cliché visuel d'IA) retiré des en-têtes au profit du mark de marque.
+
+### Conséquences
+
+- Le nom placeholder générique n'apparaît plus nulle part côté utilisateur ; la marque est maintenant cohérente entre l'app, les pages légales et le widget embarqué.
+- Item administratif de `TODO.md` marqué réglé pour la partie « choix du nom », la vérification formelle de marque et l'enregistrement de l'entité légale restent des tâches explicitement ouvertes.
+- Suite E2E complète (64/64) et builds admin/widget revalidés après le changement, aucun test ne dépendait du texte de marque précédent.
+
+---
+
 ## ADR 040 : Première landing page niche (Ostéopathes) & amorce de stratégie GTM par verticale
 
 **Date :** 2026-08-25

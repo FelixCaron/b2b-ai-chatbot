@@ -80,7 +80,7 @@ import { parseMarkdown } from "./markdown.js";
       </div>
       ${hideBranding ? "" : `
       <a class="b2b-branding" id="b2b-branding" href="${brandingHost}" target="_blank" rel="noopener noreferrer">
-        Powered by <strong>AI Assistant Platform</strong>
+        Powered by <strong>Repondo</strong>
       </a>`}
     </div>
     <button class="b2b-chat-launcher" id="b2b-launcher" aria-label="Open chat assistant">

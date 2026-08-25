@@ -35,8 +35,8 @@
 
 Ajouté le 2026-08-25 suite à la création des pages `Privacy Policy` / `Terms of Service` (`apps/admin/src/components/LegalPages.jsx`) : ces pages contiennent des placeholders `[entre crochets]` tant que ce qui suit n'est pas réglé.
 
-- [ ] Choisir un nom de produit/marque définitif (le nom actuel « AI Assistant Platform » est un placeholder générique) et vérifier qu'il n'entre pas en conflit avec une marque existante.
-- [ ] Enregistrer une entité légale (entreprise individuelle ou société) si ce n'est pas déjà fait, et mettre à jour le nom légal dans `LegalPages.jsx` (recherche `[Legal entity name`).
+- [x] Choisir un nom de produit/marque définitif. *(2026-08-25 — « Repondo » retenu et appliqué partout dans le produit : titre, favicon, en-têtes, pages légales, badge « Powered by » du widget, en-tête `X-Title` OpenRouter, Copilot admin. Voir le board d'identité de marque et ADR 041. Reste : vérifier l'absence de conflit par une vraie recherche de marque formelle avant d'enregistrer un domaine ou une entité légale — une recherche rapide en ligne n'a rien trouvé de direct.)*
+- [ ] Enregistrer une entité légale (entreprise individuelle ou société) sous le nom « Repondo » (ou confirmer le nom après la recherche de marque), et mettre à jour le nom légal dans `LegalPages.jsx` (recherche `[Legal entity name`).
 - [ ] Réserver un nom de domaine définitif et migrer hors de l'URL Vercel temporaire (`admin-seven-alpha-37.vercel.app`) — impacte aussi le lien « Powered by » du widget et les redirections d'authentification Supabase.
 - [ ] Mettre en place des adresses email dédiées (actuellement des placeholders `hello@your-domain.com` / `privacy@your-domain.com` dans `Pricing.jsx` et `LegalPages.jsx`).
 - [ ] Désigner nommément la personne responsable de la protection des renseignements personnels, tel qu'exigé par la Loi 25 (Québec) — actuellement un placeholder dans `LegalPages.jsx`.

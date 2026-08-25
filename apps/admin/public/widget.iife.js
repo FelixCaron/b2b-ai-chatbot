@@ -92,7 +92,7 @@ In order to be iterable, non-array objects must have a [Symbol.iterator]() metho
       </div>
       ${l?"":`
       <a class="b2b-branding" id="b2b-branding" href="${c}" target="_blank" rel="noopener noreferrer">
-        Powered by <strong>AI Assistant Platform</strong>
+        Powered by <strong>Repondo</strong>
       </a>`}
     </div>
     <button class="b2b-chat-launcher" id="b2b-launcher" aria-label="Open chat assistant">

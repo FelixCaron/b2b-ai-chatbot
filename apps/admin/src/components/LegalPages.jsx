@@ -13,7 +13,7 @@ import { ShieldCheck, FileText, AlertTriangle } from 'lucide-react';
 // contact email addresses below.
 // ─────────────────────────────────────────────────────────────────────────
 
-const PRODUCT_NAME = 'AI Assistant Platform';
+const PRODUCT_NAME = 'Repondo';
 const CONTACT_EMAIL = 'privacy@your-domain.com';
 const GENERAL_EMAIL = 'hello@your-domain.com';
 const LAST_UPDATED = 'August 25, 2026';
