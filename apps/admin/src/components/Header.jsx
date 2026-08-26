@@ -48,7 +48,8 @@ export default function Header({
             onClick={() => onSelectView?.('dashboard')}
             className="flex items-center gap-3 cursor-pointer group"
           >
-            <div className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-400 shadow-lg shadow-brand-500/30 shrink-0 group-hover:scale-105 transition-transform">
+            <div className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-400 shadow-lg shadow-brand-500/30 shrink-0 group-hover:scale-105 transition-transform flex items-center justify-center">
+              <span className="text-white font-extrabold text-base sm:text-lg leading-none select-none">R</span>
               <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-dark-900" />
             </div>
             <div>

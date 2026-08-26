@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bot, ArrowRight, ShieldCheck, X } from 'lucide-react';
+import { ArrowRight, ShieldCheck, X } from 'lucide-react';
 
 export default function LoginModal({ onLogin, onClose, isGuestConversion = false, message = '' }) {
   const [email, setEmail] = useState('');
@@ -28,8 +28,9 @@ export default function LoginModal({ onLogin, onClose, isGuestConversion = false
         <div className="absolute inset-0 bg-gradient-to-br from-brand-900/20 to-indigo-900/20 pointer-events-none"></div>
 
         <div className="relative flex flex-col items-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-brand-600 to-indigo-400 flex items-center justify-center text-white shadow-xl shadow-brand-500/30 mb-6">
-            <Bot className="w-8 h-8" />
+          <div className="relative w-16 h-16 rounded-2xl bg-gradient-to-tr from-brand-600 to-indigo-400 flex items-center justify-center text-white shadow-xl shadow-brand-500/30 mb-6">
+            <span className="text-white font-extrabold text-2xl leading-none select-none">R</span>
+            <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-emerald-500 border-2 border-dark-800" />
           </div>
           <h1 className="text-2xl font-bold text-white text-center">
             {isGuestConversion ? "Congratulations, your AI is ready!" : "Welcome to your AI Space"}
@@ -52,6 +53,7 @@ export default function LoginModal({ onLogin, onClose, isGuestConversion = false
               className="w-full bg-dark-800 border border-gray-700 text-white rounded-xl px-4 py-3 text-sm outline-none focus:border-brand-500 transition-colors"
               required
             />
+            <p className="text-[11px] text-gray-500 mt-1.5">No password needed — we'll email you a secure sign-in link.</p>
           </div>
 
           <button

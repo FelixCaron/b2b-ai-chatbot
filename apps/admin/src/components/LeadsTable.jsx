@@ -43,7 +43,7 @@ export default function LeadsTable({ leads }) {
             <Search className="w-4 h-4 text-gray-400 absolute left-3 top-3 pointer-events-none" />
             <input
               type="text"
-              placeholder="Search leads..."
+              placeholder="Search by name, email, or phone..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-dark-900 border border-gray-700 rounded-xl pl-9 pr-4 py-2 text-sm text-white placeholder-gray-500 outline-none focus:border-brand-500"

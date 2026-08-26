@@ -6,5 +6,6 @@
     </linearGradient>
   </defs>
   <rect x="10" y="18" width="80" height="62" rx="24" fill="url(#repondoGrad)"/>
+  <text x="50" y="50" text-anchor="middle" dy=".32em" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="42" fill="#ffffff">R</text>
   <circle cx="82" cy="20" r="13" fill="#10b981"/>
 </svg>

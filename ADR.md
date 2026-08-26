@@ -5,6 +5,27 @@ Note (English): Plans were updated — Free was removed. New plans are: Basic ($
 
 ---
 
+## ADR 043 : Lettre "R" blanche dans le mark de marque, et amélioration des placeholders/hints
+
+**Date :** 2026-08-26
+
+### Contexte
+
+Le mark de marque (tuile dégradée + point actif) restait abstrait sans lettre identifiable. Par ailleurs, une passe sur les textes d'aide (placeholders, hints sous les champs) restait à faire depuis la création du board d'identité de marque.
+
+### Décision
+
+1. **Lettre "R" blanche** ajoutée au centre du mark partout où il apparaît dans le produit réel : `App.jsx` (en-tête invité), `Header.jsx` (en-tête connecté), `Dashboard.jsx` (icône du hero d'onboarding), et `LoginModal.jsx` — cette dernière utilisait encore l'icône générique Lucide `Bot` (oubliée lors du rebrand initial, ADR 041), maintenant remplacée par le vrai mark + lettre + point actif pour rester cohérente avec le reste. Le favicon (`favicon.svg`) reçoit la même lettre via `<text>` SVG avec une pile de polices système (Arial/Helvetica) plutôt qu'une police web, pour un rendu fiable dans l'icône d'onglet du navigateur qui ne charge pas toujours les polices de la page.
+2. **Placeholders et hints améliorés** : le champ d'URL d'onboarding perd sa formulation redondante (« https://your-company.com or your-company.com » → « your-company.com », en gardant le même exemple que les tests E2E ciblent) ; le placeholder du résumé de site cite maintenant le vrai libellé du bouton (« Regenerate with AI ») plutôt qu'un « regenerate » vague ; les deux filtres de pages (gestion de la base de connaissances vs. sélection à l'ajout d'un site) utilisent maintenant la même formulation ; la recherche de leads précise les champs cherchés (« Search by name, email, or phone... ») ; le hint sous « Support Email » est reformulé pour matcher le style du hint voisin (« Calendar Link ») ; le champ email de connexion gagne un hint expliquant qu'il n'y a pas de mot de passe (lien magique par courriel).
+
+### Conséquences
+
+- Cohérence visuelle complète du mark de marque dans tout le produit, y compris un oubli du rebrand initial (LoginModal).
+- `SitesManager.jsx`, composant non utilisé nulle part dans l'app (confirmé par recherche de références), volontairement laissé de côté — améliorer des textes qu'aucun utilisateur ne voit n'a pas de valeur, et le supprimer est une décision de nettoyage de code séparée que l'utilisateur n'a pas demandée.
+- Suite E2E complète (66/66), imports API, schémas et scan de secrets revalidés après le changement.
+
+---
+
 ## ADR 042 : Passage complet du produit en anglais et corrections trouvées en chemin
 
 **Date :** 2026-08-25

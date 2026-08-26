@@ -362,7 +362,8 @@ export default function App() {
                 onClick={() => { setCurrentView('dashboard'); setMobileMenuOpen(false); }}
                 className="flex items-center gap-3 cursor-pointer"
               >
-                <div className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-400 shadow-lg">
+                <div className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-400 shadow-lg flex items-center justify-center">
+                  <span className="text-white font-extrabold text-base sm:text-lg leading-none select-none">R</span>
                   <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-dark-900" />
                 </div>
                 <h1 className="text-base sm:text-lg font-bold text-white tracking-tight lowercase">repondo</h1>
