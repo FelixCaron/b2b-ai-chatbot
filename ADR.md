@@ -5,6 +5,32 @@ Note (English): Plans were updated — Free was removed. New plans are: Basic ($
 
 ---
 
+## ADR 047 : Palette "brand" incomplète dans Tailwind — texte en dégradé invisible sur About (et ailleurs)
+
+**Date :** 2026-08-30
+
+### Contexte
+
+Rapporté par l'utilisateur : sur la page About, le titre « Pioneering the Future of B2B AI Assistants » — la partie en dégradé, « B2B AI Assistants » — n'était pas visible à l'écran.
+
+### Diagnostic
+
+`apps/admin/tailwind.config.js` ne définissait que trois nuances de la couleur personnalisée `brand` : 500, 600 et 700 (qui sont en fait une copie exacte de la palette `indigo` intégrée de Tailwind — 500: #6366f1, 600: #4f46e5, 700: #4338ca). Or le composant `AboutPage.jsx` utilise `from-brand-400` pour le dégradé du titre. Une nuance Tailwind qui n'existe pas dans la config n'est **silencieusement pas générée** dans le CSS de build — pas d'erreur, pas d'avertissement, juste une classe qui ne fait rien. Combinée à `text-transparent` (qui rend le texte transparent partout, en misant sur `bg-clip-text` pour "peindre" le texte via l'arrière-plan), l'absence de `from-brand-400` faisait que le dégradé n'avait rien à peindre : le texte restait transparent sur fond sombre, donc invisible.
+
+Ce n'était pas un problème isolé à About : une recherche dans `apps/admin/src` montre que `brand-200`, `brand-300`, `brand-400` et `brand-900` sont utilisés dans **14 fichiers** (`App.jsx`, `Dashboard.jsx`, `Header.jsx`, `LoginModal.jsx`, `LeadsTable.jsx`, `Pricing.jsx`, `SitesManager.jsx`, `OsteopathyLanding.jsx`, etc.) alors que seules 500/600/700 existaient dans la config — un bug latent bien plus large que la seule page About, juste rarement assez visible (texte transparent = rien à l'écran, pas une couleur "cassée" facile à repérer) pour être remarqué avant.
+
+### Décision
+
+Complété `brand` dans `tailwind.config.js` avec l'échelle complète (50 à 950), en réutilisant les valeurs de la palette `indigo` de Tailwind pour les nuances manquantes puisque 500/600/700 correspondent déjà exactement à cette échelle — solution générale et cohérente plutôt qu'un correctif ponctuel sur le seul titre d'About.
+
+### Conséquences
+
+- Le titre d'About s'affiche maintenant correctement en dégradé indigo/violet.
+- Toute autre utilisation de `brand-200/300/400/900` ailleurs dans le produit (déjà présente dans le code, potentiellement invisible ou mal stylée sans qu'on l'ait remarqué) est réparée du même coup, sans avoir eu à les traquer une par une.
+- Leçon générale : une classe Tailwind utilisant une nuance de couleur personnalisée absente de la config échoue silencieusement — aucun avertissement au build. À vérifier en priorité si un élément stylé avec une couleur personnalisée semble invisible ou incorrect.
+
+---
+
 ## ADR 046 : Ton "magique" de la page About, et correction d'un bug de déduplication des leads
 
 **Date :** 2026-08-30
