@@ -68,7 +68,14 @@ export class ChatManager {
             if (ev.event === "tool_start" || ev.event === "tool_end") {
               onToolEvent(ev.event, data);
             } else if (data.tool_call) {
-              window.dispatchEvent(new CustomEvent('b2b_tool_call', { detail: data.tool_call }));
+              // The backend sends a flat payload ({ name, page, ... }), but
+              // consumers of this window event (App.jsx's listener, and the
+              // event AboutPage.jsx dispatches for its own "View Pricing"
+              // button) expect the { name, args: {...} } shape. Normalize
+              // here so every tool_call (navigate_to today, whatever else
+              // tomorrow) reaches listeners in the one shape they read.
+              const { name, ...args } = data.tool_call;
+              window.dispatchEvent(new CustomEvent('b2b_tool_call', { detail: { name, args } }));
             } else if (data.text) {
               onChunk(data.text);
             }

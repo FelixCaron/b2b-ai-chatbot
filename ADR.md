@@ -5,6 +5,31 @@ Note (English): Plans were updated — Free was removed. New plans are: Basic ($
 
 ---
 
+## ADR 044 : Le Copilot admin mentait sur ses actions "navigate_to" — corrigé
+
+**Date :** 2026-08-26
+
+### Contexte
+
+Rapporté par l'utilisateur : en demandant au Copilot admin (le chatbot intégré au tableau de bord lui-même) « have a about us page I can read? », le bot a répondu « I've opened our About Us page for you » — mais aucune page About ne s'est ouverte.
+
+### Diagnostic
+
+Le backend (`api/chat/index.js`) envoie l'événement `navigate_to` sous forme plate : `{ tool_call: { name: 'navigate_to', page: 'about' } }`. Le widget (`apps/widget/src/chat.js`) redispatchait cet objet tel quel comme `detail` d'un `CustomEvent('b2b_tool_call', ...)`. Mais `App.jsx` écoute cet événement et lit `const { name, args } = e.detail;` puis `args?.page` — or `e.detail` n'avait jamais de clé `args`, seulement `page` directement à la racine. `args` valait donc toujours `undefined`, la condition `args?.page` ne passait jamais, et `setCurrentView` n'était jamais appelé. **Le bouton "View Pricing Plans" de `AboutPage.jsx` dispatchait déjà le bon format `{ name, args: { page } }`** — c'est la convention établie que le reste du code n'a jamais respectée pour l'événement venant réellement du chat.
+
+Le modèle, lui, recevait un résultat d'outil synthétique (« Successfully redirected the user to the about page. ») généré par le backend indépendamment du succès réel de la navigation côté frontend — donc il annonçait honnêtement un succès qui n'avait jamais eu lieu côté UI. Ce bug touchait **les quatre destinations** de l'outil (`dashboard`, `pricing`, `leads`, `about`), pas seulement `about` — c'est juste la première fois que quelqu'un l'a remarqué.
+
+### Décision
+
+Normalisation à la source, dans `apps/widget/src/chat.js` : le payload plat reçu du backend (`{ name, page, ... }`) est retravaillé en `{ name, args: { ...reste } }` avant d'être dispatché — générique, donc valable pour n'importe quel futur `tool_call`, pas seulement `navigate_to`. Régression couverte par un nouveau test (`tests/e2e/admin-copilot.spec.js`) qui simule l'événement SSE réel du backend et vérifie que la page About s'affiche vraiment — pas seulement que le bot le prétend. Le test a été confirmé en échec sur l'ancien code avant la correction (vérification faite en local avant de committer), puis en succès après.
+
+### Conséquences
+
+- Les quatre destinations de navigation du Copilot admin fonctionnent réellement pour la première fois.
+- Un cas de figure à surveiller à l'avenir : quand un outil LLM produit un texte de confirmation généré par le modèle, ce texte peut être honnête vis-à-vis d'un résultat d'outil synthétique tout en étant faux vis-à-vis de l'effet réel côté UI si le pont entre les deux est cassé — la seule protection fiable est un test qui vérifie l'effet, pas la déclaration.
+
+---
+
 ## ADR 043 : Lettre "R" blanche dans le mark de marque, et amélioration des placeholders/hints
 
 **Date :** 2026-08-26

@@ -398,15 +398,32 @@ export async function installMockBackend(page, overrides = {}) {
 
   await page.route('**/api/chat', async (route) => {
     state.calls.push({ type: 'api', path: 'chat' });
-    const sseBody = [
-      'data: {"text":"Hello"}',
-      '',
-      'data: {"text":"Hello! How can I help you today?"}',
-      '',
-      'data: [DONE]',
-      '',
-      '',
-    ].join('\n');
+    const body = route.request().postDataJSON();
+    // Mirrors the real backend's event sequence for a navigate_to tool call
+    // (api/chat/index.js): a `tool_call` event first, then the narrated
+    // text reply — real regression coverage for the bug where the widget
+    // dispatched this event in a shape App.jsx's listener didn't read, so
+    // the model would truthfully claim it navigated while the UI silently
+    // stayed put.
+    const sseBody = /about/i.test(body?.message || '')
+      ? [
+          'data: {"tool_call":{"name":"navigate_to","page":"about"}}',
+          '',
+          'data: {"text":"I\'ve opened our About Us page for you."}',
+          '',
+          'data: [DONE]',
+          '',
+          '',
+        ].join('\n')
+      : [
+          'data: {"text":"Hello"}',
+          '',
+          'data: {"text":"Hello! How can I help you today?"}',
+          '',
+          'data: [DONE]',
+          '',
+          '',
+        ].join('\n');
     await route.fulfill({
       status: 200,
       contentType: 'text/event-stream',
