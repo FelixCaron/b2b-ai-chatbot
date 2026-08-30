@@ -604,11 +604,22 @@ ${supportInstruction}`;
                   )
                 );
 
-                const { data: existingLead } = await supabase.from('leads')
+                // Dedup on whichever contact detail this extraction actually
+                // captured. `leadData.email` is "" (not just undefined) when
+                // only a phone number was given, but a stray .eq('email', '')
+                // is just as wrong: it would match every other phone-only
+                // lead for this tenant and silently skip inserting a new one.
+                // Match on the field(s) present instead of always assuming
+                // email.
+                let existingLeadQuery = supabase.from('leads')
                   .select('id')
-                  .eq('tenant_id', tenantId)
-                  .eq('email', leadData.email)
-                  .maybeSingle();
+                  .eq('tenant_id', tenantId);
+                if (leadData.email) {
+                  existingLeadQuery = existingLeadQuery.eq('email', leadData.email);
+                } else if (leadData.phone) {
+                  existingLeadQuery = existingLeadQuery.eq('phone', leadData.phone);
+                }
+                const { data: existingLead } = await existingLeadQuery.maybeSingle();
 
                 if (!existingLead) {
                   await supabase.from('leads').insert({

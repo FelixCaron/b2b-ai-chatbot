@@ -9,7 +9,7 @@ export default function AboutPage() {
           Pioneering the Future of <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-400 to-indigo-500">B2B AI Assistants</span>
         </h1>
         <p className="text-lg text-gray-400 max-w-2xl mx-auto">
-          We are on a mission to democratize enterprise-grade AI. Our platform empowers businesses of all sizes to deploy hyper-intelligent, agentic chatbots in minutes, not months.
+          Point us at your website and, minutes later, an assistant that actually knows your business is live on it — greeting visitors, answering their questions, and following up so no opportunity slips through.
         </p>
       </div>
 
@@ -18,9 +18,9 @@ export default function AboutPage() {
           <div className="w-12 h-12 bg-brand-500/10 border border-brand-500/20 rounded-xl flex items-center justify-center mb-6">
             <Rocket className="w-6 h-6 text-brand-400" />
           </div>
-          <h3 className="text-xl font-bold text-white mb-3">Velocity & Performance</h3>
+          <h3 className="text-xl font-bold text-white mb-3">Live in Minutes</h3>
           <p className="text-sm text-gray-400 leading-relaxed">
-            Built on a custom high-performance architecture, our GPT Luna engine ensures blazing-fast responses and seamless context management. Your customers get the answers they need instantly, driving higher conversion rates.
+            No setup, no training, no waiting on a developer. Give us your website's address and your assistant learns it on the spot, ready to chat the moment you hit publish.
           </p>
         </div>
 
@@ -28,9 +28,9 @@ export default function AboutPage() {
           <div className="w-12 h-12 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-center mb-6">
             <Globe className="w-6 h-6 text-emerald-400" />
           </div>
-          <h3 className="text-xl font-bold text-white mb-3">Global Scale</h3>
+          <h3 className="text-xl font-bold text-white mb-3">Speaks Your Visitors' Language</h3>
           <p className="text-sm text-gray-400 leading-relaxed">
-            From multilingual hybrid search capabilities to massive crawling scalability, we handle the infrastructure so you can focus on your core business. We support businesses around the world.
+            Wherever your customers come from, whatever language they type in, your assistant meets them there — no configuration required.
           </p>
         </div>
 
@@ -38,9 +38,9 @@ export default function AboutPage() {
           <div className="w-12 h-12 bg-indigo-500/10 border border-indigo-500/20 rounded-xl flex items-center justify-center mb-6">
             <Shield className="w-6 h-6 text-indigo-400" />
           </div>
-          <h3 className="text-xl font-bold text-white mb-3">Enterprise Security</h3>
+          <h3 className="text-xl font-bold text-white mb-3">Your Business, Kept Private</h3>
           <p className="text-sm text-gray-400 leading-relaxed">
-            Data privacy is our foundation. With strict tenant isolation and advanced RLS policies, your knowledge base and conversation histories are completely secure and isolated from other tenants.
+            Everything your assistant learns and every conversation it has stays yours alone — completely walled off from every other business on the platform.
           </p>
         </div>
 
@@ -48,9 +48,9 @@ export default function AboutPage() {
           <div className="w-12 h-12 bg-sky-500/10 border border-sky-500/20 rounded-xl flex items-center justify-center mb-6">
             <Sparkles className="w-6 h-6 text-sky-400" />
           </div>
-          <h3 className="text-xl font-bold text-white mb-3">Agentic Capabilities</h3>
+          <h3 className="text-xl font-bold text-white mb-3">More Than a Chat Window</h3>
           <p className="text-sm text-gray-400 leading-relaxed">
-            Beyond answering questions, our AI acts as a digital worker. With integrated tool-calling, calendar booking, and support forwarding, the chatbot operates your business workflows autonomously.
+            Your assistant does not just answer questions — it captures interested visitors' details, books time on your calendar, and hands off to a human exactly when needed.
           </p>
         </div>
       </div>
@@ -61,7 +61,7 @@ export default function AboutPage() {
         </div>
         <h2 className="text-2xl font-bold text-white mb-4 relative z-10">Ready to transform your customer experience?</h2>
         <p className="text-brand-200 mb-8 max-w-xl mx-auto relative z-10">
-          Join hundreds of forward-thinking companies using our platform to automate their support and scale their sales.
+          Put an assistant on your site today and start turning visitors into conversations, and conversations into customers.
         </p>
         <button 
           onClick={() => window.dispatchEvent(new CustomEvent('b2b_tool_call', { detail: { name: 'navigate_to', args: { page: 'pricing' } } }))}

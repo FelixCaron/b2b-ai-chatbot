@@ -5,6 +5,32 @@ Note (English): Plans were updated — Free was removed. New plans are: Basic ($
 
 ---
 
+## ADR 046 : Ton "magique" de la page About, et correction d'un bug de déduplication des leads
+
+**Date :** 2026-08-30
+
+### Contexte
+
+Deux demandes utilisateur distinctes traitées ensemble : (1) la page About lisait comme une fiche technique interne (« GPT Luna engine », « advanced RLS policies », « hybrid search capabilities », « tenant isolation ») au lieu de vendre le bénéfice pour un visiteur B2B qui ne sait pas ce qu'est du RAG ou du RLS ; (2) s'assurer que la capture de leads « fonctionne bien » et reste correctement activable uniquement site par site.
+
+### Diagnostic — capture de leads
+
+La porte d'entrée était déjà correctement verrouillée : un site n'a de `public_key` qu'une fois réellement créé, `enable_lead_capture` vaut `FALSE` par défaut en base et à la création (`App.jsx`), et `api/chat/index.js` saute entièrement le bloc d'extraction de lead si `site.enable_lead_capture` est faux. Ce n'était donc pas un problème d'activation.
+
+Le vrai bug était dans la déduplication : `api/chat/index.js` vérifiait toujours l'existence d'un lead via `.eq('email', leadData.email)`, même quand le visiteur n'avait laissé qu'un numéro de téléphone (`leadData.email === ""`). Cette requête ne matchait jamais, donc chaque nouveau message du même visiteur réinsérait un lead en double dans la table — un lead capturé uniquement par téléphone n'était jamais reconnu comme déjà existant.
+
+### Décision
+
+- **About** (`AboutPage.jsx`) : les quatre cartes et le texte d'intro sont réécrits pour parler bénéfice/ressenti plutôt qu'architecture — « Live in Minutes », « Speaks Your Visitors' Language », « Your Business, Kept Private », « More Than a Chat Window » — sans mentionner de nom de modèle, de RLS, ou d'infrastructure. Le CTA final (« Join hundreds of forward-thinking companies... ») était par ailleurs une affirmation invérifiable pour un produit qui n'a pas encore de client — remplacé par une phrase honnête et toujours orientée bénéfice.
+- **Déduplication des leads** (`api/chat/index.js`) : la requête de recherche d'un lead existant matche maintenant sur le champ réellement capturé (email s'il est présent, sinon téléphone), au lieu de toujours filtrer sur l'email.
+
+### Conséquences
+
+- La page About vend l'expérience, pas la stack technique — cohérent avec le positionnement « produit magique, pas outil de dev ».
+- Un visiteur qui ne laisse qu'un numéro de téléphone ne génère plus un lead dupliqué à chaque nouveau message échangé avec le bot.
+
+---
+
 ## ADR 045 : Accès direct à la page About, sans passer par le chatbot
 
 **Date :** 2026-08-30
