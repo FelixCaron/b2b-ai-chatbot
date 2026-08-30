@@ -22,10 +22,10 @@ test.describe('Full header (authenticated user)', () => {
     await expect(page.locator(`[title^="Plan "]`)).toContainText(new RegExp(mock.db.tenants[0].plan, 'i'));
 
     for (const tab of [/^Dashboard/i, /^Leads/i, /^Plans/i, /^About/i]) {
-      await expect(page.getByRole('button', { name: tab })).toBeVisible();
+      await expect(page.getByRole('banner').getByRole('button', { name: tab })).toBeVisible();
     }
 
-    await page.getByRole('button', { name: /^About/i }).click();
+    await page.getByRole('banner').getByRole('button', { name: /^About/i }).click();
     await expect(page.getByRole('heading', { name: /Pioneering the Future of/i })).toBeVisible();
 
     consoleTracker.assertNone();

@@ -5,6 +5,31 @@ Note (English): Plans were updated — Free was removed. New plans are: Basic ($
 
 ---
 
+## ADR 045 : Accès direct à la page About, sans passer par le chatbot
+
+**Date :** 2026-08-30
+
+### Contexte
+
+Après la correction de l'ADR 044, la page About (`about`) n'était atteignable que via l'outil `navigate_to` du Copilot admin — aucun lien de navigation classique n'y menait. L'utilisateur a demandé qu'elle soit accessible facilement, sans avoir à parler au chatbot.
+
+### Diagnostic
+
+`components/Header.jsx` (en-tête complet, utilisateurs connectés) avait déjà un onglet "About". Mais l'en-tête léger de secours pour les invités, défini séparément dans `App.jsx`, ne l'avait pas — ni dans sa nav desktop, ni dans son menu mobile. De plus, cet en-tête entier est masqué sur la hero d'onboarding racine (avant qu'un site n'existe) et sur les landing pages niches, laissant ces vues sans aucun accès à About.
+
+### Décision
+
+- Ajout d'un bouton "About" dans la nav desktop et le menu mobile de l'en-tête invité (`App.jsx`), au même niveau que Dashboard/Leads/Plans.
+- Ajout d'un lien "About" dans le footer global de l'app, reproduit sur toutes les vues (y compris celles où l'en-tête entier est masqué), pour qu'il reste atteignable même sans en-tête.
+- Tests E2E : `tests/e2e/navigation.spec.js` couvre désormais le clic sur l'onglet About dans l'en-tête invité, ainsi qu'un nouveau cas où About reste accessible via le footer quand l'en-tête est caché. `clickGuestNavButton` (et le test de l'en-tête connecté) ont dû être recadrés sur le landmark `banner` (l'en-tête), car le footer répète le même libellé "About" et rendait les requêtes de rôle non scopées ambiguës.
+
+### Conséquences
+
+- About est désormais atteignable en un clic depuis n'importe quelle vue du produit, sans jamais avoir à ouvrir le chatbot.
+- Suite E2E complète (70/70), imports API, tests de schémas et scan de secrets tous verts avant commit.
+
+---
+
 ## ADR 044 : Le Copilot admin mentait sur ses actions "navigate_to" — corrigé
 
 **Date :** 2026-08-26

@@ -4,9 +4,9 @@ test.describe('Header navigation', () => {
   // A fresh session with our mocked auth backend always comes back as a
   // Supabase anonymous ("guest") user, since real login (magic link) can't
   // be exercised without a live Supabase project. Guests see App.jsx's
-  // lightweight fallback header (Dashboard / Leads / Plans only — no About
-  // tab, that one lives in the full <Header> shown to signed-in users).
-  test('Dashboard / Leads / Plans tabs switch views without console errors (guest header)', async ({ page, mock }) => {
+  // lightweight fallback header (Dashboard / Leads / Plans / About - the
+  // same four tabs as the full <Header> shown to signed-in users).
+  test('Dashboard / Leads / Plans / About tabs switch views without console errors (guest header)', async ({ page, mock }) => {
     const consoleTracker = trackConsoleErrors(page);
     await page.goto('/');
 
@@ -19,6 +19,10 @@ test.describe('Header navigation', () => {
 
     await clickGuestNavButton(page, /^Plans/i);
     await expect(page.getByRole('heading', { name: /Level Up Your Customer Support/i })).toBeVisible();
+
+    // Reachable directly from the nav — no need to ask the chatbot to get here.
+    await clickGuestNavButton(page, /^About/i);
+    await expect(page.getByRole('heading', { name: /Pioneering the Future of/i })).toBeVisible();
 
     await clickGuestNavButton(page, /^Dashboard/i);
     await expect(page.getByText('acme.example.com')).toBeVisible();
@@ -47,5 +51,12 @@ test.describe('Header navigation (no site yet)', () => {
     await expect(page.getByRole('heading', { name: /Deploy Your AI Assistant/i })).toBeVisible();
     await expect(page.getByRole('button', { name: /Sign In/i })).not.toBeVisible();
     await expect(page.getByRole('button', { name: /open menu/i })).not.toBeVisible();
+  });
+
+  test('About is still reachable from the footer even with the header hidden', async ({ page, mock }) => {
+    await page.goto('/');
+    await expect(page.getByRole('heading', { name: /Deploy Your AI Assistant/i })).toBeVisible();
+    await page.getByRole('button', { name: /^About$/i }).click();
+    await expect(page.getByRole('heading', { name: /Pioneering the Future of/i })).toBeVisible();
   });
 });

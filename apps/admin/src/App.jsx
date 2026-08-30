@@ -395,6 +395,14 @@ export default function App() {
                 >
                   Plans
                 </button>
+                <button
+                  onClick={() => setCurrentView('about')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    currentView === 'about' ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  About
+                </button>
               </nav>
             </div>
 
@@ -443,6 +451,14 @@ export default function App() {
                 }`}
               >
                 Plans
+              </button>
+              <button
+                onClick={() => { setCurrentView('about'); setMobileMenuOpen(false); }}
+                className={`text-left px-3.5 py-2.5 rounded-lg text-sm font-semibold transition-colors ${
+                  currentView === 'about' ? 'bg-brand-600 text-white' : 'text-gray-300 hover:bg-white/5'
+                }`}
+              >
+                About
               </button>
               <button
                 onClick={() => { setShowLoginModal(true); setMobileMenuOpen(false); }}
@@ -545,6 +561,9 @@ export default function App() {
       )}
 
       <footer className="max-w-7xl mx-auto px-4 sm:px-8 py-8 mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-gray-500 border-t border-white/5">
+        <button onClick={() => setCurrentView('about')} className="hover:text-gray-300 transition-colors">
+          About
+        </button>
         <button onClick={() => setCurrentView('privacy')} className="hover:text-gray-300 transition-colors">
           Privacy Policy
         </button>
