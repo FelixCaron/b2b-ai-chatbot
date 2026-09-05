@@ -54,8 +54,36 @@ Nothing here is scriptable via the Management API yet:
    - Use these new-format keys, not the legacy `anon`/`service_role` JWTs — both still work,
      but the legacy ones are being phased out; see ADR.md's entry on this migration.
 3. **Set the redirect URL** for magic links: Dashboard → Authentication → URL
-   Configuration → Redirect URLs, add your admin app's real domain (and
-   `http://localhost:3000` for local dev).
+   Configuration. Two separate fields, both matter:
+   - **Site URL** — the fallback Supabase uses whenever `emailRedirectTo` isn't in the
+     allowlist below. Set it to your main production domain. Left on its default
+     (`http://localhost:3000`), every magic link silently redirects there instead of
+     wherever the user actually requested it from — confirmed live 2026-09-05: a login
+     attempt from the deployed `apps/internal-admin` console still emailed a
+     `localhost:3000` link, because that domain wasn't in Redirect URLs yet.
+   - **Redirect URLs** — add every real domain that calls `signInWithOtp`: `apps/admin`'s
+     domain, `apps/internal-admin`'s domain, and `http://localhost:3000` /
+     `http://localhost:3100` for local dev of each. Wildcards work
+     (`https://*.vercel.app/**` covers preview deployments too).
+4. **Configure custom SMTP**, before relying on magic-link login for anything real.
+   Supabase's built-in email sender is rate-limited hard (a handful of emails/hour) —
+   fine for the first couple of test sign-ins, not for actual usage; confirmed live
+   2026-09-05, hit the limit after a handful of test logins in one session. This project
+   already has a Resend account for its other transactional email (`docs/setup/resend.md`)
+   — reuse it: Dashboard → Authentication → Emails → SMTP Settings:
+   ```
+   Host: smtp.resend.com
+   Port: 465 (or 587)
+   Username: resend
+   Password: <your Resend API key>
+   Sender email: an address on your verified Resend domain
+   Sender name: Repondo
+   ```
+   Same fix is reachable via the Management API's `PATCH /v1/projects/<ref>/config/auth`
+   (`smtp_host`/`smtp_port`/`smtp_user`/`smtp_pass`/`smtp_sender_name`/`smtp_admin_email`),
+   scriptable the same way as the rest of this setup if you want it in
+   `scripts/ops/setup-supabase.mjs` later — not added there yet since it needs the Resend
+   API key as an extra input this script doesn't otherwise take.
 
 ## Manual fallback (no Management API access)
 

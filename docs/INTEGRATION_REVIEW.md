@@ -138,6 +138,16 @@ also asks for:
 - **A subprocessor list.** Supabase, Vercel, OpenRouter, Resend, Stripe, Cloudflare
   Turnstile, Jina Reader are all subprocessors today; `LegalPages.jsx` has the start of
   this but it should be a complete, current list before a security review.
+- **Supabase Auth's URL Configuration and SMTP are still on their new-project defaults.**
+  Confirmed live 2026-09-05, both bit real login attempts the same day: Site URL
+  defaults to `http://localhost:3000`, so any magic link requested from a domain not yet
+  in Redirect URLs silently redirects there instead — not a code bug, but blocks login
+  from any newly-deployed app (like `apps/internal-admin`) until its domain is added. And
+  the default email sender rate-limits after a handful of sign-ins/hour, which is fine for
+  initial testing but not for actual usage — needs custom SMTP (this project already has
+  a Resend account for other transactional email; reuse it). Both are one-time dashboard
+  config, not something `scripts/ops/setup-supabase.mjs` does yet — see
+  `docs/setup/supabase.md` steps 3-4.
 
 Most of the above is organizational/process work, not code, which is why this list
 documents rather than builds it — flagging it now so it's a deliberate decision rather
