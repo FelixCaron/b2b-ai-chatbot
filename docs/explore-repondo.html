@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Explore Repondo</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+:root {
+  --ground: #f7f7fb;
+  --surface: #ffffff;
+  --surface-2: #f0f0f7;
+  --border: #e3e3ee;
+  --text: #16161f;
+  --text-dim: #5b5b6d;
+  --text-faint: #8a8a9c;
+  --brand-500: #6366f1;
+  --brand-600: #4f46e5;
+  --brand-700: #4338ca;
+  --brand-tint: #eef0ff;
+  --violet: #818cf8;
+  --success: #0a9463;
+  --success-tint: #e3f7ee;
+  --amber: #b7791f;
+  --amber-tint: #fdf3e0;
+  --code-bg: #f0f0f7;
+  --shadow: 0 1px 2px rgba(22,22,31,0.04), 0 8px 24px rgba(22,22,31,0.06);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #0b0f19;
+    --surface: #111827;
+    --surface-2: #161f30;
+    --border: #232d42;
+    --text: #f3f4f6;
+    --text-dim: #a6adbb;
+    --text-faint: #6b7280;
+    --brand-500: #6366f1;
+    --brand-600: #818cf8;
+    --brand-700: #a5b4fc;
+    --brand-tint: rgba(99,102,241,0.14);
+    --violet: #a5b4fc;
+    --success: #34d399;
+    --success-tint: rgba(16,185,129,0.12);
+    --amber: #f5b955;
+    --amber-tint: rgba(245,185,85,0.1);
+    --code-bg: #0c1220;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 12px 32px rgba(0,0,0,0.35);
+  }
+}
+
+:root[data-theme="dark"] {
+  --ground: #0b0f19;
+  --surface: #111827;
+  --surface-2: #161f30;
+  --border: #232d42;
+  --text: #f3f4f6;
+  --text-dim: #a6adbb;
+  --text-faint: #6b7280;
+  --brand-500: #6366f1;
+  --brand-600: #818cf8;
+  --brand-700: #a5b4fc;
+  --brand-tint: rgba(99,102,241,0.14);
+  --violet: #a5b4fc;
+  --success: #34d399;
+  --success-tint: rgba(16,185,129,0.12);
+  --amber: #f5b955;
+  --amber-tint: rgba(245,185,85,0.1);
+  --code-bg: #0c1220;
+  --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 12px 32px rgba(0,0,0,0.35);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: var(--ground);
+  color: var(--text);
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  margin: 0;
+  padding: 0;
+}
+
+.wrap {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 56px 24px 88px;
+}
+
+/* ---- Masthead ---- */
+.masthead {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 40px;
+}
+.mark {
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  background: linear-gradient(135deg, var(--brand-600), var(--violet));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 800;
+  font-size: 20px;
+  flex-shrink: 0;
+  box-shadow: var(--shadow);
+}
+.masthead-text .name {
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+}
+.masthead-text .tag {
+  font-size: 12.5px;
+  color: var(--text-faint);
+}
+
+h1 {
+  font-size: clamp(28px, 4.2vw, 38px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  text-wrap: balance;
+  margin: 0 0 14px;
+}
+
+.intro {
+  font-size: 16.5px;
+  line-height: 1.65;
+  color: var(--text-dim);
+  max-width: 62ch;
+  margin: 0 0 48px;
+}
+.intro strong { color: var(--text); font-weight: 600; }
+
+/* ---- Path cards ---- */
+.path {
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  margin-bottom: 28px;
+  overflow: hidden;
+}
+
+.path-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 26px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.path-head-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.path-badge {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--brand-tint);
+  color: var(--brand-700);
+  white-space: nowrap;
+}
+.path-badge.visitor {
+  background: var(--success-tint);
+  color: var(--success);
+}
+.path-title {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.path-sub {
+  font-size: 13.5px;
+  color: var(--text-faint);
+}
+
+.url-box {
+  margin: 0 26px;
+  margin-top: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.url-box a {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 14px;
+  color: var(--brand-700);
+  text-decoration: none;
+  word-break: break-all;
+}
+.url-box a:hover { text-decoration: underline; }
+.url-box .go {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-faint);
+  white-space: nowrap;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+.steps {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 18px 26px 24px;
+  counter-reset: step;
+}
+.steps li {
+  counter-increment: step;
+  position: relative;
+  padding: 10px 0 10px 40px;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--text-dim);
+  border-top: 1px solid var(--border);
+}
+.steps li:first-child { border-top: none; }
+.steps li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: 11px;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  background: var(--surface-2);
+  color: var(--text-dim);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.steps li strong { color: var(--text); font-weight: 600; }
+.steps code {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 13px;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 1px 6px;
+  color: var(--text);
+}
+
+.note {
+  margin: 0 26px 22px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--amber-tint);
+  border: 1px solid color-mix(in srgb, var(--amber) 30%, transparent);
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--text-dim);
+}
+.note strong { color: var(--text); }
+
+/* ---- Divider / connector between paths ---- */
+.connector {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-faint);
+  font-size: 12.5px;
+  margin: -8px 0 28px 26px;
+}
+.connector .line {
+  width: 1px;
+  height: 22px;
+  background: var(--border);
+  margin-left: 11px;
+}
+
+/* ---- FAQ ---- */
+.faq {
+  margin-top: 44px;
+}
+.faq h2 {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin: 0 0 18px;
+}
+.faq-item {
+  padding: 16px 0;
+  border-top: 1px solid var(--border);
+}
+.faq-item:last-child { padding-bottom: 0; }
+.faq-item dt {
+  font-weight: 600;
+  font-size: 14.5px;
+  margin-bottom: 5px;
+}
+.faq-item dd {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-dim);
+}
+
+footer {
+  margin-top: 48px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  font-size: 12.5px;
+  color: var(--text-faint);
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+@media (max-width: 520px) {
+  .wrap { padding: 40px 18px 64px; }
+  .path-head { padding: 18px 20px; }
+  .url-box { margin: 16px 20px 0; flex-wrap: wrap; }
+  .url-box .go { margin-left: 0; }
+  .steps { padding: 14px 20px 20px; }
+  .note { margin: 0 20px 18px; }
+  .connector { margin-left: 20px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="masthead">
+    <div class="mark">R</div>
+    <div class="masthead-text">
+      <div class="name">Repondo</div>
+      <div class="tag">AI chatbots for B2B websites</div>
+    </div>
+  </div>
+
+  <h1>Take a look around Repondo</h1>
+  <p class="intro">
+    There are two ways to experience the product: as the <strong>business owner</strong>
+    setting up a chatbot for their own site, or as a <strong>visitor</strong> chatting with
+    one. No account or credit card needed for either — start with the first link below.
+  </p>
+
+  <!-- PATH A -->
+  <div class="path">
+    <div class="path-head">
+      <div class="path-head-left">
+        <span class="path-badge">Path A</span>
+        <div>
+          <div class="path-title">Explore as an admin</div>
+          <div class="path-sub">Set up a chatbot for a real website in about a minute</div>
+        </div>
+      </div>
+    </div>
+    <div class="url-box">
+      <a href="https://admin-seven-alpha-37.vercel.app" target="_blank" rel="noopener">admin-seven-alpha-37.vercel.app</a>
+      <span class="go">open →</span>
+    </div>
+    <ol class="steps">
+      <li>Paste any real website URL into the box on the homepage — your own site, your
+        employer's, or a company you know well. <strong>No sign-up screen first</strong>: you're
+        automatically working in a temporary guest workspace.</li>
+      <li>Wait while Repondo reads the site and builds a knowledge base from it — typically
+        under a minute for a small site.</li>
+      <li>You land in the <strong>Dashboard</strong>: a live preview of your new chatbot sits
+        right there. Ask it something only that website would know the answer to.</li>
+      <li>Poke around <strong>Leads</strong> (anyone the bot has talked to) and <strong>Plans</strong>
+        (Basic / Pro / Premium — Stripe test mode, no real charge).</li>
+      <li>To keep what you built past 24 hours, click <code>Save My Assistant</code> and enter
+        an email — no password, just a sign-in link.</li>
+    </ol>
+    <div class="note">
+      <strong>Heads up:</strong> a guest workspace and everything in it is deleted after 24
+      hours if you don't save it with an email — handy for exploring, but don't leave real
+      client data in a guest session.
+    </div>
+  </div>
+
+  <div class="connector">
+    <span>then, from inside that same dashboard</span>
+    <div class="line"></div>
+  </div>
+
+  <!-- PATH B -->
+  <div class="path">
+    <div class="path-head">
+      <div class="path-head-left">
+        <span class="path-badge visitor">Path B</span>
+        <div>
+          <div class="path-title">Explore as a visitor</div>
+          <div class="path-sub">See exactly what a customer on that website would see</div>
+        </div>
+      </div>
+    </div>
+    <ol class="steps">
+      <li>Finish Path A first — the chat preview inside your Dashboard <strong>is</strong> the
+        visitor experience, rendered with the same widget real websites embed.</li>
+      <li>Ask it to book a call, leave contact details, or answer a support question — if
+        <strong>lead capture</strong> is switched on for the site, watch the conversation show
+        up under <code>Leads</code> a moment later.</li>
+      <li>Want to see it running on an actual page instead of inside the dashboard? Copy the
+        embed snippet Repondo generates for your site and paste it into any HTML file — the
+        same widget, same brain, running standalone.</li>
+    </ol>
+    <div class="note">
+      <strong>Nothing to open yet:</strong> there's no live demo site published publicly right
+      now — the fastest way to chat with a bot as a visitor is still to build one yourself via
+      Path A, which takes about as long as reading this page.
+    </div>
+  </div>
+
+  <div class="faq">
+    <h2>Good to know</h2>
+    <dl>
+      <div class="faq-item">
+        <dt>Is this a real, working product or a mockup?</dt>
+        <dd>Fully working — the chatbot you build actually reads the site you gave it and
+          answers from that content, using retrieval-augmented generation, not a script.</dd>
+      </div>
+      <div class="faq-item">
+        <dt>Will this cost me anything?</dt>
+        <dd>No. Billing runs in Stripe's test mode — the Plans tab is there to look at, not to
+          be charged through.</dd>
+      </div>
+      <div class="faq-item">
+        <dt>Can I use it on a site I don't own?</dt>
+        <dd>For exploring, yes — point it at any public site. Just don't share the resulting
+          workspace as if it were that company's own chatbot.</dd>
+      </div>
+    </dl>
+  </div>
+
+  <footer>
+    <span>Repondo — B2B AI chatbots</span>
+    <span>Guide last updated 2026-09-05</span>
+  </footer>
+
+</div>
+</body>
+</html>
