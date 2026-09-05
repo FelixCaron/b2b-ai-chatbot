@@ -37,12 +37,20 @@ if (!APP_URL) {
 
 const stripe = new Stripe(STRIPE_SECRET_KEY);
 
-// Source of truth for plan pricing — see ADR.md's pricing note.
-// currency amounts are in cents.
+// Source of truth for plan pricing — see ADR.md's pricing note. Amounts are
+// in cents. Verified 2026-09-05 against the real Stripe test-mode account:
+// the products already existed under the pre-rebrand "Chatbot ..." name, in
+// CAD (not "Repondo ..." / USD, which is what this file originally assumed
+// before that account was checked) — this file's job is to find-and-reuse
+// whatever is really there by name+amount+currency+interval, so getting
+// these three fields wrong means it creates unwanted duplicates instead of
+// reusing the real products. If you rename the Stripe products to the
+// current "Repondo" branding, update `name` here to match, or this script's
+// lookup will stop finding them and create new ones alongside the old.
 const PLANS = [
-  { key: 'BASIC', name: 'Repondo Basic', amount: 1500, currency: 'usd', interval: 'month' },
-  { key: 'PRO', name: 'Repondo Pro', amount: 4000, currency: 'usd', interval: 'month' },
-  { key: 'PREMIUM', name: 'Repondo Premium', amount: 6500, currency: 'usd', interval: 'month' },
+  { key: 'BASIC', name: 'Chatbot basic', amount: 1500, currency: 'cad', interval: 'month' },
+  { key: 'PRO', name: 'Chatbot Pro', amount: 4000, currency: 'cad', interval: 'month' },
+  { key: 'PREMIUM', name: 'Chatbot Premium', amount: 6500, currency: 'cad', interval: 'month' },
 ];
 
 async function findProductByName(name) {

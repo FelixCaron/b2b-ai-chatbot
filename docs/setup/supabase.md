@@ -14,17 +14,23 @@ schema, not by separate infrastructure (see `docs/INTEGRATION_REVIEW.md`).
 
 export SUPABASE_ACCESS_TOKEN=sbp_...
 export SUPABASE_ORG_ID=...
-export SUPABASE_DB_PASSWORD='a-strong-password'   # save this somewhere safe — it's the Postgres password
+export SUPABASE_DB_PASSWORD='a-strong-password'   # only read if the named project doesn't exist yet
 
 npm run setup:supabase              # creates "repondo" in us-east-1 (or reuses it if it exists)
 # or: node scripts/ops/setup-supabase.mjs my-project-name us-west-1
 ```
 
-This finds-or-creates the project via the Supabase Management API, links the local
-Supabase CLI to it, and runs `supabase db push` to apply
+This finds-or-creates the project via the Supabase Management API, then applies
 `supabase/migrations/20260905000000_consolidated_schema.sql` — the single migration that
 creates every table, index, RPC, and RLS policy this product needs, including the `vector`
-and `pgmq` extensions. Safe to re-run (see the script's header comment for why).
+and `pgmq` extensions — via that same Management API's SQL endpoint. **No Supabase CLI
+and no database password needed for the apply step**: an earlier version of this script
+shelled out to `supabase db push`, which needs a direct Postgres connection and hung
+waiting for a password interactively; verified against a real project on 2026-09-05 that
+the Management API's `/database/query` endpoint does the same thing authenticated by the
+access token alone. `SUPABASE_DB_PASSWORD` is only read if the named project doesn't
+exist yet and needs creating (Postgres needs some initial password in that case).
+Safe to re-run either way — see the migration file's own header comment for why.
 
 ## What you still have to do manually
 

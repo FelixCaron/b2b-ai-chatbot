@@ -3,29 +3,43 @@
 //
 // Idempotent Supabase project bootstrap: finds-or-creates the project via the
 // Supabase Management API (instead of the dashboard's "New Project" button,
-// which has no "reuse if it already exists" concept), then links the local
-// Supabase CLI to it and pushes the consolidated migration
-// (supabase/migrations/20260905000000_consolidated_schema.sql).
+// which has no "reuse if it already exists" concept), then applies the
+// consolidated migration (supabase/migrations/20260905000000_consolidated_schema.sql)
+// via the Management API's SQL endpoint.
+//
+// That last part deliberately does NOT shell out to `supabase db push` — this
+// was tried first (2026-09-05, against a real project) and `supabase
+// migration list`/`db push` both need a direct Postgres connection, which
+// hangs waiting for the database password interactively. The Management
+// API's /database/query endpoint runs arbitrary SQL authenticated by the
+// same access token used everywhere else in this script, no DB password
+// needed at all — verified working against a live project with real data
+// already in it. The one place a DB password is still needed is creating a
+// brand new project (Postgres needs some initial password), which is why
+// SUPABASE_DB_PASSWORD is only required on the create path, not the push one.
 //
 // The migration file itself is already idempotent (IF NOT EXISTS / CREATE OR
-// REPLACE throughout — see its header comment), and `supabase db push` only
-// applies migrations it hasn't recorded as applied yet, so this whole script
-// is safe to run more than once — including against a project that already
-// exists, on a second machine, or after a partial earlier failure.
-//
-// Requires the Supabase CLI installed (`npm i -g supabase` or your platform's
-// package manager) and a personal access token from
-// https://supabase.com/dashboard/account/tokens.
+// REPLACE throughout — see its header comment), so applying it is safe to
+// re-run against an existing project, including one that already has all its
+// tables from older migrations.
 //
 // Usage:
 //   SUPABASE_ACCESS_TOKEN=sbp_... SUPABASE_ORG_ID=your-org-id \
 //   SUPABASE_DB_PASSWORD=a-strong-password \
 //     node scripts/ops/setup-supabase.mjs [project-name] [region]
 //
+// SUPABASE_DB_PASSWORD can be omitted if the named project already exists —
+// it's only read when a new project actually needs creating.
+//
 // See docs/setup/supabase.md for the manual fallback and what this script
 // cannot do for you (creating the Supabase account/org itself).
 
-import { execFileSync } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const MIGRATION_FILE = path.resolve(__dirname, '../../supabase/migrations/20260905000000_consolidated_schema.sql');
 
 const ACCESS_TOKEN = process.env.SUPABASE_ACCESS_TOKEN;
 const ORG_ID = process.env.SUPABASE_ORG_ID;
@@ -33,9 +47,9 @@ const DB_PASSWORD = process.env.SUPABASE_DB_PASSWORD;
 const PROJECT_NAME = process.argv[2] || process.env.SUPABASE_PROJECT_NAME || 'repondo';
 const REGION = process.argv[3] || process.env.SUPABASE_REGION || 'us-east-1';
 
-if (!ACCESS_TOKEN || !ORG_ID || !DB_PASSWORD) {
+if (!ACCESS_TOKEN || !ORG_ID) {
   console.error(
-    'Missing one of SUPABASE_ACCESS_TOKEN, SUPABASE_ORG_ID, SUPABASE_DB_PASSWORD.\n' +
+    'Missing SUPABASE_ACCESS_TOKEN and/or SUPABASE_ORG_ID.\n' +
     'Get a personal access token at https://supabase.com/dashboard/account/tokens\n' +
     'and your org id at https://supabase.com/dashboard/org/_/general'
   );
@@ -70,6 +84,12 @@ async function ensureProject() {
     console.log(`Project "${PROJECT_NAME}" already exists (${existing.id}, ${existing.region}) — reusing.`);
     return existing;
   }
+  if (!DB_PASSWORD) {
+    throw new Error(
+      `No project named "${PROJECT_NAME}" exists yet, and SUPABASE_DB_PASSWORD wasn't set to create one. ` +
+      `Either pass an existing project's name, or set SUPABASE_DB_PASSWORD to create a new one.`
+    );
+  }
   console.log(`Creating project "${PROJECT_NAME}" in ${REGION}...`);
   const project = await api('/projects', {
     method: 'POST',
@@ -80,31 +100,42 @@ async function ensureProject() {
       region: REGION,
     }),
   });
-  console.log(`Created project ${project.id}. It may take a minute to finish provisioning before it accepts a db push.`);
+  console.log(`Created project ${project.id}. It may take a minute to finish provisioning before it accepts a migration push.`);
   return project;
 }
 
-function run(cmd, args) {
-  console.log(`$ ${cmd} ${args.join(' ')}`);
-  execFileSync(cmd, args, { stdio: 'inherit' });
+async function runSql(projectRef, sql) {
+  const res = await fetch(`${API_BASE}/projects/${projectRef}/database/query`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${ACCESS_TOKEN}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ query: sql }),
+  });
+  if (!res.ok) {
+    throw new Error(`database/query -> ${res.status}: ${await res.text()}`);
+  }
+  return res.json();
 }
 
 async function main() {
   const project = await ensureProject();
 
-  // `supabase link` is itself idempotent — it just points the local CLI
-  // config at this project ref, safe to re-run.
-  run('supabase', ['link', '--project-ref', project.id]);
-
-  // Applies only migrations not yet recorded as applied on this project.
-  run('supabase', ['db', 'push']);
+  console.log(`Applying ${path.basename(MIGRATION_FILE)}...`);
+  const sql = fs.readFileSync(MIGRATION_FILE, 'utf8');
+  // Wrapped in an explicit transaction so a failure partway through this
+  // multi-statement file rolls back instead of leaving a half-applied schema.
+  await runSql(project.id, `BEGIN;\n${sql}\nCOMMIT;`);
+  console.log('Migration applied.');
 
   console.log('\nDone. Project ref:', project.id);
   console.log('URL:', `https://${project.id}.supabase.co`);
   console.log('Fetch the anon key and service-role key from:');
   console.log(`  https://supabase.com/dashboard/project/${project.id}/settings/api`);
+  console.log('(or GET /v1/projects/<ref>/api-keys with this same access token)');
   console.log('\nAfter this, regenerate packages/shared/src/database.types.ts with:');
-  console.log(`  supabase gen types typescript --project-id ${project.id} > packages/shared/src/database.types.ts`);
+  console.log(`  npx supabase gen types typescript --project-id ${project.id} > packages/shared/src/database.types.ts`);
 }
 
 main().catch((err) => {

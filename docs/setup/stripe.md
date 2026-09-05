@@ -19,6 +19,13 @@ amount/URL first so re-running the script never duplicates resources. It prints 
 `STRIPE_PRICE_ID_BASIC` / `STRIPE_PRICE_ID_PRO` / `STRIPE_PRICE_ID_PREMIUM` /
 `STRIPE_WEBHOOK_SECRET` values to paste into your env.
 
+The `PLANS` constant at the top of the script must match your actual Stripe products'
+name/amount/currency/interval, or the lookup misses and it creates duplicates instead of
+reusing them — verified 2026-09-05 against the real test-mode account, where the products
+already existed as "Chatbot basic/Pro/Premium" in CAD (pre-rebrand naming), not
+"Repondo ..." in USD as an earlier version of this file assumed. If you rename the
+products to the current branding, update `PLANS` to match.
+
 **The webhook signing secret is only ever shown once, at creation.** If you lose it,
 delete the endpoint in the Stripe dashboard and re-run the script to get a fresh one —
 don't try to recover an old secret.
