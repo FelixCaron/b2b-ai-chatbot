@@ -4,6 +4,7 @@ import LoginScreen from './components/LoginScreen';
 import AccessDenied from './components/AccessDenied';
 import TenantsList from './components/TenantsList';
 import TenantDetail from './components/TenantDetail';
+import StaffAdmins from './components/StaffAdmins';
 
 export default function App() {
   if (supabaseConfigurationError) {
@@ -22,6 +23,8 @@ export default function App() {
   // 'checking' | 'denied' | 'granted'
   const [staffStatus, setStaffStatus] = useState('checking');
   const [selectedTenantId, setSelectedTenantId] = useState(null);
+  // 'tenants' | 'staff'
+  const [activeTab, setActiveTab] = useState('tenants');
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -88,7 +91,7 @@ export default function App() {
       <header className="border-b border-white/5 px-6 py-4 flex items-center justify-between">
         <div>
           <h1 className="text-lg font-bold">Repondo — Staff Console</h1>
-          <p className="text-xs text-gray-500">Read-only, cross-tenant. Signed in as {currentUser.email}.</p>
+          <p className="text-xs text-gray-500">Cross-tenant data is read-only. Signed in as {currentUser.email}.</p>
         </div>
         <button
           onClick={handleLogout}
@@ -98,8 +101,29 @@ export default function App() {
         </button>
       </header>
 
+      <nav className="px-6 pt-4 flex gap-2 border-b border-white/5">
+        {[
+          { id: 'tenants', label: 'Tenants' },
+          { id: 'staff', label: 'Staff' },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => { setActiveTab(tab.id); setSelectedTenantId(null); }}
+            className={`text-sm px-3 py-2 border-b-2 -mb-px transition-colors ${
+              activeTab === tab.id
+                ? 'border-brand-500 text-white'
+                : 'border-transparent text-gray-500 hover:text-gray-300'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </nav>
+
       <div className="p-6">
-        {selectedTenantId ? (
+        {activeTab === 'staff' ? (
+          <StaffAdmins />
+        ) : selectedTenantId ? (
           <TenantDetail tenantId={selectedTenantId} onBack={() => setSelectedTenantId(null)} />
         ) : (
           <TenantsList onSelectTenant={setSelectedTenantId} />
