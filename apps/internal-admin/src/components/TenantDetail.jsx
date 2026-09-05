@@ -20,7 +20,7 @@ export default function TenantDetail({ tenantId, onBack }) {
     setError('');
     try {
       const headers = await authenticatedHeaders();
-      const res = await fetch(`/api/staff/tenants/${tenantId}`, { headers });
+      const res = await fetch(`/api/staff/tenants?id=${tenantId}`, { headers });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error || 'Failed to load tenant');
       setData(body);
@@ -40,7 +40,7 @@ export default function TenantDetail({ tenantId, onBack }) {
     setSaveMessage(null);
     try {
       const headers = await authenticatedHeaders();
-      const res = await fetch(`/api/staff/tenants/${tenantId}`, {
+      const res = await fetch(`/api/staff/tenants?id=${tenantId}`, {
         method: 'PATCH',
         headers,
         body: JSON.stringify({ plan, plan_status: planStatus }),
@@ -63,7 +63,7 @@ export default function TenantDetail({ tenantId, onBack }) {
     setDeletingSiteId(site.id);
     try {
       const headers = await authenticatedHeaders();
-      const res = await fetch(`/api/staff/sites/${site.id}`, { method: 'DELETE', headers });
+      const res = await fetch(`/api/staff/sites?id=${site.id}`, { method: 'DELETE', headers });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error || 'Failed to delete site');
       await load();

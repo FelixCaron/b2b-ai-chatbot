@@ -5,6 +5,54 @@ Note (English): Plans were updated — Free was removed. New plans are: Basic ($
 
 ---
 
+## ADR 054 : Gave up on bracket-segment API routes in this Vercel project — query params instead
+
+**Date :** 2026-09-05
+
+### Context
+
+ADR 053's fix (remove the redundant rewrite) was verified deployed — the user confirmed
+via the Vercel dashboard that the exact commit with that fix was the last deployed one —
+and the tenant detail page still failed identically. That ruled out both prior theories
+(file/directory collision, the rewrite) as the actual or complete cause.
+
+### Diagnosis
+
+Tested a second, independent bracket-segment route (`api/staff/sites/[id].js`, added for
+site deletion) with a plain `GET` — Vercel's own docs say a wrong-method request to a real
+function still reaches it and gets whatever the handler returns for an unhandled verb
+(here, a JSON 405). Instead: same `200 text/html` SPA fallback as `tenants/[id].js`. Two
+independent bracket routes, both fully deployed, both failing identically, with every flat
+route in the same `api/staff/` directory working throughout. That's conclusive: this
+specific Vercel project isn't building `[param].js` segments into functions at all, for a
+reason neither of the two prior fixes addressed and this session couldn't further isolate
+without direct access to the project's build logs or a Vercel API token.
+
+### Decision
+
+Stopped trying to fix bracket-segment routing itself and removed the dependency on it
+instead — the id moves from a path segment to a query parameter, a mechanism already
+proven working by every route that was never broken:
+- `api/staff/tenants/index.js` + `api/staff/tenants/[id].js` merged back into one flat
+  `api/staff/tenants.js`, branching on `req.query.id` (absent → list, present → detail/
+  `PATCH`).
+- `api/staff/sites/[id].js` → flat `api/staff/sites.js`, same `?id=` pattern, `DELETE`.
+- Frontend (`TenantDetail.jsx`) fetches updated to `?id=` query strings instead of path
+  segments.
+
+### Consequences
+
+- Both the tenant detail page and the two write actions from ADR 052 work.
+- No more bracket-segment routes anywhere in `apps/internal-admin/api/` — if a future
+  route seems to need one, know going in that this project's Vercel setup doesn't reliably
+  build them, and reach for a query param from the start rather than repeating this
+  three-ADR debugging arc.
+- The actual mechanism behind the failure is still unconfirmed — this is a workaround,
+  not a root-cause fix. Worth re-investigating if this project's Vercel configuration
+  changes (framework preset, builder version) in a way that might explain it.
+
+---
+
 ## ADR 053 : ADR 052's routing fix was real but incomplete — the actual culprit was a redundant rewrite
 
 **Date :** 2026-09-05
