@@ -16,8 +16,13 @@ function walk(dir) {
   return results;
 }
 
+// Every serverless functions directory in the monorepo — root /api (admin +
+// widget's shared API) and each standalone app's own api/ (see
+// apps/internal-admin, deployed as its own Vercel project).
+const API_ROOTS = ['./api', './apps/internal-admin/api'];
+
 async function testImports() {
-  const apiFiles = walk('./api');
+  const apiFiles = API_ROOTS.flatMap((root) => (fs.existsSync(root) ? walk(root) : []));
   let passed = 0;
   let failed = 0;
   for (const file of apiFiles) {
