@@ -93,6 +93,15 @@ Nothing here is scriptable via the Management API yet:
    custom SMTP was already working. Same `PATCH /v1/projects/<ref>/config/auth` endpoint,
    `{"rate_limit_email_sent": 100}` (or your own number) — this field merges fine on its
    own, unlike the SMTP group above.
+6. **Turn off "Secure email change".** Dashboard → Authentication → Sign In / Providers →
+   Email → the "Secure email change" toggle (or `mailer_secure_email_change_enabled` via
+   the same config/auth endpoint). Its default (`true`) requires confirmation from *both*
+   the old and new email on any change — but a guest converting via
+   `updateUser({ email })` has no old email at all, and Supabase fails that confirmation
+   send outright. Confirmed live 2026-09-05: guest conversion (the "Save My Assistant"
+   flow every guest goes through) failed with a generic `Error sending email change
+   email` until this was turned off. `false` means only the new address needs to confirm
+   — the right behavior for this product's signup flow.
 
 ## Manual fallback (no Management API access)
 

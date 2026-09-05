@@ -162,18 +162,22 @@ also asks for:
 - **A subprocessor list.** Supabase, Vercel, OpenRouter, Resend, Stripe, Cloudflare
   Turnstile, Jina Reader are all subprocessors today; `LegalPages.jsx` has the start of
   this but it should be a complete, current list before a security review.
-- **Supabase Auth's URL Configuration, SMTP, and rate limit are still on their
-  new-project defaults.** Confirmed live 2026-09-05, all three bit real login attempts
-  the same day: Site URL defaults to `http://localhost:3000`, so any magic link requested
-  from a domain not yet in Redirect URLs silently redirects there instead — not a code
-  bug, but blocks login from any newly-deployed app (like `apps/internal-admin`) until its
-  domain is added. The default email sender rate-limits after a handful of sign-ins/hour,
-  fine for initial testing but not actual usage — needs custom SMTP (this project already
-  has a Resend account for other transactional email; reuse it). And even with custom
-  SMTP working, `rate_limit_email_sent` — a separate Auth-level throttle, defaulting to
-  2/hour, independent of which mail provider is behind it — still caps every project
-  until raised. All three are one-time dashboard config, not something
-  `scripts/ops/setup-supabase.mjs` does yet — see `docs/setup/supabase.md` steps 3-5.
+- **Supabase Auth's URL Configuration, SMTP, rate limit, and email-change setting are
+  still on their new-project defaults.** Confirmed live 2026-09-05, all four bit real
+  signup/login attempts the same day: Site URL defaults to `http://localhost:3000`, so any
+  magic link requested from a domain not yet in Redirect URLs silently redirects there
+  instead — not a code bug, but blocks login from any newly-deployed app (like
+  `apps/internal-admin`) until its domain is added. The default email sender rate-limits
+  after a handful of sign-ins/hour, fine for initial testing but not actual usage — needs
+  custom SMTP (this project already has a Resend account for other transactional email;
+  reuse it). Even with custom SMTP working, `rate_limit_email_sent` — a separate
+  Auth-level throttle, defaulting to 2/hour, independent of which mail provider is behind
+  it — still caps every project until raised. And "Secure email change" (default `true`)
+  requires confirmation from both the old and new email on any change — but a guest
+  converting to a registered account (`updateUser({ email })`) has no old email at all,
+  so that conversion failed outright with a generic `Error sending email change email`
+  until this was turned off. All four are one-time dashboard config, not something
+  `scripts/ops/setup-supabase.mjs` does yet — see `docs/setup/supabase.md` steps 3-6.
 
 Most of the above is organizational/process work, not code, which is why this list
 documents rather than builds it — flagging it now so it's a deliberate decision rather

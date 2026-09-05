@@ -16,13 +16,16 @@ DNS, business verification).
       `caron.felix2@gmail.com` automatically; add teammates by inserting into that table
       as your team grows)
 - [ ] **Circle back after step 5** (once real Vercel domains exist) to finish
-      Authentication → URL Configuration (Site URL + Redirect URLs), SMTP setup, and
-      raising `rate_limit_email_sent` — see `docs/setup/supabase.md` steps 3-5. Skipping
-      this is exactly what breaks magic-link login: emails redirect to whatever `Site URL`
-      defaults to (`localhost`) until a real domain is in Redirect URLs; the default email
-      sender rate-limits after a handful of logins until custom SMTP is configured; and
-      `rate_limit_email_sent` (Supabase Auth's own throttle, defaults to 2/hour) still
-      applies even after custom SMTP is working — all three confirmed live 2026-09-05.
+      Authentication → URL Configuration (Site URL + Redirect URLs), SMTP setup, raising
+      `rate_limit_email_sent`, and turning off "Secure email change" — see
+      `docs/setup/supabase.md` steps 3-6. Skipping these is exactly what breaks signup and
+      login: emails redirect to whatever `Site URL` defaults to (`localhost`) until a real
+      domain is in Redirect URLs; the default email sender rate-limits after a handful of
+      logins until custom SMTP is configured; `rate_limit_email_sent` (Supabase Auth's own
+      throttle, defaults to 2/hour) still applies even after custom SMTP is working; and
+      guest-to-registered conversion fails outright with "Error sending email change
+      email" until "Secure email change" is off (it has no old email to double-confirm) —
+      all four confirmed live 2026-09-05.
 
 ## 2. Stripe — billing
 - [ ] `STRIPE_SECRET_KEY=sk_test_... VITE_APP_URL=... npm run setup:stripe` (test mode)
