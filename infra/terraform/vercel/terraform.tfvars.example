@@ -6,11 +6,15 @@ vercel_team_id   = null # or "team_xxxxxxxx" / "your-team-slug"
 github_repo      = "FelixCaron/b2b-ai-chatbot"
 project_prefix   = "repondo"
 
-# SUPABASE_SECRET_KEY / VITE_SUPABASE_PUBLISHABLE_KEY: Supabase's new-format
-# API keys (sb_secret_.../sb_publishable_...), not the legacy service_role/anon JWTs.
+# VITE_SUPABASE_URL is the project URL — not a secret, used server- and
+# client-side alike, so there's just the one var, no separate server-only
+# name. SUPABASE_SECRET_KEY / VITE_SUPABASE_PUBLISHABLE_KEY are Supabase's
+# new-format API keys (sb_secret_.../sb_publishable_...), not the legacy
+# service_role/anon JWTs.
 admin_env = {
-  SUPABASE_URL                  = "https://your-project.supabase.co"
+  VITE_SUPABASE_URL             = "https://your-project.supabase.co"
   SUPABASE_SECRET_KEY           = "sb_secret_your-secret-key"
+  VITE_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_your-publishable-key"
   OPENROUTER_API_KEY            = "your-openrouter-api-key"
   STRIPE_SECRET_KEY             = "sk_live_or_test_key"
   STRIPE_WEBHOOK_SECRET         = "whsec_value"
@@ -22,13 +26,10 @@ admin_env = {
   ADMIN_EMAIL                   = "admin@example.com"
   DEFAULT_MODEL                 = "openai/gpt-5.6-luna"
   PREMIUM_MODEL                 = "anthropic/claude-3.5-sonnet"
-  VITE_SUPABASE_URL             = "https://your-project.supabase.co"
-  VITE_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_your-publishable-key"
 }
 
 internal_admin_env = {
-  SUPABASE_URL                  = "https://your-project.supabase.co"
-  SUPABASE_SECRET_KEY           = "sb_secret_your-secret-key"
   VITE_SUPABASE_URL             = "https://your-project.supabase.co"
+  SUPABASE_SECRET_KEY           = "sb_secret_your-secret-key"
   VITE_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_your-publishable-key"
 }

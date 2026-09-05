@@ -5,6 +5,45 @@ Note (English): Plans were updated — Free was removed. New plans are: Basic ($
 
 ---
 
+## ADR 051 : One `VITE_SUPABASE_URL`, not a separate `SUPABASE_URL` for the server
+
+**Date :** 2026-09-05
+
+### Context
+
+`SUPABASE_URL` (server-side) and `VITE_SUPABASE_URL` (client-side) held the identical
+value everywhere — the project URL isn't a secret, so there was never a reason for two
+separate env vars. Asked to keep only the `VITE_` one and use it server-side too.
+
+### Decision
+
+Renamed every server-side `SUPABASE_URL` reference to `VITE_SUPABASE_URL` (`api/lib/server-config.js`
+and every route that builds its own client, `apps/internal-admin`'s equivalents, every
+`scripts/ops`/`scripts/tests` dev script, `.env.example` in both apps, the Terraform
+tfvars example, `CLAUDE.md`, and `docs/`), then removed the now-duplicate `SUPABASE_URL`
+line/entry everywhere it used to sit alongside `VITE_SUPABASE_URL` in the same file or
+config block.
+
+The bulk rename (done with a `(?<!VITE_)SUPABASE_URL` pattern to avoid double-prefixing
+already-`VITE_`-named vars) had two real casualties, caught by re-running the full test
+suite and both app builds afterward rather than trusting the sed: `playwright.config.js`
+imported `MOCK_SUPABASE_URL` from the E2E mock backend — an unrelated test-only constant
+name that happens to contain the substring "SUPABASE_URL" — which the pattern matched and
+mangled into `MOCK_VITE_SUPABASE_URL`, an import that doesn't exist; and
+`scripts/tests/test-supabase-live.cjs` had a `process.env.SUPABASE_URL ||
+process.env.VITE_SUPABASE_URL` fallback that became a tautological `X || X` once both
+sides read the same name. Both fixed by hand; the Playwright config was also re-verified
+to load without error afterward.
+
+### Consequences
+
+- One URL env var (`VITE_SUPABASE_URL`) everywhere, server and client alike — matches how
+  it was already being used in practice (identical value, not a secret).
+- Same breaking-change caveat as ADR 050: anywhere already deployed under the old
+  `SUPABASE_URL` name needs it renamed to `VITE_SUPABASE_URL`, not just re-valued.
+
+---
+
 ## ADR 050 : Two corrections to ADR 049 — no secrets in script output, and rename the env vars after all
 
 **Date :** 2026-09-05

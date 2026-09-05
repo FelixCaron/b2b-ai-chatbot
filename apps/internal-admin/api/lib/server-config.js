@@ -15,11 +15,11 @@ export function requireServerEnv(...names) {
 }
 
 export function createServiceRoleClient() {
-  const { SUPABASE_URL, SUPABASE_SECRET_KEY } = requireServerEnv(
-    'SUPABASE_URL',
+  const { VITE_SUPABASE_URL, SUPABASE_SECRET_KEY } = requireServerEnv(
+    'VITE_SUPABASE_URL',
     'SUPABASE_SECRET_KEY'
   );
-  return createClient(SUPABASE_URL.trim(), SUPABASE_SECRET_KEY.trim());
+  return createClient(VITE_SUPABASE_URL.trim(), SUPABASE_SECRET_KEY.trim());
 }
 
 function readAuthorizationHeader(req) {

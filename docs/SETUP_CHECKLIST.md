@@ -11,8 +11,7 @@ DNS, business verification).
 - [ ] `npm run setup:supabase` — creates the project (or reuses it) and applies
       `supabase/migrations/20260905000000_consolidated_schema.sql`
 - [ ] Enable email auth (magic link) in the dashboard
-- [ ] Copy `SUPABASE_URL` / `VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY` /
-      `SUPABASE_SECRET_KEY`
+- [ ] Copy `VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY` / `SUPABASE_SECRET_KEY`
 - [ ] Confirm your own account landed in `internal.staff_admins` (the migration seeds
       `caron.felix2@gmail.com` automatically; add teammates by inserting into that table
       as your team grows)

@@ -35,9 +35,9 @@ variable "admin_env" {
 variable "internal_admin_env" {
   description = <<-EOT
     Env vars for the internal staff-admin project — same Supabase project as
-    admin_env (SUPABASE_URL / SUPABASE_SECRET_KEY / VITE_SUPABASE_URL /
-    VITE_SUPABASE_PUBLISHABLE_KEY), no Stripe/OpenRouter/Resend keys needed here since
-    this app only ever reads tenant metadata, never calls those integrations.
+    admin_env (VITE_SUPABASE_URL / SUPABASE_SECRET_KEY / VITE_SUPABASE_PUBLISHABLE_KEY),
+    no Stripe/OpenRouter/Resend keys needed here since this app only ever reads
+    tenant metadata, never calls those integrations.
   EOT
   type        = map(string)
   sensitive   = true

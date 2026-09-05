@@ -6,10 +6,10 @@ export const config = {
   runtime: 'edge',
 };
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
+const VITE_SUPABASE_URL = process.env.VITE_SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SECRET_KEY;
 
-const supabase = (SUPABASE_URL && SERVICE_ROLE_KEY) ? createClient(SUPABASE_URL, SERVICE_ROLE_KEY) : null;
+const supabase = (VITE_SUPABASE_URL && SERVICE_ROLE_KEY) ? createClient(VITE_SUPABASE_URL, SERVICE_ROLE_KEY) : null;
 
 // Simple memory cache for basic Edge Rate Limiting (per isolate)
 const rateLimitMap = new Map();

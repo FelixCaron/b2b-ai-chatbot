@@ -4,7 +4,7 @@ import WebSocket from 'ws';
 
 globalThis.WebSocket = WebSocket;
 
-if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SECRET_KEY) {
+if (!process.env.VITE_SUPABASE_URL || !process.env.SUPABASE_SECRET_KEY) {
   try {
     const envContent = readFileSync(resolve("apps/admin/.env.local"), "utf-8");
     for (const line of envContent.split("\n")) {
@@ -14,11 +14,11 @@ if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SECRET_KEY) {
   } catch {}
 }
 
-if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SECRET_KEY) throw new Error('SUPABASE_URL and SUPABASE_SECRET_KEY are required');
+if (!process.env.VITE_SUPABASE_URL || !process.env.SUPABASE_SECRET_KEY) throw new Error('VITE_SUPABASE_URL and SUPABASE_SECRET_KEY are required');
 
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SECRET_KEY);
+const supabase = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SECRET_KEY);
 
 async function cleanDbSummaries() {
   console.log("=== CLEANING DB SITE SUMMARIES FROM SYSTEM META NOISE ===");

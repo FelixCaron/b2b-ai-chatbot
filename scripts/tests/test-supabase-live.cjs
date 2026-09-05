@@ -2,24 +2,24 @@
 globalThis.WebSocket = WebSocket;
 const { createClient } = require('@supabase/supabase-js');
 
-// Read from env rather than hardcoding — even though the anon key is meant
-// to be public, hardcoding *any* credential (even a benign one) in a script
-// makes it indistinguishable from a real leak at a glance, and trips the
-// repo's committed-secrets scanner (scripts/ops/check-no-secrets.cjs) on
-// every run. Set SUPABASE_URL / SUPABASE_ANON_KEY (or VITE_SUPABASE_URL /
-// VITE_SUPABASE_PUBLISHABLE_KEY, same values apps/admin uses) before running this.
-const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+// Read from env rather than hardcoding — even though the publishable key is
+// meant to be public, hardcoding *any* credential (even a benign one) in a
+// script makes it indistinguishable from a real leak at a glance, and trips
+// the repo's committed-secrets scanner (scripts/ops/check-no-secrets.cjs) on
+// every run. Set VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY (same
+// values apps/admin uses) before running this.
+const VITE_SUPABASE_URL = process.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  throw new Error('SUPABASE_URL and SUPABASE_ANON_KEY (or VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY) are required');
+if (!VITE_SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  throw new Error('VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY are required');
 }
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const supabase = createClient(VITE_SUPABASE_URL, SUPABASE_ANON_KEY);
 
 async function testLiveSupabase() {
   console.log('--- 1. Testing Connection to Supabase ---');
-  console.log('URL:', SUPABASE_URL);
+  console.log('URL:', VITE_SUPABASE_URL);
 
   console.log('\n--- 2. Testing Anonymous Sign-In ---');
   const { data: authData, error: authError } = await supabase.auth.signInAnonymously();

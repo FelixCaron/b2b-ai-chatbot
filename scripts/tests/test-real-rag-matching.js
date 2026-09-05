@@ -1,7 +1,7 @@
 ﻿import { readFileSync } from 'fs';
 import { resolve } from 'path';
 
-if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SECRET_KEY) {
+if (!process.env.VITE_SUPABASE_URL || !process.env.SUPABASE_SECRET_KEY) {
   try {
     const envContent = readFileSync(resolve("apps/admin/.env.local"), "utf-8");
     for (const line of envContent.split("\n")) {
@@ -11,17 +11,17 @@ if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SECRET_KEY) {
   } catch {}
 }
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
+const VITE_SUPABASE_URL = process.env.VITE_SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SECRET_KEY;
 const JINA_API_KEY = process.env.JINA_API_KEY;
-if (!SUPABASE_URL || !SERVICE_ROLE_KEY || !JINA_API_KEY) throw new Error('SUPABASE_URL, SUPABASE_SECRET_KEY and JINA_API_KEY are required');
+if (!VITE_SUPABASE_URL || !SERVICE_ROLE_KEY || !JINA_API_KEY) throw new Error('VITE_SUPABASE_URL, SUPABASE_SECRET_KEY and JINA_API_KEY are required');
 
 import { createClient } from "@supabase/supabase-js";
 import WebSocket from "ws";
 
 globalThis.WebSocket = WebSocket;
 
-const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+const supabase = createClient(VITE_SUPABASE_URL, SERVICE_ROLE_KEY);
 
 async function generateQueryEmbedding(text) {
   try {

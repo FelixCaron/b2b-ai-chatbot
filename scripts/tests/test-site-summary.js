@@ -13,7 +13,7 @@ import WebSocket from "ws";
 globalThis.WebSocket = WebSocket;
 
 // Multi-environment config resolution
-if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SECRET_KEY) {
+if (!process.env.VITE_SUPABASE_URL || !process.env.SUPABASE_SECRET_KEY) {
   try {
     const { readFileSync } = await import('fs');
     const { resolve } = await import('path');
@@ -25,12 +25,12 @@ if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SECRET_KEY) {
   } catch {}
 }
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
+const VITE_SUPABASE_URL = process.env.VITE_SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SECRET_KEY;
-if (!SUPABASE_URL || !SERVICE_ROLE_KEY) throw new Error('SUPABASE_URL and SUPABASE_SECRET_KEY are required');
+if (!VITE_SUPABASE_URL || !SERVICE_ROLE_KEY) throw new Error('VITE_SUPABASE_URL and SUPABASE_SECRET_KEY are required');
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
-const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+const supabase = createClient(VITE_SUPABASE_URL, SERVICE_ROLE_KEY);
 
 const TEST_TENANT_ID = "0610bdac-96ec-48b2-99f5-f743d203dacd"; // De La Fontaine Inc. test tenant
 

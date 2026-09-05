@@ -3,11 +3,11 @@ import WebSocket from "ws";
 
 globalThis.WebSocket = WebSocket;
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
+const VITE_SUPABASE_URL = process.env.VITE_SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SECRET_KEY;
-if (!SUPABASE_URL || !SERVICE_ROLE_KEY) throw new Error('SUPABASE_URL and SUPABASE_SECRET_KEY are required');
+if (!VITE_SUPABASE_URL || !SERVICE_ROLE_KEY) throw new Error('VITE_SUPABASE_URL and SUPABASE_SECRET_KEY are required');
 
-const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+const supabase = createClient(VITE_SUPABASE_URL, SERVICE_ROLE_KEY);
 
 async function runE2ETests() {
   console.log("==================================================");

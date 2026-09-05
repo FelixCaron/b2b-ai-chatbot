@@ -139,9 +139,8 @@ async function main() {
   console.log(`actual values yourself from the dashboard, this script won't print them:`);
   console.log(`  https://supabase.com/dashboard/project/${project.id}/settings/api-keys`);
   console.log('');
-  console.log('  SUPABASE_URL                  <- "Project URL" on that page');
+  console.log('  VITE_SUPABASE_URL             <- "Project URL" on that page (used server- and client-side, one var)');
   console.log('  SUPABASE_SECRET_KEY           <- the `secret` key (sb_secret_...), NOT the legacy service_role JWT');
-  console.log('  VITE_SUPABASE_URL             <- same Project URL');
   console.log('  VITE_SUPABASE_PUBLISHABLE_KEY <- the `publishable` key (sb_publishable_...), NOT the legacy anon JWT');
   console.log('\nAfter this, regenerate packages/shared/src/database.types.ts with:');
   console.log(`  npx supabase gen types typescript --project-id ${project.id} > packages/shared/src/database.types.ts`);

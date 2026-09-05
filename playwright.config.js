@@ -47,11 +47,12 @@ export default defineConfig({
       VITE_SUPABASE_PUBLISHABLE_KEY: MOCK_ANON_KEY,
       // apps/admin's Vite dev plugin executes the real /api/** handlers as a
       // dev convenience; our tests intercept those requests in-browser
-      // before they ever reach it, but give it harmless placeholder server
-      // env vars anyway so it doesn't log a scary (and here, irrelevant)
+      // before they ever reach it, but give it a harmless placeholder server
+      // secret anyway so it doesn't log a scary (and here, irrelevant)
       // "Missing required server configuration" error if a request ever did
-      // slip through.
-      SUPABASE_URL: MOCK_SUPABASE_URL,
+      // slip through. The server-side code reads the same VITE_SUPABASE_URL
+      // above for its own Supabase client — one URL, no separate server-only
+      // env var for it.
       SUPABASE_SECRET_KEY: 'mock-service-role-key-for-e2e-tests',
     },
   },

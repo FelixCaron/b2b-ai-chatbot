@@ -44,7 +44,8 @@ Nothing here is scriptable via the Management API yet:
    in a script's stdout ends up in shell history, CI logs, anywhere output gets captured) —
    it only tells you which env vars to set and links to the dashboard page. Copy the actual
    values yourself: Dashboard → Project Settings → **API Keys** (not the "Legacy API keys" tab):
-   - `Project URL` → `SUPABASE_URL` (server) and `VITE_SUPABASE_URL` (client)
+   - `Project URL` → `VITE_SUPABASE_URL` — one var, used server- and client-side alike
+     (it's not a secret, so there's no separate server-only name for it)
    - `publishable` key (`sb_publishable_...`) → `VITE_SUPABASE_PUBLISHABLE_KEY`
    - `secret` key (`sb_secret_...`) → `SUPABASE_SECRET_KEY` — **never** put this behind
      a `VITE_` prefix or anywhere that ships to the browser. Its full value is only ever

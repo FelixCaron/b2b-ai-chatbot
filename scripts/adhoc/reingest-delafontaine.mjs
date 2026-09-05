@@ -30,10 +30,10 @@ if (!process.env.JINA_API_KEY) {
   } catch {}
 }
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
+const VITE_SUPABASE_URL = process.env.VITE_SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SECRET_KEY;
-if (!SUPABASE_URL || !SERVICE_ROLE_KEY) throw new Error('SUPABASE_URL and SUPABASE_SECRET_KEY are required');
-const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+if (!VITE_SUPABASE_URL || !SERVICE_ROLE_KEY) throw new Error('VITE_SUPABASE_URL and SUPABASE_SECRET_KEY are required');
+const supabase = createClient(VITE_SUPABASE_URL, SERVICE_ROLE_KEY);
 
 const TENANT_ID = "0610bdac-96ec-48b2-99f5-f743d203dacd";
 const SITE_ID   = "89c72e40-a204-4fc0-925e-27348d84ae6e";
