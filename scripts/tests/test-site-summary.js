@@ -13,7 +13,7 @@ import WebSocket from "ws";
 globalThis.WebSocket = WebSocket;
 
 // Multi-environment config resolution
-if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SECRET_KEY) {
   try {
     const { readFileSync } = await import('fs');
     const { resolve } = await import('path');
@@ -26,8 +26,8 @@ if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
 }
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-if (!SUPABASE_URL || !SERVICE_ROLE_KEY) throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required');
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SECRET_KEY;
+if (!SUPABASE_URL || !SERVICE_ROLE_KEY) throw new Error('SUPABASE_URL and SUPABASE_SECRET_KEY are required');
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);

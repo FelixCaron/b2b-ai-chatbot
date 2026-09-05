@@ -4,8 +4,8 @@ export const config = {
   runtime: 'edge',
 };
 
-const supabase = (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY)
-  ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+const supabase = (process.env.SUPABASE_URL && process.env.SUPABASE_SECRET_KEY)
+  ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SECRET_KEY)
   : null;
 
 export default async function handler(req) {

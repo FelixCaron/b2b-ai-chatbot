@@ -14,14 +14,21 @@
 //   STRIPE_SECRET_KEY=sk_test_... VITE_APP_URL=https://your-admin-domain.example \
 //     node scripts/ops/setup-stripe.mjs
 //
-// Prints the STRIPE_PRICE_ID_* and STRIPE_WEBHOOK_SECRET values to paste into
-// your env (Vercel project settings, or infra/terraform/vercel/terraform.tfvars).
+// Prints the STRIPE_PRICE_ID_* values (not secrets — just resource ids) to
+// paste into your env. STRIPE_WEBHOOK_SECRET is a real credential and is
+// never printed to stdout — on creation it's written to a throwaway file
+// under your OS temp dir instead (path printed, not the value); on an
+// already-existing webhook it can't be recovered at all (Stripe only shows
+// it once), delete and re-run to get a fresh one.
 //
 // See docs/setup/stripe.md for the manual fallback and what this script
 // cannot do for you (creating the Stripe account itself, business
 // verification before switching to live mode).
 
 import Stripe from 'stripe';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
 if (!STRIPE_SECRET_KEY) {
@@ -125,6 +132,9 @@ async function ensureWebhook(url) {
 async function main() {
   console.log(`Setting up Stripe resources against ${STRIPE_SECRET_KEY.startsWith('sk_live') ? 'LIVE' : 'TEST'} mode...\n`);
 
+  // Price IDs are resource identifiers, not credentials — safe to print
+  // (same category as a product SKU, not a bearer token). The webhook
+  // signing secret below is a real credential and is handled differently.
   const envLines = [];
 
   for (const plan of PLANS) {
@@ -137,10 +147,22 @@ async function main() {
   console.log(`\nWebhook endpoint:`);
   const webhookUrl = `${APP_URL.replace(/\/$/, '')}/api/billing/webhook`;
   const { secret } = await ensureWebhook(webhookUrl);
-  if (secret) envLines.push(`STRIPE_WEBHOOK_SECRET=${secret}`);
 
   console.log('\nDone. Env vars to set (Vercel project settings, or terraform.tfvars):\n');
   console.log(envLines.join('\n'));
+
+  if (secret) {
+    // The webhook secret is a real credential and, unlike Supabase's API
+    // keys, Stripe never lets you re-fetch it later — this is the only
+    // moment it exists outside Stripe's own systems. Still don't dump it to
+    // stdout (shell history, CI logs, terminal recordings all capture that):
+    // write it to a throwaway file outside the repo instead, and delete it
+    // once you've copied it into Vercel.
+    const outFile = path.join(os.tmpdir(), `stripe-webhook-secret-${Date.now()}.txt`);
+    fs.writeFileSync(outFile, `STRIPE_WEBHOOK_SECRET=${secret}\n`, { mode: 0o600 });
+    console.log(`STRIPE_WEBHOOK_SECRET=<written to ${outFile}, not printed here>`);
+    console.log(`Copy it into Vercel, then delete that file — it won't be shown again.`);
+  }
 }
 
 main().catch((err) => {

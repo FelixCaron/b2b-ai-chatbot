@@ -40,12 +40,13 @@ Nothing here is scriptable via the Management API yet:
    Turn off "Confirm email" only if you want guests to convert without clicking a
    confirmation link first (the product also supports anonymous sign-in, converted to a
    real account on first "save").
-2. **Copy your keys.** `npm run setup:supabase` already prints these at the end (fetched via
-   the Management API's `/api-keys?reveal=true`) — this step is only needed if you're doing
-   it by hand. Dashboard → Project Settings → **API Keys** (not the "Legacy API keys" tab):
+2. **Copy your keys.** `npm run setup:supabase` deliberately does NOT print these (a secret
+   in a script's stdout ends up in shell history, CI logs, anywhere output gets captured) —
+   it only tells you which env vars to set and links to the dashboard page. Copy the actual
+   values yourself: Dashboard → Project Settings → **API Keys** (not the "Legacy API keys" tab):
    - `Project URL` → `SUPABASE_URL` (server) and `VITE_SUPABASE_URL` (client)
-   - `publishable` key (`sb_publishable_...`) → `VITE_SUPABASE_ANON_KEY`
-   - `secret` key (`sb_secret_...`) → `SUPABASE_SERVICE_ROLE_KEY` — **never** put this behind
+   - `publishable` key (`sb_publishable_...`) → `VITE_SUPABASE_PUBLISHABLE_KEY`
+   - `secret` key (`sb_secret_...`) → `SUPABASE_SECRET_KEY` — **never** put this behind
      a `VITE_` prefix or anywhere that ships to the browser. Its full value is only ever
      shown once (at creation, or via that `reveal=true` API call) — if you've lost it,
      generate a new secret key rather than trying to recover the old one.

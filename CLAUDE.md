@@ -24,18 +24,18 @@ All API endpoints live in `/api/` and are deployed with the root Vercel project:
 - Use Supabase CLI and Raw SQL migrations.
 - Strict RLS enabled on `tenants`, `sites`, `documents`, `messages`, `leads`.
 - Secret key used ONLY in server-side API routes with manual tenant isolation (`tenant_id`).
-- Frontend uses the publishable key only (via `import.meta.env.VITE_SUPABASE_ANON_KEY`).
-- Use Supabase's new-format API keys (`sb_publishable_...` / `sb_secret_...`, Project Settings → API Keys), not the legacy anon/service_role JWTs — the env var *names* below are unchanged (still `SUPABASE_SERVICE_ROLE_KEY` / `VITE_SUPABASE_ANON_KEY`), only the key *format* they hold has moved on.
+- Frontend uses the publishable key only (via `import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY`).
+- Use Supabase's new-format API keys (`sb_publishable_...` / `sb_secret_...`, Project Settings → API Keys), not the legacy anon/service_role JWTs — the env var *names* below are unchanged (still `SUPABASE_SECRET_KEY` / `VITE_SUPABASE_PUBLISHABLE_KEY`), only the key *format* they hold has moved on.
 
 ## Environment Variables
 ### Vercel (Server-side, api/ routes):
 - `SUPABASE_URL` — Supabase project URL
-- `SUPABASE_SERVICE_ROLE_KEY` — Secret key, new format `sb_secret_...` (never exposed to frontend)
+- `SUPABASE_SECRET_KEY` — Secret key, new format `sb_secret_...` (never exposed to frontend)
 - `OPENROUTER_API_KEY` — OpenRouter API key
 
 ### Vite (Client-side, apps/admin):
 - `VITE_SUPABASE_URL` — Supabase project URL
-- `VITE_SUPABASE_ANON_KEY` — Public publishable key, new format `sb_publishable_...`
+- `VITE_SUPABASE_PUBLISHABLE_KEY` — Public publishable key, new format `sb_publishable_...`
 
 ## ⚠️ Core Engineering & Bug Fixing Guidelines
 1. **General Solutions Only**: When addressing bugs, ALWAYS fix the underlying system architecture. NEVER write one-off scripts to populate specific domains or create domain-specific hardcoded fallbacks.

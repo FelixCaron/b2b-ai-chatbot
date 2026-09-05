@@ -44,7 +44,7 @@ export default defineConfig({
     timeout: 60_000,
     env: {
       VITE_SUPABASE_URL: MOCK_SUPABASE_URL,
-      VITE_SUPABASE_ANON_KEY: MOCK_ANON_KEY,
+      VITE_SUPABASE_PUBLISHABLE_KEY: MOCK_ANON_KEY,
       // apps/admin's Vite dev plugin executes the real /api/** handlers as a
       // dev convenience; our tests intercept those requests in-browser
       // before they ever reach it, but give it harmless placeholder server
@@ -52,7 +52,7 @@ export default defineConfig({
       // "Missing required server configuration" error if a request ever did
       // slip through.
       SUPABASE_URL: MOCK_SUPABASE_URL,
-      SUPABASE_SERVICE_ROLE_KEY: 'mock-service-role-key-for-e2e-tests',
+      SUPABASE_SECRET_KEY: 'mock-service-role-key-for-e2e-tests',
     },
   },
   projects: [

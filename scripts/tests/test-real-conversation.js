@@ -1,7 +1,7 @@
 ﻿import { readFileSync } from 'fs';
 import { resolve } from 'path';
 
-if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SECRET_KEY) {
   try {
     const envContent = readFileSync(resolve("apps/admin/.env.local"), "utf-8");
     for (const line of envContent.split("\n")) {
@@ -11,14 +11,14 @@ if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
   } catch {}
 }
 
-if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required');
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SECRET_KEY) throw new Error('SUPABASE_URL and SUPABASE_SECRET_KEY are required');
 
 import { createClient } from "@supabase/supabase-js";
 import WebSocket from "ws";
 
 globalThis.WebSocket = WebSocket;
 
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SECRET_KEY);
 
 async function runRealConversationTest() {
   console.log("==========================================================================");

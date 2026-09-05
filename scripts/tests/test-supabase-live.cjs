@@ -7,12 +7,12 @@ const { createClient } = require('@supabase/supabase-js');
 // makes it indistinguishable from a real leak at a glance, and trips the
 // repo's committed-secrets scanner (scripts/ops/check-no-secrets.cjs) on
 // every run. Set SUPABASE_URL / SUPABASE_ANON_KEY (or VITE_SUPABASE_URL /
-// VITE_SUPABASE_ANON_KEY, same values apps/admin uses) before running this.
+// VITE_SUPABASE_PUBLISHABLE_KEY, same values apps/admin uses) before running this.
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  throw new Error('SUPABASE_URL and SUPABASE_ANON_KEY (or VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY) are required');
+  throw new Error('SUPABASE_URL and SUPABASE_ANON_KEY (or VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY) are required');
 }
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);

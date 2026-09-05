@@ -5,6 +5,46 @@ Note (English): Plans were updated — Free was removed. New plans are: Basic ($
 
 ---
 
+## ADR 050 : Two corrections to ADR 049 — no secrets in script output, and rename the env vars after all
+
+**Date :** 2026-09-05
+
+### Context
+
+Two pieces of user feedback on ADR 049's implementation, same day: (1) `setup-supabase.mjs`
+was fetching and printing the actual `sb_secret_...`/`sb_publishable_...` key values to
+stdout — a real credential in terminal output, which can end up in shell history, CI logs,
+or a screen recording; (2) ADR 049 deliberately kept the old env var *names*
+(`SUPABASE_SERVICE_ROLE_KEY`, `VITE_SUPABASE_ANON_KEY`) to minimize the diff — explicitly
+asked to rename them to match the new key terminology instead.
+
+### Decisions
+
+1. **Never print a live secret to stdout, in any setup script.** `setup-supabase.mjs` no
+   longer fetches or prints key values at all — it prints which env vars to set and a
+   dashboard link, nothing else; you copy the actual values yourself. `setup-stripe.mjs`'s
+   webhook secret (a real credential, and — unlike Supabase's keys — one Stripe never lets
+   you re-fetch after creation) is now written to a throwaway file under the OS temp
+   directory instead of stdout, with only the file path printed. Plan/price identifiers
+   (`price_...`) aren't credentials and are still printed — same category as a product SKU.
+2. **Renamed the env vars everywhere**, not just their values: `SUPABASE_SERVICE_ROLE_KEY` →
+   `SUPABASE_SECRET_KEY`, `VITE_SUPABASE_ANON_KEY` → `VITE_SUPABASE_PUBLISHABLE_KEY`
+   (`SUPABASE_URL`/`VITE_SUPABASE_URL` unaffected — they were never tied to the key format).
+   Applied everywhere the old names appeared: every `api/`/`apps/*` source file, both
+   `.env.example` files, `infra/terraform/vercel/`, `CLAUDE.md`, and `docs/`. No backward-
+   compatible fallback for the old names — a clean rename, since nothing is silently reading
+   the old name and getting an unexpected value.
+
+### Consequences
+
+- Re-running `npm run setup:supabase`/`setup:stripe` no longer risks leaking a credential
+  into anything that captures terminal output.
+- Anywhere already deployed under the old env var names needs updating to the new names,
+  not just new values, before its next deploy — same caveat ADR 049 already noted about not
+  being able to check or update a live Vercel deployment from this session.
+
+---
+
 ## ADR 049 : Migrated to Supabase's new-format API keys, off the legacy anon/service_role JWTs
 
 **Date :** 2026-09-05
