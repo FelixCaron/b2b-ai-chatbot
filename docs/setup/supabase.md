@@ -80,10 +80,19 @@ Nothing here is scriptable via the Management API yet:
    Sender name: Repondo
    ```
    Same fix is reachable via the Management API's `PATCH /v1/projects/<ref>/config/auth`
-   (`smtp_host`/`smtp_port`/`smtp_user`/`smtp_pass`/`smtp_sender_name`/`smtp_admin_email`),
-   scriptable the same way as the rest of this setup if you want it in
+   (`smtp_host`/`smtp_port`/`smtp_user`/`smtp_pass`/`smtp_sender_name`/`smtp_admin_email`) —
+   **send all six together**: confirmed live 2026-09-05, PATCHing `smtp_pass` alone doesn't
+   merge, it silently clears `smtp_host`/`smtp_port`/`smtp_user` to null instead. Also,
+   `smtp_port` must be a string (`"465"`), not a number — the API 400s otherwise.
+   Scriptable the same way as the rest of this setup if you want it in
    `scripts/ops/setup-supabase.mjs` later — not added there yet since it needs the Resend
    API key as an extra input this script doesn't otherwise take.
+5. **Raise `rate_limit_email_sent`.** Separate from both of the above, and separate from
+   which SMTP provider is configured — this is Supabase Auth's own throttle and applies
+   regardless: confirmed live 2026-09-05, still capped at the default (2/hour) even after
+   custom SMTP was already working. Same `PATCH /v1/projects/<ref>/config/auth` endpoint,
+   `{"rate_limit_email_sent": 100}` (or your own number) — this field merges fine on its
+   own, unlike the SMTP group above.
 
 ## Manual fallback (no Management API access)
 

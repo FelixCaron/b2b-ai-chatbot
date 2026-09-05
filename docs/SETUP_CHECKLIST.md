@@ -16,12 +16,13 @@ DNS, business verification).
       `caron.felix2@gmail.com` automatically; add teammates by inserting into that table
       as your team grows)
 - [ ] **Circle back after step 5** (once real Vercel domains exist) to finish
-      Authentication → URL Configuration (Site URL + Redirect URLs) and SMTP setup — see
-      `docs/setup/supabase.md` steps 3-4. Skipping this is exactly what breaks magic-link
-      login: emails redirect to whatever `Site URL` defaults to (`localhost`) until a
-      real domain is added to Redirect URLs, and Supabase's default email sender rate-limits
-      after a handful of logins until custom SMTP is configured — both confirmed live
-      2026-09-05.
+      Authentication → URL Configuration (Site URL + Redirect URLs), SMTP setup, and
+      raising `rate_limit_email_sent` — see `docs/setup/supabase.md` steps 3-5. Skipping
+      this is exactly what breaks magic-link login: emails redirect to whatever `Site URL`
+      defaults to (`localhost`) until a real domain is in Redirect URLs; the default email
+      sender rate-limits after a handful of logins until custom SMTP is configured; and
+      `rate_limit_email_sent` (Supabase Auth's own throttle, defaults to 2/hour) still
+      applies even after custom SMTP is working — all three confirmed live 2026-09-05.
 
 ## 2. Stripe — billing
 - [ ] `STRIPE_SECRET_KEY=sk_test_... VITE_APP_URL=... npm run setup:stripe` (test mode)
