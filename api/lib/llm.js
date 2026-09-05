@@ -377,6 +377,99 @@ STRICT INSTRUCTION: Be factual and direct. Do NOT add any preamble or system met
   }
 }
 
+const WELCOME_EXPERIENCE_FALLBACK = {
+  language: 'en',
+  welcome_message: 'Hello! How can I help you today?',
+  ui_status_title: 'Virtual Assistant',
+  ui_status_online: 'Online',
+  ui_input_placeholder: 'Ask a question...',
+};
+
+/**
+ * Detects the language the scanned site's own content is written in, and
+ * generates the widget's localized first-impression text in that language:
+ * the greeting shown before a visitor says anything, plus the small chrome
+ * labels around it (header title, status line, input placeholder) — kept
+ * separate from generateWebsiteSummary(), which stays in English on purpose
+ * (that summary only ever feeds the model's own context, never shown to a
+ * visitor directly, and changing its language isn't part of this).
+ *
+ * Deliberately generated once per site (called from the same scan/summarize
+ * pipeline as generateWebsiteSummary(), see api/crawler/scan.js and
+ * summarize.js) and cached on site_summaries, not regenerated per visitor —
+ * an LLM call on every widget load would add real latency and cost to every
+ * page view for text that doesn't change between visits.
+ */
+export async function generateWelcomeExperience({ content, targetUrl, apiKey }) {
+  if (TEST_MODE) {
+    console.log('[TEST_MODE Delafontaine] Welcome experience simulée.');
+    return {
+      language: 'fr',
+      welcome_message: "Bonjour ! Je suis l'assistant virtuel de Portes Delafontaine. Comment puis-je vous aider avec votre projet de portes en acier aujourd'hui ?",
+      ui_status_title: 'Assistant Delafontaine',
+      ui_status_online: 'En ligne',
+      ui_input_placeholder: 'Posez votre question...',
+    };
+  }
+
+  const openRouterKey = process.env.OPENROUTER_API_KEY || apiKey;
+  if (!openRouterKey) return WELCOME_EXPERIENCE_FALLBACK;
+
+  const prompt = `Below is raw content extracted from the website ${targetUrl}. Two things:
+
+1. Detect the primary language this content is actually written in (an ISO 639-1 code, e.g. "en", "fr", "es", "de", "pt").
+2. In THAT language, write the small set of text a chat widget embedded on this site needs before a visitor has said anything:
+   - "welcome_message": a short, natural, friendly first message (1-2 sentences) from the assistant, specific enough to this business that it doesn't read as generic boilerplate — e.g. naming what it can help with (products, support, booking, etc. — whatever fits this site).
+   - "ui_status_title": the widget header title (equivalent to "Virtual Assistant" — can reference the brand name if natural).
+   - "ui_status_online": the short status line under it (equivalent to "Online").
+   - "ui_input_placeholder": the message input's placeholder text (equivalent to "Ask a question...").
+
+Respond strictly in raw JSON, no markdown or backticks:
+{"language": "xx", "welcome_message": "...", "ui_status_title": "...", "ui_status_online": "...", "ui_input_placeholder": "..."}`;
+
+  try {
+    const res = await fetch(OPENROUTER_BASE_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openRouterKey}`,
+        'HTTP-Referer': 'https://admin-seven-alpha-37.vercel.app',
+        'X-Title': 'Repondo',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'openai/gpt-5.6-luna',
+        messages: [{ role: 'user', content: `${prompt}\n\nWebsite content:\n${content.slice(0, 8000)}` }],
+        temperature: 0.4
+      })
+    });
+
+    if (!res.ok) {
+      console.error(`[generateWelcomeExperience] OpenRouter error ${res.status}:`, await res.text());
+      return WELCOME_EXPERIENCE_FALLBACK;
+    }
+
+    const data = await res.json();
+    const text = data.choices?.[0]?.message?.content || '';
+    const match = text.match(/\{[\s\S]*\}/);
+    if (!match) return WELCOME_EXPERIENCE_FALLBACK;
+
+    const parsed = JSON.parse(match[0]);
+    return {
+      language: parsed.language || WELCOME_EXPERIENCE_FALLBACK.language,
+      welcome_message: parsed.welcome_message || WELCOME_EXPERIENCE_FALLBACK.welcome_message,
+      ui_status_title: parsed.ui_status_title || WELCOME_EXPERIENCE_FALLBACK.ui_status_title,
+      ui_status_online: parsed.ui_status_online || WELCOME_EXPERIENCE_FALLBACK.ui_status_online,
+      ui_input_placeholder: parsed.ui_input_placeholder || WELCOME_EXPERIENCE_FALLBACK.ui_input_placeholder,
+    };
+  } catch (e) {
+    // Never block a scan on this — a missing localized welcome falls back
+    // to the same English defaults the widget always used before this
+    // feature existed, not an error surfaced to the tenant.
+    console.warn('[generateWelcomeExperience] error, using fallback:', e.message);
+    return WELCOME_EXPERIENCE_FALLBACK;
+  }
+}
+
 
 
 

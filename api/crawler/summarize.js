@@ -1,4 +1,4 @@
-﻿import { generateWebsiteSummary } from '../lib/llm.js';
+﻿import { generateWebsiteSummary, generateWelcomeExperience } from '../lib/llm.js';
 import { createServiceRoleClient, requireSiteOwnership } from '../lib/server-config.js';
 import { assertSafeExternalUrl } from '../lib/url-security.js';
 
@@ -81,11 +81,18 @@ export default async function handler(req) {
       });
     }
 
-    const summaryText = await generateWebsiteSummary({
-      content: websiteContent,
-      targetUrl: targetUrl || 'Website',
-      apiKey: process.env.OPENROUTER_API_KEY
-    });
+    const [summaryText, welcomeExperience] = await Promise.all([
+      generateWebsiteSummary({
+        content: websiteContent,
+        targetUrl: targetUrl || 'Website',
+        apiKey: process.env.OPENROUTER_API_KEY
+      }),
+      generateWelcomeExperience({
+        content: websiteContent,
+        targetUrl: targetUrl || 'Website',
+        apiKey: process.env.OPENROUTER_API_KEY
+      }),
+    ]);
 
     if (!summaryText) {
       return new Response(JSON.stringify({ error: 'Failed to generate the summary with the AI model.' }), {
@@ -105,6 +112,11 @@ export default async function handler(req) {
           tenant_id,
           site_id,
           summary: summaryText,
+          language: welcomeExperience.language,
+          welcome_message: welcomeExperience.welcome_message,
+          ui_status_title: welcomeExperience.ui_status_title,
+          ui_status_online: welcomeExperience.ui_status_online,
+          ui_input_placeholder: welcomeExperience.ui_input_placeholder,
           updated_at: new Date().toISOString()
         }, { onConflict: 'tenant_id,site_id' })
         .select()

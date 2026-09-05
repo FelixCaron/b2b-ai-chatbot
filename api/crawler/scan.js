@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { generateEmbedding, generateWebsiteSummary } from '../lib/llm.js';
+import { generateEmbedding, generateWebsiteSummary, generateWelcomeExperience } from '../lib/llm.js';
 import { assertSafeExternalUrl } from '../lib/url-security.js';
 import { requireSiteOwnership } from '../lib/server-config.js';
 
@@ -326,17 +326,29 @@ export default async function handler(req) {
 
     if ((isHomepage || !existingSummary) && pageText && pageText.length >= 100) {
       try {
-        const summaryText = await generateWebsiteSummary({
-          content: pageText,
-          targetUrl: targetUrl,
-          apiKey: process.env.OPENROUTER_API_KEY
-        });
+        const [summaryText, welcomeExperience] = await Promise.all([
+          generateWebsiteSummary({
+            content: pageText,
+            targetUrl: targetUrl,
+            apiKey: process.env.OPENROUTER_API_KEY
+          }),
+          generateWelcomeExperience({
+            content: pageText,
+            targetUrl: targetUrl,
+            apiKey: process.env.OPENROUTER_API_KEY
+          }),
+        ]);
 
         if (summaryText) {
           const { error: sumErr } = await supabase.from('site_summaries').upsert({
             tenant_id,
             site_id,
             summary: summaryText,
+            language: welcomeExperience.language,
+            welcome_message: welcomeExperience.welcome_message,
+            ui_status_title: welcomeExperience.ui_status_title,
+            ui_status_online: welcomeExperience.ui_status_online,
+            ui_input_placeholder: welcomeExperience.ui_input_placeholder,
             updated_at: new Date().toISOString()
           }, { onConflict: 'tenant_id,site_id' });
 

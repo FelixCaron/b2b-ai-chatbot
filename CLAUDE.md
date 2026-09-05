@@ -13,6 +13,7 @@ Repondo — a multi-tenant B2B AI Chatbot SaaS built with Supabase (pgvector, FT
 ## API Architecture
 All API endpoints live in `/api/` and are deployed with the root Vercel project:
 - `chat.js` — Agentic loop: LLM decides when to call `search_knowledge_base` tool → RAG → synthesize response. SSE streaming.
+- `chat/init.js` — Read-only: serves the widget's pregenerated, site-language greeting/labels (from `site_summaries`) so the opening screen isn't hardcoded English.
 - `start-scan.js` — Fetches page via Jina Reader, chunks text, inserts into `documents` table with FTS indexing.
 - `crawl-site.js` — Discovers subpages via sitemaps and HTML link extraction.
 - `analyze-theme.js` — Extracts brand color and org name from website HTML using LLM.

@@ -59,8 +59,8 @@ import { parseMarkdown } from "./markdown.js";
         <div class="b2b-chat-header-info">
           <div class="b2b-avatar">AI</div>
           <div>
-            <div class="b2b-status-title">Virtual Assistant</div>
-            <div class="b2b-status-sub"><span class="b2b-status-dot"></span>Online</div>
+            <div class="b2b-status-title" id="b2b-status-title">Virtual Assistant</div>
+            <div class="b2b-status-sub"><span class="b2b-status-dot"></span><span id="b2b-status-online">Online</span></div>
           </div>
         </div>
         <button class="b2b-close-btn" id="b2b-close-btn" aria-label="Close chat">
@@ -69,7 +69,7 @@ import { parseMarkdown } from "./markdown.js";
       </div>
       <div class="b2b-chat-messages" id="b2b-messages">
         <div class="b2b-msg assistant">
-          <p class="b2b-p">Hello! How can I help you today?</p>
+          <p class="b2b-p" id="b2b-welcome-msg">Hello! How can I help you today?</p>
         </div>
       </div>
       <div class="b2b-chat-footer">
@@ -97,6 +97,32 @@ import { parseMarkdown } from "./markdown.js";
   const messagesFeed = shadowRoot.getElementById("b2b-messages");
   const input = shadowRoot.getElementById("b2b-input");
   const sendBtn = shadowRoot.getElementById("b2b-send-btn");
+  const statusTitleEl = shadowRoot.getElementById("b2b-status-title");
+  const statusOnlineEl = shadowRoot.getElementById("b2b-status-online");
+  const welcomeMsgEl = shadowRoot.getElementById("b2b-welcome-msg");
+
+  // Fetch the site's own greeting/labels (pregenerated once at scan time,
+  // see api/lib/llm.js's generateWelcomeExperience — this is a fast DB read,
+  // not a live LLM call) and swap them in for the English defaults above.
+  // Fire-and-forget: if it's slow or fails, the English defaults already
+  // rendered are a perfectly fine widget, not a broken one.
+  const initEndpoint = apiEndpoint.replace(/\/chat\/?$/, "/chat/init");
+  fetch(`${initEndpoint}?tenant_public_key=${encodeURIComponent(tenantPublicKey)}`)
+    .then((res) => (res.ok ? res.json() : null))
+    .then((data) => {
+      if (!data) return;
+      if (data.ui_status_title) statusTitleEl.textContent = data.ui_status_title;
+      if (data.ui_status_online) statusOnlineEl.textContent = data.ui_status_online;
+      if (data.ui_input_placeholder) input.placeholder = data.ui_input_placeholder;
+      // Only replace the greeting bubble if the visitor hasn't started
+      // chatting yet (it's still the only message in the feed) — once a
+      // real conversation is underway, swapping the first bubble's text
+      // under it would be a confusing thing to happen mid-read.
+      if (data.welcome_message && messagesFeed.children.length === 1) {
+        welcomeMsgEl.textContent = data.welcome_message;
+      }
+    })
+    .catch(() => { /* keep the English defaults already on screen */ });
 
   let isOpen = scriptTag?.hasAttribute("data-auto-open") || false;
   let isStreaming = false;
