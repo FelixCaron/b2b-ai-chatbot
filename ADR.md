@@ -5,6 +5,68 @@ Note (English): Plans were updated — Free was removed. New plans are: Basic ($
 
 ---
 
+## ADR 048 : Integration review, migration consolidation, and the internal staff console
+
+**Date :** 2026-09-05
+
+### Context
+
+Preparing the product for an enterprise sale: an integration review (Stripe, Supabase/RLS,
+the API layer), a way for the internal team to see across all clients (plan, usage,
+profile — `apps/admin` is deliberately single-tenant per login), consolidated migrations
+(the database is being reset, so the 9 incremental files built up since 2026-08-08 aren't
+worth keeping), setup documentation for every integration, and infrastructure-as-code
+where it's realistic. Full detail lives in `docs/INTEGRATION_REVIEW.md` and
+`docs/SETUP_CHECKLIST.md`; this entry is the short architectural record.
+
+### Decisions
+
+1. **Critical fix — Stripe webhook.** `api/billing/webhook.js`'s `checkout.session.completed`
+   handler referenced an undeclared `tenant` variable while building its update payload —
+   a `ReferenceError`, caught by the outer `try/catch`, meant every completed checkout
+   silently failed to upgrade the tenant's plan server-side. Fixed by dropping the dead
+   fallback expression.
+2. **Migration consolidation.** The 9 files in `supabase/migrations/` plus the stale
+   top-level `consolidated_latest_migrations.sql` dump are replaced by one file,
+   `20260905000000_consolidated_schema.sql` — a verified merge of their net effect, not a
+   redesign. This is a reset migration: an existing database must be reset before applying
+   it, since migration history won't match under the old file names.
+3. **Internal staff console (`apps/internal-admin`), isolated by schema, not by
+   RLS-in-`public`.** A new Postgres schema, `internal`, holds `staff_admins`. It is
+   deliberately absent from `supabase/config.toml`'s exposed-schema list, so PostgREST has
+   no route to it regardless of key or policy — a bug in the tenant-isolation RLS
+   policies elsewhere has no path to this data, because the access mechanism is entirely
+   different. Server code can't query the schema directly either (same PostgREST
+   limitation), so a `SECURITY DEFINER` bridge function, `public.is_staff_admin(uuid)`,
+   restricted to `service_role`, is the only way in. The console itself deploys as its own
+   Vercel project (mirrors how `apps/widget` already deploys separately from
+   `apps/admin`) and is read-only for now — no write actions from this dashboard.
+4. **Dead code removed.** `api/lib/rate-limiter.js` was unused anywhere in the codebase
+   and referenced `tenants.query_limit`/`current_query_count`, columns that exist in no
+   migration.
+5. **IaC, scoped to what's reliable.** Vercel projects are Terraform (`infra/terraform/vercel`,
+   official `vercel/vercel` provider — idempotent by construction). Supabase project
+   creation is a small idempotent script (`scripts/ops/setup-supabase.mjs`) rather than the
+   dashboard button, since Supabase's own Terraform provider manages project/org settings,
+   not schema (schema-as-code here is already the SQL migration). Stripe products/prices/
+   webhook are a similarly idempotent script (`scripts/ops/setup-stripe.mjs`) rather than a
+   Terraform provider, since no official one is mature enough to depend on.
+
+### Consequences
+
+- A real, previously-silent revenue-blocking bug is fixed.
+- `supabase/migrations/` goes from 9 files (plus a stale dump) to 1, verified equivalent.
+- The internal team has a first read-only view across all tenants, without weakening any
+  existing tenant-facing RLS policy.
+- Standing up a new environment is `npm run setup:supabase && npm run setup:stripe &&
+  terraform apply` instead of clicking through three dashboards by hand — see
+  `docs/SETUP_CHECKLIST.md`.
+- What's still missing for a full enterprise security review (audit logging, backup/
+  restore verification, uptime monitoring, a subprocessor list, SSO) is written up in
+  `docs/INTEGRATION_REVIEW.md` rather than built — mostly process/org work, not code.
+
+---
+
 ## ADR 047 : Palette "brand" incomplète dans Tailwind — texte en dégradé invisible sur About (et ailleurs)
 
 **Date :** 2026-08-30
