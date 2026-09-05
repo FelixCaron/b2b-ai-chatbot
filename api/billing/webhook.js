@@ -89,7 +89,7 @@ export default async function handler(req, res) {
           .update({
             plan,
             plan_status: 'active',
-            stripe_customer_id: session.customer || tenant?.stripe_customer_id,
+            stripe_customer_id: session.customer,
             stripe_subscription_id: session.subscription,
             plan_expires_at: expiresAt,
           })
