@@ -1,9 +1,16 @@
 // GET /api/staff/tenants — list every tenant with plan/status/usage/site
-// count, for the staff dashboard's tenant list. Read-only: no other verbs
-// are supported. requireStaff() is the entire security model here — see
-// api/lib/server-config.js for why that's safe even with a service-role
-// client.
-import { requireStaff } from '../lib/server-config.js';
+// count, for the staff dashboard's tenant list. requireStaff() is the entire
+// security model here — see api/lib/server-config.js for why that's safe
+// even with a service-role client.
+//
+// Lives at tenants/index.js rather than tenants.js deliberately: a flat
+// tenants.js file alongside a tenants/[id].js directory is a real collision
+// on Vercel's zero-config api/ builder — confirmed live 2026-09-05, GET
+// /api/staff/tenants/:id fell through to the SPA's index.html (200,
+// text/html) instead of ever reaching the function. Vercel's own docs don't
+// warn about this; the fix is just not having a file and a directory share
+// a name under api/.
+import { requireStaff } from '../../lib/server-config.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {

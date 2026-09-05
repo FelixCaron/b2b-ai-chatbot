@@ -1,31 +1,80 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, ExternalLink } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Trash2 } from 'lucide-react';
 import { authenticatedHeaders } from '../lib/supabase';
+
+const PLANS = ['basic', 'pro', 'premium'];
+const STATUSES = ['free', 'active', 'trialing', 'past_due', 'canceled'];
 
 export default function TenantDetail({ tenantId, onBack }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [plan, setPlan] = useState('');
+  const [planStatus, setPlanStatus] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState(null);
+  const [deletingSiteId, setDeletingSiteId] = useState(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      try {
-        const headers = await authenticatedHeaders();
-        const res = await fetch(`/api/staff/tenants/${tenantId}`, { headers });
-        const body = await res.json();
-        if (cancelled) return;
-        if (!res.ok) throw new Error(body.error || 'Failed to load tenant');
-        setData(body);
-      } catch (err) {
-        if (!cancelled) setError(err.message);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [tenantId]);
+  const load = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const headers = await authenticatedHeaders();
+      const res = await fetch(`/api/staff/tenants/${tenantId}`, { headers });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || 'Failed to load tenant');
+      setData(body);
+      setPlan(body.tenant.plan);
+      setPlanStatus(body.tenant.plan_status);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, [tenantId]);
+
+  const handleSavePlan = async () => {
+    setSaving(true);
+    setSaveMessage(null);
+    try {
+      const headers = await authenticatedHeaders();
+      const res = await fetch(`/api/staff/tenants/${tenantId}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ plan, plan_status: planStatus }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || 'Failed to update tenant');
+      setSaveMessage({ type: 'success', text: 'Saved. Note: this does not change anything in Stripe.' });
+      await load();
+    } catch (err) {
+      setSaveMessage({ type: 'error', text: err.message });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteSite = async (site) => {
+    if (!window.confirm(`Delete "${site.domain}"? This permanently deletes its documents, leads, summaries, and scan history. This cannot be undone.`)) {
+      return;
+    }
+    setDeletingSiteId(site.id);
+    try {
+      const headers = await authenticatedHeaders();
+      const res = await fetch(`/api/staff/sites/${site.id}`, { method: 'DELETE', headers });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || 'Failed to delete site');
+      await load();
+    } catch (err) {
+      alert(`Failed to delete site: ${err.message}`);
+    } finally {
+      setDeletingSiteId(null);
+    }
+  };
+
+  const dirty = data && (plan !== data.tenant.plan || planStatus !== data.tenant.plan_status);
 
   return (
     <div>
@@ -43,7 +92,7 @@ export default function TenantDetail({ tenantId, onBack }) {
               <div>
                 <h2 className="text-lg font-bold text-white">{data.tenant.name}</h2>
                 <p className="text-xs text-gray-500 mt-1">
-                  {data.tenant.plan} · {data.tenant.plan_status} · created {new Date(data.tenant.created_at).toLocaleDateString()}
+                  created {new Date(data.tenant.created_at).toLocaleDateString()}
                 </p>
               </div>
               {data.tenant.stripe_customer_id && (
@@ -57,6 +106,46 @@ export default function TenantDetail({ tenantId, onBack }) {
                 </a>
               )}
             </div>
+
+            <div className="flex flex-wrap items-end gap-3 mt-6">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Plan</label>
+                <select
+                  value={plan}
+                  onChange={(e) => setPlan(e.target.value)}
+                  className="bg-dark-800 border border-gray-700 text-white text-sm rounded-lg px-3 py-2 capitalize"
+                >
+                  {PLANS.map((p) => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Status</label>
+                <select
+                  value={planStatus}
+                  onChange={(e) => setPlanStatus(e.target.value)}
+                  className="bg-dark-800 border border-gray-700 text-white text-sm rounded-lg px-3 py-2 capitalize"
+                >
+                  {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <button
+                onClick={handleSavePlan}
+                disabled={!dirty || saving}
+                className="bg-brand-600 hover:bg-brand-500 text-white text-sm font-semibold px-4 py-2 rounded-lg disabled:opacity-40"
+              >
+                {saving ? 'Saving…' : 'Save'}
+              </button>
+              <p className="text-[11px] text-gray-500 max-w-xs">
+                Manual override — writes the DB directly, does not touch Stripe. Use for
+                support fixes, not as a substitute for a real subscription change.
+              </p>
+            </div>
+            {saveMessage && (
+              <p className={`mt-2 text-sm ${saveMessage.type === 'error' ? 'text-rose-400' : 'text-emerald-300'}`}>
+                {saveMessage.text}
+              </p>
+            )}
+
             <dl className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 text-sm">
               <div>
                 <dt className="text-gray-500 text-xs">Sites</dt>
@@ -84,11 +173,21 @@ export default function TenantDetail({ tenantId, onBack }) {
             {data.sites.length === 0 && <p className="text-sm text-gray-500">No sites yet.</p>}
             <ul className="divide-y divide-white/5">
               {data.sites.map((site) => (
-                <li key={site.id} className="py-2.5 flex items-center justify-between text-sm">
+                <li key={site.id} className="py-2.5 flex items-center justify-between text-sm gap-3">
                   <span className="text-white">{site.domain}</span>
-                  <span className="text-xs text-gray-500">
-                    {site.enable_lead_capture ? 'lead capture on' : 'lead capture off'} · added {new Date(site.created_at).toLocaleDateString()}
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-gray-500 whitespace-nowrap">
+                      {site.enable_lead_capture ? 'lead capture on' : 'lead capture off'} · added {new Date(site.created_at).toLocaleDateString()}
+                    </span>
+                    <button
+                      onClick={() => handleDeleteSite(site)}
+                      disabled={deletingSiteId === site.id}
+                      title="Delete this site"
+                      className="text-gray-500 hover:text-rose-400 disabled:opacity-40 p-1.5 rounded-lg hover:bg-white/5"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>

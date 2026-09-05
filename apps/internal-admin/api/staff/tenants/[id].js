@@ -1,17 +1,22 @@
 // GET /api/staff/tenants/:id — one tenant's detail for the staff drill-down
 // view: sites, recent daily usage, lead count, recent scan jobs, billing
-// fields. Read-only, staff-gated (requireStaff) — see
-// api/lib/server-config.js.
+// fields.
+// PATCH /api/staff/tenants/:id — manual plan/plan_status override (support
+// actions: granting a plan for a demo/VIP, fixing a Stripe sync glitch).
+// This writes the DB fields directly and does NOT touch Stripe — the two
+// can drift if a real subscription still exists; that's an accepted
+// trade-off for a support override, not a Stripe management tool.
+// Both verbs staff-gated (requireStaff) — see api/lib/server-config.js.
 import { requireStaff } from '../../lib/server-config.js';
 
-export default async function handler(req, res) {
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+const VALID_PLANS = ['basic', 'pro', 'premium'];
+const VALID_STATUSES = ['free', 'active', 'trialing', 'past_due', 'canceled'];
 
+export default async function handler(req, res) {
+  let user;
   let supabase;
   try {
-    ({ supabase } = await requireStaff(req));
+    ({ user, supabase } = await requireStaff(req));
   } catch (err) {
     return res.status(err.statusCode || 401).json({ error: err.message || 'Unauthorized' });
   }
@@ -19,6 +24,51 @@ export default async function handler(req, res) {
   const tenantId = req.query?.id || req.url?.split('/').pop();
   if (!tenantId) {
     return res.status(400).json({ error: 'tenant id is required' });
+  }
+
+  if (req.method === 'PATCH') {
+    const { plan, plan_status } = req.body || {};
+    const patch = {};
+    if (plan !== undefined) {
+      if (!VALID_PLANS.includes(plan)) {
+        return res.status(400).json({ error: `plan must be one of: ${VALID_PLANS.join(', ')}` });
+      }
+      patch.plan = plan;
+    }
+    if (plan_status !== undefined) {
+      if (!VALID_STATUSES.includes(plan_status)) {
+        return res.status(400).json({ error: `plan_status must be one of: ${VALID_STATUSES.join(', ')}` });
+      }
+      patch.plan_status = plan_status;
+    }
+    if (Object.keys(patch).length === 0) {
+      return res.status(400).json({ error: 'Nothing to update — pass plan and/or plan_status' });
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('tenants')
+        .update(patch)
+        .eq('id', tenantId)
+        .select('id, name, plan, plan_status')
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return res.status(404).json({ error: 'Tenant not found' });
+
+      // Not a full audit log (see docs/INTEGRATION_REVIEW.md's gap list) — a
+      // console line is at least a durable-in-Vercel's-log-retention record
+      // of who overrode what, until real audit logging exists.
+      console.log(`[staff/tenants/:id] ${user.email} set tenant ${tenantId} ->`, patch);
+
+      return res.status(200).json({ tenant: data });
+    } catch (err) {
+      console.error('[staff/tenants/:id] PATCH error:', err);
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
+  if (req.method !== 'GET') {
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {

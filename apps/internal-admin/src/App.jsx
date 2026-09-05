@@ -91,7 +91,7 @@ export default function App() {
       <header className="border-b border-white/5 px-6 py-4 flex items-center justify-between">
         <div>
           <h1 className="text-lg font-bold">Repondo — Staff Console</h1>
-          <p className="text-xs text-gray-500">Cross-tenant data is read-only. Signed in as {currentUser.email}.</p>
+          <p className="text-xs text-gray-500">Signed in as {currentUser.email}.</p>
         </div>
         <button
           onClick={handleLogout}

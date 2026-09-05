@@ -5,6 +5,62 @@ Note (English): Plans were updated — Free was removed. New plans are: Basic ($
 
 ---
 
+## ADR 052 : Staff console gets write actions; fixed a Vercel routing collision that broke the tenant detail API
+
+**Date :** 2026-09-05
+
+### Context
+
+ADR 048 deliberately shipped the staff console read-only. Asked to add real operations —
+plan/status overrides and site deletion — while separately debugging a live bug: the
+deployed tenant-detail page threw `Unexpected token '<', "<!DOCTYPE "` instead of showing
+data.
+
+### Diagnosis
+
+`GET https://internal-admin-topaz.vercel.app/api/staff/tenants/<id>` returned `200
+text/html` — the SPA's `index.html`, not the function's JSON — confirmed by curling the
+live endpoint directly rather than guessing from the frontend symptom. `GET
+.../api/staff/tenants` and `.../api/staff/admins` (flat files) returned correct JSON the
+whole time. The difference: `api/staff/tenants.js` (a file) and `api/staff/tenants/`
+(a directory, holding `[id].js`) shared the same name at the same level. Vercel's
+zero-config `api/` builder doesn't support that — one silently loses to the other, and
+requests fall through to the SPA rewrite instead of erroring. Not documented as a known
+Vercel limitation anywhere obvious; found by testing the live deployment's actual HTTP
+response rather than trusting the frontend's generic parse error.
+
+### Decisions
+
+1. **Fixed the collision**: moved `api/staff/tenants.js` to `api/staff/tenants/index.js`,
+   so `tenants/` is the only thing at that path — no file/directory to collide with.
+2. **Plan/status override** — `PATCH /api/staff/tenants/:id` (`plan`, `plan_status`,
+   validated against the schema's real value sets), writes the DB fields directly. Does
+   NOT touch Stripe — an accepted trade-off for a support override, called out in the UI
+   so it's not mistaken for a real subscription change.
+3. **Site deletion** — new `DELETE /api/staff/sites/:id`, reusing `delete_site_cascade`
+   (the existing atomic, transaction-wrapped RPC the tenant-facing delete flow already
+   uses) rather than writing new deletion logic. Verified live that `service_role` can
+   call it even though the migration only explicitly grants `anon, authenticated` —
+   Supabase's default schema privileges cover `service_role` separately from those
+   explicit grants.
+4. Both actions require confirmation in the UI (a native `confirm()` for delete, a
+   separate "Save" step for the plan override) and are staff-gated the same way every
+   other `api/staff/*` route is (`requireStaff`) — granting access to the console still
+   means read AND write on every tenant's data now, not just read.
+
+### Consequences
+
+- The tenant detail page actually loads again.
+- Staff can now action support requests (grant a plan, remove a broken site) without
+  a direct SQL console — but also without a real audit trail beyond the `console.log`
+  line each action writes (same gap ADR 048/`docs/INTEGRATION_REVIEW.md` already flagged,
+  now with two write paths instead of zero using it).
+- Worth a similar live-response check (not just a local build) on any future new `api/`
+  route in this app, given this collision produced no error anywhere except a wrong
+  status/content-type on the actual deployment.
+
+---
+
 ## ADR 051 : One `VITE_SUPABASE_URL`, not a separate `SUPABASE_URL` for the server
 
 **Date :** 2026-09-05
