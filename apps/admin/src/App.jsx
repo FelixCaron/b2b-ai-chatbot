@@ -9,6 +9,7 @@ import PaymentSuccessPage from './components/PaymentSuccessPage';
 import AboutPage from './components/AboutPage';
 import { PrivacyPolicy, TermsOfService } from './components/LegalPages';
 import OsteopathyLanding from './components/OsteopathyLanding';
+import { getMaxSitesForPlan } from './lib/plans';
 import { Users, Menu, X } from 'lucide-react';
 
 export default function App() {
@@ -254,19 +255,31 @@ export default function App() {
     }
 
     if (siteInsertErr) {
+      // The sites_enforce_limit trigger (see the site-limits migration) is
+      // the real gate — this is a friendly message for the case a client
+      // reaches the database despite the UI's own precheck (a stale plan
+      // value, a second tab, a client that skips the check entirely).
+      if (siteInsertErr.message?.includes('site_limit_reached')) {
+        const plan = selectedTenant?.plan || tenants.find((t) => t.id === tId)?.plan || 'basic';
+        const maxSites = getMaxSitesForPlan(plan);
+        throw new Error(`Your plan allows up to ${maxSites} website(s). Please upgrade to add more domains!`);
+      }
       console.warn('[handleAddSite] Insert site warning, checking existing domain:', siteInsertErr.message);
     }
 
-    // 2. If duplicate domain error, fetch existing site for this domain
+    // 2. If duplicate domain error, fetch the existing site for this domain —
+    // scoped to this tenant, matching the per-tenant unique index the
+    // duplicate error actually comes from (sites_tenant_domain_uq). Adding a
+    // domain you already have in this workspace just hands back that site
+    // rather than erroring.
     const { data: existingSite } = await supabase
       .from('sites')
       .select('*')
-      .eq('domain', domain)
+      .eq('tenant_id', tId)
+      .ilike('domain', domain)
       .maybeSingle();
 
     if (existingSite) {
-      await supabase.from('sites').update({ tenant_id: tId }).eq('id', existingSite.id);
-      existingSite.tenant_id = tId;
       setSites((prev) => [existingSite, ...prev.filter((s) => s.id !== existingSite.id)]);
       return existingSite;
     }
@@ -276,10 +289,16 @@ export default function App() {
 
   // Handler: Update site settings
   const handleUpdateSiteSettings = async (siteId, updates) => {
-    const { data: updated } = await supabase.from('sites').update(updates).eq('id', siteId).select().single();
+    const { data: updated, error } = await supabase.from('sites').update(updates).eq('id', siteId).select().single();
     if (updated) {
       setSites((prev) => prev.map((s) => (s.id === siteId ? updated : s)));
+      return { success: true };
     }
+    // Surfaces sites_enforce_limit rejections (e.g. reactivating a parked
+    // site while the plan is already full) instead of failing silently.
+    return { success: false, error: error?.message?.includes('site_limit_reached')
+      ? error.message.replace('site_limit_reached: ', '')
+      : (error?.message || 'Could not save this change.') };
   };
 
   // Handler: Delete unselected document URLs

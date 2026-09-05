@@ -84,7 +84,7 @@ export default async function handler(req) {
     {
       const { data: fullData, error: fullError } = await supabase
         .from('sites')
-        .select('id, tenant_id, domain, enable_lead_capture, theme_primary_color, bot_goal, bot_tone, support_email, calendar_link, tenants(plan)')
+        .select('id, tenant_id, domain, is_active, enable_lead_capture, theme_primary_color, bot_goal, bot_tone, support_email, calendar_link, tenants(plan)')
         .eq('public_key', tenant_public_key)
         .maybeSingle();
 
@@ -106,6 +106,7 @@ export default async function handler(req) {
           }
           // Inject safe defaults for missing optional columns
           site = Object.assign(coreData, {
+            is_active: true,
             enable_lead_capture: false,
             bot_goal: 'support',
             bot_tone: 'professionnel',
@@ -128,6 +129,17 @@ export default async function handler(req) {
     if (!site) {
       return new Response(JSON.stringify({ error: `Invalid site key (${tenant_public_key}). The site was not found in the database.` }), {
         status: 404,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
+    // Parked site (a plan downgrade left it over the site limit — see
+    // is_active in the site-limits migration): its knowledge base is intact,
+    // it just doesn't answer until it's reactivated or the plan is upgraded.
+    // The admin copilot's own site row is never parked, so this never blocks it.
+    if (site.is_active === false) {
+      return new Response(JSON.stringify({ error: 'This chat assistant is temporarily unavailable.' }), {
+        status: 403,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }

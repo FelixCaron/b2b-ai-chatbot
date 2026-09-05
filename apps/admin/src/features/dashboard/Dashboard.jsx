@@ -9,6 +9,7 @@ import {
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { supabase, authenticatedHeaders } from '../../lib/supabase';
+import { getMaxSitesForPlan, getMaxPagesForPlan } from '../../lib/plans';
 import { fetchEventSource } from '@microsoft/fetch-event-source';
 
 export default function Dashboard({
@@ -30,16 +31,10 @@ export default function Dashboard({
   const activeSite = (sites && sites.find(s => s.id === selectedSiteId)) || sites?.[0] || localCreatedSite;
 
   const tenantPlan = selectedTenant?.plan || 'basic';
-  const getMaxSitesForPlan = (plan) => {
-    if (plan === 'premium') return 999;
-    if (plan === 'pro' || plan === 'basic') return 5;
-    return 1; // basic: 1 website
-  };
-  const getMaxPagesForPlan = (plan) => {
-    if (plan === 'premium') return 9999;
-    if (plan === 'pro' || plan === 'basic') return 2000;
-    return 500; // Do not block unless over 500 pages
-  };
+  // getMaxSitesForPlan / getMaxPagesForPlan now live in ../../lib/plans —
+  // shared with App.jsx so the client-side check and the friendly error
+  // message can't drift from each other (or from plan_site_limit() in the
+  // database, which is what actually enforces this).
 
   // Onboarding Step State
   const [siteUrl, setSiteUrl] = useState('');
@@ -58,6 +53,80 @@ export default function Dashboard({
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
   const [isDeletingSite, setIsDeletingSite] = useState(false);
   const [deleteSiteError, setDeleteSiteError] = useState('');
+
+  // Parked sites / over-limit chooser (a downgrade can leave more active
+  // sites than the new plan allows — see is_active in the site-limits
+  // migration). Nothing is auto-parked; the user picks which sites stay
+  // active, same spirit as the delete confirmation above: no silent state
+  // change, and the real error surfaces if the server-side trigger disagrees.
+  const maxSitesForPlan = getMaxSitesForPlan(tenantPlan);
+  const activeSites = (sites || []).filter((s) => s.is_active !== false);
+  const isOverSiteLimit = activeSites.length > maxSitesForPlan;
+  const [showSiteChooserModal, setShowSiteChooserModal] = useState(false);
+  const [chooserSelectedIds, setChooserSelectedIds] = useState(() => new Set());
+  const [isSavingChooser, setIsSavingChooser] = useState(false);
+  const [chooserError, setChooserError] = useState('');
+  const [siteActionError, setSiteActionError] = useState('');
+  const [isTogglingActiveSite, setIsTogglingActiveSite] = useState(false);
+
+  const openSiteChooser = () => {
+    // Pre-select whichever sites are currently active, up to the limit —
+    // the user is choosing what to keep, not starting from a blank slate.
+    setChooserSelectedIds(new Set(activeSites.slice(0, maxSitesForPlan).map((s) => s.id)));
+    setChooserError('');
+    setShowSiteChooserModal(true);
+  };
+
+  const toggleChooserSite = (siteId) => {
+    setChooserSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(siteId)) {
+        next.delete(siteId);
+      } else if (next.size < maxSitesForPlan) {
+        next.add(siteId);
+      }
+      return next;
+    });
+  };
+
+  const handleSaveSiteChooser = async () => {
+    if (!onUpdateSiteSettings) return;
+    setIsSavingChooser(true);
+    setChooserError('');
+    try {
+      const results = await Promise.all(
+        (sites || [])
+          .filter((s) => (s.is_active !== false) !== chooserSelectedIds.has(s.id))
+          .map((s) => onUpdateSiteSettings(s.id, { is_active: chooserSelectedIds.has(s.id) }))
+      );
+      const failed = results.find((r) => r && r.success === false);
+      if (failed) {
+        setChooserError(failed.error || 'Could not save your selection. Please try again.');
+        return;
+      }
+      setShowSiteChooserModal(false);
+    } catch (err) {
+      setChooserError(err.message || 'Could not save your selection. Please try again.');
+    } finally {
+      setIsSavingChooser(false);
+    }
+  };
+
+  const handleReactivateSite = async (siteId) => {
+    if (!onUpdateSiteSettings) return;
+    setIsTogglingActiveSite(true);
+    setSiteActionError('');
+    try {
+      const result = await onUpdateSiteSettings(siteId, { is_active: true });
+      if (result && result.success === false) {
+        setSiteActionError(result.error || `Your plan allows up to ${maxSitesForPlan} active website(s). Park another site first, or upgrade.`);
+      }
+    } catch (err) {
+      setSiteActionError(err.message || 'Could not reactivate this site.');
+    } finally {
+      setIsTogglingActiveSite(false);
+    }
+  };
 
   // Best-effort cleanup of any browser-side (this admin session's own origin)
   // references to a deleted site: the Live Preview widget (injected by
@@ -960,12 +1029,33 @@ export default function Dashboard({
       ) : (
         /* 2. MAIN DASHBOARD CLIENT VIEW */
         <div className="space-y-8">
+          {/* Over-limit banner — a plan downgrade left more active sites than
+              the new plan covers. Nothing gets parked on its own; this stays
+              up until the user picks which sites to keep active. */}
+          {isOverSiteLimit && (
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                <p className="text-sm text-amber-200">
+                  Your <strong>{tenantPlan.toUpperCase()}</strong> plan allows {maxSitesForPlan} active website{maxSitesForPlan === 1 ? '' : 's'}, but you have {activeSites.length}. Choose which {maxSitesForPlan === 1 ? 'one stays' : 'ones stay'} active — the rest are paused, not deleted, and can be restored any time you upgrade or free up a slot.
+                </p>
+              </div>
+              <button
+                onClick={openSiteChooser}
+                className="w-full sm:w-auto shrink-0 bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/30 font-semibold px-4 py-2 rounded-xl text-xs transition-all"
+              >
+                Manage active websites
+              </button>
+            </div>
+          )}
+
           {/* Multi-Site Selector Tabs (if more than 1 site exists) */}
           {sites && sites.length > 1 && (
             <div className="flex items-center gap-2 overflow-x-auto pb-1">
               <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider shrink-0 mr-1">Websites:</span>
               {sites.map((s) => {
                 const isSelected = activeSite?.id === s.id;
+                const isParked = s.is_active === false;
                 return (
                   <button
                     key={s.id}
@@ -976,8 +1066,11 @@ export default function Dashboard({
                         : 'bg-dark-900/80 text-gray-400 border-white/5 hover:border-white/20 hover:text-gray-200'
                     }`}
                   >
-                    <span className={`w-2 h-2 rounded-full ${isSelected ? 'bg-emerald-400 animate-pulse' : 'bg-gray-600'}`} />
+                    <span className={`w-2 h-2 rounded-full ${isParked ? 'bg-amber-400' : isSelected ? 'bg-emerald-400 animate-pulse' : 'bg-gray-600'}`} />
                     <span>{s.domain}</span>
+                    {isParked && (
+                      <span className="text-[10px] font-bold uppercase tracking-wide text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded">Parked</span>
+                    )}
                   </button>
                 );
               })}
@@ -1000,14 +1093,36 @@ export default function Dashboard({
                 <div>
                   <div className="flex items-center gap-2.5 flex-wrap">
                     <h2 className="text-2xl font-bold text-white tracking-tight">{activeSite.domain}</h2>
-                    <span className="bg-emerald-500/15 text-emerald-400 text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5 border border-emerald-500/20">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                      Assistant Active & Ready
-                    </span>
+                    {activeSite.is_active === false ? (
+                      <span className="bg-amber-500/15 text-amber-400 text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5 border border-amber-500/20">
+                        <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+                        Parked — over plan limit
+                      </span>
+                    ) : (
+                      <span className="bg-emerald-500/15 text-emerald-400 text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5 border border-emerald-500/20">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                        Assistant Active & Ready
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs text-gray-400 mt-1 flex items-center gap-2">
                     Public Key: <span className="font-mono text-indigo-300 bg-dark-900 px-2 py-0.5 rounded border border-white/5">{activeSite.public_key}</span>
                   </p>
+                  {activeSite.is_active === false && (
+                    <div className="mt-2 flex items-center gap-2 flex-wrap">
+                      <p className="text-xs text-amber-300/90">Its widget stopped answering visitors — its knowledge base is untouched and it will resume the moment it's reactivated.</p>
+                      <button
+                        onClick={() => handleReactivateSite(activeSite.id)}
+                        disabled={isTogglingActiveSite}
+                        className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/30 transition-all disabled:opacity-50"
+                      >
+                        {isTogglingActiveSite ? 'Reactivating…' : 'Reactivate'}
+                      </button>
+                    </div>
+                  )}
+                  {siteActionError && (
+                    <p className="text-xs text-red-400 mt-1">{siteActionError}</p>
+                  )}
                 </div>
               </div>
 
@@ -2073,6 +2188,82 @@ export default function Dashboard({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* OVER-LIMIT SITE CHOOSER MODAL */}
+      {showSiteChooserModal && (
+        <div className="fixed inset-0 z-[9999999] bg-black/80 flex items-center justify-center p-4 animate-in fade-in">
+          <div className="glass-card p-8 rounded-3xl w-full max-w-lg border border-amber-500/30 shadow-2xl relative">
+            <button
+              onClick={() => setShowSiteChooserModal(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-white p-2 rounded-lg hover:bg-white/5 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
+              <AlertTriangle className="w-6 h-6 text-amber-400" /> Choose your active websites
+            </h3>
+            <p className="text-sm text-gray-400 mb-6">
+              Your <strong>{tenantPlan.toUpperCase()}</strong> plan covers {maxSitesForPlan} active website{maxSitesForPlan === 1 ? '' : 's'}. Pick {maxSitesForPlan === 1 ? 'which one stays' : 'which ones stay'} active — everything else is paused, not deleted, and comes back untouched the moment you reactivate it or upgrade.
+            </p>
+
+            {chooserError && (
+              <div className="mb-4 bg-red-500/10 border border-red-500/30 text-red-400 text-xs rounded-xl p-3">
+                ⚠️ {chooserError}
+              </div>
+            )}
+
+            <div className="space-y-2 max-h-72 overflow-y-auto mb-6">
+              {(sites || []).map((s) => {
+                const isChecked = chooserSelectedIds.has(s.id);
+                const disableCheck = !isChecked && chooserSelectedIds.size >= maxSitesForPlan;
+                return (
+                  <label
+                    key={s.id}
+                    className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
+                      isChecked ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-dark-900/60 border-white/5 hover:border-white/15'
+                    } ${disableCheck ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      disabled={disableCheck}
+                      onChange={() => toggleChooserSite(s.id)}
+                      className="w-4 h-4 accent-emerald-500"
+                    />
+                    <span className="text-sm text-white font-medium truncate">{s.domain}</span>
+                  </label>
+                );
+              })}
+            </div>
+
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs text-gray-400">{chooserSelectedIds.size} / {maxSitesForPlan} selected</span>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowSiteChooserModal(false)}
+                  className="px-4 py-2 text-xs font-medium text-gray-400 hover:text-white"
+                >
+                  Decide later
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveSiteChooser}
+                  disabled={isSavingChooser || chooserSelectedIds.size === 0}
+                  className="bg-amber-500 hover:bg-amber-400 text-dark-900 font-semibold px-5 py-2 rounded-xl text-xs flex items-center gap-2 transition-all shadow-md disabled:opacity-50"
+                >
+                  {isSavingChooser ? (
+                    <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Saving...</>
+                  ) : (
+                    <>Save selection</>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
