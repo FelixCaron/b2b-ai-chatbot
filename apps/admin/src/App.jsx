@@ -131,12 +131,40 @@ export default function App() {
     if (!currentUser || !authReady) return;
     async function loadOwnedTenants() {
       const { data } = await supabase.from('tenants').select('*').eq('owner_user_id', currentUser.id);
-      const ownedTenants = data || [];
+      let ownedTenants = data || [];
+
+      // A tenant created before its owner provided an email is named
+      // `Guest_<timestamp>` (see handleAddSite below) and nothing ever
+      // renamed it once they converted — a real, registered account could
+      // sit under a stale "Guest_..." name forever, which is confusing in
+      // any tenant list AND actively dangerous: the cleanup cron used to
+      // decide what to delete by matching this same stale name pattern, so
+      // a converted user's real data could get swept up by it. Fix at the
+      // source: once we know the account is real (not anonymous, has a
+      // confirmed email), bring the name in line with reality.
+      if (!currentUser.is_anonymous && currentUser.email) {
+        const staleGuestTenants = ownedTenants.filter(
+          (tenant) => tenant.name?.startsWith('Guest_') && tenant.name !== currentUser.email
+        );
+        if (staleGuestTenants.length > 0) {
+          await Promise.all(
+            staleGuestTenants.map((tenant) =>
+              supabase.from('tenants').update({ name: currentUser.email }).eq('id', tenant.id)
+            )
+          );
+          ownedTenants = ownedTenants.map((tenant) =>
+            staleGuestTenants.some((stale) => stale.id === tenant.id)
+              ? { ...tenant, name: currentUser.email }
+              : tenant
+          );
+        }
+      }
+
       setTenants(ownedTenants);
       setSelectedTenant((current) => ownedTenants.find((tenant) => tenant.id === current?.id) || ownedTenants[0] || null);
     }
     loadOwnedTenants();
-  }, [currentUser?.id, authReady]);
+  }, [currentUser?.id, currentUser?.is_anonymous, currentUser?.email, authReady]);
 
   // Fetch tenant-specific resources whenever selectedTenant changes
   useEffect(() => {

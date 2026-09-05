@@ -59,6 +59,30 @@ to `service_role` only, is the one way server code can check staff membership �
 full Supabase Auth password/email flows if the enterprise buyer's own staff need to log
 in directly; distributed rate limiting (see below).
 
+## Guest/anonymous account lifecycle
+
+`api/cron/cleanup.js` (guest tenants older than 24h, cascade-deleted) and Supabase Auth's
+anonymous sign-in (`signInAnonymously()` on every visit before onboarding) are the two
+pieces here.
+
+**Fixed in this pass — real data-loss risk, not hypothetical:** a tenant's name is set
+once, at creation (`user.email || 'Guest_<timestamp>'`), and nothing ever renamed it when
+its owner later converted (added and confirmed a real email). The cleanup cron decided
+what to delete by matching that same stale name pattern — so a guest who converted more
+than 24h after their first tenant was created kept a tenant that still looked unclaimed to
+that job, and the next run would have deleted it (and every site/document/lead under it)
+for a real, registered customer. Fixed by (1) renaming a tenant to its owner's real email
+the moment `apps/admin` sees a confirmed, non-anonymous session for it, and (2) having the
+cleanup job independently confirm via the Auth admin API that a candidate tenant's owner
+is still actually anonymous before deleting, regardless of what the name says. Also added
+the cleanup that was actually asked for: anonymous accounts that never provide an email,
+tenant or not, removed after 24h via the same admin API. See ADR 055.
+
+**Not done:** a one-time backfill for tenants that already went stale before this fix —
+the running fix only re-checks a tenant's name the next time its owner has an active
+session, so an already-converted account that hasn't logged back in yet may still show a
+stale `Guest_` name until it does.
+
 ## API layer
 
 Auth model: `api/lib/server-config.js`'s `requireAuthentication` (verifies a bearer JWT

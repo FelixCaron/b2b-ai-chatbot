@@ -16,7 +16,7 @@ All API endpoints live in `/api/` and are deployed with the root Vercel project:
 - `start-scan.js` — Fetches page via Jina Reader, chunks text, inserts into `documents` table with FTS indexing.
 - `crawl-site.js` — Discovers subpages via sitemaps and HTML link extraction.
 - `analyze-theme.js` — Extracts brand color and org name from website HTML using LLM.
-- `cleanup-guests.js` — Deletes guest tenants (name starts with `Guest_`) older than 24h. CASCADE deletes all related data.
+- `cleanup-guests.js` — Deletes guest tenants (name starts with `Guest_`) older than 24h, verifying the owner is still actually anonymous first (a tenant's name is only ever set once, at creation — a converted user could otherwise still show a stale `Guest_` name). CASCADE deletes all related data. Also sweeps anonymous Auth accounts with no email older than 24h, tenant or not.
 - `lib/llm.js` — OpenRouter abstraction layer (chat, lead extraction, theme extraction).
 
 ## Database & RLS Rules

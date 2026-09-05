@@ -5,6 +5,65 @@ Note (English): Plans were updated — Free was removed. New plans are: Basic ($
 
 ---
 
+## ADR 055 : Guest tenant names went stale after conversion, risking real data deletion — fixed, plus the anonymous-account cleanup that was actually asked for
+
+**Date :** 2026-09-05
+
+### Context
+
+Asked for a cleanup job to delete accounts that never provide an email. Investigating
+where that data actually lives surfaced a more serious, pre-existing bug in the cleanup
+job that already existed.
+
+### Diagnosis
+
+Every visitor gets an anonymous Supabase Auth account immediately
+(`signInAnonymously()`), no email. A tenant is created later, named `user.email ||
+'Guest_<timestamp>'` (`apps/admin/src/App.jsx`'s `handleAddSite`). When a guest converts
+(adds and confirms a real email), **nothing ever renamed the tenant** — it keeps its
+`Guest_...` name permanently, even though the underlying account is now real and
+registered. `api/cron/cleanup.js` decided what to delete by matching that same stale
+`Guest_%` name pattern. Net effect: a guest who converts more than 24h after their first
+tenant was created keeps a tenant that still *looks* like an unclaimed guest to that job —
+and the next nightly run would delete it, and every site/document/lead under it, for a
+real, registered customer. Confirmed by reading the actual code paths, not observed in
+production — but a straight line from "how this is built" to "this happens."
+
+### Decisions
+
+1. **Stop the name from going stale**: `apps/admin/src/App.jsx`'s tenant-loading effect
+   now renames any owned tenant still starting with `Guest_` to the account's real email,
+   the moment it sees a non-anonymous session with a confirmed email — runs on every
+   load/auth-state-change, so it self-heals regardless of which device or tab the
+   confirmation happened on.
+2. **Defense in depth in the cleanup job itself**: before deleting a candidate `Guest_%`
+   tenant, it now confirms via the Auth admin API that the owner is *still* actually
+   anonymous — protects any tenant created before this fix, or any other path that could
+   leave a real account under a stale name, not just newly-created ones.
+3. **The actual ask**: after tenant cleanup, the job now sweeps every anonymous Auth
+   account with no email older than 24h — tenant or not, since most anonymous sessions
+   never make it to creating one at all (an anonymous session starts on every visit,
+   before anyone enters a URL) — and deletes them via the Auth admin API. Verified the
+   admin API's real response shape (`is_anonymous`, `email`, `created_at` fields, `users`/
+   `aud` pagination envelope) against the live project before trusting the filter logic.
+
+### Consequences
+
+- The tenant list (both `apps/admin` and the staff console) stops lying about which
+  accounts are real — a registered customer's tenant will show their email, not a stale
+  guest placeholder, going forward.
+- The cleanup job can no longer delete a converted user's real data based on a name that
+  never got updated.
+- `auth.users` stops accumulating anonymous accounts with no email forever — every one
+  that never converts is removed within ~24h, tenant or not.
+- Not done: a one-time backfill renaming *already-converted* tenants that still show a
+  stale `Guest_` name from before this fix — the running fix (item 1) will only catch
+  those the next time that account's owner has an active session; a backfill migration
+  would need to check each such tenant's owner via the Auth admin API the same way the
+  cleanup job now does, and hasn't been asked for.
+
+---
+
 ## ADR 054 : Gave up on bracket-segment API routes in this Vercel project — query params instead
 
 **Date :** 2026-09-05
