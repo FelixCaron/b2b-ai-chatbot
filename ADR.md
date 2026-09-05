@@ -5,6 +5,52 @@ Note (English): Plans were updated — Free was removed. New plans are: Basic ($
 
 ---
 
+## ADR 049 : Migrated to Supabase's new-format API keys, off the legacy anon/service_role JWTs
+
+**Date :** 2026-09-05
+
+### Context
+
+Supabase is phasing in a new API key system (`sb_publishable_...` / `sb_secret_...`) as
+the replacement for the legacy `anon`/`service_role` JWT keys. Asked to switch this
+product over to the new kind.
+
+### Decision
+
+Kept every env var **name** unchanged (`SUPABASE_SERVICE_ROLE_KEY`, `VITE_SUPABASE_ANON_KEY`,
+etc.) and only changed what value goes into them — `createClient(url, key)` and every
+other call site just passes the string through, so no source file in `api/`, `apps/admin`,
+or `apps/internal-admin` needed a code change. Verified directly against the live project:
+the new `sb_secret_...` key bypasses RLS on a table read exactly like the old
+`service_role` JWT did, and correctly authenticates as `service_role` when calling the
+`service_role`-restricted bridge RPCs added in ADR 048 (`is_staff_admin`,
+`list_staff_admins`) — confirmed by actually calling both over the live project's REST API
+with the new key before touching any documentation.
+
+`scripts/ops/setup-supabase.mjs` now fetches and prints both new-format keys itself via
+the Management API's `/api-keys?reveal=true` (the plain listing endpoint masks the secret
+key's value) instead of sending you to hunt through the dashboard — `reveal=true` was
+needed to get the full secret value back, since Supabase treats it as sensitive-at-rest
+after its one-time creation-time reveal.
+
+`.env.example` (root and `apps/internal-admin`), `infra/terraform/vercel/terraform.tfvars.example`,
+`CLAUDE.md`, and `docs/setup/supabase.md` are updated to show/reference the new key
+format; the legacy JWTs still work (Supabase hasn't disabled them), so nothing forces an
+immediate cutover of whatever's already deployed — see the consequences below.
+
+### Consequences
+
+- New setups (fresh `.env`, new Vercel projects via Terraform) get the new key format by
+  default, with no code anywhere aware of or caring which format it is.
+- Whatever is *already* deployed (this session doesn't have Vercel access to check) still
+  has the old legacy `service_role`/`anon` JWTs in its env vars until someone updates them
+  there — this ADR doesn't retroactively rotate a live deployment's env vars.
+- Recommended follow-up, once nothing depends on the legacy keys anymore: disable them in
+  the dashboard (Project Settings → API Keys → Legacy API keys) — not done here, since
+  disabling them before confirming nothing still points at them would break whatever does.
+
+---
+
 ## ADR 048 : Integration review, migration consolidation, and the internal staff console
 
 **Date :** 2026-09-05

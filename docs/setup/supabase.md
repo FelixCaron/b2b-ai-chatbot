@@ -40,11 +40,17 @@ Nothing here is scriptable via the Management API yet:
    Turn off "Confirm email" only if you want guests to convert without clicking a
    confirmation link first (the product also supports anonymous sign-in, converted to a
    real account on first "save").
-2. **Copy your keys.** Dashboard → Project Settings → API:
+2. **Copy your keys.** `npm run setup:supabase` already prints these at the end (fetched via
+   the Management API's `/api-keys?reveal=true`) — this step is only needed if you're doing
+   it by hand. Dashboard → Project Settings → **API Keys** (not the "Legacy API keys" tab):
    - `Project URL` → `SUPABASE_URL` (server) and `VITE_SUPABASE_URL` (client)
-   - `anon` `public` key → `VITE_SUPABASE_ANON_KEY`
-   - `service_role` `secret` key → `SUPABASE_SERVICE_ROLE_KEY` — **never** put this behind
-     a `VITE_` prefix or anywhere that ships to the browser.
+   - `publishable` key (`sb_publishable_...`) → `VITE_SUPABASE_ANON_KEY`
+   - `secret` key (`sb_secret_...`) → `SUPABASE_SERVICE_ROLE_KEY` — **never** put this behind
+     a `VITE_` prefix or anywhere that ships to the browser. Its full value is only ever
+     shown once (at creation, or via that `reveal=true` API call) — if you've lost it,
+     generate a new secret key rather than trying to recover the old one.
+   - Use these new-format keys, not the legacy `anon`/`service_role` JWTs — both still work,
+     but the legacy ones are being phased out; see ADR.md's entry on this migration.
 3. **Set the redirect URL** for magic links: Dashboard → Authentication → URL
    Configuration → Redirect URLs, add your admin app's real domain (and
    `http://localhost:3000` for local dev).

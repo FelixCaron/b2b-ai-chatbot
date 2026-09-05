@@ -119,6 +119,18 @@ async function runSql(projectRef, sql) {
   return res.json();
 }
 
+// Fetches the new-format publishable/secret API keys (not the legacy
+// anon/service_role JWTs — this product has moved off those, see ADR.md).
+// `reveal=true` is required to get the secret key's full value back; without
+// it, the listing endpoint masks it (it's only ever shown in full once,
+// otherwise — verified 2026-09-05 against a real project).
+async function fetchNewFormatKeys(projectRef) {
+  const keys = await api(`/projects/${projectRef}/api-keys?reveal=true`);
+  const publishable = keys.find((k) => k.type === 'publishable');
+  const secret = keys.find((k) => k.type === 'secret');
+  return { publishable: publishable?.api_key, secret: secret?.api_key };
+}
+
 async function main() {
   const project = await ensureProject();
 
@@ -129,11 +141,15 @@ async function main() {
   await runSql(project.id, `BEGIN;\n${sql}\nCOMMIT;`);
   console.log('Migration applied.');
 
+  const { publishable, secret } = await fetchNewFormatKeys(project.id);
+
   console.log('\nDone. Project ref:', project.id);
-  console.log('URL:', `https://${project.id}.supabase.co`);
-  console.log('Fetch the anon key and service-role key from:');
-  console.log(`  https://supabase.com/dashboard/project/${project.id}/settings/api`);
-  console.log('(or GET /v1/projects/<ref>/api-keys with this same access token)');
+  console.log('\nEnv vars to set (Vercel project settings, or terraform.tfvars):\n');
+  console.log(`SUPABASE_URL=https://${project.id}.supabase.co`);
+  console.log(`SUPABASE_SERVICE_ROLE_KEY=${secret || '<no secret key found — check the dashboard>'}`);
+  console.log(`VITE_SUPABASE_URL=https://${project.id}.supabase.co`);
+  console.log(`VITE_SUPABASE_ANON_KEY=${publishable || '<no publishable key found — check the dashboard>'}`);
+  console.log('\n(These are the new sb_publishable_/sb_secret_ keys, not the legacy anon/service_role JWTs.)');
   console.log('\nAfter this, regenerate packages/shared/src/database.types.ts with:');
   console.log(`  npx supabase gen types typescript --project-id ${project.id} > packages/shared/src/database.types.ts`);
 }
