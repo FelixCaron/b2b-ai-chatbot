@@ -5,6 +5,49 @@ Note (English): Plans were updated — Free was removed. New plans are: Basic ($
 
 ---
 
+## ADR 053 : ADR 052's routing fix was real but incomplete — the actual culprit was a redundant rewrite
+
+**Date :** 2026-09-05
+
+### Context
+
+After ADR 052 shipped (rename `tenants.js` → `tenants/index.js`) and redeployed, the exact
+same `Unexpected token '<'` error came back. Curling the live endpoint again showed
+`/api/staff/tenants` (no id) now correctly returned JSON, but `/api/staff/tenants/<id>`
+still returned the SPA's `index.html`. So the file/directory collision was real and its
+fix genuinely helped the base route — it just wasn't the whole story.
+
+### Diagnosis
+
+`apps/internal-admin/vercel.json` had `{ "source": "/api/(.*)", "destination":
+"/api/$1" }` ahead of the SPA catch-all — an identity rewrite, copied from
+`apps/admin/vercel.json`, that looks like a no-op. It isn't harmless for a dynamic route:
+Vercel matches a request against real functions (including `[id].js` bracket segments)
+*before* consulting rewrites at all — the rewrite is never needed for `api/` to work, and
+was never exercised as a problem in `apps/admin` because that app has zero bracket-segment
+API routes to expose it. For an exact/flat path, this rewrite's destination reconstructs
+the identical original path, which still resolves to a function by coincidence — but a
+destination path containing a dynamic segment apparently isn't re-resolved against
+bracket-parameter functions the same way, so it falls through to the SPA rewrite instead.
+
+### Decision
+
+Removed the `/api/(.*)` rewrite entirely from `apps/internal-admin/vercel.json` — nothing
+in this app needs it; Vercel serves every file under `api/` (flat or dynamic) at its
+matching path with no rewrite required. Left `apps/admin/vercel.json`'s copy of the same
+rule alone: not asked to touch that app, and it isn't currently broken there since it has
+no bracket-segment API routes — but the same fix applies if one is ever added.
+
+### Consequences
+
+- `/api/staff/tenants/:id` (and any other bracket-segment route in this app, like
+  `api/staff/sites/[id].js`) resolves correctly.
+- The lesson from ADR 052 stands, but wasn't sufficient alone — worth remembering that a
+  live curl test against the *actual failing path*, not just "some api route works now",
+  is what caught this was still broken after the first fix.
+
+---
+
 ## ADR 052 : Staff console gets write actions; fixed a Vercel routing collision that broke the tenant detail API
 
 **Date :** 2026-09-05
