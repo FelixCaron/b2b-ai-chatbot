@@ -1,9 +1,27 @@
 -- =============================================================================
--- MIGRATION: 20260819000001_complete_schema_catchup.sql
--- PURPOSE : Idempotent catch-up migration — brings any Supabase instance fully
---           up to date with the complete schema expected by the application.
---           Safe to run multiple times (all statements use IF NOT EXISTS /
---           CREATE OR REPLACE / ALTER … ADD COLUMN IF NOT EXISTS).
+-- MIGRATION: 20260905000000_consolidated_schema.sql
+-- PURPOSE  : Single, final-state schema migration replacing the 9 incremental
+--            migrations that built up between 2026-08-08 and 2026-08-25 (init
+--            schema, multilingual FTS, Stripe billing, site summaries,
+--            integrations, the complete-schema catch-up, tenant ownership +
+--            strict RLS, and atomic site delete). Those files are removed —
+--            this one is a straight merge of their net effect, verified
+--            statement-by-statement against the originals, not a schema
+--            redesign. It also folds in what was previously
+--            `supabase/consolidated_latest_migrations.sql` (a partial, stale
+--            hand-rolled consolidation) and adds the one thing that file was
+--            still missing: `delete_site_cascade`.
+--
+--            This is a RESET migration, not an upgrade path: it goes straight
+--            to the final RLS policies instead of replaying the historical
+--            "allow all" -> "tenant owner" transition. Point an EXISTING
+--            database at this by resetting it first (`supabase db reset`, or
+--            drop and recreate the database) — do not run this against a
+--            database that already has the old migrations applied under
+--            their original names, since the migration history won't match.
+--
+--            Idempotent: every statement uses IF NOT EXISTS / CREATE OR
+--            REPLACE / DROP POLICY IF EXISTS, so it is also safe to re-run.
 -- =============================================================================
 
 -- ---------------------------------------------------------------------------
@@ -18,6 +36,7 @@ CREATE EXTENSION IF NOT EXISTS pgmq CASCADE;
 CREATE TABLE IF NOT EXISTS tenants (
     id                      UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
     name                    TEXT        NOT NULL,
+    owner_user_id           UUID        REFERENCES auth.users(id) ON DELETE RESTRICT,
     stripe_customer_id      TEXT,
     stripe_subscription_id  TEXT,
     plan                    TEXT        DEFAULT 'free',
@@ -26,19 +45,14 @@ CREATE TABLE IF NOT EXISTS tenants (
     created_at              TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Ensure new columns exist on older instances
-ALTER TABLE tenants ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT;
-ALTER TABLE tenants ADD COLUMN IF NOT EXISTS plan_status             TEXT DEFAULT 'free';
-ALTER TABLE tenants ADD COLUMN IF NOT EXISTS plan_expires_at         TIMESTAMPTZ;
-
-ALTER TABLE tenants ALTER COLUMN plan SET DEFAULT 'free';
+COMMENT ON COLUMN tenants.plan IS 'Current subscription plan: basic, pro, premium';
+COMMENT ON COLUMN tenants.plan_status IS 'Stripe subscription status: free, active, trialing, canceled, past_due';
+COMMENT ON COLUMN tenants.stripe_customer_id IS 'Stripe Customer ID (cus_...)';
+COMMENT ON COLUMN tenants.stripe_subscription_id IS 'Stripe Subscription ID (sub_...)';
+COMMENT ON COLUMN tenants.plan_expires_at IS 'UTC timestamp of when the current billing period ends';
 
 CREATE INDEX IF NOT EXISTS tenants_stripe_customer_id_idx ON tenants(stripe_customer_id);
-
--- RLS
-ALTER TABLE tenants ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Allow all on tenants" ON tenants;
-CREATE POLICY "Allow all on tenants" ON tenants FOR ALL USING (true);
+CREATE INDEX IF NOT EXISTS tenants_owner_user_id_idx ON tenants(owner_user_id);
 
 -- ---------------------------------------------------------------------------
 -- 2. SITES
@@ -57,26 +71,13 @@ CREATE TABLE IF NOT EXISTS sites (
     created_at          TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Ensure all optional columns exist
-ALTER TABLE sites ADD COLUMN IF NOT EXISTS enable_lead_capture BOOLEAN     DEFAULT FALSE;
-ALTER TABLE sites ADD COLUMN IF NOT EXISTS theme_primary_color TEXT        DEFAULT '#6366f1';
-ALTER TABLE sites ADD COLUMN IF NOT EXISTS bot_goal            TEXT        DEFAULT 'support';
-ALTER TABLE sites ADD COLUMN IF NOT EXISTS bot_tone            TEXT        DEFAULT 'professionnel';
-ALTER TABLE sites ADD COLUMN IF NOT EXISTS support_email       TEXT;
-ALTER TABLE sites ADD COLUMN IF NOT EXISTS calendar_link       TEXT;
-
-COMMENT ON COLUMN sites.support_email  IS 'Email address to receive support requests from the chatbot';
-COMMENT ON COLUMN sites.calendar_link  IS 'Booking link (Calendly, Cal.com…) provided by the chatbot for appointments';
-COMMENT ON COLUMN sites.bot_goal       IS 'lead | support';
-COMMENT ON COLUMN sites.bot_tone       IS 'amical | professionnel';
-
--- RLS
-ALTER TABLE sites ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Allow all on sites" ON sites;
-CREATE POLICY "Allow all on sites" ON sites FOR ALL USING (true);
+COMMENT ON COLUMN sites.support_email IS 'Email address to receive support requests from the chatbot';
+COMMENT ON COLUMN sites.calendar_link IS 'Booking link (Calendly, Cal.com…) provided by the chatbot for appointments';
+COMMENT ON COLUMN sites.bot_goal IS 'lead | support';
+COMMENT ON COLUMN sites.bot_tone IS 'amical | professionnel';
 
 -- ---------------------------------------------------------------------------
--- 3. DOCUMENTS  (knowledge base chunks)
+-- 3. DOCUMENTS (knowledge base chunks)
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS documents (
     id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -85,30 +86,19 @@ CREATE TABLE IF NOT EXISTS documents (
     url         TEXT        NOT NULL,
     content     TEXT        NOT NULL,
     metadata    JSONB       DEFAULT '{}'::jsonb,
+    embedding   vector(768),
     created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Vector & FTS columns
-ALTER TABLE documents ADD COLUMN IF NOT EXISTS embedding vector(768);
-ALTER TABLE documents ADD COLUMN IF NOT EXISTS metadata  JSONB DEFAULT '{}'::jsonb;
-
--- French FTS (generated)
+-- French + English full-text search (generated columns, bilingual support)
 ALTER TABLE documents ADD COLUMN IF NOT EXISTS fts tsvector
     GENERATED ALWAYS AS (to_tsvector('french', content)) STORED;
-
--- English FTS (generated) — bilingual support
 ALTER TABLE documents ADD COLUMN IF NOT EXISTS fts_en tsvector
     GENERATED ALWAYS AS (to_tsvector('english', content)) STORED;
 
--- Indexes
 CREATE INDEX IF NOT EXISTS documents_embedding_hnsw_idx ON documents USING hnsw (embedding vector_cosine_ops);
 CREATE INDEX IF NOT EXISTS fts_idx    ON documents USING GIN (fts);
 CREATE INDEX IF NOT EXISTS fts_en_idx ON documents USING GIN (fts_en);
-
--- RLS
-ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Allow all on documents" ON documents;
-CREATE POLICY "Allow all on documents" ON documents FOR ALL USING (true);
 
 -- ---------------------------------------------------------------------------
 -- 4. MESSAGES
@@ -121,11 +111,6 @@ CREATE TABLE IF NOT EXISTS messages (
     content     TEXT        NOT NULL,
     created_at  TIMESTAMPTZ DEFAULT NOW()
 );
-
--- RLS
-ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Allow all on messages" ON messages;
-CREATE POLICY "Allow all on messages" ON messages FOR ALL USING (true);
 
 -- ---------------------------------------------------------------------------
 -- 5. LEADS
@@ -142,18 +127,8 @@ CREATE TABLE IF NOT EXISTS leads (
     created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Ensure new columns exist on older instances
-ALTER TABLE leads ADD COLUMN IF NOT EXISTS site_id  UUID  REFERENCES sites(id) ON DELETE CASCADE;
-ALTER TABLE leads ADD COLUMN IF NOT EXISTS summary  TEXT;
-ALTER TABLE leads ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb;
-
--- RLS
-ALTER TABLE leads ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Allow all on leads" ON leads;
-CREATE POLICY "Allow all on leads" ON leads FOR ALL USING (true);
-
 -- ---------------------------------------------------------------------------
--- 6. USAGE  (atomic message/lead counters)
+-- 6. USAGE (atomic message/lead counters, one row per tenant, all-time)
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS usage (
     tenant_id       UUID    PRIMARY KEY REFERENCES tenants(id),
@@ -162,13 +137,8 @@ CREATE TABLE IF NOT EXISTS usage (
     updated_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
--- RLS
-ALTER TABLE usage ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Allow all on usage" ON usage;
-CREATE POLICY "Allow all on usage" ON usage FOR ALL USING (true);
-
 -- ---------------------------------------------------------------------------
--- 7. SITE SUMMARIES  (AI-generated business overview for RAG context)
+-- 7. SITE SUMMARIES (AI-generated business overview used as RAG context)
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS site_summaries (
     id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -183,13 +153,8 @@ CREATE TABLE IF NOT EXISTS site_summaries (
 CREATE INDEX IF NOT EXISTS idx_site_summaries_site_id   ON site_summaries(site_id);
 CREATE INDEX IF NOT EXISTS idx_site_summaries_tenant_id ON site_summaries(tenant_id);
 
--- RLS
-ALTER TABLE site_summaries ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Allow all on site_summaries" ON site_summaries;
-CREATE POLICY "Allow all on site_summaries" ON site_summaries FOR ALL USING (true);
-
 -- ---------------------------------------------------------------------------
--- 8. USAGE COUNTERS  (daily quota tracking)
+-- 8. USAGE COUNTERS (daily quota tracking, per tenant per day)
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS usage_counters (
     id              BIGSERIAL   PRIMARY KEY,
@@ -202,13 +167,8 @@ CREATE TABLE IF NOT EXISTS usage_counters (
 
 CREATE UNIQUE INDEX IF NOT EXISTS usage_counters_tenant_date_uq ON usage_counters (tenant_id, usage_date);
 
--- RLS
-ALTER TABLE usage_counters ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Allow all on usage_counters" ON usage_counters;
-CREATE POLICY "Allow all on usage_counters" ON usage_counters FOR ALL USING (true);
-
 -- ---------------------------------------------------------------------------
--- 9. SCAN JOBS  (crawler tracking & audit)
+-- 9. SCAN JOBS (crawler tracking & audit)
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS scan_jobs (
     id                  BIGSERIAL   PRIMARY KEY,
@@ -227,13 +187,8 @@ CREATE TABLE IF NOT EXISTS scan_jobs (
 
 CREATE INDEX IF NOT EXISTS scan_jobs_tenant_idx ON scan_jobs (tenant_id);
 
--- RLS
-ALTER TABLE scan_jobs ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Allow all on scan_jobs" ON scan_jobs;
-CREATE POLICY "Allow all on scan_jobs" ON scan_jobs FOR ALL USING (true);
-
 -- ---------------------------------------------------------------------------
--- 10. PGMQ QUEUE
+-- 10. PGMQ QUEUE + wrapper RPCs (PostgREST cannot call the pgmq schema directly)
 -- ---------------------------------------------------------------------------
 DO $$
 BEGIN
@@ -261,10 +216,8 @@ RETURNS boolean LANGUAGE sql SECURITY DEFINER AS $$
 $$;
 
 -- ---------------------------------------------------------------------------
--- 11. RPC FUNCTIONS
+-- 11. USAGE RPCS
 -- ---------------------------------------------------------------------------
-
--- Increment message usage counter
 CREATE OR REPLACE FUNCTION public.increment_usage(target_tenant_id UUID)
 RETURNS void LANGUAGE plpgsql SECURITY DEFINER AS $$
 BEGIN
@@ -275,7 +228,6 @@ BEGIN
 END;
 $$;
 
--- Increment lead usage counter
 CREATE OR REPLACE FUNCTION public.increment_lead_usage(target_tenant_id UUID)
 RETURNS void LANGUAGE plpgsql SECURITY DEFINER AS $$
 BEGIN
@@ -286,7 +238,9 @@ BEGIN
 END;
 $$;
 
--- Hybrid semantic + full-text search (Reciprocal Rank Fusion)
+-- ---------------------------------------------------------------------------
+-- 12. SEARCH RPCS (hybrid semantic + bilingual full-text, RRF-ranked)
+-- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION match_documents_hybrid(
     query_text        TEXT,
     query_embedding   vector(768),
@@ -342,7 +296,6 @@ BEGIN
 END;
 $$;
 
--- Bilingual FTS-only search (fallback when no embedding available)
 CREATE OR REPLACE FUNCTION search_documents_fts(
     query_text      TEXT,
     match_tenant_id UUID,
@@ -371,64 +324,212 @@ END;
 $$;
 
 -- ---------------------------------------------------------------------------
--- 10. ROW LEVEL SECURITY (RLS) ON ALL TABLES
+-- 13. TENANT OWNERSHIP HELPER (used by every RLS policy below)
 -- ---------------------------------------------------------------------------
-ALTER TABLE public.tenants ADD COLUMN IF NOT EXISTS owner_user_id UUID REFERENCES auth.users(id) ON DELETE RESTRICT;
-CREATE INDEX IF NOT EXISTS tenants_owner_user_id_idx ON public.tenants(owner_user_id);
-
 CREATE OR REPLACE FUNCTION public.current_user_owns_tenant(target_tenant_id UUID)
-RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+RETURNS BOOLEAN
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $$
   SELECT EXISTS (
     SELECT 1 FROM public.tenants
     WHERE id = target_tenant_id AND owner_user_id = auth.uid()
   );
 $$;
 
-REVOKE ALL ON FUNCTION public.current_user_owns_tenant(UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.current_user_owns_tenant(UUID) TO anon, authenticated;
+-- TEXT overload: some call sites compare tenant_id as text
+CREATE OR REPLACE FUNCTION public.current_user_owns_tenant(target_tenant_id TEXT)
+RETURNS BOOLEAN
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.tenants
+    WHERE id::text = target_tenant_id AND owner_user_id = auth.uid()
+  );
+$$;
 
-ALTER TABLE public.tenants ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.sites ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.documents ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.leads ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.usage ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON FUNCTION public.current_user_owns_tenant(UUID) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.current_user_owns_tenant(TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.current_user_owns_tenant(UUID) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.current_user_owns_tenant(TEXT) TO anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- 14. ATOMIC, OWNERSHIP-CHECKED CASCADE DELETE FOR SITES
+--     Runs the whole delete in one transaction inside a SECURITY DEFINER
+--     function, so a failure partway through rolls back instead of leaving
+--     orphaned rows. usage_counters is intentionally NOT touched here — it's
+--     a tenant-level daily aggregate with no site_id column.
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.delete_site_cascade(p_site_id UUID, p_tenant_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_site_exists BOOLEAN;
+  v_documents_deleted INT;
+  v_summaries_deleted INT;
+  v_leads_deleted INT;
+  v_scan_jobs_deleted INT;
+BEGIN
+  IF p_site_id IS NULL OR p_tenant_id IS NULL THEN
+    RAISE EXCEPTION 'delete_site_cascade requires both site_id and tenant_id';
+  END IF;
+
+  SELECT EXISTS (
+    SELECT 1 FROM public.sites WHERE id = p_site_id AND tenant_id = p_tenant_id
+  ) INTO v_site_exists;
+
+  IF NOT v_site_exists THEN
+    RAISE EXCEPTION 'Site % not found for tenant %', p_site_id, p_tenant_id;
+  END IF;
+
+  WITH deleted AS (DELETE FROM public.documents WHERE site_id = p_site_id RETURNING 1)
+    SELECT count(*) INTO v_documents_deleted FROM deleted;
+
+  WITH deleted AS (DELETE FROM public.site_summaries WHERE site_id = p_site_id RETURNING 1)
+    SELECT count(*) INTO v_summaries_deleted FROM deleted;
+
+  WITH deleted AS (DELETE FROM public.leads WHERE site_id = p_site_id RETURNING 1)
+    SELECT count(*) INTO v_leads_deleted FROM deleted;
+
+  WITH deleted AS (DELETE FROM public.scan_jobs WHERE site_id = p_site_id RETURNING 1)
+    SELECT count(*) INTO v_scan_jobs_deleted FROM deleted;
+
+  DELETE FROM public.sites WHERE id = p_site_id AND tenant_id = p_tenant_id;
+
+  RETURN jsonb_build_object(
+    'site_id', p_site_id,
+    'tenant_id', p_tenant_id,
+    'documents_deleted', v_documents_deleted,
+    'site_summaries_deleted', v_summaries_deleted,
+    'leads_deleted', v_leads_deleted,
+    'scan_jobs_deleted', v_scan_jobs_deleted
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.delete_site_cascade(UUID, UUID) FROM PUBLIC;
+-- Granted to anon/authenticated because guest (anonymous-auth) tenants must be
+-- able to delete their own sites too; the API route always verifies tenant
+-- ownership (requireSiteOwnership) before calling this function, and the
+-- function re-checks ownership itself.
+GRANT EXECUTE ON FUNCTION public.delete_site_cascade(UUID, UUID) TO anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- 15. ROW LEVEL SECURITY — strict per-tenant isolation on every tenant table
+-- ---------------------------------------------------------------------------
+ALTER TABLE public.tenants        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.sites          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.documents      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.messages       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.leads          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.usage          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.site_summaries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.usage_counters ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.scan_jobs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.scan_jobs      ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "Allow all on tenants" ON public.tenants;
 DROP POLICY IF EXISTS "Tenant owner access" ON public.tenants;
-CREATE POLICY "Tenant owner access" ON public.tenants FOR ALL TO authenticated USING (owner_user_id = auth.uid()) WITH CHECK (owner_user_id = auth.uid());
+CREATE POLICY "Tenant owner access" ON public.tenants
+  FOR ALL TO authenticated
+  USING (owner_user_id = auth.uid()) WITH CHECK (owner_user_id = auth.uid());
 
-DROP POLICY IF EXISTS "Allow all on sites" ON public.sites;
 DROP POLICY IF EXISTS "Tenant owner access" ON public.sites;
-CREATE POLICY "Tenant owner access" ON public.sites FOR ALL TO authenticated USING (public.current_user_owns_tenant(tenant_id)) WITH CHECK (public.current_user_owns_tenant(tenant_id));
+CREATE POLICY "Tenant owner access" ON public.sites
+  FOR ALL TO authenticated
+  USING (public.current_user_owns_tenant(tenant_id)) WITH CHECK (public.current_user_owns_tenant(tenant_id));
 
-DROP POLICY IF EXISTS "Allow all on documents" ON public.documents;
 DROP POLICY IF EXISTS "Tenant owner access" ON public.documents;
-CREATE POLICY "Tenant owner access" ON public.documents FOR ALL TO authenticated USING (public.current_user_owns_tenant(tenant_id)) WITH CHECK (public.current_user_owns_tenant(tenant_id));
+CREATE POLICY "Tenant owner access" ON public.documents
+  FOR ALL TO authenticated
+  USING (public.current_user_owns_tenant(tenant_id)) WITH CHECK (public.current_user_owns_tenant(tenant_id));
 
-DROP POLICY IF EXISTS "Allow all on messages" ON public.messages;
 DROP POLICY IF EXISTS "Tenant owner access" ON public.messages;
-CREATE POLICY "Tenant owner access" ON public.messages FOR ALL TO authenticated USING (public.current_user_owns_tenant(tenant_id)) WITH CHECK (public.current_user_owns_tenant(tenant_id));
+CREATE POLICY "Tenant owner access" ON public.messages
+  FOR ALL TO authenticated
+  USING (public.current_user_owns_tenant(tenant_id)) WITH CHECK (public.current_user_owns_tenant(tenant_id));
 
-DROP POLICY IF EXISTS "Allow all on leads" ON public.leads;
 DROP POLICY IF EXISTS "Tenant owner access" ON public.leads;
-CREATE POLICY "Tenant owner access" ON public.leads FOR ALL TO authenticated USING (public.current_user_owns_tenant(tenant_id)) WITH CHECK (public.current_user_owns_tenant(tenant_id));
+CREATE POLICY "Tenant owner access" ON public.leads
+  FOR ALL TO authenticated
+  USING (public.current_user_owns_tenant(tenant_id)) WITH CHECK (public.current_user_owns_tenant(tenant_id));
 
-DROP POLICY IF EXISTS "Allow all on usage" ON public.usage;
 DROP POLICY IF EXISTS "Tenant owner access" ON public.usage;
-CREATE POLICY "Tenant owner access" ON public.usage FOR ALL TO authenticated USING (public.current_user_owns_tenant(tenant_id)) WITH CHECK (public.current_user_owns_tenant(tenant_id));
+CREATE POLICY "Tenant owner access" ON public.usage
+  FOR ALL TO authenticated
+  USING (public.current_user_owns_tenant(tenant_id)) WITH CHECK (public.current_user_owns_tenant(tenant_id));
 
-DROP POLICY IF EXISTS "Allow all on site_summaries" ON public.site_summaries;
 DROP POLICY IF EXISTS "Tenant owner access" ON public.site_summaries;
-CREATE POLICY "Tenant owner access" ON public.site_summaries FOR ALL TO authenticated USING (public.current_user_owns_tenant(tenant_id)) WITH CHECK (public.current_user_owns_tenant(tenant_id));
+CREATE POLICY "Tenant owner access" ON public.site_summaries
+  FOR ALL TO authenticated
+  USING (public.current_user_owns_tenant(tenant_id)) WITH CHECK (public.current_user_owns_tenant(tenant_id));
 
-DROP POLICY IF EXISTS "Allow all on usage_counters" ON public.usage_counters;
 DROP POLICY IF EXISTS "Tenant owner access" ON public.usage_counters;
-CREATE POLICY "Tenant owner access" ON public.usage_counters FOR ALL TO authenticated USING (public.current_user_owns_tenant(tenant_id)) WITH CHECK (public.current_user_owns_tenant(tenant_id));
+CREATE POLICY "Tenant owner access" ON public.usage_counters
+  FOR ALL TO authenticated
+  USING (public.current_user_owns_tenant(tenant_id)) WITH CHECK (public.current_user_owns_tenant(tenant_id));
 
-DROP POLICY IF EXISTS "Allow all on scan_jobs" ON public.scan_jobs;
 DROP POLICY IF EXISTS "Tenant owner access" ON public.scan_jobs;
-CREATE POLICY "Tenant owner access" ON public.scan_jobs FOR ALL TO authenticated USING (public.current_user_owns_tenant(tenant_id)) WITH CHECK (public.current_user_owns_tenant(tenant_id));
+CREATE POLICY "Tenant owner access" ON public.scan_jobs
+  FOR ALL TO authenticated
+  USING (public.current_user_owns_tenant(tenant_id)) WITH CHECK (public.current_user_owns_tenant(tenant_id));
+
+-- ---------------------------------------------------------------------------
+-- 16. INTERNAL SCHEMA — staff-only, cross-tenant access for apps/internal-admin
+--
+--     This schema is deliberately NOT listed in supabase/config.toml's
+--     [api].schemas (which stays ["public", "graphql_public"]), so nothing in
+--     it is reachable through the PostgREST Data API at all — not via anon
+--     key, not via an authenticated user's JWT, regardless of grants or RLS.
+--     That's a stronger guarantee than "RLS in public and hope the policy is
+--     right": a bug in the tenant-isolation policies above (section 15) has
+--     no path to this data, because the access mechanism is entirely
+--     different. RLS is still enabled here too, with zero policies (deny-all)
+--     as defense-in-depth — only the service-role key (used exclusively in
+--     server-side API code, same as everywhere else in this product) can
+--     read this table.
+-- ---------------------------------------------------------------------------
+CREATE SCHEMA IF NOT EXISTS internal;
+
+CREATE TABLE IF NOT EXISTS internal.staff_admins (
+    user_id     UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    email       TEXT NOT NULL,
+    created_at  TIMESTAMPTZ DEFAULT NOW(),
+    added_by    TEXT
+);
+
+ALTER TABLE internal.staff_admins ENABLE ROW LEVEL SECURITY;
+-- No policies created on purpose: with RLS enabled and zero policies, every
+-- role except the RLS-bypassing service role is denied by default.
+
+-- Best-effort seed: grants staff access to whichever of these accounts
+-- already exist in auth.users, matched by email. Safe to re-run — ON
+-- CONFLICT DO NOTHING means it never duplicates or overwrites a manual grant.
+-- Add more addresses here (or insert directly into internal.staff_admins)
+-- as the internal team grows.
+INSERT INTO internal.staff_admins (user_id, email, added_by)
+SELECT id, email, 'seed:20260905000000_consolidated_schema'
+FROM auth.users
+WHERE lower(email) IN ('caron.felix2@gmail.com')
+ON CONFLICT (user_id) DO NOTHING;
+
+-- Bridge RPC: because `internal` is not in the PostgREST-exposed schema list,
+-- supabase-js cannot query internal.staff_admins directly even with the
+-- service-role key — PostgREST simply has no route for it, by config, not by
+-- permission. This function lives in `public` (which IS exposed) purely so
+-- server-side code can ask "is this user staff?" over the normal REST/RPC
+-- path, without ever exposing the staff_admins table itself as a queryable
+-- resource. Execute is restricted to service_role only — never granted to
+-- anon/authenticated — so this is unreachable from any tenant-facing or
+-- guest session even by calling the RPC directly.
+CREATE OR REPLACE FUNCTION public.is_staff_admin(check_user_id UUID)
+RETURNS BOOLEAN
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = internal, public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM internal.staff_admins WHERE user_id = check_user_id
+  );
+$$;
+
+REVOKE ALL ON FUNCTION public.is_staff_admin(UUID) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.is_staff_admin(UUID) TO service_role;
