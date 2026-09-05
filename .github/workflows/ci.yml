@@ -41,6 +41,9 @@ jobs:
       - name: Build Admin Single Page App (@b2b-ai-chatbot/admin)
         run: npm run build --prefix apps/admin
 
+      - name: Build Internal Staff Console (@b2b-ai-chatbot/internal-admin)
+        run: npm run build --prefix apps/internal-admin
+
       - name: Run Schema Contracts Verification
         run: node scripts/tests/test-schemas.js
 

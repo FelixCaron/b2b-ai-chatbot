@@ -22,11 +22,14 @@
     "test:schemas": "node scripts/tests/test-schemas.js",
     "test:e2e": "playwright test",
     "test:e2e:report": "playwright show-report",
-    "reingest:delafontaine": "node scripts/adhoc/reingest-delafontaine.mjs"
+    "reingest:delafontaine": "node scripts/adhoc/reingest-delafontaine.mjs",
+    "setup:stripe": "node scripts/ops/setup-stripe.mjs",
+    "setup:supabase": "node scripts/ops/setup-supabase.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.8",
     "resend": "^6.20.0",
+    "stripe": "^22.6.1",
     "ws": "^8.21.3"
   },
   "devDependencies": {

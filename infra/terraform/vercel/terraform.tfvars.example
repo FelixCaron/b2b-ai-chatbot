@@ -1,0 +1,32 @@
+# Copy to terraform.tfvars (already .gitignored) and fill in real values.
+# Never commit terraform.tfvars — it holds live secrets.
+
+vercel_api_token = "your-vercel-api-token"
+vercel_team_id   = null # or "team_xxxxxxxx" / "your-team-slug"
+github_repo      = "FelixCaron/b2b-ai-chatbot"
+project_prefix   = "repondo"
+
+admin_env = {
+  SUPABASE_URL              = "https://your-project.supabase.co"
+  SUPABASE_SERVICE_ROLE_KEY = "your-supabase-service-role-key"
+  OPENROUTER_API_KEY        = "your-openrouter-api-key"
+  STRIPE_SECRET_KEY         = "sk_live_or_test_key"
+  STRIPE_WEBHOOK_SECRET     = "whsec_value"
+  STRIPE_PRICE_ID_BASIC     = "price_value"
+  STRIPE_PRICE_ID_PRO       = "price_value"
+  STRIPE_PRICE_ID_PREMIUM   = "price_value"
+  VITE_APP_URL              = "https://your-admin-domain.example"
+  RESEND_API_KEY            = "re_123456789"
+  ADMIN_EMAIL               = "admin@example.com"
+  DEFAULT_MODEL             = "openai/gpt-5.6-luna"
+  PREMIUM_MODEL             = "anthropic/claude-3.5-sonnet"
+  VITE_SUPABASE_URL         = "https://your-project.supabase.co"
+  VITE_SUPABASE_ANON_KEY    = "your-supabase-anon-key"
+}
+
+internal_admin_env = {
+  SUPABASE_URL              = "https://your-project.supabase.co"
+  SUPABASE_SERVICE_ROLE_KEY = "your-supabase-service-role-key"
+  VITE_SUPABASE_URL         = "https://your-project.supabase.co"
+  VITE_SUPABASE_ANON_KEY    = "your-supabase-anon-key"
+}
