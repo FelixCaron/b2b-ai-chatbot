@@ -105,7 +105,7 @@ CREATE INDEX IF NOT EXISTS fts_en_idx ON documents USING GIN (fts_en);
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS messages (
     id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id   UUID        REFERENCES tenants(id),
+    tenant_id   UUID        REFERENCES tenants(id) ON DELETE CASCADE,
     session_id  TEXT        NOT NULL,
     role        TEXT        NOT NULL CHECK (role IN ('user', 'assistant')),
     content     TEXT        NOT NULL,
@@ -117,7 +117,7 @@ CREATE TABLE IF NOT EXISTS messages (
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS leads (
     id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id   UUID        REFERENCES tenants(id),
+    tenant_id   UUID        REFERENCES tenants(id) ON DELETE CASCADE,
     site_id     UUID        REFERENCES sites(id) ON DELETE CASCADE,
     name        TEXT,
     email       TEXT,
@@ -131,7 +131,7 @@ CREATE TABLE IF NOT EXISTS leads (
 -- 6. USAGE (atomic message/lead counters, one row per tenant, all-time)
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS usage (
-    tenant_id       UUID    PRIMARY KEY REFERENCES tenants(id),
+    tenant_id       UUID    PRIMARY KEY REFERENCES tenants(id) ON DELETE CASCADE,
     messages_count  INT     DEFAULT 0,
     leads_count     INT     DEFAULT 0,
     updated_at      TIMESTAMPTZ DEFAULT NOW()
