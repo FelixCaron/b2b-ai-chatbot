@@ -45,10 +45,35 @@ at-limit retry; idempotent across three applications.
 
 ## NOT DONE — pick up here
 
-### 1. `docs/user-flow-automaton.html` — the primary deliverable, still missing
+### 1. `docs/user-flow-automaton.html` — written, but its status markers are stale
 
-A subagent was writing it when the session ended; **nothing was produced**, the file
-does not exist. This is the main thing the user asked for. Needs:
+**The document exists and is committed** (`72c6feb`, ~109KB): 206 numbered transitions
+across 7 tables, 5 mermaid diagrams, each row carrying source state, event, guard,
+target state and an implemented / partial / missing marker. The transitions and target
+states are correct and reviewed.
+
+**What is wrong with it:** the markers were captured against the codebase *before* the
+four commits below landed, so work that now exists still reads as `partial` or
+`missing`. Current tally: 92 implemented / 58 partial / 47 missing — several of which
+are no longer true. Rows known to need re-marking (by their `num` column):
+
+- Guest → already-registered email and the claim round trip: **14, 25, 26, 27, 28**
+- At-limit add-site and the upgrade-first flow: **16, 31, 42, 77, 78, 81, 82**
+- `OVER_LIMIT_CHOOSE` (downgrade parking): **38, 88, 89, 90, 91**
+- Parked sites (`is_active`) in dashboard and preview: **71, 73**
+- URL routing — Back/Forward/refresh/direct entry: **123** and the other view rows that
+  say "View switches; URL does not"
+
+Re-verify each against the code before flipping it; do not bulk-replace. Rows genuinely
+still missing (mid-scan refresh with no resume, expired/used magic-link handling,
+malformed-URL validation) must stay marked missing — that honesty is the point of the
+document.
+
+Optional: publish it as an Artifact. Note the file is a full standalone HTML page with
+`<html>`/`<head>`/`<body>`; the Artifact publisher wants page content only, so it needs
+a stripped variant rather than the file as-is.
+
+For reference, the spec it was built to — reuse if regenerating any part:
 
 - State table **plus** a mermaid diagram (`<pre class="mermaid">` blocks render natively).
 - Exhaustive over states × events. States: session/identity (`ANON`,
