@@ -9,10 +9,10 @@ import StaffAdmins from './components/StaffAdmins';
 export default function App() {
   if (supabaseConfigurationError) {
     return (
-      <main className="min-h-screen bg-dark-900 flex items-center justify-center p-6 text-slate-100">
-        <div className="max-w-lg rounded-xl border border-red-400/40 bg-red-950/30 p-6">
+      <main className="min-h-screen bg-surface-100 flex items-center justify-center p-6 text-dark-900">
+        <div className="max-w-lg rounded-xl border border-red-300 bg-red-50 p-6">
           <h1 className="text-lg font-semibold">Configuration required</h1>
-          <p className="mt-2 text-sm text-slate-300">{supabaseConfigurationError}</p>
+          <p className="mt-2 text-sm text-red-700">{supabaseConfigurationError}</p>
         </div>
       </main>
     );
@@ -76,7 +76,7 @@ export default function App() {
 
   if (staffStatus === 'checking') {
     return (
-      <main className="min-h-screen bg-dark-900 flex items-center justify-center text-slate-400 text-sm">
+      <main className="min-h-screen bg-surface-100 flex items-center justify-center text-gray-500 text-sm">
         Checking access…
       </main>
     );
@@ -87,21 +87,21 @@ export default function App() {
   }
 
   return (
-    <main className="min-h-screen bg-dark-900 text-gray-100">
-      <header className="border-b border-white/5 px-6 py-4 flex items-center justify-between">
+    <main className="min-h-screen bg-surface-100 text-dark-900">
+      <header className="border-b border-dark-900/5 px-6 py-4 flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-bold">Repondo — Staff Console</h1>
+          <h1 className="text-lg font-bold">Dorafi — Staff Console</h1>
           <p className="text-xs text-gray-500">Signed in as {currentUser.email}.</p>
         </div>
         <button
           onClick={handleLogout}
-          className="text-xs text-gray-400 hover:text-white px-3 py-1.5 rounded-lg border border-white/10"
+          className="text-xs text-gray-500 hover:text-dark-900 px-3 py-1.5 rounded-lg border border-dark-900/10"
         >
           Sign out
         </button>
       </header>
 
-      <nav className="px-6 pt-4 flex gap-2 border-b border-white/5">
+      <nav className="px-6 pt-4 flex gap-2 border-b border-dark-900/5">
         {[
           { id: 'tenants', label: 'Tenants' },
           { id: 'staff', label: 'Staff' },
@@ -111,8 +111,8 @@ export default function App() {
             onClick={() => { setActiveTab(tab.id); setSelectedTenantId(null); }}
             className={`text-sm px-3 py-2 border-b-2 -mb-px transition-colors ${
               activeTab === tab.id
-                ? 'border-brand-500 text-white'
-                : 'border-transparent text-gray-500 hover:text-gray-300'
+                ? 'border-brand-500 text-dark-900'
+                : 'border-transparent text-gray-500 hover:text-gray-600'
             }`}
           >
             {tab.label}

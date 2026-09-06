@@ -55,7 +55,7 @@ export default function StaffAdmins() {
   return (
     <div className="max-w-2xl">
       <div className="glass-card rounded-2xl p-6 mb-6">
-        <h2 className="text-sm font-semibold text-gray-300 mb-1">Grant staff access</h2>
+        <h2 className="text-sm font-semibold text-gray-600 mb-1">Grant staff access</h2>
         <p className="text-xs text-gray-500 mb-4">
           They need to have signed in at least once (via magic link, on this console or the
           admin app) before they can be granted access — this looks them up by their
@@ -66,8 +66,8 @@ export default function StaffAdmins() {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="teammate@repondo.com"
-            className="flex-1 bg-dark-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-sm outline-none focus:border-brand-500"
+            placeholder="teammate@dorafi.com"
+            className="flex-1 bg-white border border-gray-300 text-dark-900 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand-500"
             required
           />
           <button
@@ -79,24 +79,24 @@ export default function StaffAdmins() {
           </button>
         </form>
         {formMessage && (
-          <p className={`mt-3 text-sm ${formMessage.type === 'error' ? 'text-rose-400' : 'text-emerald-300'}`}>
+          <p className={`mt-3 text-sm ${formMessage.type === 'error' ? 'text-rose-600' : 'text-emerald-700'}`}>
             {formMessage.text}
           </p>
         )}
       </div>
 
       <div className="glass-card rounded-2xl overflow-hidden">
-        <div className="px-4 py-3 border-b border-white/5">
-          <h2 className="text-sm font-semibold text-gray-300">{admins.length} staff members</h2>
+        <div className="px-4 py-3 border-b border-dark-900/5">
+          <h2 className="text-sm font-semibold text-gray-600">{admins.length} staff members</h2>
         </div>
         {loading && <p className="p-4 text-sm text-gray-500">Loading…</p>}
-        {error && <p className="p-4 text-sm text-rose-400">{error}</p>}
+        {error && <p className="p-4 text-sm text-rose-600">{error}</p>}
         {!loading && !error && (
           <table className="w-full text-sm">
             <tbody>
               {admins.map((admin) => (
-                <tr key={admin.user_id} className="border-b border-white/5 last:border-0">
-                  <td className="px-4 py-3 text-white">{admin.email}</td>
+                <tr key={admin.user_id} className="border-b border-dark-900/5 last:border-0">
+                  <td className="px-4 py-3 text-dark-900">{admin.email}</td>
                   <td className="px-4 py-3 text-xs text-gray-500">
                     added {new Date(admin.created_at).toLocaleDateString()}
                     {admin.added_by ? ` by ${admin.added_by}` : ''}

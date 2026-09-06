@@ -9,10 +9,10 @@ const PLAN_BADGE = {
 };
 
 const STATUS_BADGE = {
-  active: 'text-emerald-400',
-  trialing: 'text-sky-400',
-  past_due: 'text-amber-400',
-  canceled: 'text-rose-400',
+  active: 'text-emerald-600',
+  trialing: 'text-sky-600',
+  past_due: 'text-amber-600',
+  canceled: 'text-rose-600',
   free: 'text-gray-500',
 };
 
@@ -48,26 +48,26 @@ export default function TenantsList({ onSelectTenant }) {
   }, [tenants, query]);
 
   if (loading) return <p className="text-sm text-gray-500">Loading tenants…</p>;
-  if (error) return <p className="text-sm text-rose-400">{error}</p>;
+  if (error) return <p className="text-sm text-rose-600">{error}</p>;
 
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm font-semibold text-gray-300">{tenants.length} tenants</h2>
+        <h2 className="text-sm font-semibold text-gray-600">{tenants.length} tenants</h2>
         <div className="relative">
           <Search className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search by name or Stripe customer id…"
-            className="bg-dark-800 border border-gray-700 text-sm rounded-lg pl-9 pr-3 py-2 w-72 outline-none focus:border-brand-500"
+            className="bg-white border border-gray-300 text-sm rounded-lg pl-9 pr-3 py-2 w-72 outline-none focus:border-brand-500"
           />
         </div>
       </div>
 
       <div className="glass-card rounded-2xl overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="text-left text-gray-500 border-b border-white/5">
+          <thead className="text-left text-gray-500 border-b border-dark-900/5">
             <tr>
               <th className="px-4 py-3 font-medium">Tenant</th>
               <th className="px-4 py-3 font-medium">Plan</th>
@@ -83,20 +83,20 @@ export default function TenantsList({ onSelectTenant }) {
               <tr
                 key={tenant.id}
                 onClick={() => onSelectTenant(tenant.id)}
-                className="border-b border-white/5 last:border-0 hover:bg-white/5 cursor-pointer"
+                className="border-b border-dark-900/5 last:border-0 hover:bg-surface-200 cursor-pointer"
               >
-                <td className="px-4 py-3 font-medium text-white">{tenant.name}</td>
+                <td className="px-4 py-3 font-medium text-dark-900">{tenant.name}</td>
                 <td className="px-4 py-3">
                   <span className={`px-2 py-0.5 rounded-full text-xs capitalize ${PLAN_BADGE[tenant.plan] || 'bg-slate-700 text-slate-200'}`}>
                     {tenant.plan}
                   </span>
                 </td>
-                <td className={`px-4 py-3 capitalize ${STATUS_BADGE[tenant.plan_status] || 'text-gray-400'}`}>
+                <td className={`px-4 py-3 capitalize ${STATUS_BADGE[tenant.plan_status] || 'text-gray-500'}`}>
                   {tenant.plan_status}
                 </td>
-                <td className="px-4 py-3 text-gray-300">{tenant.site_count}</td>
-                <td className="px-4 py-3 text-gray-300">{tenant.messages_count}</td>
-                <td className="px-4 py-3 text-gray-300">{tenant.leads_count}</td>
+                <td className="px-4 py-3 text-gray-600">{tenant.site_count}</td>
+                <td className="px-4 py-3 text-gray-600">{tenant.messages_count}</td>
+                <td className="px-4 py-3 text-gray-600">{tenant.leads_count}</td>
                 <td className="px-4 py-3 text-gray-500">{new Date(tenant.created_at).toLocaleDateString()}</td>
               </tr>
             ))}
