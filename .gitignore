@@ -30,3 +30,6 @@ infra/terraform/**/*.tfstate
 infra/terraform/**/*.tfstate.*
 infra/terraform/**/terraform.tfvars
 infra/terraform/**/.terraform.lock.hcl
+
+# Claude Code local tooling scratch space (agent worktrees, session state)
+/.claude/
