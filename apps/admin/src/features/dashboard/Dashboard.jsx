@@ -30,16 +30,41 @@ export default function Dashboard({
   const activeSite = (sites && sites.find(s => s.id === selectedSiteId)) || sites?.[0] || localCreatedSite;
 
   const tenantPlan = selectedTenant?.plan || 'basic';
+  // Plan → website limit. The database enforces exactly these numbers in
+  // public.plan_site_limit() and the sites_enforce_limit trigger (migration
+  // 20260905030000_site_limits_and_guest_claims.sql), so this check only exists
+  // to spare the user a doomed round trip — it never has the last word.
   const getMaxSitesForPlan = (plan) => {
-    if (plan === 'premium') return 999;
-    if (plan === 'pro' || plan === 'basic') return 5;
-    return 1; // basic: 1 website
+    if (plan === 'premium') return 10;
+    if (plan === 'pro') return 2;
+    return 1; // basic — and any unknown/legacy plan value: 1 website
   };
   const getMaxPagesForPlan = (plan) => {
     if (plan === 'premium') return 9999;
     if (plan === 'pro' || plan === 'basic') return 2000;
     return 500; // Do not block unless over 500 pages
   };
+  const maxSitesForPlan = getMaxSitesForPlan(tenantPlan);
+
+  // Local is_active overrides for websites parked or re-activated in this
+  // session: `sites` is owned by App.jsx and is not refetched after a plain
+  // supabase update, so without this the list would keep showing the previous
+  // state until the next tenant load.
+  const [siteActiveOverrides, setSiteActiveOverrides] = useState({});
+
+  // A parked site (is_active = false) keeps every page, lead and key it had —
+  // only its widget stops answering (api/chat/index.js refuses an inactive
+  // site). Rows created before the migration have no column at all, so anything
+  // that is not explicitly false counts as active.
+  const isSiteActive = (site) => {
+    if (!site) return false;
+    if (Object.prototype.hasOwnProperty.call(siteActiveOverrides, site.id)) {
+      return siteActiveOverrides[site.id];
+    }
+    return site.is_active !== false;
+  };
+  const activeSites = (sites || []).filter(isSiteActive);
+  const isOverSiteLimit = activeSites.length > maxSitesForPlan;
 
   // Onboarding Step State
   const [siteUrl, setSiteUrl] = useState('');
@@ -53,6 +78,22 @@ export default function Dashboard({
   const [newSiteUrlInput, setNewSiteUrlInput] = useState('');
   const [isAddingNewSite, setIsAddingNewSite] = useState(false);
   const [newSiteError, setNewSiteError] = useState('');
+  // Upgrade-first prompt: shown instead of an inline error when the workspace
+  // is already at its plan's website limit — either our own pre-check or the
+  // sites_enforce_limit trigger refusing the insert.
+  const [showUpgradeRequiredModal, setShowUpgradeRequiredModal] = useState(false);
+  const [upgradeRequiredDomain, setUpgradeRequiredDomain] = useState('');
+
+  // OVER_LIMIT_CHOOSE state — a Stripe downgrade (or a past_due plan change)
+  // can leave a workspace holding more websites than its new plan covers. The
+  // user picks which ones stay active; every other one is parked
+  // (is_active = false), never deleted, and comes back on upgrade.
+  const [showOverLimitModal, setShowOverLimitModal] = useState(false);
+  const [overLimitKeepIds, setOverLimitKeepIds] = useState(new Set());
+  const [isParkingSites, setIsParkingSites] = useState(false);
+  const [overLimitError, setOverLimitError] = useState('');
+  const [reactivatingSiteId, setReactivatingSiteId] = useState(null);
+  const [siteNotice, setSiteNotice] = useState('');
 
   // Delete Site state
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
@@ -118,6 +159,128 @@ export default function Dashboard({
       setDeleteSiteError(err.message || 'Unexpected error while deleting the site.');
     } finally {
       setIsDeletingSite(false);
+    }
+  };
+
+  // The `sites` table answers with raw Postgres errors (the limit trigger and
+  // the sites_tenant_domain_uq unique index both surface as SQL strings). Turn
+  // them into something a customer can actually act on.
+  const describeSiteWriteError = (err, fallback) => {
+    const raw = err?.message || '';
+    if (raw.includes('site_limit_reached')) {
+      return `Your ${tenantPlan.toUpperCase()} plan covers ${maxSitesForPlan} website(s). Upgrade your plan to connect another one.`;
+    }
+    if (raw.includes('sites_tenant_domain_uq') || raw.includes('duplicate key')) {
+      return 'This website is already connected to your workspace.';
+    }
+    return raw || fallback;
+  };
+
+  // Transient, non-error feedback for the dashboard view (e.g. "you already
+  // have this website — switched you to it").
+  useEffect(() => {
+    if (!siteNotice) return;
+    const timer = setTimeout(() => setSiteNotice(''), 8000);
+    return () => clearTimeout(timer);
+  }, [siteNotice]);
+
+  // OVER_LIMIT_CHOOSE: as soon as the workspace has more active websites than
+  // the plan covers, the choice is unavoidable — the widgets of whichever sites
+  // end up parked stop answering, so the user, not us, decides which ones.
+  // Pre-selects the website currently being viewed as a sane starting point.
+  useEffect(() => {
+    if (!isOverSiteLimit) {
+      setShowOverLimitModal(false);
+      return;
+    }
+    setOverLimitError('');
+    setShowOverLimitModal(true);
+    setOverLimitKeepIds(prev => {
+      // Drop anything already parked (or gone) and never keep more ids than the
+      // current plan has slots — a second downgrade can shrink the limit again.
+      const stillSelectable = [...prev]
+        .filter(id => activeSites.some(s => s.id === id))
+        .slice(0, maxSitesForPlan);
+      if (stillSelectable.length > 0) return new Set(stillSelectable);
+      return new Set(isSiteActive(activeSite) ? [activeSite.id] : []);
+    });
+  }, [isOverSiteLimit, activeSite?.id]);
+
+  const toggleOverLimitKeep = (siteId) => {
+    setOverLimitKeepIds(prev => {
+      const next = new Set(prev);
+      if (next.has(siteId)) {
+        next.delete(siteId);
+      } else {
+        if (next.size >= maxSitesForPlan) return next; // plan has no more slots
+        next.add(siteId);
+      }
+      return next;
+    });
+  };
+
+  const handleConfirmOverLimitSelection = async () => {
+    if (isParkingSites) return;
+    const keepIds = Array.from(overLimitKeepIds);
+    if (keepIds.length === 0 || keepIds.length > maxSitesForPlan) return;
+
+    const idsToPark = activeSites.filter(s => !overLimitKeepIds.has(s.id)).map(s => s.id);
+    if (idsToPark.length === 0) {
+      setShowOverLimitModal(false);
+      return;
+    }
+
+    setIsParkingSites(true);
+    setOverLimitError('');
+    try {
+      // Plain update, no RPC: parking is always allowed under owner RLS — the
+      // sites_enforce_limit trigger only guards the other direction
+      // (re-activating). Deliberately an update and never a delete: upgrading
+      // must bring these websites back with their pages, leads and keys intact.
+      const { error } = await supabase
+        .from('sites')
+        .update({ is_active: false })
+        .in('id', idsToPark);
+      if (error) throw error;
+
+      setSiteActiveOverrides(prev => {
+        const next = { ...prev };
+        idsToPark.forEach(id => { next[id] = false; });
+        keepIds.forEach(id => { next[id] = true; });
+        return next;
+      });
+      if (!overLimitKeepIds.has(activeSite?.id)) {
+        setSelectedSiteId(keepIds[0]);
+      }
+      setSiteNotice(`${idsToPark.length} website(s) parked. Nothing was deleted — upgrade your plan to bring them back online.`);
+      setShowOverLimitModal(false);
+    } catch (err) {
+      console.error('[handleConfirmOverLimitSelection] Error:', err);
+      setOverLimitError(describeSiteWriteError(err, 'Could not update your websites. Please try again.'));
+    } finally {
+      setIsParkingSites(false);
+    }
+  };
+
+  // Bring a parked website back online. The trigger re-checks the limit on
+  // re-activation, so a plan without a free slot is refused server-side too.
+  const handleReactivateSite = async (site) => {
+    if (!site?.id || reactivatingSiteId) return;
+    setReactivatingSiteId(site.id);
+    setSiteNotice('');
+    try {
+      const { error } = await supabase
+        .from('sites')
+        .update({ is_active: true })
+        .eq('id', site.id);
+      if (error) throw error;
+      setSiteActiveOverrides(prev => ({ ...prev, [site.id]: true }));
+      setSiteNotice(`${site.domain} is back online — its assistant is answering again.`);
+    } catch (err) {
+      console.error('[handleReactivateSite] Error:', err);
+      setSiteNotice(describeSiteWriteError(err, 'Could not reactivate this website. Please try again.'));
+    } finally {
+      setReactivatingSiteId(null);
     }
   };
 
@@ -732,15 +895,40 @@ export default function Dashboard({
     e.preventDefault();
     if (!newSiteUrlInput.trim()) return;
 
-    const maxSites = getMaxSitesForPlan(tenantPlan);
-    if (sites && sites.length >= maxSites) {
-      setNewSiteError(`Your plan allows up to ${maxSites} website(s). Please upgrade to add more domains!`);
-      return;
-    }
-
     let formattedUrl = newSiteUrlInput.trim();
     if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
       formattedUrl = `https://${formattedUrl}`;
+    }
+    const currentDomain = formattedUrl.replace('https://', '').replace('http://', '').replace('www.', '').split('/')[0];
+
+    // Already connected? Switch to the site they have instead of attempting a
+    // second row for the same domain — sites_tenant_domain_uq would reject it,
+    // and a duplicate is never what the user actually wanted. Parked sites are
+    // matched too: the answer there is to reactivate, not to add it twice.
+    const existingSite = (sites || []).find(
+      s => (s.domain || '').toLowerCase() === currentDomain.toLowerCase()
+    );
+    if (existingSite) {
+      setSelectedSiteId(existingSite.id);
+      setShowAddSiteModal(false);
+      setNewSiteUrlInput('');
+      setNewSiteError('');
+      setSiteNotice(
+        isSiteActive(existingSite)
+          ? `${existingSite.domain} is already connected to your workspace — switched you to it.`
+          : `${existingSite.domain} is already connected to your workspace, but currently parked. Reactivate it below.`
+      );
+      return;
+    }
+
+    // Client-side pre-check, kept so a doomed crawl never starts. Counts every
+    // website in the workspace, parked ones included: the database counts rows,
+    // and parking is a consequence of exceeding the limit, not a way past it.
+    if (sites && sites.length >= maxSitesForPlan) {
+      setShowAddSiteModal(false);
+      setUpgradeRequiredDomain(currentDomain);
+      setShowUpgradeRequiredModal(true);
+      return;
     }
 
     setIsAddingNewSite(true);
@@ -748,7 +936,6 @@ export default function Dashboard({
 
     try {
       const captchaToken = await executeTurnstileCaptcha();
-      let currentDomain = formattedUrl.replace('https://', '').replace('http://', '').replace('www.', '').split('/')[0];
       let brandColor = '#6366f1';
 
       try {
@@ -779,7 +966,17 @@ export default function Dashboard({
         setIsAddingNewSite(false);
       }
     } catch (err) {
-      setNewSiteError(`Error: ${err.message}`);
+      console.error('[handleAddSiteModalSubmit] Error:', err);
+      // The database has the last word on the limit (sites_enforce_limit); if
+      // it is what refused the insert, answer with the same upgrade-first
+      // prompt as the pre-check rather than a raw SQL string in a red box.
+      if ((err?.message || '').includes('site_limit_reached')) {
+        setShowAddSiteModal(false);
+        setUpgradeRequiredDomain(currentDomain);
+        setShowUpgradeRequiredModal(true);
+      } else {
+        setNewSiteError(describeSiteWriteError(err, 'Could not add this website. Please try again.'));
+      }
       setIsAddingNewSite(false);
     }
   };
@@ -960,24 +1157,52 @@ export default function Dashboard({
       ) : (
         /* 2. MAIN DASHBOARD CLIENT VIEW */
         <div className="space-y-8">
-          {/* Multi-Site Selector Tabs (if more than 1 site exists) */}
+          {/* Transient feedback (duplicate domain, parking, reactivation) */}
+          {siteNotice && (
+            <div className="flex items-start gap-3 bg-brand-500/10 border border-brand-500/30 text-brand-200 text-xs rounded-2xl px-4 py-3 animate-in fade-in">
+              <Sparkles className="w-4 h-4 shrink-0 mt-0.5 text-brand-400" />
+              <span className="flex-1 leading-relaxed">{siteNotice}</span>
+              <button
+                type="button"
+                onClick={() => setSiteNotice('')}
+                className="text-brand-300/70 hover:text-white transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
+          {/* Multi-Site Selector Tabs (if more than 1 site exists).
+              Parked sites stay in the list, visibly inactive: hiding them would
+              leave the user wondering why a widget stopped answering. */}
           {sites && sites.length > 1 && (
             <div className="flex items-center gap-2 overflow-x-auto pb-1">
               <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider shrink-0 mr-1">Websites:</span>
               {sites.map((s) => {
                 const isSelected = activeSite?.id === s.id;
+                const isParked = !isSiteActive(s);
                 return (
                   <button
                     key={s.id}
                     onClick={() => setSelectedSiteId(s.id)}
+                    title={isParked ? 'Parked — this website\'s assistant is paused until your plan has room' : s.domain}
                     className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 border ${
                       isSelected
                         ? 'bg-brand-600/20 text-white border-brand-500/40 shadow-sm'
+                        : isParked
+                        ? 'bg-dark-900/60 text-gray-500 border-white/5 hover:border-amber-500/30 hover:text-gray-300'
                         : 'bg-dark-900/80 text-gray-400 border-white/5 hover:border-white/20 hover:text-gray-200'
                     }`}
                   >
-                    <span className={`w-2 h-2 rounded-full ${isSelected ? 'bg-emerald-400 animate-pulse' : 'bg-gray-600'}`} />
-                    <span>{s.domain}</span>
+                    <span className={`w-2 h-2 rounded-full ${
+                      isParked ? 'bg-amber-500/70' : isSelected ? 'bg-emerald-400 animate-pulse' : 'bg-gray-600'
+                    }`} />
+                    <span className={isParked ? 'opacity-70' : ''}>{s.domain}</span>
+                    {isParked && (
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400/90 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded-full">
+                        Paused
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -1000,10 +1225,17 @@ export default function Dashboard({
                 <div>
                   <div className="flex items-center gap-2.5 flex-wrap">
                     <h2 className="text-2xl font-bold text-white tracking-tight">{activeSite.domain}</h2>
-                    <span className="bg-emerald-500/15 text-emerald-400 text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5 border border-emerald-500/20">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                      Assistant Active & Ready
-                    </span>
+                    {isSiteActive(activeSite) ? (
+                      <span className="bg-emerald-500/15 text-emerald-400 text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5 border border-emerald-500/20">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                        Assistant Active & Ready
+                      </span>
+                    ) : (
+                      <span className="bg-amber-500/15 text-amber-400 text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5 border border-amber-500/20">
+                        <span className="w-2 h-2 rounded-full bg-amber-500/80"></span>
+                        Assistant Paused (Parked)
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs text-gray-400 mt-1 flex items-center gap-2">
                     Public Key: <span className="font-mono text-indigo-300 bg-dark-900 px-2 py-0.5 rounded border border-white/5">{activeSite.public_key}</span>
@@ -1092,6 +1324,55 @@ export default function Dashboard({
                 </button>
               </div>
             </div>
+
+            {/* PARKED WEBSITE BANNER — why this widget stopped answering, and
+                the two ways out. Nothing here deletes anything. */}
+            {!isSiteActive(activeSite) && (
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 space-y-3 animate-in fade-in">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400 shrink-0 mt-0.5">
+                    <AlertTriangle className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1 text-xs">
+                    <h4 className="font-bold text-white text-sm mb-1">
+                      This website is parked — its assistant is not answering
+                    </h4>
+                    <p className="text-amber-200/90 leading-relaxed">
+                      Your <strong>{tenantPlan.toUpperCase()}</strong> plan covers <strong>{maxSitesForPlan} active website(s)</strong>, and you currently have <strong>{activeSites.length}</strong> active.
+                    </p>
+                    <p className="text-gray-300 mt-1">
+                      Nothing was deleted: every indexed page, lead and API key for <strong className="text-white">{activeSite.domain}</strong> is still here, exactly as you left it. Upgrade your plan and it comes straight back online.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-center justify-end gap-2.5 pt-2 border-t border-amber-500/20">
+                  <button
+                    type="button"
+                    disabled={reactivatingSiteId === activeSite.id || activeSites.length >= maxSitesForPlan}
+                    onClick={() => handleReactivateSite(activeSite)}
+                    title={activeSites.length >= maxSitesForPlan ? 'Your plan has no free slot — park another website or upgrade first' : 'Bring this website back online'}
+                    className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-semibold text-gray-300 hover:text-white bg-dark-900 border border-white/10 hover:bg-dark-800 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+                  >
+                    {reactivatingSiteId === activeSite.id ? (
+                      <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Reactivating...</>
+                    ) : (
+                      <><ToggleRight className="w-3.5 h-3.5" /> Reactivate this website</>
+                    )}
+                  </button>
+
+                  {onShowPricing && (
+                    <button
+                      type="button"
+                      onClick={() => onShowPricing()}
+                      className="w-full sm:w-auto px-5 py-2 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-amber-500 to-brand-600 hover:from-amber-400 hover:to-brand-500 shadow-md transition-all flex items-center justify-center gap-1.5"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" /> Upgrade Plan →
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Quick 3-Step Guided Roadmap */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-white/5">
@@ -2274,6 +2555,197 @@ export default function Dashboard({
                   Confirm & Index Selected Pages ({selectedUrls.size}) →
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 10. PLAN LIMIT REACHED — UPGRADE FIRST MODAL
+          Adding a website at the limit is not an error the user made, it is a
+          plan decision: upgrading is the lead action, everything else is a way
+          out of the dialog. */}
+      {showUpgradeRequiredModal && (() => {
+        const nextPlan = tenantPlan === 'premium'
+          ? null
+          : tenantPlan === 'pro'
+          ? { name: 'Premium', sites: 10 }
+          : { name: 'Pro', sites: 2 };
+
+        return (
+          <div className="fixed inset-0 z-[9999999] bg-black/80 flex items-center justify-center p-4 animate-in fade-in">
+            <div className="glass-card p-8 rounded-3xl w-full max-w-md border border-brand-500/30 shadow-2xl relative text-center">
+              <button
+                onClick={() => setShowUpgradeRequiredModal(false)}
+                className="absolute top-4 right-4 text-gray-400 hover:text-white p-2 rounded-lg hover:bg-white/5 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="w-14 h-14 rounded-2xl bg-brand-500/10 text-brand-300 border border-brand-500/20 flex items-center justify-center mx-auto mb-4">
+                <Sparkles className="w-7 h-7" />
+              </div>
+
+              <h3 className="text-xl font-bold text-white mb-2">
+                Add {upgradeRequiredDomain || 'another website'} with an upgrade
+              </h3>
+              <p className="text-sm text-gray-400 mb-6 leading-relaxed">
+                Your <strong className="text-white">{tenantPlan.toUpperCase()}</strong> plan covers <strong className="text-white">{maxSitesForPlan} website{maxSitesForPlan > 1 ? 's' : ''}</strong>, and your workspace already has {sites?.length ?? 0}.
+                {nextPlan
+                  ? <> Upgrading to <strong className="text-white">{nextPlan.name}</strong> raises that to <strong className="text-white">{nextPlan.sites} websites</strong> — your current assistants keep running exactly as they are.</>
+                  : <> That is our largest plan; get in touch and we will work out what you need.</>}
+              </p>
+
+              <div className="flex flex-col gap-3">
+                {onShowPricing && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowUpgradeRequiredModal(false);
+                      onShowPricing();
+                    }}
+                    className="w-full bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white font-bold px-6 py-3 rounded-xl text-sm flex items-center justify-center gap-2 transition-all shadow-lg shadow-brand-900/50 hover:scale-[1.02] active:scale-95"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    {nextPlan ? `Upgrade to ${nextPlan.name}` : 'See plans'} →
+                  </button>
+                )}
+
+                {/* Secondary, deliberately quiet: deleting a website to make
+                    room is destructive and permanent, unlike upgrading. */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowUpgradeRequiredModal(false);
+                    setShowDeleteConfirmModal(true);
+                  }}
+                  className="w-full px-5 py-2 rounded-xl text-xs font-medium text-gray-400 hover:text-white transition-colors"
+                >
+                  Or delete {activeSite?.domain || 'an existing website'} to free a slot
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowUpgradeRequiredModal(false)}
+                  className="w-full px-5 py-1 text-xs font-medium text-gray-500 hover:text-gray-300 transition-colors"
+                >
+                  Not now
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* 11. OVER_LIMIT_CHOOSE — MORE WEBSITES THAN THE PLAN COVERS
+          Reached after a downgrade (Stripe change, past_due). The user picks
+          which websites stay active; the others are parked, never deleted. */}
+      {showOverLimitModal && activeSites.length > 0 && (
+        <div className="fixed inset-0 z-[9999999] bg-black/85 flex items-center justify-center p-4 animate-in fade-in">
+          <div className="glass-card p-6 sm:p-8 rounded-3xl w-full max-w-2xl border border-amber-500/30 shadow-2xl relative flex flex-col max-h-[88vh]">
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/30">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white">
+                    Choose which website{maxSitesForPlan > 1 ? 's' : ''} stay{maxSitesForPlan > 1 ? '' : 's'} active
+                  </h3>
+                  <p className="text-xs text-gray-400">
+                    Your <strong>{tenantPlan.toUpperCase()}</strong> plan covers <strong>{maxSitesForPlan} active website{maxSitesForPlan > 1 ? 's' : ''}</strong>, and you have <strong>{activeSites.length}</strong>.
+                  </p>
+                </div>
+              </div>
+
+              <span className={`px-3 py-1 rounded-full text-xs font-bold shrink-0 ${
+                overLimitKeepIds.size === 0
+                  ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                  : 'bg-brand-500/20 text-brand-300 border border-brand-500/30'
+              }`}>
+                {overLimitKeepIds.size} / {maxSitesForPlan} selected
+              </span>
+            </div>
+
+            <div className="bg-emerald-500/10 border border-emerald-500/25 rounded-2xl p-3.5 text-xs text-emerald-200/90 leading-relaxed flex items-start gap-2.5">
+              <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5 text-emerald-400" />
+              <span>
+                The websites you do not select are <strong className="text-white">parked, not deleted</strong>. Their indexed pages, business summary, captured leads and API keys stay untouched — only their chat widget stops answering. Upgrade your plan and they come back online exactly as they were.
+              </span>
+            </div>
+
+            {overLimitError && (
+              <div className="mt-3 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-xs font-medium text-red-300 text-left flex items-start gap-2 animate-in fade-in">
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{overLimitError}</span>
+              </div>
+            )}
+
+            {/* Scrollable Website Checklist */}
+            <div className="flex-1 overflow-y-auto min-h-0 my-3 divide-y divide-white/5 rounded-xl border border-white/5 bg-dark-950/60">
+              {activeSites.map((s) => {
+                const isChecked = overLimitKeepIds.has(s.id);
+                const isFull = !isChecked && overLimitKeepIds.size >= maxSitesForPlan;
+                return (
+                  <div
+                    key={s.id}
+                    onClick={() => toggleOverLimitKeep(s.id)}
+                    title={isFull ? 'Unselect another website first' : ''}
+                    className={`p-3 flex items-center justify-between gap-3 transition-colors ${
+                      isFull ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-white/[0.03]'
+                    } ${isChecked ? 'bg-brand-500/5' : ''}`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => {}}
+                        className="w-4 h-4 rounded text-brand-600 bg-dark-800 border-white/20 focus:ring-0 shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <div className="text-xs font-semibold text-white truncate">{s.domain}</div>
+                        <div className="text-[11px] text-gray-400 font-mono truncate">{s.public_key}</div>
+                      </div>
+                    </div>
+                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${
+                      isChecked
+                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                        : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                    }`}>
+                      {isChecked ? 'Stays active' : 'Will be parked'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Modal Footer Actions */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-white/5">
+              {onShowPricing ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowOverLimitModal(false);
+                    onShowPricing();
+                  }}
+                  className="w-full sm:w-auto text-xs text-amber-300 hover:text-amber-200 font-semibold flex items-center gap-1.5 px-3 py-2"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                  Upgrade instead and keep all {activeSites.length} online →
+                </button>
+              ) : <span />}
+
+              <button
+                type="button"
+                disabled={isParkingSites || overLimitKeepIds.size === 0 || overLimitKeepIds.size > maxSitesForPlan}
+                onClick={handleConfirmOverLimitSelection}
+                className="w-full sm:w-auto bg-brand-600 hover:bg-brand-500 text-white font-semibold px-6 py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isParkingSites ? (
+                  <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Saving...</>
+                ) : (
+                  <>Keep selected active & park {Math.max(activeSites.length - overLimitKeepIds.size, 0)} →</>
+                )}
+              </button>
             </div>
           </div>
         </div>

@@ -2,6 +2,11 @@ import React, { useState } from 'react';
 import { Check, Zap, Shield, Sparkles, ArrowRight, Loader2, ExternalLink } from 'lucide-react';
 import { authenticatedHeaders } from '../lib/supabase';
 
+// The website counts advertised here are the ones actually enforced: the
+// database refuses anything above them (public.plan_site_limit and the
+// sites_enforce_limit trigger, migration 20260905030000_site_limits_and_
+// guest_claims.sql) and getMaxSitesForPlan in features/dashboard/Dashboard.jsx
+// mirrors them client-side — Basic 1, Pro 2, Premium 10. Keep all three in step.
 const PLANS = [
   {
     id: 'basic',
@@ -27,7 +32,7 @@ const PLANS = [
     description: "More features and higher chat allowances for growing businesses.",
     popular: true,
     features: [
-      'Up to 5 Websites',
+      'Up to 2 Websites',
       'Up to 2,000 live pages per website',
       'Base LLM model with higher throughput',
       '10,000 messages / month',
@@ -45,7 +50,8 @@ const PLANS = [
     currency: 'USD',
     description: 'Premium model, all features enabled, highest chat limits and priority support.',
     features: [
-      'Unlimited Websites & Pages',
+      'Up to 10 Websites',
+      'Unlimited pages per website',
       'Premium LLM model',
       'Unlimited messages',
       'Dedicated onboarding & priority support',
