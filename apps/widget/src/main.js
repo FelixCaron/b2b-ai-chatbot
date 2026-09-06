@@ -13,7 +13,7 @@ import { parseMarkdown } from "./markdown.js";
   }
   
   const apiEndpoint = scriptTag?.getAttribute("data-api-url") || defaultApiUrl;
-  const themeColor = scriptTag?.getAttribute("data-theme-color") || "#6366f1";
+  const themeColor = scriptTag?.getAttribute("data-theme-color") || "#293f68";
 
   // Growth lever: a small "Powered by" badge shown on the free/basic tier,
   // removed on Pro/Premium. The embed snippet (see Dashboard.jsx's
@@ -80,7 +80,7 @@ import { parseMarkdown } from "./markdown.js";
       </div>
       ${hideBranding ? "" : `
       <a class="b2b-branding" id="b2b-branding" href="${brandingHost}" target="_blank" rel="noopener noreferrer">
-        Powered by <strong>Repondo</strong>
+        Powered by <strong>dorafi</strong>
       </a>`}
     </div>
     <button class="b2b-chat-launcher" id="b2b-launcher" aria-label="Open chat assistant">

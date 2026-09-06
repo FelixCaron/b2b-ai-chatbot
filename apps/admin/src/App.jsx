@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { authenticatedHeaders, supabase, supabaseConfigurationError } from './lib/supabase';
 import Header from './components/Header';
+import LogoMark from './components/LogoMark';
 import Dashboard from './features/dashboard/Dashboard';
 import LeadsTable from './components/LeadsTable';
 import LoginModal from './components/LoginModal';
@@ -45,7 +46,7 @@ function viewForPath(pathname) {
 // domain in the question. It is never trusted as proof of anything: redeeming
 // takes no ids at all, only the verified email on the caller's own token.
 // ---------------------------------------------------------------------------
-const PENDING_CLAIM_KEY = 'repondo.pending_site_claim';
+const PENDING_CLAIM_KEY = 'dorafi.pending_site_claim';
 
 function readPendingClaim() {
   try {
@@ -95,10 +96,10 @@ function orderSitesForFocus(rows, focusSiteId) {
 export default function App() {
   if (supabaseConfigurationError) {
     return (
-      <main className="min-h-screen bg-dark-900 flex items-center justify-center p-6 text-slate-100">
-        <div className="max-w-lg rounded-xl border border-red-400/40 bg-red-950/30 p-6">
+      <main className="min-h-screen bg-surface-100 flex items-center justify-center p-6 text-dark-900">
+        <div className="max-w-lg rounded-xl border border-red-300 bg-red-50 p-6">
           <h1 className="text-lg font-semibold">Configuration requise</h1>
-          <p className="mt-2 text-sm text-slate-300">{supabaseConfigurationError}</p>
+          <p className="mt-2 text-sm text-red-700">{supabaseConfigurationError}</p>
         </div>
       </main>
     );
@@ -516,7 +517,7 @@ export default function App() {
   }, [selectedTenant?.id]);
 
   // Handler: Add new Site
-  const handleAddSite = async (domain, primaryColor = '#6366f1') => {
+  const handleAddSite = async (domain, primaryColor = '#293f68') => {
     let user = currentUser;
     if (!user) {
       const { data: sessionData } = await supabase.auth.getSession();
@@ -677,14 +678,14 @@ export default function App() {
 
   if (loading || !authReady) {
     return (
-      <div className="min-h-screen bg-dark-900 flex items-center justify-center text-brand-400 text-sm font-medium animate-pulse">
+      <div className="min-h-screen bg-surface-100 flex items-center justify-center text-brand-600 text-sm font-medium animate-pulse">
         Loading Client Workspace...
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-dark-900 pb-16">
+    <div className="min-h-screen bg-surface-100 pb-16">
       {sessionEmail && (
         <Header
           tenants={tenants}
@@ -742,19 +743,18 @@ export default function App() {
                 onClick={() => { navigate('dashboard'); setMobileMenuOpen(false); }}
                 className="flex items-center gap-3 cursor-pointer"
               >
-                <div className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-400 shadow-lg flex items-center justify-center">
-                  <span className="text-white font-extrabold text-base sm:text-lg leading-none select-none">R</span>
-                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-dark-900" />
+                <div className="w-9 h-9 sm:w-10 sm:h-10 text-brand-900 shrink-0 flex items-center justify-center">
+                  <LogoMark className="w-full h-full" />
                 </div>
-                <h1 className="text-base sm:text-lg font-bold text-white tracking-tight lowercase">repondo</h1>
+                <h1 className="text-base sm:text-lg font-bold text-dark-900 tracking-tight lowercase">dorafi</h1>
               </div>
 
               {/* Desktop nav */}
-              <nav className="hidden sm:flex items-center gap-1 bg-dark-900/80 p-1 rounded-xl border border-white/5">
+              <nav className="hidden sm:flex items-center gap-1 bg-surface-200 p-1 rounded-xl border border-dark-900/5">
                 <button
                   onClick={() => navigate('dashboard')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                    currentView === 'dashboard' ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-white'
+                    currentView === 'dashboard' ? 'bg-brand-600 text-white' : 'text-gray-500 hover:text-dark-900'
                   }`}
                 >
                   Dashboard
@@ -762,7 +762,7 @@ export default function App() {
                 <button
                   onClick={() => navigate('leads')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                    currentView === 'leads' ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-white'
+                    currentView === 'leads' ? 'bg-brand-600 text-white' : 'text-gray-500 hover:text-dark-900'
                   }`}
                 >
                   Leads ({leads.length})
@@ -770,7 +770,7 @@ export default function App() {
                 <button
                   onClick={() => navigate('pricing')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                    currentView === 'pricing' ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-white'
+                    currentView === 'pricing' ? 'bg-brand-600 text-white' : 'text-gray-500 hover:text-dark-900'
                   }`}
                 >
                   Plans
@@ -778,7 +778,7 @@ export default function App() {
                 <button
                   onClick={() => navigate('about')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                    currentView === 'about' ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-white'
+                    currentView === 'about' ? 'bg-brand-600 text-white' : 'text-gray-500 hover:text-dark-900'
                   }`}
                 >
                   About
@@ -789,7 +789,7 @@ export default function App() {
             {/* Desktop Sign In */}
             <button
               onClick={() => setShowLoginModal(true)}
-              className="hidden sm:inline-flex text-xs sm:text-sm font-medium bg-white/10 hover:bg-white/20 text-white px-3.5 py-1.5 rounded-lg transition-colors"
+              className="hidden sm:inline-flex text-xs sm:text-sm font-medium bg-brand-600 hover:bg-brand-700 text-white px-3.5 py-1.5 rounded-lg transition-colors"
             >
               Sign In
             </button>
@@ -797,7 +797,7 @@ export default function App() {
             {/* Mobile menu toggle */}
             <button
               onClick={() => setMobileMenuOpen((open) => !open)}
-              className="sm:hidden w-9 h-9 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-gray-300 transition-colors"
+              className="sm:hidden w-9 h-9 rounded-lg bg-surface-200 hover:bg-surface-300 border border-dark-900/10 flex items-center justify-center text-gray-600 transition-colors"
               aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
               aria-expanded={mobileMenuOpen}
             >
@@ -807,11 +807,11 @@ export default function App() {
 
           {/* Mobile dropdown */}
           {mobileMenuOpen && (
-            <div className="sm:hidden max-w-7xl mx-auto mt-3 pt-3 border-t border-white/10 flex flex-col gap-1 animate-in fade-in slide-in-from-top-2 duration-150">
+            <div className="sm:hidden max-w-7xl mx-auto mt-3 pt-3 border-t border-dark-900/10 flex flex-col gap-1 animate-in fade-in slide-in-from-top-2 duration-150">
               <button
                 onClick={() => { navigate('dashboard'); setMobileMenuOpen(false); }}
                 className={`text-left px-3.5 py-2.5 rounded-lg text-sm font-semibold transition-colors ${
-                  currentView === 'dashboard' ? 'bg-brand-600 text-white' : 'text-gray-300 hover:bg-white/5'
+                  currentView === 'dashboard' ? 'bg-brand-600 text-white' : 'text-gray-600 hover:bg-surface-200'
                 }`}
               >
                 Dashboard
@@ -819,7 +819,7 @@ export default function App() {
               <button
                 onClick={() => { navigate('leads'); setMobileMenuOpen(false); }}
                 className={`text-left px-3.5 py-2.5 rounded-lg text-sm font-semibold transition-colors ${
-                  currentView === 'leads' ? 'bg-brand-600 text-white' : 'text-gray-300 hover:bg-white/5'
+                  currentView === 'leads' ? 'bg-brand-600 text-white' : 'text-gray-600 hover:bg-surface-200'
                 }`}
               >
                 Leads ({leads.length})
@@ -827,7 +827,7 @@ export default function App() {
               <button
                 onClick={() => { navigate('pricing'); setMobileMenuOpen(false); }}
                 className={`text-left px-3.5 py-2.5 rounded-lg text-sm font-semibold transition-colors ${
-                  currentView === 'pricing' ? 'bg-brand-600 text-white' : 'text-gray-300 hover:bg-white/5'
+                  currentView === 'pricing' ? 'bg-brand-600 text-white' : 'text-gray-600 hover:bg-surface-200'
                 }`}
               >
                 Plans
@@ -835,14 +835,14 @@ export default function App() {
               <button
                 onClick={() => { navigate('about'); setMobileMenuOpen(false); }}
                 className={`text-left px-3.5 py-2.5 rounded-lg text-sm font-semibold transition-colors ${
-                  currentView === 'about' ? 'bg-brand-600 text-white' : 'text-gray-300 hover:bg-white/5'
+                  currentView === 'about' ? 'bg-brand-600 text-white' : 'text-gray-600 hover:bg-surface-200'
                 }`}
               >
                 About
               </button>
               <button
                 onClick={() => { setShowLoginModal(true); setMobileMenuOpen(false); }}
-                className="text-left px-3.5 py-2.5 rounded-lg text-sm font-semibold text-white bg-white/10 hover:bg-white/20 mt-1 transition-colors"
+                className="text-left px-3.5 py-2.5 rounded-lg text-sm font-semibold text-white bg-brand-600 hover:bg-brand-700 mt-1 transition-colors"
               >
                 Sign In
               </button>
@@ -853,7 +853,7 @@ export default function App() {
 
       {/* Payment cancel toast */}
       {paymentToast === 'cancel' && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-dark-800 border border-yellow-500/30 text-yellow-400 text-sm rounded-xl px-6 py-3 shadow-xl animate-in fade-in slide-in-from-bottom-4">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-white border border-amber-300 text-amber-700 text-sm rounded-xl px-6 py-3 shadow-xl animate-in fade-in slide-in-from-bottom-4">
           ⚠️ Payment canceled. You can try again at any time.
         </div>
       )}
@@ -879,17 +879,17 @@ export default function App() {
         <main className="max-w-7xl mx-auto px-4 sm:px-8 space-y-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center text-indigo-400 border border-indigo-500/30">
+              <div className="w-10 h-10 rounded-xl bg-brand-500/10 flex items-center justify-center text-brand-700 border border-brand-500/20">
                 <Users className="w-5 h-5" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-white">Captured Leads & Contacts</h2>
-                <p className="text-xs text-gray-400">Prospects and inquiries collected automatically by your AI assistants</p>
+                <h2 className="text-xl font-bold text-dark-900">Captured Leads & Contacts</h2>
+                <p className="text-xs text-gray-500">Prospects and inquiries collected automatically by your AI assistants</p>
               </div>
             </div>
             <button
               onClick={() => navigate('dashboard')}
-              className="text-xs text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg border border-white/10"
+              className="text-xs text-gray-500 hover:text-dark-900 bg-surface-200 hover:bg-surface-300 px-3 py-1.5 rounded-lg border border-dark-900/10"
             >
               ← Back to Dashboard
             </button>
@@ -916,20 +916,20 @@ export default function App() {
           </section>
 
           {leads.length > 0 && (
-            <section className="border-t border-white/5 pt-8">
+            <section className="border-t border-dark-900/10 pt-8">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center text-indigo-400 border border-indigo-500/30">
+                  <div className="w-10 h-10 rounded-xl bg-brand-500/10 flex items-center justify-center text-brand-700 border border-brand-500/20">
                     <Users className="w-5 h-5" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-white">Recent Captured Leads</h2>
-                    <p className="text-xs text-gray-400">{leads.length} prospect{leads.length > 1 ? 's' : ''} captured</p>
+                    <h2 className="text-xl font-bold text-dark-900">Recent Captured Leads</h2>
+                    <p className="text-xs text-gray-500">{leads.length} prospect{leads.length > 1 ? 's' : ''} captured</p>
                   </div>
                 </div>
                 <button
                   onClick={() => navigate('leads')}
-                  className="text-xs text-brand-400 hover:text-brand-300 font-semibold"
+                  className="text-xs text-brand-700 hover:text-brand-800 font-semibold"
                 >
                   View All Leads →
                 </button>
@@ -940,17 +940,17 @@ export default function App() {
         </main>
       )}
 
-      <footer className="max-w-7xl mx-auto px-4 sm:px-8 py-8 mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-gray-500 border-t border-white/5">
-        <button onClick={() => navigate('about')} className="hover:text-gray-300 transition-colors">
+      <footer className="max-w-7xl mx-auto px-4 sm:px-8 py-8 mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-gray-500 border-t border-dark-900/10">
+        <button onClick={() => navigate('about')} className="hover:text-dark-900 transition-colors">
           About
         </button>
-        <button onClick={() => navigate('privacy')} className="hover:text-gray-300 transition-colors">
+        <button onClick={() => navigate('privacy')} className="hover:text-dark-900 transition-colors">
           Privacy Policy
         </button>
-        <button onClick={() => navigate('terms')} className="hover:text-gray-300 transition-colors">
+        <button onClick={() => navigate('terms')} className="hover:text-dark-900 transition-colors">
           Terms of Service
         </button>
-        <span>&copy; {new Date().getFullYear()} Repondo</span>
+        <span>&copy; {new Date().getFullYear()} Dorafi</span>
       </footer>
     </div>
   );

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ShieldCheck, LogOut, Settings, Loader2, Users, LayoutDashboard, Sparkles } from 'lucide-react';
 import PlanBadge from './PlanBadge';
+import LogoMark from './LogoMark';
 import { authenticatedHeaders } from '../lib/supabase';
 
 export default function Header({ 
@@ -48,26 +49,25 @@ export default function Header({
             onClick={() => onSelectView?.('dashboard')}
             className="flex items-center gap-3 cursor-pointer group"
           >
-            <div className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-400 shadow-lg shadow-brand-500/30 shrink-0 group-hover:scale-105 transition-transform flex items-center justify-center">
-              <span className="text-white font-extrabold text-base sm:text-lg leading-none select-none">R</span>
-              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-dark-900" />
+            <div className="w-9 h-9 sm:w-10 sm:h-10 text-brand-900 shrink-0 group-hover:scale-105 transition-transform flex items-center justify-center">
+              <LogoMark className="w-full h-full" />
             </div>
             <div>
-              <h1 className="text-base sm:text-lg font-bold text-white tracking-tight lowercase">repondo</h1>
-              <p className="text-[10px] sm:text-xs text-gray-400 flex items-center gap-1">
-                <ShieldCheck className="w-3 h-3 text-emerald-400" /> Secure Workspace
+              <h1 className="text-base sm:text-lg font-bold text-dark-900 tracking-tight lowercase">dorafi</h1>
+              <p className="text-[10px] sm:text-xs text-gray-500 flex items-center gap-1">
+                <ShieldCheck className="w-3 h-3 text-emerald-500" /> Secure Workspace
               </p>
             </div>
           </div>
 
           {/* Navigation Tabs */}
-          <nav className="flex items-center gap-1 bg-dark-900/80 p-1 rounded-xl border border-white/5">
+          <nav className="flex items-center gap-1 bg-surface-200 p-1 rounded-xl border border-dark-900/5">
             <button
               onClick={() => onSelectView?.('dashboard')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                currentView === 'dashboard' 
-                  ? 'bg-brand-600 text-white shadow-sm' 
-                  : 'text-gray-400 hover:text-white hover:bg-white/5'
+                currentView === 'dashboard'
+                  ? 'bg-brand-600 text-white shadow-sm'
+                  : 'text-gray-500 hover:text-dark-900 hover:bg-white'
               }`}
             >
               <LayoutDashboard className="w-3.5 h-3.5" />
@@ -77,15 +77,15 @@ export default function Header({
             <button
               onClick={() => onSelectView?.('leads')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                currentView === 'leads' 
-                  ? 'bg-brand-600 text-white shadow-sm' 
-                  : 'text-gray-400 hover:text-white hover:bg-white/5'
+                currentView === 'leads'
+                  ? 'bg-brand-600 text-white shadow-sm'
+                  : 'text-gray-500 hover:text-dark-900 hover:bg-white'
               }`}
             >
-              <Users className="w-3.5 h-3.5 text-emerald-400" />
+              <Users className="w-3.5 h-3.5 text-emerald-500" />
               <span>Leads</span>
               {leadsCount > 0 && (
-                <span className="bg-emerald-500/20 text-emerald-300 text-[10px] px-1.5 py-0.2 rounded-full font-bold">
+                <span className="bg-emerald-500/15 text-emerald-700 text-[10px] px-1.5 py-0.2 rounded-full font-bold">
                   {leadsCount}
                 </span>
               )}
@@ -94,21 +94,21 @@ export default function Header({
             <button
               onClick={() => onSelectView?.('pricing')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                currentView === 'pricing' 
-                  ? 'bg-brand-600 text-white shadow-sm' 
-                  : 'text-gray-400 hover:text-white hover:bg-white/5'
+                currentView === 'pricing'
+                  ? 'bg-brand-600 text-white shadow-sm'
+                  : 'text-gray-500 hover:text-dark-900 hover:bg-white'
               }`}
             >
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
               <span>Plans</span>
             </button>
 
             <button
               onClick={() => onSelectView?.('about')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                currentView === 'about' 
-                  ? 'bg-brand-600 text-white shadow-sm' 
-                  : 'text-gray-400 hover:text-white hover:bg-white/5'
+                currentView === 'about'
+                  ? 'bg-brand-600 text-white shadow-sm'
+                  : 'text-gray-500 hover:text-dark-900 hover:bg-white'
               }`}
             >
               <Users className="w-3.5 h-3.5" />
@@ -118,7 +118,7 @@ export default function Header({
         </div>
 
         {/* Tenant Selector, Plan Badge & Actions */}
-        <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 border-white/5 pt-2 sm:pt-0">
+        <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 border-dark-900/5 pt-2 sm:pt-0">
           {/* Plan Badge — always visible */}
           <PlanBadge plan={plan} planStatus={planStatus} />
 
@@ -128,7 +128,7 @@ export default function Header({
               id="manage-subscription-btn"
               onClick={handleManageSubscription}
               disabled={portalLoading}
-              className="text-xs font-semibold text-gray-300 hover:text-white px-3 py-1.5 rounded-full border border-white/10 hover:border-white/25 flex items-center gap-1.5 transition-all disabled:opacity-50"
+              className="text-xs font-semibold text-gray-600 hover:text-dark-900 px-3 py-1.5 rounded-full border border-dark-900/10 hover:border-dark-900/25 flex items-center gap-1.5 transition-all disabled:opacity-50"
               title="Manage Subscription"
             >
               {portalLoading ? (
@@ -142,21 +142,21 @@ export default function Header({
             <button
               id="upgrade-btn"
               onClick={onShowPricing}
-              className="text-xs font-semibold bg-gradient-to-r from-brand-500 to-indigo-500 hover:from-brand-400 hover:to-indigo-400 text-white px-3.5 py-1.5 rounded-full transition-all shadow-md shadow-brand-500/20 shrink-0"
+              className="text-xs font-semibold bg-gradient-to-r from-brand-700 to-brand-500 hover:from-brand-600 hover:to-brand-400 text-white px-3.5 py-1.5 rounded-full transition-all shadow-md shadow-brand-500/20 shrink-0"
             >
               Upgrade / Plans
             </button>
           )}
 
           <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-400 font-medium hidden md:inline">Logged in:</span>
+            <span className="text-xs text-gray-500 font-medium hidden md:inline">Logged in:</span>
             <select
               value={selectedTenant?.id || ''}
               onChange={(e) => {
                 const t = tenants.find((item) => item.id === e.target.value);
                 if (t) setSelectedTenant(t);
               }}
-              className="bg-dark-800 text-white border border-gray-700 rounded-lg px-2.5 py-1 text-xs sm:text-sm font-medium outline-none focus:border-brand-500 transition-colors cursor-pointer max-w-[140px] sm:max-w-[200px] truncate"
+              className="bg-white text-dark-900 border border-gray-300 rounded-lg px-2.5 py-1 text-xs sm:text-sm font-medium outline-none focus:border-brand-500 transition-colors cursor-pointer max-w-[140px] sm:max-w-[200px] truncate"
             >
               {tenants.map((t) => (
                 <option key={t.id} value={t.id}>
@@ -168,7 +168,7 @@ export default function Header({
 
           <button
             onClick={onLogout}
-            className="shrink-0 text-gray-400 hover:text-white p-2 rounded-lg hover:bg-white/5 transition-colors"
+            className="shrink-0 text-gray-500 hover:text-dark-900 p-2 rounded-lg hover:bg-surface-200 transition-colors"
             title="Sign out"
           >
             <LogOut className="w-4 h-4" />

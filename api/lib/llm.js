@@ -172,7 +172,7 @@ export async function generateChatResponse({ systemPrompt, messagesHistory, apiK
       headers: {
         'Authorization': `Bearer ${openRouterKey}`,
         'HTTP-Referer': 'https://admin-seven-alpha-37.vercel.app',
-        'X-Title': 'Repondo',
+        'X-Title': 'Dorafi',
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(reqBody)
@@ -229,7 +229,7 @@ Respond STRICTLY in raw JSON format, without backticks, without markdown:
       headers: {
         'Authorization': `Bearer ${openRouterKey}`,
         'HTTP-Referer': 'https://admin-seven-alpha-37.vercel.app',
-        'X-Title': 'Repondo',
+        'X-Title': 'Dorafi',
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -283,7 +283,7 @@ Respond strictly in raw JSON format, without markdown or backticks:
       headers: {
         'Authorization': `Bearer ${openRouterKey}`,
         'HTTP-Referer': 'https://admin-seven-alpha-37.vercel.app',
-        'X-Title': 'Repondo',
+        'X-Title': 'Dorafi',
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -332,7 +332,7 @@ STRICT INSTRUCTION: Be factual and direct. Do NOT add any preamble or system met
       headers: {
         'Authorization': `Bearer ${openRouterKey}`,
         'HTTP-Referer': 'https://admin-seven-alpha-37.vercel.app',
-        'X-Title': 'Repondo',
+        'X-Title': 'Dorafi',
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -433,7 +433,7 @@ Respond strictly in raw JSON, no markdown or backticks:
       headers: {
         'Authorization': `Bearer ${openRouterKey}`,
         'HTTP-Referer': 'https://admin-seven-alpha-37.vercel.app',
-        'X-Title': 'Repondo',
+        'X-Title': 'Dorafi',
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({

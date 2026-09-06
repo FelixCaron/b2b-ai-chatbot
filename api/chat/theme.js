@@ -81,7 +81,7 @@ export default async function handler(req) {
     }
 
     let detectedOrgName = cleanHost.charAt(0).toUpperCase() + cleanHost.slice(1);
-    let primaryColor = '#6366f1';
+    let primaryColor = '#293f68';
     let themeMode = 'light';
     let backgroundColor = '#ffffff';
     let textColor = '#0f172a';

@@ -2,7 +2,7 @@
 
 const resendApiKey = process.env.RESEND_API_KEY;
 const adminEmail = process.env.ADMIN_EMAIL || 'admin@example.com';
-const systemEmail = 'noreply@b2b-chatbot.com'; // TODO: swap for a real Repondo domain once one is registered (see TODO.md)
+const systemEmail = 'noreply@b2b-chatbot.com'; // TODO: swap for a real Dorafi domain once one is registered (see TODO.md)
 
 const resend = resendApiKey ? new Resend(resendApiKey) : null;
 
@@ -14,11 +14,11 @@ export async function sendBugAlertEmail(error, context) {
 
   try {
     await resend.emails.send({
-      from: `Repondo <${systemEmail}>`,
+      from: `Dorafi <${systemEmail}>`,
       to: adminEmail,
-      subject: `🚨 [BUG ALERT] Error in Repondo`,
+      subject: `🚨 [BUG ALERT] Error in Dorafi`,
       html: `
-        <h2>An error occurred in the Repondo application</h2>
+        <h2>An error occurred in the Dorafi application</h2>
         <h3>Error:</h3>
         <pre>${error?.message || String(error)}</pre>
         <h3>Stack:</h3>
@@ -42,7 +42,7 @@ export async function sendLeadEmail(leadData, siteData) {
 
   try {
     await resend.emails.send({
-      from: `Repondo <${systemEmail}>`,
+      from: `Dorafi <${systemEmail}>`,
       to: recipient,
       subject: `🚀 New lead captured on ${siteData?.domain || 'your site'}!`,
       html: `
