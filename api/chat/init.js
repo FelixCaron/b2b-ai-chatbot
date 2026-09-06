@@ -60,11 +60,15 @@ export default async function handler(req) {
   try {
     const { data: site } = await supabase
       .from('sites')
-      .select('id, tenant_id')
+      .select('id, tenant_id, is_active')
       .eq('public_key', tenantPublicKey)
       .maybeSingle();
 
-    if (!site) {
+    // A parked site (plan downgrade left it over the limit — see is_active
+    // in the site-limits migration) is treated exactly like a nonexistent
+    // one here: an anonymous visitor has no business knowing the difference,
+    // they just get the generic opening state instead of a personalized one.
+    if (!site || site.is_active === false) {
       return new Response(JSON.stringify(FALLBACK), {
         status: 200,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }

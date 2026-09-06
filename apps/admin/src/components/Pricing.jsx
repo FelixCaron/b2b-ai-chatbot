@@ -27,7 +27,7 @@ const PLANS = [
     description: "More features and higher chat allowances for growing businesses.",
     popular: true,
     features: [
-      'Up to 5 Websites',
+      'Up to 2 Websites',
       'Up to 2,000 live pages per website',
       'Base LLM model with higher throughput',
       '10,000 messages / month',
@@ -45,7 +45,8 @@ const PLANS = [
     currency: 'USD',
     description: 'Premium model, all features enabled, highest chat limits and priority support.',
     features: [
-      'Unlimited Websites & Pages',
+      'Up to 10 Websites',
+      'Unlimited pages per website',
       'Premium LLM model',
       'Unlimited messages',
       'Dedicated onboarding & priority support',
