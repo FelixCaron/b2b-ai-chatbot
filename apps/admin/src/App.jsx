@@ -12,6 +12,20 @@ import OsteopathyLanding from './components/OsteopathyLanding';
 import { getMaxSitesForPlan } from './lib/plans';
 import { Users, Menu, X } from 'lucide-react';
 
+// Carries a guest workspace's pending claim ids (api/sites/claim.js) across
+// the magic-link round trip into api/sites/redeem-claim.js — see the effect
+// below that watches for the recipient's session to become non-anonymous.
+const PENDING_GUEST_CLAIMS_KEY = 'b2b_pending_guest_claims';
+
+// Supabase's error for "this email is already registered" varies by version
+// (a `code`, or only a message) — matched defensively on both so a future
+// SDK bump doesn't silently break the guest-handoff path below.
+function isEmailAlreadyRegisteredError(error) {
+  if (!error) return false;
+  if (error.code === 'email_exists') return true;
+  return /already\s+(been\s+)?registered|already\s+exists/i.test(error.message || '');
+}
+
 export default function App() {
   if (supabaseConfigurationError) {
     return (
@@ -35,6 +49,7 @@ export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [authMessage, setAuthMessage] = useState('');
   const [paymentToast, setPaymentToast] = useState(null); // 'success' | 'cancel' | null
+  const [claimToast, setClaimToast] = useState(null); // guest-workspace transfer outcome, or null
 
   // Detect Stripe redirect routes
   const path = window.location.pathname;
@@ -86,7 +101,17 @@ export default function App() {
     try {
       if (currentUser?.is_anonymous) {
         const { error } = await supabase.auth.updateUser({ email });
-        if (error) throw error;
+        if (error) {
+          if (isEmailAlreadyRegisteredError(error) && selectedTenant?.id) {
+            // This guest's session can't take over an email that already
+            // belongs to a real account — hand the workspace to that
+            // account instead of converting this one. requestGuestSiteClaim
+            // sets its own authMessage and rethrows nothing further.
+            await requestGuestSiteClaim(email);
+            return;
+          }
+          throw error;
+        }
         setAuthMessage('Check your email to confirm and secure your workspace.');
       } else {
         const { error } = await supabase.auth.signInWithOtp({
@@ -101,6 +126,45 @@ export default function App() {
       setAuthMessage(e.message || 'Could not start sign-in.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // First half of the guest → existing-account handoff (see
+  // api/sites/claim.js and api/sites/redeem-claim.js). Records a claim for
+  // every site in this guest's tenant while the anonymous session can still
+  // prove it owns them, stashes the claim ids for the browser to pick back
+  // up once the recipient actually signs in, then sends the normal magic
+  // link to the account that already owns this email.
+  const requestGuestSiteClaim = async (email) => {
+    try {
+      const res = await fetch(`${window.location.origin}/api/sites/claim`, {
+        method: 'POST',
+        headers: await authenticatedHeaders(),
+        body: JSON.stringify({ tenant_id: selectedTenant.id, email })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setAuthMessage(data?.error || 'Could not prepare the transfer of your workspace.');
+        return;
+      }
+      if (data.claim_ids?.length) {
+        try {
+          window.localStorage.setItem(PENDING_GUEST_CLAIMS_KEY, JSON.stringify(data.claim_ids));
+        } catch (e) {
+          // localStorage unavailable (private mode, etc.) — the claim still
+          // exists server-side, it just won't auto-redeem in this browser;
+          // it expires on its own rather than transferring silently.
+        }
+      }
+      const { error: otpError } = await supabase.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: window.location.origin }
+      });
+      if (otpError) throw otpError;
+      setAuthMessage("This email already has an account. We've sent a sign-in link — once you're in, your website and knowledge base here will move over to that account automatically.");
+    } catch (e) {
+      console.warn('[requestGuestSiteClaim] error:', e);
+      setAuthMessage(e.message || 'Could not start the workspace transfer.');
     }
   };
 
@@ -166,6 +230,71 @@ export default function App() {
     }
     loadOwnedTenants();
   }, [currentUser?.id, currentUser?.is_anonymous, currentUser?.email, authReady]);
+
+  // Second half of the guest → existing-account handoff: this fires once
+  // per real (non-anonymous) sign-in and looks for claim ids this same
+  // browser stashed in requestGuestSiteClaim above. Runs at most once per
+  // pending batch — the ids are cleared from localStorage before the
+  // request, not after, so a failed request doesn't retry forever, and
+  // claim_guest_site itself is safe to call twice regardless (it just
+  // reports 'already_redeemed' the second time).
+  useEffect(() => {
+    if (!currentUser || currentUser.is_anonymous || !authReady) return;
+
+    let pendingClaimIds = [];
+    try {
+      const raw = window.localStorage.getItem(PENDING_GUEST_CLAIMS_KEY);
+      if (raw) pendingClaimIds = JSON.parse(raw);
+    } catch (e) {
+      // localStorage unavailable or corrupted — nothing to redeem here.
+    }
+    if (!Array.isArray(pendingClaimIds) || pendingClaimIds.length === 0) return;
+
+    try {
+      window.localStorage.removeItem(PENDING_GUEST_CLAIMS_KEY);
+    } catch (e) { /* best-effort */ }
+
+    (async () => {
+      try {
+        const res = await fetch(`${window.location.origin}/api/sites/redeem-claim`, {
+          method: 'POST',
+          headers: await authenticatedHeaders(),
+          body: JSON.stringify({ claim_ids: pendingClaimIds })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data?.results) {
+          console.warn('[redeem guest claim] request failed:', data?.error);
+          return;
+        }
+
+        const transferred = data.results.filter((r) => r.status === 'transferred');
+        const atLimit = data.results.filter((r) => r.status === 'at_limit');
+        const duplicates = data.results.filter((r) => r.status === 'duplicate_domain');
+
+        const parts = [];
+        if (transferred.length) parts.push(`Moved into this account: ${transferred.map((r) => r.domain).join(', ')}.`);
+        if (atLimit.length) parts.push(`Your plan is full, so ${atLimit.map((r) => r.domain).join(', ')} is still on your other device — upgrade or free up a slot, then try signing in there again.`);
+        if (duplicates.length) parts.push(`You already had ${duplicates.map((r) => r.domain).join(', ')} here — nothing to move.`);
+        if (parts.length) setClaimToast(parts.join(' '));
+
+        if (transferred.length > 0 && data.tenant_id) {
+          const [{ data: freshTenant }, { data: freshSites }] = await Promise.all([
+            supabase.from('tenants').select('*').eq('id', data.tenant_id).single(),
+            supabase.from('sites').select('*').eq('tenant_id', data.tenant_id)
+          ]);
+          if (freshTenant) {
+            setTenants((prev) => (prev.some((t) => t.id === freshTenant.id)
+              ? prev.map((t) => (t.id === freshTenant.id ? freshTenant : t))
+              : [freshTenant, ...prev]));
+            setSelectedTenant(freshTenant);
+          }
+          setSites(freshSites || []);
+        }
+      } catch (e) {
+        console.warn('[redeem guest claim] error:', e);
+      }
+    })();
+  }, [currentUser?.id, currentUser?.is_anonymous, authReady]);
 
   // Fetch tenant-specific resources whenever selectedTenant changes
   useEffect(() => {
@@ -522,6 +651,16 @@ export default function App() {
       {paymentToast === 'cancel' && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-dark-800 border border-yellow-500/30 text-yellow-400 text-sm rounded-xl px-6 py-3 shadow-xl animate-in fade-in slide-in-from-bottom-4">
           ⚠️ Payment canceled. You can try again at any time.
+        </div>
+      )}
+
+      {/* Guest workspace transfer outcome toast */}
+      {claimToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-md bg-dark-800 border border-emerald-500/30 text-emerald-300 text-sm rounded-xl px-6 py-3 shadow-xl animate-in fade-in slide-in-from-bottom-4 flex items-start gap-3">
+          <span className="flex-1">{claimToast}</span>
+          <button onClick={() => setClaimToast(null)} className="text-gray-400 hover:text-white shrink-0">
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
 
