@@ -61,16 +61,16 @@ function DemoChatPreview() {
   return (
     <div
       ref={containerRef}
-      className="glass-card rounded-3xl border border-white/10 p-4 sm:p-6 max-w-md mx-auto shadow-2xl"
+      className="glass-card rounded-3xl border border-dark-900/10 p-4 sm:p-6 max-w-md mx-auto shadow-2xl"
       aria-label="Aperçu d'une conversation avec l'assistant IA (exemple)"
     >
-      <div className="flex items-center gap-2.5 mb-4 pb-3 border-b border-white/10">
-        <div className="w-8 h-8 rounded-full bg-brand-500/20 border border-brand-500/30 flex items-center justify-center text-brand-400 shrink-0">
+      <div className="flex items-center gap-2.5 mb-4 pb-3 border-b border-dark-900/10">
+        <div className="w-8 h-8 rounded-full bg-brand-500/20 border border-brand-500/30 flex items-center justify-center text-brand-700 shrink-0">
           <Stethoscope className="w-4 h-4" />
         </div>
         <div>
-          <p className="text-sm font-semibold text-white leading-tight">Assistant de votre clinique</p>
-          <p className="text-[11px] text-emerald-400 flex items-center gap-1">
+          <p className="text-sm font-semibold text-dark-900 leading-tight">Assistant de votre clinique</p>
+          <p className="text-[11px] text-emerald-600 flex items-center gap-1">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> En ligne
           </p>
         </div>
@@ -88,7 +88,7 @@ function DemoChatPreview() {
               className={`text-xs sm:text-[13px] leading-relaxed rounded-2xl px-3.5 py-2.5 max-w-[85%] ${
                 b.role === 'user'
                   ? 'bg-brand-600 text-white rounded-br-sm'
-                  : 'bg-dark-900 text-gray-200 border border-white/10 rounded-bl-sm'
+                  : 'bg-surface-200 text-dark-900 border border-dark-900/5 rounded-bl-sm'
               }`}
             >
               {b.text}
@@ -97,7 +97,7 @@ function DemoChatPreview() {
         ))}
         {step < DEMO_EXCHANGE.length * 2 && step % 2 === 1 && (
           <div className="flex justify-start">
-            <div className="bg-dark-900 border border-white/10 rounded-2xl rounded-bl-sm px-3.5 py-2.5">
+            <div className="bg-surface-200 border border-dark-900/5 rounded-2xl rounded-bl-sm px-3.5 py-2.5">
               <span className="flex gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-gray-500 animate-bounce [animation-delay:-0.3s]" />
                 <span className="w-1.5 h-1.5 rounded-full bg-gray-500 animate-bounce [animation-delay:-0.15s]" />
@@ -116,17 +116,17 @@ function DemoChatPreview() {
 
 const PAIN_POINTS = [
   {
-    icon: <PhoneMissed className="w-5 h-5 text-red-400" />,
+    icon: <PhoneMissed className="w-5 h-5 text-red-600" />,
     title: 'Impossible de répondre pendant un traitement',
     text: "Vous avez les mains sur un patient — l'appel ou le message d'un nouveau client tombe, et il réserve ailleurs pendant que vous êtes occupé·e.",
   },
   {
-    icon: <MessageCircleQuestion className="w-5 h-5 text-amber-400" />,
+    icon: <MessageCircleQuestion className="w-5 h-5 text-amber-600" />,
     title: 'Toujours les mêmes questions',
     text: "Est-ce couvert par les assurances? Que porter? Traitez-vous les enfants ou les femmes enceintes? Vous répondez au même message dix fois par semaine.",
   },
   {
-    icon: <CalendarCheck className="w-5 h-5 text-emerald-400" />,
+    icon: <CalendarCheck className="w-5 h-5 text-emerald-600" />,
     title: 'Des rendez-vous perdus le soir et la fin de semaine',
     text: "La majorité des visiteurs de votre site arrivent en dehors de vos heures d'ouverture, quand personne ne peut leur répondre.",
   },
@@ -181,16 +181,16 @@ export default function OsteopathyLanding({ onNavigate }) {
       {/* Hero */}
       <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-10 sm:pt-16 pb-12 sm:pb-20 grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
         <div>
-          <div className="inline-flex items-center gap-2 bg-brand-500/10 border border-brand-500/20 text-brand-300 text-xs font-semibold px-3 py-1.5 rounded-full mb-6">
+          <div className="inline-flex items-center gap-2 bg-brand-500/10 border border-brand-500/20 text-brand-700 text-xs font-semibold px-3 py-1.5 rounded-full mb-6">
             <Activity className="w-3.5 h-3.5" /> Pensé pour les ostéopathes & cliniques manuelles
           </div>
-          <h1 className="text-3xl sm:text-4xl lg:text-[2.75rem] font-extrabold text-white tracking-tight leading-tight mb-5">
+          <h1 className="text-3xl sm:text-4xl lg:text-[2.75rem] font-extrabold text-dark-900 tracking-tight leading-tight mb-5">
             Un assistant qui répond à vos patients,{' '}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-400 to-indigo-500">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-700 to-brand-500">
               même quand vous avez les mains prises
             </span>
           </h1>
-          <p className="text-base sm:text-lg text-gray-400 mb-8 max-w-lg">
+          <p className="text-base sm:text-lg text-gray-500 mb-8 max-w-lg">
             Collez l'adresse de votre site : votre assistant apprend vos services, vos tarifs et votre FAQ, répond à
             vos visiteurs 24/7 et capture leurs coordonnées pendant que vous traitez vos patients.
           </p>
@@ -203,7 +203,7 @@ export default function OsteopathyLanding({ onNavigate }) {
             </button>
             <button
               onClick={() => onNavigate?.('pricing')}
-              className="inline-flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 text-white font-semibold px-6 py-3.5 rounded-xl border border-white/10 transition-all"
+              className="inline-flex items-center justify-center gap-2 bg-white hover:bg-surface-200 text-dark-900 font-semibold px-6 py-3.5 rounded-xl border border-dark-900/10 transition-all"
             >
               Voir les tarifs
             </button>
@@ -216,17 +216,17 @@ export default function OsteopathyLanding({ onNavigate }) {
 
       {/* Pain points */}
       <div className="max-w-5xl mx-auto px-4 sm:px-6 pb-16 sm:pb-20">
-        <h2 className="text-xl sm:text-2xl font-bold text-white text-center mb-10">
+        <h2 className="text-xl sm:text-2xl font-bold text-dark-900 text-center mb-10">
           Ce que ça coûte de ne pas répondre à temps
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {PAIN_POINTS.map((p) => (
-            <div key={p.title} className="glass-card rounded-2xl border border-white/5 p-6">
-              <div className="w-10 h-10 rounded-xl bg-dark-900 border border-white/10 flex items-center justify-center mb-4">
+            <div key={p.title} className="glass-card rounded-2xl border border-dark-900/5 p-6">
+              <div className="w-10 h-10 rounded-xl bg-surface-200 border border-dark-900/10 flex items-center justify-center mb-4">
                 {p.icon}
               </div>
-              <h3 className="text-sm font-bold text-white mb-2">{p.title}</h3>
-              <p className="text-xs text-gray-400 leading-relaxed">{p.text}</p>
+              <h3 className="text-sm font-bold text-dark-900 mb-2">{p.title}</h3>
+              <p className="text-xs text-gray-500 leading-relaxed">{p.text}</p>
             </div>
           ))}
         </div>
@@ -234,15 +234,15 @@ export default function OsteopathyLanding({ onNavigate }) {
 
       {/* How it works */}
       <div className="max-w-5xl mx-auto px-4 sm:px-6 pb-16 sm:pb-20">
-        <h2 className="text-xl sm:text-2xl font-bold text-white text-center mb-10">Comment ça marche</h2>
+        <h2 className="text-xl sm:text-2xl font-bold text-dark-900 text-center mb-10">Comment ça marche</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {STEPS.map((s) => (
             <div key={s.n} className="text-center">
               <div className="w-11 h-11 rounded-full bg-brand-600 text-white font-bold flex items-center justify-center mx-auto mb-4">
                 {s.n}
               </div>
-              <h3 className="text-sm font-bold text-white mb-2">{s.title}</h3>
-              <p className="text-xs text-gray-400 leading-relaxed max-w-xs mx-auto">{s.text}</p>
+              <h3 className="text-sm font-bold text-dark-900 mb-2">{s.title}</h3>
+              <p className="text-xs text-gray-500 leading-relaxed max-w-xs mx-auto">{s.text}</p>
             </div>
           ))}
         </div>
@@ -250,27 +250,27 @@ export default function OsteopathyLanding({ onNavigate }) {
 
       {/* Feature tie-in */}
       <div className="max-w-5xl mx-auto px-4 sm:px-6 pb-16 sm:pb-20">
-        <div className="glass-card rounded-3xl border border-white/10 p-8 sm:p-10 grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="glass-card rounded-3xl border border-dark-900/10 p-8 sm:p-10 grid grid-cols-1 md:grid-cols-3 gap-8">
           <div>
-            <ShieldCheck className="w-6 h-6 text-brand-400 mb-3" />
-            <h3 className="text-sm font-bold text-white mb-1.5">Vos données, isolées</h3>
-            <p className="text-xs text-gray-400 leading-relaxed">
+            <ShieldCheck className="w-6 h-6 text-brand-700 mb-3" />
+            <h3 className="text-sm font-bold text-dark-900 mb-1.5">Vos données, isolées</h3>
+            <p className="text-xs text-gray-500 leading-relaxed">
               Le contenu de votre site et les échanges avec vos patients restent strictement séparés de tout autre
               client.
             </p>
           </div>
           <div>
-            <CalendarCheck className="w-6 h-6 text-emerald-400 mb-3" />
-            <h3 className="text-sm font-bold text-white mb-1.5">Réservation en un clic</h3>
-            <p className="text-xs text-gray-400 leading-relaxed">
+            <CalendarCheck className="w-6 h-6 text-emerald-600 mb-3" />
+            <h3 className="text-sm font-bold text-dark-900 mb-1.5">Réservation en un clic</h3>
+            <p className="text-xs text-gray-500 leading-relaxed">
               Ajoutez votre lien Calendly, Cal.com ou GoRendezvous — l'assistant y dirige directement les patients
               prêts à prendre rendez-vous.
             </p>
           </div>
           <div>
-            <Baby className="w-6 h-6 text-sky-400 mb-3" />
-            <h3 className="text-sm font-bold text-white mb-1.5">Bilingue, sans configuration</h3>
-            <p className="text-xs text-gray-400 leading-relaxed">
+            <Baby className="w-6 h-6 text-sky-600 mb-3" />
+            <h3 className="text-sm font-bold text-dark-900 mb-1.5">Bilingue, sans configuration</h3>
+            <p className="text-xs text-gray-500 leading-relaxed">
               Répond aussi bien en français qu'en anglais à partir du même contenu, pour les clientèles mixtes.
             </p>
           </div>
@@ -279,7 +279,7 @@ export default function OsteopathyLanding({ onNavigate }) {
 
       {/* Closing CTA */}
       <div className="max-w-3xl mx-auto px-4 sm:px-6 pb-20 text-center">
-        <div className="p-10 bg-gradient-to-br from-brand-900/40 to-indigo-900/40 border border-brand-500/30 rounded-3xl relative overflow-hidden">
+        <div className="p-10 bg-gradient-to-br from-brand-800 to-brand-600 border border-brand-500/30 rounded-3xl relative overflow-hidden">
           <div className="absolute top-0 right-0 p-8 opacity-10">
             <Globe className="w-28 h-28 text-brand-300" />
           </div>

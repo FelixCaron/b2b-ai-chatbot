@@ -107,7 +107,7 @@ export default function SitesManager({ sites, tenant, onAddSite, onTriggerScan, 
     <div className="space-y-8">
       {/* 1. Add New Site Card */}
       <div className="glass-card p-6 rounded-2xl">
-        <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+        <h2 className="text-lg font-bold text-dark-900 mb-4 flex items-center gap-2">
           <Globe className="w-5 h-5 text-brand-500" /> Register a Website Domain
         </h2>
         <form onSubmit={handleCreateSite} className="flex flex-col sm:flex-row gap-3">
@@ -116,7 +116,7 @@ export default function SitesManager({ sites, tenant, onAddSite, onTriggerScan, 
             placeholder="Domain name (e.g. example.com)"
             value={newDomain}
             onChange={(e) => setNewDomain(e.target.value)}
-            className="flex-1 bg-dark-900 border border-gray-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-500 outline-none focus:border-brand-500"
+            className="flex-1 bg-white border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-dark-900 placeholder-gray-500 outline-none focus:border-brand-500"
           />
           <button
             type="submit"
@@ -129,20 +129,20 @@ export default function SitesManager({ sites, tenant, onAddSite, onTriggerScan, 
 
       {/* 2. Registered Sites List & Integration Code */}
       <div className="glass-card p-6 rounded-2xl">
-        <h2 className="text-lg font-bold text-white mb-4">Registered Sites & Public Keys</h2>
+        <h2 className="text-lg font-bold text-dark-900 mb-4">Registered Sites & Public Keys</h2>
         {sites.length === 0 ? (
           <div className="text-center py-8 text-gray-500 text-sm">No sites registered yet.</div>
         ) : (
           <div className="space-y-4">
             {sites.map((site) => (
-              <div key={site.id} className="bg-dark-900/80 p-5 rounded-xl border border-white/5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div key={site.id} className="bg-surface-100 p-5 rounded-xl border border-dark-900/5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <div>
-                  <div className="text-base font-semibold text-white flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                  <div className="text-base font-semibold text-dark-900 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
                     {site.domain}
                   </div>
-                  <div className="text-xs text-gray-400 mt-1 font-mono">
-                    Public Key: <span className="text-indigo-300">{site.public_key}</span>
+                  <div className="text-xs text-gray-500 mt-1 font-mono">
+                    Public Key: <span className="text-brand-700">{site.public_key}</span>
                   </div>
                 </div>
 
@@ -150,15 +150,15 @@ export default function SitesManager({ sites, tenant, onAddSite, onTriggerScan, 
                   <button
                     type="button"
                     onClick={() => copySnippet(site.public_key)}
-                    className="bg-dark-800 hover:bg-gray-700 border border-gray-700 text-gray-300 hover:text-white px-4 py-2 rounded-lg text-xs font-medium flex items-center gap-2 transition-all"
+                    className="bg-white hover:bg-surface-200 border border-gray-300 text-gray-600 hover:text-dark-900 px-4 py-2 rounded-lg text-xs font-medium flex items-center gap-2 transition-all"
                   >
                     {copiedKey === site.public_key ? (
                       <>
-                        <Check className="w-3.5 h-3.5 text-emerald-400" /> Copied!
+                        <Check className="w-3.5 h-3.5 text-emerald-600" /> Copied!
                       </>
                     ) : (
                       <>
-                        <Code className="w-3.5 h-3.5 text-brand-400" /> Copy Embed Code
+                        <Code className="w-3.5 h-3.5 text-brand-700" /> Copy Embed Code
                       </>
                     )}
                   </button>
@@ -171,7 +171,7 @@ export default function SitesManager({ sites, tenant, onAddSite, onTriggerScan, 
                           onDeleteSite(site.id);
                         }
                       }}
-                      className="bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 hover:text-red-300 p-2 rounded-lg text-xs transition-all"
+                      className="bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-600 hover:text-red-700 p-2 rounded-lg text-xs transition-all"
                       title="Delete site"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -187,11 +187,11 @@ export default function SitesManager({ sites, tenant, onAddSite, onTriggerScan, 
       {/* 3. Interactive Web Crawler & Page Selection UI */}
       <div className="glass-card p-6 rounded-2xl">
         <div className="flex items-center justify-between mb-2">
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <Layers className="w-5 h-5 text-indigo-400" /> Web Crawler & Knowledge Base Indexing
+          <h2 className="text-lg font-bold text-dark-900 flex items-center gap-2">
+            <Layers className="w-5 h-5 text-brand-700" /> Web Crawler & Knowledge Base Indexing
           </h2>
         </div>
-        <p className="text-xs text-gray-400 mb-6">
+        <p className="text-xs text-gray-500 mb-6">
           Automatically crawl your site to discover all pages, then choose which URLs to index into the vector knowledge base.
         </p>
 
@@ -199,11 +199,11 @@ export default function SitesManager({ sites, tenant, onAddSite, onTriggerScan, 
         <form onSubmit={handleCrawlSubmit} className="space-y-4 mb-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1">1. Select target site</label>
+              <label className="block text-xs font-medium text-gray-500 mb-1">1. Select target site</label>
               <select
                 value={selectedSiteForScan}
                 onChange={(e) => setSelectedSiteForScan(e.target.value)}
-                className="w-full bg-dark-900 border border-gray-700 text-white rounded-xl px-4 py-2.5 text-sm outline-none focus:border-brand-500"
+                className="w-full bg-white border border-gray-300 text-dark-900 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-brand-500"
               >
                 <option value="">-- Choose a site --</option>
                 {sites.map((s) => (
@@ -213,13 +213,13 @@ export default function SitesManager({ sites, tenant, onAddSite, onTriggerScan, 
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1">2. Root URL to crawl</label>
+              <label className="block text-xs font-medium text-gray-500 mb-1">2. Root URL to crawl</label>
               <input
                 type="url"
                 placeholder="https://example.com"
                 value={crawlUrl}
                 onChange={(e) => setCrawlUrl(e.target.value)}
-                className="w-full bg-dark-900 border border-gray-700 text-white rounded-xl px-4 py-2.5 text-sm outline-none focus:border-brand-500"
+                className="w-full bg-white border border-gray-300 text-dark-900 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-brand-500"
               />
             </div>
           </div>
@@ -228,7 +228,7 @@ export default function SitesManager({ sites, tenant, onAddSite, onTriggerScan, 
             <button
               type="submit"
               disabled={!crawlUrl || isCrawling}
-              className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-medium px-6 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-all shadow-md"
+              className="bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-medium px-6 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-all shadow-md"
             >
               {isCrawling ? (
                 <>
@@ -240,31 +240,31 @@ export default function SitesManager({ sites, tenant, onAddSite, onTriggerScan, 
                 </>
               )}
             </button>
-            {indexingStatus && <span className="text-xs text-indigo-300 font-medium">{indexingStatus}</span>}
+            {indexingStatus && <span className="text-xs text-brand-700 font-medium">{indexingStatus}</span>}
           </div>
         </form>
 
         {/* Step 2: Page Selection List */}
         {discoveredPages.length > 0 && (
-          <div className="mt-6 pt-6 border-t border-white/10 space-y-4">
+          <div className="mt-6 pt-6 border-t border-dark-900/10 space-y-4">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <button
                   type="button"
                   onClick={toggleSelectAll}
-                  className="flex items-center gap-1.5 text-xs text-indigo-300 hover:text-white bg-dark-900 border border-gray-700 px-3 py-1.5 rounded-lg transition-colors"
+                  className="flex items-center gap-1.5 text-xs text-brand-700 hover:text-brand-900 bg-white border border-gray-300 px-3 py-1.5 rounded-lg transition-colors"
                 >
                   {selectedUrls.size === discoveredPages.length ? (
                     <>
-                      <CheckSquare className="w-4 h-4 text-indigo-400" /> Deselect All
+                      <CheckSquare className="w-4 h-4 text-brand-700" /> Deselect All
                     </>
                   ) : (
                     <>
-                      <Square className="w-4 h-4 text-gray-400" /> Select All ({discoveredPages.length})
+                      <Square className="w-4 h-4 text-gray-500" /> Select All ({discoveredPages.length})
                     </>
                   )}
                 </button>
-                <span className="text-xs text-gray-400">
+                <span className="text-xs text-gray-500">
                   {selectedUrls.size} of {discoveredPages.length} pages selected
                 </span>
               </div>
@@ -274,12 +274,12 @@ export default function SitesManager({ sites, tenant, onAddSite, onTriggerScan, 
                 placeholder="Filter pages..."
                 value={pageSearchFilter}
                 onChange={(e) => setPageSearchFilter(e.target.value)}
-                className="bg-dark-900 border border-gray-700 text-xs text-white rounded-lg px-3 py-1.5 w-full sm:w-56 outline-none focus:border-indigo-500"
+                className="bg-white border border-gray-300 text-xs text-dark-900 rounded-lg px-3 py-1.5 w-full sm:w-56 outline-none focus:border-brand-500"
               />
             </div>
 
             {/* Checkbox Pages Table */}
-            <div className="max-h-80 overflow-y-auto rounded-xl border border-white/5 bg-dark-900/60 divide-y divide-white/5">
+            <div className="max-h-80 overflow-y-auto rounded-xl border border-dark-900/10 bg-surface-100 divide-y divide-dark-900/10">
               {filteredPages.map((page) => {
                 const isSelected = selectedUrls.has(page.url);
                 return (
@@ -287,19 +287,19 @@ export default function SitesManager({ sites, tenant, onAddSite, onTriggerScan, 
                     key={page.url}
                     onClick={() => toggleUrlSelection(page.url)}
                     className={`p-3.5 flex items-center justify-between gap-3 cursor-pointer transition-colors ${
-                      isSelected ? 'bg-indigo-500/10' : 'hover:bg-white/[0.02]'
+                      isSelected ? 'bg-brand-500/10' : 'hover:bg-surface-200'
                     }`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="text-indigo-400">
+                      <div className="text-brand-700">
                         {isSelected ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4 text-gray-500" />}
                       </div>
                       <div className="min-w-0">
-                        <div className="text-sm font-medium text-white truncate">{page.title}</div>
-                        <div className="text-xs text-gray-400 truncate font-mono">{page.url}</div>
+                        <div className="text-sm font-medium text-dark-900 truncate">{page.title}</div>
+                        <div className="text-xs text-gray-500 truncate font-mono">{page.url}</div>
                       </div>
                     </div>
-                    <span className="text-[11px] bg-dark-800 text-gray-300 border border-gray-700 px-2 py-0.5 rounded font-mono shrink-0">
+                    <span className="text-[11px] bg-surface-200 text-gray-600 border border-gray-300 px-2 py-0.5 rounded font-mono shrink-0">
                       {page.path}
                     </span>
                   </div>

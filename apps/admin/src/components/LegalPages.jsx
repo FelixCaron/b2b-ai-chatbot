@@ -13,19 +13,19 @@ import { ShieldCheck, FileText, AlertTriangle } from 'lucide-react';
 // contact email addresses below.
 // ─────────────────────────────────────────────────────────────────────────
 
-const PRODUCT_NAME = 'Repondo';
+const PRODUCT_NAME = 'Dorafi';
 const CONTACT_EMAIL = 'privacy@your-domain.com';
 const GENERAL_EMAIL = 'hello@your-domain.com';
 const LAST_UPDATED = 'August 25, 2026';
 
 function DraftBanner() {
   return (
-    <div className="mb-8 flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-xs text-amber-200">
-      <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
+    <div className="mb-8 flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-xs text-amber-800">
+      <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
       <p>
         This document is a working draft, not final legal advice. It should be reviewed by a
         lawyer before being relied on commercially. Placeholders (company name, contact email)
-        are marked in <code className="text-amber-300">[brackets]</code> where they still need
+        are marked in <code className="text-amber-700">[brackets]</code> where they still need
         real values.
       </p>
     </div>
@@ -36,14 +36,14 @@ function LegalShell({ icon, title, children }) {
   return (
     <div className="py-12 px-6 max-w-3xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center gap-3 mb-2">
-        <div className="w-10 h-10 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center text-brand-400">
+        <div className="w-10 h-10 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center text-brand-700">
           {icon}
         </div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">{title}</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-dark-900 tracking-tight">{title}</h1>
       </div>
       <p className="text-xs text-gray-500 mb-8">Last updated: {LAST_UPDATED}</p>
       <DraftBanner />
-      <div className="space-y-8 text-sm leading-relaxed text-gray-300">{children}</div>
+      <div className="space-y-8 text-sm leading-relaxed text-gray-600">{children}</div>
     </div>
   );
 }
@@ -51,7 +51,7 @@ function LegalShell({ icon, title, children }) {
 function Section({ title, children }) {
   return (
     <section>
-      <h2 className="text-lg font-bold text-white mb-2">{title}</h2>
+      <h2 className="text-lg font-bold text-dark-900 mb-2">{title}</h2>
       <div className="space-y-3">{children}</div>
     </section>
   );
@@ -115,7 +115,7 @@ export function PrivacyPolicy() {
       </Section>
 
       <Section title="5. Your rights">
-        <p>Subject to applicable law (including Québec's Law 25 and, where applicable, PIPEDA), you may request access to, correction of, or deletion of your personal information, and may withdraw consent to non-essential processing. To exercise these rights, contact <a className="text-brand-400 hover:underline" href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.</p>
+        <p>Subject to applicable law (including Québec's Law 25 and, where applicable, PIPEDA), you may request access to, correction of, or deletion of your personal information, and may withdraw consent to non-essential processing. To exercise these rights, contact <a className="text-brand-700 hover:underline" href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.</p>
         <p>[Placeholder — a specific individual should be designated as the person responsible for the protection of personal information, as required under Québec Law 25, and named here.]</p>
       </Section>
 
@@ -132,7 +132,7 @@ export function PrivacyPolicy() {
       </Section>
 
       <Section title="9. Contact">
-        <p>Questions about this policy or your data: <a className="text-brand-400 hover:underline" href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a> (or <a className="text-brand-400 hover:underline" href={`mailto:${GENERAL_EMAIL}`}>{GENERAL_EMAIL}</a> for general inquiries).</p>
+        <p>Questions about this policy or your data: <a className="text-brand-700 hover:underline" href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a> (or <a className="text-brand-700 hover:underline" href={`mailto:${GENERAL_EMAIL}`}>{GENERAL_EMAIL}</a> for general inquiries).</p>
       </Section>
     </LegalShell>
   );
@@ -201,7 +201,7 @@ export function TermsOfService() {
       </Section>
 
       <Section title="11. Contact">
-        <p><a className="text-brand-400 hover:underline" href={`mailto:${GENERAL_EMAIL}`}>{GENERAL_EMAIL}</a></p>
+        <p><a className="text-brand-700 hover:underline" href={`mailto:${GENERAL_EMAIL}`}>{GENERAL_EMAIL}</a></p>
       </Section>
     </LegalShell>
   );

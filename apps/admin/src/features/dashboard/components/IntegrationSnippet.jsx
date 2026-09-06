@@ -30,35 +30,35 @@ export default function IntegrationSnippet({
 
   return (
     <div className="fixed inset-0 z-[9999999] bg-black/80 flex items-center justify-center p-4 animate-in fade-in">
-      <div className="glass-card p-6 sm:p-8 rounded-3xl w-full max-w-2xl border border-white/10 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+      <div className="glass-card p-6 sm:p-8 rounded-3xl w-full max-w-2xl border border-dark-900/10 shadow-2xl relative max-h-[90vh] overflow-y-auto">
         <button
           onClick={() => setShowIntegrationModal(false)}
-          className="absolute top-4 right-4 text-gray-400 hover:text-white p-2 rounded-lg hover:bg-white/5 transition-colors"
+          className="absolute top-4 right-4 text-gray-500 hover:text-dark-900 p-2 rounded-lg hover:bg-surface-200 transition-colors"
         >
           <X className="w-5 h-5" />
         </button>
 
-        <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
-          <Code className="w-6 h-6 text-brand-400" /> Embed Widget on Your Website
+        <h3 className="text-xl font-bold text-dark-900 mb-2 flex items-center gap-2">
+          <Code className="w-6 h-6 text-brand-700" /> Embed Widget on Your Website
         </h3>
-        <p className="text-sm text-gray-400 mb-6">
-          Copy this code snippet and paste it right before the closing <code className="text-indigo-300 font-mono text-xs bg-dark-800 px-1 py-0.5 rounded">&lt;/body&gt;</code> tag on any pages where you want the assistant to appear.
+        <p className="text-sm text-gray-500 mb-6">
+          Copy this code snippet and paste it right before the closing <code className="text-brand-700 font-mono text-xs bg-surface-200 px-1 py-0.5 rounded">&lt;/body&gt;</code> tag on any pages where you want the assistant to appear.
         </p>
 
         {isOverPlanLimit && (
           <div className="mb-6 bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 text-left space-y-3 animate-in fade-in">
             <div className="flex items-start gap-3">
-              <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400 shrink-0 mt-0.5">
+              <div className="p-2 rounded-xl bg-amber-500/20 text-amber-600 shrink-0 mt-0.5">
                 <AlertTriangle className="w-5 h-5" />
               </div>
               <div className="flex-1 text-xs">
-                <h4 className="font-bold text-white text-sm mb-1 flex items-center gap-2">
+                <h4 className="font-bold text-dark-900 text-sm mb-1 flex items-center gap-2">
                   Plan Limit Exceeded ({activeIndexedPagesCount} / {allowedPagesForPlan} pages)
                 </h4>
-                <p className="text-amber-200/90 leading-relaxed">
+                <p className="text-amber-800/90 leading-relaxed">
                   Your website has <strong>{activeIndexedPagesCount} active pages</strong>, which exceeds your current <strong>{tenantPlan.toUpperCase()}</strong> plan limit of <strong>{allowedPagesForPlan} pages</strong>.
                 </p>
-                <p className="text-gray-300 mt-1">
+                <p className="text-gray-600 mt-1">
                   To deploy to your live website, either <strong>upgrade your plan</strong> or <strong>deactivate {activeIndexedPagesCount - allowedPagesForPlan} extra page(s)</strong> in your Knowledge Base table.
                 </p>
               </div>
@@ -74,7 +74,7 @@ export default function IntegrationSnippet({
                     if (kbTable) kbTable.scrollIntoView({ behavior: 'smooth' });
                   }, 200);
                 }}
-                className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-semibold text-gray-300 hover:text-white bg-dark-900 border border-white/10 hover:bg-dark-800 transition-all"
+                className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-semibold text-gray-600 hover:text-dark-900 bg-white border border-dark-900/10 hover:bg-surface-200 transition-all"
               >
                 Manage & Deactivate Pages
               </button>

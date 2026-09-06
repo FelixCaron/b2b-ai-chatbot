@@ -40,7 +40,7 @@ export default function WorkspaceTransfer({
   if (state.phase === 'transferred' || state.phase === 'duplicate') {
     const transferred = state.phase === 'transferred';
     return (
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999999] flex items-center gap-3 bg-dark-800 border border-emerald-500/30 text-emerald-300 text-sm rounded-xl px-5 py-3 shadow-xl animate-in fade-in slide-in-from-bottom-4">
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999999] flex items-center gap-3 bg-white border border-emerald-500/30 text-emerald-700 text-sm rounded-xl px-5 py-3 shadow-xl animate-in fade-in slide-in-from-bottom-4">
         <CheckCircle2 className="w-4 h-4 shrink-0" />
         <span>
           {transferred
@@ -49,7 +49,7 @@ export default function WorkspaceTransfer({
         </span>
         <button
           onClick={onDismiss}
-          className="text-emerald-300/60 hover:text-emerald-200 transition-colors"
+          className="text-emerald-700/60 hover:text-emerald-800 transition-colors"
           aria-label="Dismiss"
         >
           <X className="w-4 h-4" />
@@ -60,8 +60,8 @@ export default function WorkspaceTransfer({
 
   const shell = (children) => (
     <div className="fixed inset-0 z-[9999999] bg-black/80 flex items-center justify-center p-4">
-      <div className="relative glass-card p-8 sm:p-10 rounded-3xl w-full max-w-lg border border-white/10 shadow-2xl overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-brand-900/20 to-indigo-900/20 pointer-events-none" />
+      <div className="relative glass-card p-8 sm:p-10 rounded-3xl w-full max-w-lg border border-dark-900/10 shadow-2xl overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-brand-900/20 to-brand-700/20 pointer-events-none" />
         <div className="relative">{children}</div>
       </div>
     </div>
@@ -72,18 +72,18 @@ export default function WorkspaceTransfer({
     return shell(
       <>
         <div className="flex flex-col items-center text-center mb-8">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-brand-600 to-indigo-400 flex items-center justify-center text-white shadow-xl shadow-brand-500/30 mb-5">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-brand-600 to-brand-400 flex items-center justify-center text-white shadow-xl shadow-brand-500/30 mb-5">
             <Sparkles className="w-6 h-6" />
           </div>
-          <h2 className="text-xl font-bold text-white">Move {domain} into this account?</h2>
-          <p className="text-gray-400 text-sm mt-2">
+          <h2 className="text-xl font-bold text-dark-900">Move {domain} into this account?</h2>
+          <p className="text-gray-500 text-sm mt-2">
             You set this assistant up before signing in. We can move the website, its scanned
             pages and its captured leads into the account you just signed into. Your test
             conversations stay behind.
           </p>
         </div>
 
-        {error && <p className="mb-4 text-center text-sm text-red-400">{error}</p>}
+        {error && <p className="mb-4 text-center text-sm text-red-600">{error}</p>}
 
         <div className="flex flex-col gap-2">
           <button
@@ -96,7 +96,7 @@ export default function WorkspaceTransfer({
           <button
             onClick={onDismiss}
             disabled={busy}
-            className="w-full text-gray-400 hover:text-white text-xs font-semibold py-2.5 rounded-xl hover:bg-white/5 transition-colors disabled:opacity-50"
+            className="w-full text-gray-500 hover:text-dark-900 text-xs font-semibold py-2.5 rounded-xl hover:bg-surface-200 transition-colors disabled:opacity-50"
           >
             No thanks, leave it
           </button>
@@ -114,18 +114,18 @@ export default function WorkspaceTransfer({
   return shell(
     <>
       <div className="flex flex-col items-center text-center mb-7">
-        <div className="w-14 h-14 rounded-2xl bg-yellow-500/15 border border-yellow-500/30 flex items-center justify-center text-yellow-400 mb-5">
+        <div className="w-14 h-14 rounded-2xl bg-yellow-500/15 border border-yellow-500/30 flex items-center justify-center text-yellow-600 mb-5">
           <AlertTriangle className="w-6 h-6" />
         </div>
-        <h2 className="text-xl font-bold text-white">Your plan is full</h2>
-        <p className="text-gray-400 text-sm mt-2">
+        <h2 className="text-xl font-bold text-dark-900">Your plan is full</h2>
+        <p className="text-gray-500 text-sm mt-2">
           {domain} is ready to move into this account, but the {plan} plan covers{' '}
           {limit} website{limit > 1 ? 's' : ''} and you already have {siteCount}. Nothing has
           moved yet — we kept it waiting for you.
         </p>
       </div>
 
-      {error && <p className="mb-4 text-center text-sm text-red-400">{error}</p>}
+      {error && <p className="mb-4 text-center text-sm text-red-600">{error}</p>}
 
       <button
         onClick={onUpgrade}
@@ -135,7 +135,7 @@ export default function WorkspaceTransfer({
         Upgrade and keep both <ArrowRight className="w-4 h-4" />
       </button>
 
-      <div className="mt-6 pt-5 border-t border-white/10">
+      <div className="mt-6 pt-5 border-t border-dark-900/10">
         <p className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold mb-3">
           Or replace an existing site
         </p>
@@ -150,7 +150,7 @@ export default function WorkspaceTransfer({
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border cursor-pointer transition-colors ${
                 replaceSiteId === site.id
                   ? 'border-red-500/40 bg-red-500/10'
-                  : 'border-white/5 bg-dark-900/60 hover:bg-white/5'
+                  : 'border-dark-900/10 bg-surface-100 hover:bg-surface-200'
               }`}
             >
               <input
@@ -164,7 +164,7 @@ export default function WorkspaceTransfer({
                 }}
                 disabled={busy}
               />
-              <span className="text-sm text-gray-200 truncate">{site.domain}</span>
+              <span className="text-sm text-dark-900 truncate">{site.domain}</span>
             </label>
           ))}
         </div>
@@ -173,15 +173,15 @@ export default function WorkspaceTransfer({
           <button
             onClick={() => setConfirmingReplace(true)}
             disabled={busy}
-            className="mt-3 w-full text-xs font-semibold text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 py-2.5 rounded-xl transition-colors disabled:opacity-50"
+            className="mt-3 w-full text-xs font-semibold text-red-700 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 py-2.5 rounded-xl transition-colors disabled:opacity-50"
           >
             Replace {replaceTarget.domain} with {domain}
           </button>
         )}
 
         {replaceTarget && confirmingReplace && (
-          <div className="mt-3 rounded-xl border border-red-500/30 bg-red-950/30 p-4">
-            <p className="text-xs text-red-200 leading-relaxed">
+          <div className="mt-3 rounded-xl border border-red-300 bg-red-50 p-4">
+            <p className="text-xs text-red-700 leading-relaxed">
               This permanently deletes <span className="font-semibold">{replaceTarget.domain}</span>:
               all of its scanned pages, all of its captured leads, and its chat history. This
               cannot be undone. {domain} then takes its place.
@@ -197,7 +197,7 @@ export default function WorkspaceTransfer({
               <button
                 onClick={() => setConfirmingReplace(false)}
                 disabled={busy}
-                className="px-4 text-xs font-semibold text-gray-300 bg-white/5 hover:bg-white/10 py-2.5 rounded-lg transition-colors disabled:opacity-50"
+                className="px-4 text-xs font-semibold text-gray-600 bg-surface-200 hover:bg-surface-300 py-2.5 rounded-lg transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>
@@ -209,7 +209,7 @@ export default function WorkspaceTransfer({
       <button
         onClick={onDismiss}
         disabled={busy}
-        className="mt-5 w-full text-gray-400 hover:text-white text-xs font-semibold py-2 rounded-xl hover:bg-white/5 transition-colors disabled:opacity-50"
+        className="mt-5 w-full text-gray-500 hover:text-dark-900 text-xs font-semibold py-2 rounded-xl hover:bg-surface-200 transition-colors disabled:opacity-50"
       >
         Decide later
       </button>

@@ -21,7 +21,7 @@ const PLANS = [
       '1,000 messages / month',
       'Customizable widget styling',
     ],
-    icon: <Sparkles className="w-6 h-6 text-sky-400" />,
+    icon: <Sparkles className="w-6 h-6 text-sky-600" />,
     color: 'sky',
   },
   {
@@ -40,7 +40,7 @@ const PLANS = [
       'Lead capture & CSV export',
       'Priority email support',
     ],
-    icon: <Zap className="w-6 h-6 text-emerald-400" />,
+    icon: <Zap className="w-6 h-6 text-emerald-600" />,
     color: 'emerald',
   },
   {
@@ -57,7 +57,7 @@ const PLANS = [
       'Dedicated onboarding & priority support',
       'Advanced integrations (CRM, SSO)',
     ],
-    icon: <Shield className="w-6 h-6 text-brand-400" />,
+    icon: <Shield className="w-6 h-6 text-brand-700" />,
     color: 'brand',
   },
 ];
@@ -110,14 +110,14 @@ export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'basic',
   return (
     <div className="py-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="text-center max-w-3xl mx-auto mb-16">
-        <h1 className="text-3xl font-bold text-white mb-4">Level Up Your Customer Support</h1>
-        <p className="text-gray-400 text-lg">
+        <h1 className="text-3xl font-bold text-dark-900 mb-4">Level Up Your Customer Support</h1>
+        <p className="text-gray-500 text-lg">
           Choose the plan that fits your business needs and automate your customer service 24/7.
         </p>
       </div>
 
       {error && (
-        <div className="max-w-md mx-auto mb-8 bg-red-500/10 border border-red-500/30 text-red-400 text-sm rounded-xl px-4 py-3 text-center">
+        <div className="max-w-md mx-auto mb-8 bg-red-500/10 border border-red-500/30 text-red-600 text-sm rounded-xl px-4 py-3 text-center">
           ⚠️ {error}
         </div>
       )}
@@ -135,7 +135,7 @@ export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'basic',
                   ? 'border-emerald-500/50 shadow-2xl shadow-emerald-900/20'
                   : isCurrent
                   ? 'border-brand-500/40 shadow-lg shadow-brand-900/20'
-                  : 'border-white/5 hover:border-white/20'
+                  : 'border-dark-900/10 hover:border-dark-900/20'
               }`}
             >
               {plan.popular && (
@@ -155,24 +155,24 @@ export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'basic',
                 {plan.icon}
               </div>
 
-              <h3 className="text-xl font-bold text-white mb-2">{plan.name}</h3>
-              <p className="text-sm text-gray-400 mb-6 min-h-[40px]">{plan.description}</p>
+              <h3 className="text-xl font-bold text-dark-900 mb-2">{plan.name}</h3>
+              <p className="text-sm text-gray-500 mb-6 min-h-[40px]">{plan.description}</p>
 
               <div className="mb-8">
                 {plan.price === 'Custom' || plan.price === 'Sur mesure' ? (
-                  <span className="text-3xl font-bold text-white">Custom</span>
+                  <span className="text-3xl font-bold text-dark-900">Custom</span>
                 ) : (
                   <div className="flex items-baseline gap-1">
-                    <span className="text-4xl font-bold text-white">${plan.price}</span>
-                    <span className="text-gray-400 font-medium">{plan.currency || 'CAD'}/month</span>
+                    <span className="text-4xl font-bold text-dark-900">${plan.price}</span>
+                    <span className="text-gray-500 font-medium">{plan.currency || 'CAD'}/month</span>
                   </div>
                 )}
               </div>
 
               <ul className="space-y-4 mb-8 flex-1">
                 {plan.features.map((feature, i) => (
-                  <li key={i} className="flex items-start gap-3 text-sm text-gray-300">
-                    <Check className={`w-5 h-5 shrink-0 text-${plan.color}-400`} />
+                  <li key={i} className="flex items-start gap-3 text-sm text-gray-600">
+                    <Check className={`w-5 h-5 shrink-0 text-${plan.color}-600`} />
                     <span>{feature}</span>
                   </li>
                 ))}
@@ -184,10 +184,10 @@ export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'basic',
                 disabled={isLoading || isCurrent}
                 className={`w-full py-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
                   isCurrent
-                    ? 'bg-brand-700/50 border border-brand-500/30 text-brand-300 cursor-default'
+                    ? 'bg-brand-500/10 border border-brand-500/30 text-brand-700 cursor-default'
                     : plan.popular
                     ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-900/50 hover:scale-[1.02] active:scale-95'
-                    : 'bg-dark-800 hover:bg-dark-700 text-white border border-white/10 hover:border-white/20 hover:scale-[1.02] active:scale-95'
+                    : 'bg-white hover:bg-surface-200 text-dark-900 border border-dark-900/10 hover:border-dark-900/20 hover:scale-[1.02] active:scale-95'
                 }`}
               >
                 {isLoading ? (
@@ -217,7 +217,7 @@ export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'basic',
           href="https://stripe.com"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-gray-500 hover:text-gray-400 underline"
+          className="text-gray-500 hover:text-gray-700 underline"
         >
           Stripe
         </a>
@@ -225,11 +225,11 @@ export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'basic',
       </p>
       <p className="text-center text-[11px] text-gray-600 mt-2">
         By subscribing, you agree to our{' '}
-        <button onClick={() => onNavigate?.('terms')} className="underline hover:text-gray-400">
+        <button onClick={() => onNavigate?.('terms')} className="underline hover:text-gray-700">
           Terms of Service
         </button>{' '}
         and{' '}
-        <button onClick={() => onNavigate?.('privacy')} className="underline hover:text-gray-400">
+        <button onClick={() => onNavigate?.('privacy')} className="underline hover:text-gray-700">
           Privacy Policy
         </button>
         .

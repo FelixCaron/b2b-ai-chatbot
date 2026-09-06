@@ -5,17 +5,17 @@ const PLAN_CONFIG = {
   basic: {
     label: 'Basic',
     icon: Zap,
-    className: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25',
+    className: 'bg-emerald-500/15 text-emerald-600 border-emerald-500/25',
   },
   pro: {
     label: 'Pro',
     icon: Zap,
-    className: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25',
+    className: 'bg-emerald-500/15 text-emerald-600 border-emerald-500/25',
   },
   premium: {
     label: 'Premium',
     icon: Crown,
-    className: 'bg-brand-500/15 text-brand-400 border-brand-500/25',
+    className: 'bg-brand-500/15 text-brand-700 border-brand-500/25',
   },
 };
 
