@@ -55,15 +55,47 @@ different. A `SECURITY DEFINER` bridge function, `public.is_staff_admin(uuid)`, 
 to `service_role` only, is the one way server code can check staff membership — see
 `apps/internal-admin/api/lib/server-config.js`.
 
+**Fixed in this pass — plan limits were a UI suggestion, not a boundary.** Sites are inserted
+client-side through RLS (`App.jsx`'s `handleAddSite`), and the only thing standing between a
+tenant and unlimited sites was a JavaScript check in `Dashboard.jsx` that disagreed with both
+the pricing page and its own comment. `20260905030000_site_limits_and_guest_claims.sql` adds
+`plan_site_limit()` and a `BEFORE INSERT OR UPDATE` trigger on `sites` that raises
+`site_limit_reached` (SQLSTATE 23514), so the limit now holds whatever the client does. It
+deliberately also fires on `UPDATE OF tenant_id` (a claimed guest workspace arrives as an
+update, not an insert) and re-checks on re-activation counting only active sites. A trigger
+rather than moving site creation into an API route: it matches this repo's raw-SQL/RLS-first
+architecture and holds for every client, present and future. See ADR 057.
+
+Also note `sites_tenant_domain_uq` is `(tenant_id, lower(domain))` — **per tenant, not
+global**, on purpose. Two unrelated customers may legitimately register the same domain, and
+a global uniqueness constraint would leak the existence of one tenant's site to another.
+
 **Still open (tracked in `TODO.md`):** replacing magic-link + anonymous-guest auth with
 full Supabase Auth password/email flows if the enterprise buyer's own staff need to log
 in directly; distributed rate limiting (see below).
 
 ## Guest/anonymous account lifecycle
 
-`api/cron/cleanup.js` (guest tenants older than 24h, cascade-deleted) and Supabase Auth's
+`api/cron/cleanup.js` (guest tenants older than 24h, deleted by cascade) and Supabase Auth's
 anonymous sign-in (`signInAnonymously()` on every visit before onboarding) are the two
 pieces here.
+
+**Fixed in this pass — the cascade this job depends on did not exist.** `messages.tenant_id`,
+`leads.tenant_id` and `usage.tenant_id` were declared as bare `REFERENCES tenants(id)` — i.e.
+`NO ACTION` — while every other tenant-scoped table (`sites`, `documents`, `site_summaries`,
+`scan_jobs`) cascades. So `delete from tenants` failed with a foreign-key violation for any
+guest workspace that had ever actually been used: a single chat message was enough. Because
+the cleanup job catches errors per tenant and moves on, this never surfaced as a failure —
+those guest tenants simply accumulated forever, silently, which is the opposite of what this
+section previously claimed. All three constraints now carry `ON DELETE CASCADE`, fixed both in
+the new migration (`20260905030000_site_limits_and_guest_claims.sql`, for already-provisioned
+projects) and inline in `20260905000000_consolidated_schema.sql` (so a fresh provision is
+correct from the start). Verified against a scratch Postgres: a tenant holding messages, leads
+and usage rows now deletes cleanly to zero. See ADR 057.
+
+Note that the 24h sweep is also why a guest's workspace has to be *moved* rather than merely
+re-pointed when they claim it — see ADR 057 and `claim_guest_site()`. Pending claims expire
+after 12h, deliberately inside this window.
 
 **Fixed in this pass — real data-loss risk, not hypothetical:** a tenant's name is set
 once, at creation (`user.email || 'Guest_<timestamp>'`), and nothing ever renamed it when

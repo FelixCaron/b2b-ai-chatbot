@@ -84,7 +84,7 @@ export default async function handler(req) {
     {
       const { data: fullData, error: fullError } = await supabase
         .from('sites')
-        .select('id, tenant_id, domain, enable_lead_capture, theme_primary_color, bot_goal, bot_tone, support_email, calendar_link, tenants(plan)')
+        .select('id, tenant_id, domain, is_active, enable_lead_capture, theme_primary_color, bot_goal, bot_tone, support_email, calendar_link, tenants(plan)')
         .eq('public_key', tenant_public_key)
         .maybeSingle();
 
@@ -104,8 +104,11 @@ export default async function handler(req) {
               headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
             });
           }
-          // Inject safe defaults for missing optional columns
+          // Inject safe defaults for missing optional columns. is_active
+          // included: on a database that predates the site-limit migration
+          // there is no parked state, so every site is serving.
           site = Object.assign(coreData, {
+            is_active: true,
             enable_lead_capture: false,
             bot_goal: 'support',
             bot_tone: 'professionnel',
@@ -130,6 +133,23 @@ export default async function handler(req) {
         status: 404,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
+    }
+
+    // A site parked by a plan downgrade (sites.is_active = FALSE) keeps all of
+    // its data but stops answering. Say so explicitly rather than 404-ing:
+    // the tenant looking at their own widget needs to be able to tell "my plan
+    // no longer covers this site" apart from "my key is wrong".
+    if (site.is_active === false) {
+      return new Response(
+        JSON.stringify({
+          error: 'This chatbot is currently paused because the workspace plan no longer covers this website. Reactivate the site or upgrade the plan to bring it back online.',
+          code: 'site_inactive'
+        }),
+        {
+          status: 403,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        }
+      );
     }
 
     const tenantId = site.tenant_id;

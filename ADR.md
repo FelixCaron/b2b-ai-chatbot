@@ -5,6 +5,110 @@ Note (English): Plans were updated — Free was removed. New plans are: Basic ($
 
 ---
 
+## ADR 057 : Onboarding state machine — site limits, guest workspace claims, and real URL routing
+
+**Date :** 2026-09-06
+
+### Context
+
+The product was built around one happy path: land, scan a site, test the widget, sign up.
+Every other path a real user can take was undefined rather than decided. Asked to enumerate
+them exhaustively and make each one land somewhere sensible, we found five concrete dead ends:
+
+1. **A guest signing in with an email that already has an account had nowhere to go.**
+   `App.jsx`'s `handleLogin` called `updateUser({ email })` for any anonymous user. If that
+   email already belonged to an account, Supabase errored and the flow stopped — with no
+   fallback to sign-in, and no way to keep the workspace they had just built. It was orphaned
+   and swept 24h later by the cleanup cron. This is the single most likely path for a returning
+   prospect, and it lost their work every time.
+2. **Site limits were client-side only and internally contradictory.** `getMaxSitesForPlan`
+   returned premium 999 / pro 5 / basic 5 while its own trailing comment claimed basic was 1,
+   and `Pricing.jsx` advertised a third set of numbers again (1 / up to 5 / unlimited). Nothing
+   enforced any of them server-side: sites are inserted client-side through RLS, so any client
+   could exceed its plan.
+3. **No duplicate-domain guard.** `domain` carried no unique constraint, so the same site could
+   be added twice under one tenant.
+4. **Views were React state, not URLs.** Back exited the application entirely and refresh lost
+   all view context.
+5. **`handleAddSite` had a cross-tenant fallback.** On a domain collision it re-pointed the
+   existing site's `tenant_id` at the current tenant. RLS blocked it in practice, so it was not
+   live-exploitable, but it was a tenant-takeover primitive waiting for RLS to loosen — and dead
+   code regardless, since nothing made `domain` collide.
+
+### Decision
+
+**Plan limits are Basic 1 / Pro 2 / Premium 10**, enforced in the database, not the client.
+A `BEFORE INSERT OR UPDATE` trigger on `sites` counts the tenant's sites against
+`plan_site_limit(plan)` and raises `site_limit_reached` (SQLSTATE 23514). It fires on
+`UPDATE OF tenant_id` as well as on insert, because a claimed guest workspace arrives as an
+update — an insert-only trigger would miss exactly the path most likely to overshoot. A second
+branch guards re-activation and counts only *active* sites, so a client cannot flip `is_active`
+back on for everything and serve past its plan. `Pricing.jsx` and `getMaxSitesForPlan` were
+corrected to match the one source of truth.
+
+**A guest signing in with an already-registered email is asked to confirm, then their workspace
+moves to that account.** The claim cannot be a `localStorage` id: after the magic-link round trip
+the anonymous session may be gone, so the returning user cannot prove they built the workspace,
+and a forgeable `tenant_id` in the browser would let anyone claim anyone's guest site. Instead
+the claim is recorded **server-side at send time**, while the anonymous session is still live and
+provably owns the guest tenant. `api/sites/claim.js` writes `{guest_tenant_id, site_id,
+claimed_by_email}` into `guest_site_claims`; on return, it matches an open claim to the
+now-authenticated user's **own email** and only then offers the transfer. Created by whoever held
+the session, redeemed by whoever owns the email — neither half suffices alone.
+
+**The transfer is transactional and moves everything.** `claim_guest_site()` re-points
+`documents`, `site_summaries`, `scan_jobs`, `leads` and finally `sites` (last, so the limit
+trigger sees final state). Moving `sites.tenant_id` alone would have been data loss on a 24-hour
+fuse: every one of those tables carries its own `tenant_id`, and the guest tenant is
+cascade-deleted by the cleanup cron a day later, so a site moved by itself would have had its
+pages and leads deleted out from under it. `messages` are deliberately left behind — they are the
+guest's own test conversations, and the schema has no `site_id` on `messages` anyway, so "don't
+move them" is also the only unambiguous option available.
+
+**Edge cases resolve to explicit states.** Domain already in the account → no transfer, just sign
+in and open the existing site. At the limit → upgrade is the lead CTA, "replace an existing site"
+sits behind a destructive confirm naming what is deleted; the RPC leaves the claim open
+specifically so the redeem can be retried after the user upgrades or frees a slot. Claims expire
+after 12h, deliberately shorter than the 24h guest sweep.
+
+**A downgrade that puts a user over their limit parks sites, never deletes them.** Added
+`sites.is_active`. When site count exceeds the plan's limit the user chooses which sites stay
+active; the rest are set inactive and are restored untouched on upgrade. Enforcement is at the
+two public entry points that resolve a site by `public_key` — `api/chat/index.js` and
+`api/chat/init.js` — so an inactive site's widget stops answering with a clear reason rather than
+silently serving on a plan that no longer covers it.
+
+**Views get real URLs** via `history.pushState` + `popstate`, keeping `currentView` as the single
+render switch so the change stays contained to `App.jsx`'s view plumbing instead of becoming a
+router rewrite.
+
+The full enumeration — every state, every event, every guard and target state, each marked
+implemented / partial / missing — lives in `docs/user-flow-automaton.html` and is the spec this
+work was built against.
+
+### Consequences
+
+- Plan limits now hold regardless of client, which is what makes them saleable as a plan
+  boundary rather than a UI suggestion.
+- A returning prospect keeps the workspace they built as a guest, which was previously destroyed.
+- The unique index on `(tenant_id, lower(domain))` is deliberately **per-tenant, not global**: two
+  unrelated customers may legitimately both register the same domain, and a global constraint
+  would leak the existence of one to the other.
+- `claim_guest_site` is granted to `service_role` only (unlike `delete_site_cascade`, which anon
+  and authenticated may call), because it moves data *between* tenants and must never be
+  reachable from a browser.
+- **A latent bug was found and fixed along the way:** `messages.tenant_id`, `leads.tenant_id` and
+  `usage.tenant_id` were declared as bare `REFERENCES tenants(id)` — NO ACTION — while every
+  other tenant-scoped table cascades. `api/cron/cleanup.js`'s `delete from tenants` therefore
+  failed with a foreign-key violation for any guest workspace that had ever been used (one chat
+  message was enough), and since the job catches errors per tenant, those guests accumulated
+  silently and were never swept. All three now cascade, in both the new migration and the
+  consolidated schema.
+- The migration must not be applied to production before the UI copy ships, or paying users would
+  hit a limit the pricing page still tells them they do not have.
+
+---
+
 ## ADR 056 : Widget greets visitors in the site's own language, pregenerated at scan time
 
 **Date :** 2026-09-05

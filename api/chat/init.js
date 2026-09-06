@@ -58,17 +58,49 @@ export default async function handler(req) {
   }
 
   try {
-    const { data: site } = await supabase
+    let { data: site, error: siteError } = await supabase
       .from('sites')
-      .select('id, tenant_id')
+      .select('id, tenant_id, is_active')
       .eq('public_key', tenantPublicKey)
       .maybeSingle();
+
+    // A database that predates the site-limit migration has no is_active
+    // column (42703); there is no parked state there, so re-read the core
+    // columns and treat the site as active — same shape as the fallback in
+    // api/chat/index.js.
+    if (siteError?.code === '42703') {
+      const { data: coreSite } = await supabase
+        .from('sites')
+        .select('id, tenant_id')
+        .eq('public_key', tenantPublicKey)
+        .maybeSingle();
+      site = coreSite ? { ...coreSite, is_active: true } : null;
+    }
 
     if (!site) {
       return new Response(JSON.stringify(FALLBACK), {
         status: 200,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
+    }
+
+    // Parked by a plan downgrade: the widget must not open as if it were ready
+    // to answer, and the reason has to be legible to the tenant looking at
+    // their own site. Still a 200 with the full label shape — the widget reads
+    // these keys unconditionally — but flagged, and the chat endpoint refuses
+    // the conversation itself (api/chat/index.js).
+    if (site.is_active === false) {
+      const message = 'This assistant is paused because the workspace plan no longer covers this website.';
+      return new Response(
+        JSON.stringify({
+          ...FALLBACK,
+          site_inactive: true,
+          code: 'site_inactive',
+          welcome_message: message,
+          ui_status_online: 'Paused',
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
+      );
     }
 
     const { data: summary } = await supabase
