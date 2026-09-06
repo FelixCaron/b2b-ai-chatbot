@@ -1,0 +1,1178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Repondo — User-Flow Automaton</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+:root {
+  --ground: #f7f7fb;
+  --surface: #ffffff;
+  --surface-2: #f0f0f7;
+  --border: #e3e3ee;
+  --text: #16161f;
+  --text-dim: #5b5b6d;
+  --text-faint: #8a8a9c;
+  --brand-500: #6366f1;
+  --brand-600: #4f46e5;
+  --brand-700: #4338ca;
+  --brand-tint: #eef0ff;
+  --violet: #818cf8;
+  --success: #0a9463;
+  --success-tint: #e3f7ee;
+  --amber: #b7791f;
+  --amber-tint: #fdf3e0;
+  --rose: #c0344a;
+  --rose-tint: #fdeaed;
+  --code-bg: #f0f0f7;
+  --shadow: 0 1px 2px rgba(22,22,31,0.04), 0 8px 24px rgba(22,22,31,0.06);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #0b0f19;
+    --surface: #111827;
+    --surface-2: #161f30;
+    --border: #232d42;
+    --text: #f3f4f6;
+    --text-dim: #a6adbb;
+    --text-faint: #6b7280;
+    --brand-500: #6366f1;
+    --brand-600: #818cf8;
+    --brand-700: #a5b4fc;
+    --brand-tint: rgba(99,102,241,0.14);
+    --violet: #a5b4fc;
+    --success: #34d399;
+    --success-tint: rgba(16,185,129,0.12);
+    --amber: #f5b955;
+    --amber-tint: rgba(245,185,85,0.1);
+    --rose: #fb7185;
+    --rose-tint: rgba(251,113,133,0.12);
+    --code-bg: #0c1220;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 12px 32px rgba(0,0,0,0.35);
+  }
+}
+
+:root[data-theme="dark"] {
+  --ground: #0b0f19;
+  --surface: #111827;
+  --surface-2: #161f30;
+  --border: #232d42;
+  --text: #f3f4f6;
+  --text-dim: #a6adbb;
+  --text-faint: #6b7280;
+  --brand-500: #6366f1;
+  --brand-600: #818cf8;
+  --brand-700: #a5b4fc;
+  --brand-tint: rgba(99,102,241,0.14);
+  --violet: #a5b4fc;
+  --success: #34d399;
+  --success-tint: rgba(16,185,129,0.12);
+  --amber: #f5b955;
+  --amber-tint: rgba(245,185,85,0.1);
+  --rose: #fb7185;
+  --rose-tint: rgba(251,113,133,0.12);
+  --code-bg: #0c1220;
+  --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 12px 32px rgba(0,0,0,0.35);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: var(--ground);
+  color: var(--text);
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  margin: 0;
+  padding: 0;
+}
+
+.wrap {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 56px 24px 88px;
+}
+
+/* ---- Masthead ---- */
+.masthead {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 40px;
+}
+.mark {
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  background: linear-gradient(135deg, var(--brand-600), var(--violet));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 800;
+  font-size: 20px;
+  flex-shrink: 0;
+  box-shadow: var(--shadow);
+}
+.masthead-text .name { font-weight: 700; font-size: 15px; letter-spacing: -0.01em; }
+.masthead-text .tag { font-size: 12.5px; color: var(--text-faint); }
+
+h1 {
+  font-size: clamp(28px, 4.2vw, 38px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  text-wrap: balance;
+  margin: 0 0 14px;
+}
+
+.intro {
+  font-size: 16.5px;
+  line-height: 1.65;
+  color: var(--text-dim);
+  max-width: 68ch;
+  margin: 0 0 32px;
+}
+.intro strong { color: var(--text); font-weight: 600; }
+
+h2 {
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  margin: 0 0 6px;
+}
+h3 {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 30px 0 10px;
+}
+.eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin-bottom: 8px;
+}
+p { font-size: 14.5px; line-height: 1.62; color: var(--text-dim); }
+
+code, .mono {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 12.5px;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 1px 5px;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+/* ---- Cards ---- */
+.card {
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  margin-bottom: 28px;
+  overflow: hidden;
+}
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.card-head-left { display: flex; align-items: center; gap: 12px; }
+.card-badge {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--brand-tint);
+  color: var(--brand-700);
+  white-space: nowrap;
+}
+.card-title { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
+.card-sub { font-size: 13px; color: var(--text-faint); }
+.card-body { padding: 20px 24px 24px; }
+.card-body > p:first-child { margin-top: 0; }
+
+/* ---- Status pills ---- */
+.st {
+  display: inline-block;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+.st.imp { background: var(--success-tint); color: var(--success); border-color: color-mix(in srgb, var(--success) 26%, transparent); }
+.st.part { background: var(--amber-tint); color: var(--amber); border-color: color-mix(in srgb, var(--amber) 30%, transparent); }
+.st.miss { background: var(--rose-tint); color: var(--rose); border-color: color-mix(in srgb, var(--rose) 30%, transparent); }
+.st.des { background: var(--surface-2); color: var(--text-faint); border-color: var(--border); }
+
+/* ---- Tables ---- */
+.scroll {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  -webkit-overflow-scrolling: touch;
+}
+table { border-collapse: collapse; width: 100%; min-width: 940px; font-size: 13px; }
+thead th {
+  position: sticky;
+  top: 0;
+  background: var(--surface-2);
+  text-align: left;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+tbody td {
+  padding: 10px 12px;
+  border-top: 1px solid var(--border);
+  vertical-align: top;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+tbody tr:hover td { background: color-mix(in srgb, var(--brand-500) 4%, transparent); }
+td.num { color: var(--text-faint); font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; width: 42px; }
+td.from, td.to { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--text); font-weight: 500; white-space: nowrap; }
+td.to { color: var(--brand-700); }
+td.ev { color: var(--text); font-weight: 500; }
+td.status { white-space: nowrap; }
+.sub { display: block; color: var(--text-faint); font-size: 11.5px; margin-top: 3px; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 400; white-space: normal; }
+
+/* ---- Notes ---- */
+.note {
+  margin: 18px 0 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--amber-tint);
+  border: 1px solid color-mix(in srgb, var(--amber) 30%, transparent);
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--text-dim);
+}
+.note strong { color: var(--text); }
+.note.info { background: var(--brand-tint); border-color: color-mix(in srgb, var(--brand-500) 30%, transparent); }
+.note.bad { background: var(--rose-tint); border-color: color-mix(in srgb, var(--rose) 30%, transparent); }
+
+/* ---- Legend ---- */
+.legend { display: flex; flex-wrap: wrap; gap: 10px 22px; margin: 0 0 30px; }
+.legend div { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-dim); }
+
+/* ---- Mermaid ---- */
+pre.mermaid {
+  margin: 0;
+  padding: 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow-x: auto;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-dim);
+  text-align: center;
+}
+pre.mermaid:not([data-processed]) { text-align: left; white-space: pre; }
+pre.mermaid svg { max-width: 100%; height: auto; }
+.diagram-cap { font-size: 12.5px; color: var(--text-faint); margin: 8px 2px 0; }
+
+/* ---- Key/value list ---- */
+dl.kv { margin: 0; }
+dl.kv > div { padding: 13px 0; border-top: 1px solid var(--border); }
+dl.kv > div:first-child { border-top: none; padding-top: 4px; }
+dl.kv dt { font-weight: 600; font-size: 14px; margin-bottom: 4px; color: var(--text); }
+dl.kv dd { margin: 0; font-size: 13.5px; line-height: 1.6; color: var(--text-dim); }
+
+footer {
+  margin-top: 48px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  font-size: 12.5px;
+  color: var(--text-faint);
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+@media (max-width: 640px) {
+  .wrap { padding: 40px 16px 64px; }
+  .card-head { padding: 16px 18px; }
+  .card-body { padding: 16px 18px 20px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="masthead">
+    <div class="mark">R</div>
+    <div class="masthead-text">
+      <div class="name">Repondo</div>
+      <div class="tag">AI chatbots for B2B websites</div>
+    </div>
+  </div>
+
+  <h1>User-flow automaton</h1>
+  <p class="intro">
+    Every state a person can be in, every event that can reach them there, the guard that decides
+    what happens, and the state they land in. The product was built around one happy path — land,
+    scan a site, test the widget, sign up — and <strong>every other path was undefined rather than
+    decided</strong>. This document decides them. It is both a review artefact (what the product
+    does today, honestly marked) and the specification the current work is being built against
+    (see <code>ADR 057</code>).
+  </p>
+
+  <div class="legend">
+    <div><span class="st imp">implemented</span> code in the repository does this today</div>
+    <div><span class="st part">partial</span> happens, but incompletely or inconsistently</div>
+    <div><span class="st miss">missing</span> nothing does this today — the row is the spec</div>
+    <div><span class="st des">by design</span> intentionally unhandled, reason given</div>
+  </div>
+
+  <div class="note info">
+    <strong>Status is measured against the working tree,</strong> not against the ADR's intent:
+    commit <code>9cccde9</code> plus an untracked <code>api/sites/claim.js</code> and a modified
+    <code>api/chat/index.js</code>. Where the server half of a behaviour exists and the browser
+    half does not, the row says so rather than calling the behaviour done.
+    <code>App.jsx</code>, <code>Dashboard.jsx</code>, <code>Pricing.jsx</code> and
+    <code>api/</code> are being edited concurrently, so <em>partial</em> and <em>missing</em> rows
+    are the work in flight.
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- STATE CATALOGUE                                              -->
+  <!-- ============================================================ -->
+  <div class="card">
+    <div class="card-head">
+      <div class="card-head-left">
+        <span class="card-badge">§0</span>
+        <div>
+          <div class="card-title">State catalogue</div>
+          <div class="card-sub">31 states across five dimensions, and how each is represented in code</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <p>
+        The machine is not flat. A user is always in exactly one <em>identity</em> state, one
+        <em>view</em>, and — when the view is the dashboard — one <em>onboarding step</em>; auth
+        sub-states and billing states are modal excursions layered on top. Transition tables below
+        name the composite where it matters, e.g. <span class="mono">GUEST_WITH_SITE · READY</span>.
+      </p>
+
+      <div class="scroll" style="margin-top:16px">
+        <table>
+          <thead>
+            <tr>
+              <th>State</th><th>Dimension</th><th>Meaning</th><th>Representation in code</th><th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td class="from">ANON</td><td>identity</td><td>Anonymous Supabase session; no tenant yet, or a tenant with zero sites.</td><td><code>currentUser.is_anonymous</code> &amp;&amp; <code>sites.length === 0</code> — <code>App.jsx</code></td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="from">GUEST_WITH_SITE</td><td>identity</td><td>Anonymous session owning a <code>Guest_&lt;ts&gt;</code> tenant with at least one site. Expires on the 24h sweep.</td><td><code>isGuest</code> &amp;&amp; <code>sites.length &gt;= 1</code></td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="from">GUEST_PENDING_CONFIRM</td><td>identity</td><td>Guest has submitted an email; awaiting the confirm / sign-in link.</td><td>Only a local <code>authMessage</code> string. Not persisted, lost on reload.</td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="from">REGISTERED</td><td>identity</td><td>Non-anonymous user with a verified email, owning a tenant.</td><td><code>sessionEmail</code> truthy &amp;&amp; <code>!is_anonymous</code></td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="from">REGISTERED_AT_LIMIT</td><td>identity</td><td>REGISTERED whose site count has reached <code>plan_site_limit(plan)</code>. Derived, never stored.</td><td>DB: <code>enforce_site_limit()</code> trigger. Client: <code>getMaxSitesForPlan</code>, which disagrees with it.</td><td class="status"><span class="st part">partial</span></td></tr>
+
+            <tr><td class="from">INPUT</td><td>onboarding</td><td>Hero screen: paste a URL.</td><td><code>step === 'input'</code> — <code>Dashboard.jsx</code></td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="from">ANALYZING</td><td>onboarding</td><td>Turnstile → <code>/api/chat/theme</code> → <code>onAddSite</code> inserts the site row.</td><td><code>isAnalyzing</code></td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="from">CRAWLING</td><td>onboarding</td><td>Discovery + batched indexing + summary. Driven entirely from the browser.</td><td><code>isCrawling</code> + <code>showLearningModal</code></td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="from">PAGE_SELECT</td><td>onboarding</td><td>Site exceeds the plan's page allowance; user picks which pages to index.</td><td><code>showPageSelectionModal</code></td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="from">READY</td><td>onboarding</td><td>Dashboard for an indexed site: preview, settings, knowledge base, danger zone.</td><td><code>step === 'dashboard'</code> &amp;&amp; <code>activeSite</code></td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="from">PREVIEW</td><td>onboarding</td><td>Full-screen live widget test against <code>/api/chat</code>.</td><td><code>showPreviewModal</code></td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="from">INTEGRATION</td><td>onboarding</td><td>Embed snippet. Gated: guests are bounced to LOGIN_MODAL.</td><td><code>showIntegrationModal</code></td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="from">ADD_SITE</td><td>onboarding</td><td>Modal to attach another domain to the same workspace.</td><td><code>showAddSiteModal</code></td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="from">AT_LIMIT</td><td>onboarding</td><td>Add refused: workspace already holds <code>plan_site_limit(plan)</code> sites.</td><td>Inline <code>newSiteError</code> string only; no upgrade CTA, wrong numbers.</td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="from">DELETE_CONFIRM</td><td>onboarding</td><td>Destructive confirm naming the domain; calls <code>delete_site_cascade</code>.</td><td><code>showDeleteConfirmModal</code></td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="from">OVER_LIMIT_CHOOSE</td><td>onboarding</td><td>After a downgrade: pick which sites stay active. The rest are parked, never deleted.</td><td>No code today.</td><td class="status"><span class="st miss">missing</span></td></tr>
+
+            <tr><td class="from">LOGIN_MODAL</td><td>auth</td><td>Email capture. Two different copies: "Save my assistant" for guests, "Sign in" otherwise.</td><td><code>showLoginModal</code> + <code>LoginModal.jsx</code></td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="from">LINK_SENT</td><td>auth</td><td>Confirmation or sign-in email dispatched; awaiting the click.</td><td><code>authMessage</code> string, component state only.</td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="from">LINK_RETURN</td><td>auth</td><td>Browser lands back on the origin with tokens in the URL fragment; a session is established.</td><td><code>onAuthStateChange</code> fires. Nothing calls <code>/api/sites/claim</code> redeem.</td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="from">TRANSFER_PROMPT</td><td>auth</td><td>"Move the site you just built into your existing account?" — explicit confirm.</td><td>Server ready (<code>claim_guest_site</code>); no UI.</td><td class="status"><span class="st miss">missing</span></td></tr>
+            <tr><td class="from">TRANSFER_AT_LIMIT</td><td>auth</td><td>Claim can't land: account is full. Upgrade is the lead CTA; replace is secondary and destructive.</td><td>RPC returns <code>at_limit</code> and leaves the claim open; no UI.</td><td class="status"><span class="st miss">missing</span></td></tr>
+
+            <tr><td class="from">DASHBOARD</td><td>view</td><td>Default view. Target URL <code>/</code>.</td><td><code>currentView === 'dashboard'</code></td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="from">LEADS</td><td>view</td><td>Captured leads table. Target URL <code>/leads</code>.</td><td><code>currentView === 'leads'</code>; no URL today.</td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="from">PRICING</td><td>view</td><td>Plan comparison + checkout entry. Target URL <code>/pricing</code>.</td><td><code>currentView === 'pricing'</code>; no URL today.</td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="from">ABOUT</td><td>view</td><td>Marketing/about page. Target URL <code>/about</code>.</td><td><code>currentView === 'about'</code>; no URL today.</td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="from">PRIVACY</td><td>view</td><td>Privacy policy. Target URL <code>/privacy</code>.</td><td><code>currentView === 'privacy'</code>; no URL today.</td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="from">TERMS</td><td>view</td><td>Terms of service. Target URL <code>/terms</code>.</td><td><code>currentView === 'terms'</code>; no URL today.</td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="from">PAYMENT_SUCCESS</td><td>view</td><td>Stripe success landing; auto-returns to DASHBOARD after 6s.</td><td>Path <code>/payment-success</code>, read once at mount, then <code>replaceState('/')</code>.</td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="from">PAYMENT_CANCEL</td><td>view</td><td>Stripe cancel landing; renders PRICING with a toast.</td><td>Path <code>/payment-cancel</code>, then <code>replaceState('/')</code>.</td><td class="status"><span class="st imp">implemented</span></td></tr>
+
+            <tr><td class="from">CHECKOUT</td><td>billing</td><td>Stripe-hosted Checkout, off-origin. Success/cancel return to the two paths above.</td><td><code>api/billing/checkout.js</code>, ownership-checked.</td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="from">PORTAL</td><td>billing</td><td>Stripe Billing Portal, off-origin. Returns to <code>/</code>; plan changes arrive by webhook.</td><td><code>api/billing/portal.js</code>, ownership-checked.</td><td class="status"><span class="st imp">implemented</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note">
+        <strong>One number, three answers.</strong> The locked decision is <strong>Basic 1 / Pro 2 /
+        Premium 10</strong>. The database agrees (<code>plan_site_limit</code>). The dashboard still
+        computes premium 999 / pro 5 / basic 5, and the pricing page still advertises 1 / up to 5 /
+        unlimited. Until all three agree, a Basic customer is told they may add a second site, the
+        client lets them try, and the trigger rejects it with a raw
+        <code>site_limit_reached</code>. Every AT_LIMIT row below is marked against that reality.
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- DIAGRAM 1 — identity lifecycle                               -->
+  <!-- ============================================================ -->
+  <div class="card">
+    <div class="card-head">
+      <div class="card-head-left">
+        <span class="card-badge">§1</span>
+        <div>
+          <div class="card-title">Identity lifecycle</div>
+          <div class="card-sub">Anonymous visitor → guest workspace → account, including the transfer branch</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+<pre class="mermaid">
+stateDiagram-v2
+    [*] --> ANON: first load, anonymous sign-in
+    ANON --> ANALYZING: submit URL
+    ANALYZING --> CRAWLING: site row inserted
+    CRAWLING --> GUEST_WITH_SITE: pages indexed
+    ANALYZING --> ANON: insert or theme step throws
+
+    GUEST_WITH_SITE --> LOGIN_MODAL: Save my assistant / Embed widget
+    LOGIN_MODAL --> GUEST_PENDING_CONFIRM: email accepted, link sent
+    GUEST_PENDING_CONFIRM --> REGISTERED: email was new, same user id keeps the tenant
+    GUEST_PENDING_CONFIRM --> LINK_RETURN: email already had an account
+    GUEST_PENDING_CONFIRM --> LOGIN_MODAL: link expired or already used
+
+    LINK_RETURN --> TRANSFER_PROMPT: open claim, room on plan
+    LINK_RETURN --> TRANSFER_AT_LIMIT: open claim, account already full
+    LINK_RETURN --> REGISTERED: no claim, expired, stale, or duplicate domain
+
+    TRANSFER_PROMPT --> REGISTERED: confirm, workspace moves
+    TRANSFER_PROMPT --> REGISTERED: decline, guest copy expires on its own
+    TRANSFER_AT_LIMIT --> CHECKOUT: upgrade, lead CTA
+    TRANSFER_AT_LIMIT --> DELETE_CONFIRM: replace a site, destructive
+    CHECKOUT --> TRANSFER_PROMPT: plan raised, claim retried
+    DELETE_CONFIRM --> TRANSFER_PROMPT: slot freed, claim retried
+
+    REGISTERED --> REGISTERED_AT_LIMIT: site count reaches the plan limit
+    REGISTERED_AT_LIMIT --> REGISTERED: upgrade or delete a site
+    REGISTERED --> ANON: sign out, fresh anonymous session
+
+    GUEST_WITH_SITE --> [*]: 24h cleanup sweep deletes the workspace
+    GUEST_PENDING_CONFIRM --> [*]: claim expires at 12h, workspace swept at 24h
+</pre>
+      <p class="diagram-cap">
+        Guests are never signed out — there is no affordance, on purpose: an anonymous session is
+        the only key to a guest workspace, so signing out would strand it. The two terminal edges
+        are the only ways a guest workspace ends.
+      </p>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- TABLE 1 — identity                                           -->
+  <!-- ============================================================ -->
+  <div class="card">
+    <div class="card-head">
+      <div class="card-head-left">
+        <span class="card-badge">§2</span>
+        <div>
+          <div class="card-title">Transitions — session &amp; identity</div>
+          <div class="card-sub">ANON · GUEST_WITH_SITE · GUEST_PENDING_CONFIRM · REGISTERED · REGISTERED_AT_LIMIT</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr><th>#</th><th>From</th><th>Event</th><th>Guard / condition</th><th>→ Target state</th><th>Status</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="num">1</td><td class="from">—</td><td class="ev">App load</td><td>No stored session; <code>signInAnonymously()</code> succeeds</td><td class="to">ANON · INPUT</td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">2</td><td class="from">—</td><td class="ev">App load</td><td>Stored anonymous session valid, tenant has ≥1 site</td><td class="to">GUEST_WITH_SITE · READY</td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">3</td><td class="from">—</td><td class="ev">App load</td><td>Anonymous sign-in disabled in Supabase, or the call fails</td><td class="to">ANON · INPUT <span class="sub">with <code>currentUser = null</code>. Only a <code>console.warn</code>; the form still renders and only fails on submit. Should be an explicit blocked state.</span></td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="num">4</td><td class="from">ANON</td><td class="ev">Submit URL</td><td>Non-empty; <code>https://</code> prefixed automatically</td><td class="to">ANALYZING</td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">5</td><td class="from">ANON</td><td class="ev">Submit URL (malformed)</td><td>Anything non-empty passes — <code>"hello world"</code> becomes <code>https://hello world</code></td><td class="to">ANALYZING → CRAWLING → READY <span class="sub">with an empty knowledge base and a junk <code>sites.domain</code> row. Needs URL validation <em>before</em> a site row is created.</span></td><td class="status"><span class="st miss">missing</span></td></tr>
+            <tr><td class="num">6</td><td class="from">ANON</td><td class="ev">Click Sign In</td><td>—</td><td class="to">LOGIN_MODAL</td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">7</td><td class="from">ANON</td><td class="ev">Close LOGIN_MODAL</td><td><code>onClose</code> is passed only when <code>!isGuest</code>; an anonymous visitor is a guest</td><td class="to">— <span class="sub">No close button exists. A visitor who opens Sign In out of curiosity is trapped until they reload. The gate should be "guest <em>with an unsaved site</em>", not "anonymous".</span></td><td class="status"><span class="st miss">missing</span></td></tr>
+            <tr><td class="num">8</td><td class="from">ANON</td><td class="ev">Refresh</td><td>Session persisted in <code>localStorage</code></td><td class="to">ANON · INPUT</td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">9</td><td class="from">ANON</td><td class="ev">24h cleanup sweep</td><td>Anonymous auth user, no email, <code>created_at &lt; now-24h</code>, no tenant</td><td class="to">Auth user deleted → next load starts a fresh ANON <span class="sub">Endpoint <code>api/cron/cleanup.js</code> exists; <strong>no <code>crons</code> entry in any <code>vercel.json</code></strong>, so nothing invokes it on a schedule.</span></td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="num">10</td><td class="from">GUEST_WITH_SITE</td><td class="ev">Scan finishes</td><td>≥1 document indexed</td><td class="to">GUEST_WITH_SITE · READY</td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">11</td><td class="from">GUEST_WITH_SITE</td><td class="ev">Click Test</td><td><code>!isCrawling</code></td><td class="to">PREVIEW</td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">12</td><td class="from">GUEST_WITH_SITE</td><td class="ev">Click Embed</td><td><code>isGuest</code> — embedding requires an account</td><td class="to">LOGIN_MODAL</td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">13</td><td class="from">GUEST_WITH_SITE</td><td class="ev">Enter email (new address)</td><td>Anonymous session → <code>auth.updateUser({email})</code> attaches the email to the <em>same</em> user id</td><td class="to">GUEST_PENDING_CONFIRM · LINK_SENT <span class="sub">The tenant is already owned by that user id, so no transfer is needed on this path.</span></td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">14</td><td class="from">GUEST_WITH_SITE</td><td class="ev">Enter email (already registered)</td><td>Supabase rejects <code>updateUser</code> for a duplicate address</td><td class="to">GUEST_PENDING_CONFIRM · LINK_SENT <span class="sub"><strong>Spec:</strong> record a claim via <code>POST /api/sites/claim {action:'create'}</code> while the anonymous session can still prove tenant ownership, then <code>signInWithOtp</code>. <strong>Today:</strong> the error text lands in the modal, the flow dead-ends, and the workspace is orphaned and swept 24h later. This is the single most likely returning-prospect path.</span></td><td class="status"><span class="st miss">missing</span></td></tr>
+            <tr><td class="num">15</td><td class="from">GUEST_WITH_SITE</td><td class="ev">Enter email (malformed)</td><td><code>&lt;input type="email" required&gt;</code> blocks submit</td><td class="to">LOGIN_MODAL (unchanged)</td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">16</td><td class="from">GUEST_WITH_SITE</td><td class="ev">Add site</td><td>Guest tenant plan defaults to <code>'free'</code> → <code>plan_site_limit</code> = 1, and one site already exists</td><td class="to">AT_LIMIT <span class="sub">Correct outcome, but by luck: the client's <code>getMaxSitesForPlan</code> also returns 1 for an unrecognised plan. The DB trigger is the actual guarantee.</span></td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="num">17</td><td class="from">GUEST_WITH_SITE</td><td class="ev">Delete site</td><td>It is the only site</td><td class="to">DELETE_CONFIRM → ANON · INPUT <span class="sub">The empty guest tenant survives and is swept at 24h.</span></td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">18</td><td class="from">GUEST_WITH_SITE</td><td class="ev">Sign out</td><td>No sign-out affordance is rendered for a guest</td><td class="to">— <span class="sub">Deliberate: the anonymous session is the only key to the workspace.</span></td><td class="status"><span class="st des">by design</span></td></tr>
+            <tr><td class="num">19</td><td class="from">GUEST_WITH_SITE</td><td class="ev">Refresh</td><td>Anonymous session persists; indexed pages re-read from <code>documents</code></td><td class="to">GUEST_WITH_SITE · READY</td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">20</td><td class="from">GUEST_WITH_SITE</td><td class="ev">Refresh mid-CRAWLING</td><td>The crawl loop runs in the browser; nothing writes <code>scan_jobs</code></td><td class="to">READY with a partial index <span class="sub">Already-inserted documents persist; the loop dies with the tab and never resumes, with no indication that the site is half-indexed. <code>scan_jobs</code> exists in the schema and is written by nothing.</span></td><td class="status"><span class="st miss">missing</span></td></tr>
+            <tr><td class="num">21</td><td class="from">GUEST_WITH_SITE</td><td class="ev">24h cleanup sweep</td><td>Tenant name matches <code>Guest_%</code>, older than 24h, <em>and</em> the owner is still <code>is_anonymous</code></td><td class="to">Workspace cascade-deleted → ANON · INPUT <span class="sub">The owner re-check is what stops a converted user's real data being swept under a stale name. The FK cascade on <code>messages</code>/<code>leads</code>/<code>usage</code> was only fixed in the site-limits migration — before it, any guest who had sent one chat message could never be swept.</span></td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="num">22</td><td class="from">GUEST_WITH_SITE</td><td class="ev">Session expiry</td><td>Refresh token expired or revoked</td><td class="to">ANON <span class="sub"><code>onAuthStateChange</code> sets <code>currentUser = null</code>; no new anonymous session is started until some action calls <code>handleAddSite</code>. The screen keeps rendering stale tenant data in the meantime.</span></td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="num">23</td><td class="from">GUEST_PENDING_CONFIRM</td><td class="ev">Click link (valid, same browser)</td><td>Email was new; the user id is unchanged</td><td class="to">REGISTERED · READY <span class="sub">The tenant is renamed from <code>Guest_…</code> to the email on the next load, which also protects it from the sweep.</span></td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">24</td><td class="from">GUEST_PENDING_CONFIRM</td><td class="ev">Click link (valid, different device)</td><td>No anonymous session there, but <code>owner_user_id</code> still points at the same user</td><td class="to">REGISTERED · READY</td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">25</td><td class="from">GUEST_PENDING_CONFIRM</td><td class="ev">Click link (expired)</td><td>Supabase link TTL passed; the redirect carries an error in the URL fragment</td><td class="to">LINK_SENT with "that link expired, send another" <span class="sub">Today the fragment error is ignored entirely and the user silently lands back as an anonymous visitor.</span></td><td class="status"><span class="st miss">missing</span></td></tr>
+            <tr><td class="num">26</td><td class="from">GUEST_PENDING_CONFIRM</td><td class="ev">Click link (already used)</td><td>One-time token already consumed</td><td class="to">LINK_SENT with "already used, send another" <span class="sub">Same silent failure as #25.</span></td><td class="status"><span class="st miss">missing</span></td></tr>
+            <tr><td class="num">27</td><td class="from">GUEST_PENDING_CONFIRM</td><td class="ev">Refresh while waiting</td><td><code>authMessage</code> is component state</td><td class="to">GUEST_WITH_SITE · READY <span class="sub">"Check your email" disappears; the user has no idea a link is in flight. LINK_SENT should survive a reload.</span></td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="num">28</td><td class="from">GUEST_PENDING_CONFIRM</td><td class="ev">12h claim expiry</td><td><code>guest_site_claims.expires_at &lt; now()</code></td><td class="to">Redeem returns <code>expired</code> → REGISTERED · DASHBOARD <span class="sub">Deliberately shorter than the 24h sweep so a claim can never outlive the workspace it points at. RPC handles it; nothing tells the user.</span></td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="num">29</td><td class="from">GUEST_PENDING_CONFIRM</td><td class="ev">24h sweep before the link is clicked</td><td>Workspace deleted; the claim row cascades with the tenant</td><td class="to">REGISTERED · INPUT <span class="sub">Unreachable in practice: the claim expires at 12h first. Correct by construction rather than by a check.</span></td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">30</td><td class="from">REGISTERED</td><td class="ev">Add site</td><td><code>count &lt; plan_site_limit(plan)</code></td><td class="to">ADD_SITE → ANALYZING</td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">31</td><td class="from">REGISTERED</td><td class="ev">Add site</td><td><code>count &gt;= plan_site_limit(plan)</code></td><td class="to">REGISTERED_AT_LIMIT · AT_LIMIT <span class="sub">On Basic the client believes the limit is 5 and lets the insert through; the trigger raises <code>site_limit_reached</code> (SQLSTATE 23514) and the error surfaces raw.</span></td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="num">32</td><td class="from">REGISTERED</td><td class="ev">Delete site</td><td>—</td><td class="to">DELETE_CONFIRM</td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">33</td><td class="from">REGISTERED</td><td class="ev">Sign out</td><td>—</td><td class="to">ANON · INPUT <span class="sub"><code>signOut()</code> then immediately <code>signInAnonymously()</code>, so the app is never session-less.</span></td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">34</td><td class="from">REGISTERED</td><td class="ev">Refresh</td><td>Session persists</td><td class="to">REGISTERED · DASHBOARD <span class="sub">Whatever view they were on is lost — <code>currentView</code> always resets to <code>dashboard</code> unless the path is a Stripe return.</span></td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="num">35</td><td class="from">REGISTERED</td><td class="ev">Session expiry</td><td>Refresh token expired</td><td class="to">ANON <span class="sub">Header disappears (it is gated on <code>sessionEmail</code>) but tenant, sites and leads stay in React state until a reload. Should force a clean re-auth.</span></td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="num">36</td><td class="from">REGISTERED_AT_LIMIT</td><td class="ev">Upgrade completes</td><td>Webhook raises <code>tenants.plan</code>; limit recomputed on next tenant read</td><td class="to">REGISTERED <span class="sub">Parked sites should also be reactivated here — see #96.</span></td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="num">37</td><td class="from">REGISTERED_AT_LIMIT</td><td class="ev">Delete a site</td><td>Frees a slot</td><td class="to">REGISTERED</td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">38</td><td class="from">REGISTERED_AT_LIMIT</td><td class="ev">Downgrade lands</td><td><code>site count &gt; plan_site_limit(new plan)</code></td><td class="to">OVER_LIMIT_CHOOSE <span class="sub">Today the webhook writes the plan and nothing else: every site keeps serving on a plan that no longer covers it.</span></td><td class="status"><span class="st miss">missing</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- DIAGRAM 2 — onboarding                                       -->
+  <!-- ============================================================ -->
+  <div class="card">
+    <div class="card-head">
+      <div class="card-head-left">
+        <span class="card-badge">§3</span>
+        <div>
+          <div class="card-title">Onboarding steps inside the dashboard</div>
+          <div class="card-sub">The <code>step</code> machine plus its modal excursions</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+<pre class="mermaid">
+stateDiagram-v2
+    [*] --> INPUT: no site in the workspace
+    INPUT --> ANALYZING: submit URL
+    ANALYZING --> INPUT: theme step throws or insert refused
+    ANALYZING --> CRAWLING: site row created
+
+    CRAWLING --> PAGE_SELECT: discovered pages exceed the plan page allowance
+    CRAWLING --> READY: batch indexed and summarised
+    PAGE_SELECT --> CRAWLING: confirm selection
+    PAGE_SELECT --> READY: cancel, site kept with an empty knowledge base
+    PAGE_SELECT --> PRICING: upgrade for more pages
+
+    READY --> PREVIEW: Test live assistant
+    PREVIEW --> READY: close
+    READY --> INTEGRATION: Embed, registered only
+    READY --> LOGIN_MODAL: Embed, guest
+    INTEGRATION --> READY: close
+
+    READY --> ADD_SITE: Add website
+    ADD_SITE --> ANALYZING: under the site limit
+    ADD_SITE --> AT_LIMIT: at the site limit
+    AT_LIMIT --> PRICING: upgrade
+    AT_LIMIT --> DELETE_CONFIRM: free a slot instead
+    AT_LIMIT --> READY: dismiss
+
+    READY --> DELETE_CONFIRM: Delete website
+    DELETE_CONFIRM --> READY: deleted, other sites remain
+    DELETE_CONFIRM --> INPUT: deleted, it was the last site
+    DELETE_CONFIRM --> DELETE_CONFIRM: server refused, retry offered
+
+    READY --> OVER_LIMIT_CHOOSE: plan no longer covers the active sites
+    OVER_LIMIT_CHOOSE --> READY: pick which stay active, rest are parked
+    OVER_LIMIT_CHOOSE --> PRICING: upgrade instead
+</pre>
+      <p class="diagram-cap">
+        <code>CRAWLING</code> has no server-side job record: the loop lives in the browser tab.
+        Every edge out of it that is not "the tab stayed open" is currently undefined.
+      </p>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- TABLE 2 — onboarding                                         -->
+  <!-- ============================================================ -->
+  <div class="card">
+    <div class="card-head">
+      <div class="card-head-left">
+        <span class="card-badge">§4</span>
+        <div>
+          <div class="card-title">Transitions — onboarding steps</div>
+          <div class="card-sub">INPUT · ANALYZING · CRAWLING · PAGE_SELECT · READY · PREVIEW · INTEGRATION · ADD_SITE · AT_LIMIT · DELETE_CONFIRM · OVER_LIMIT_CHOOSE</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr><th>#</th><th>From</th><th>Event</th><th>Guard / condition</th><th>→ Target state</th><th>Status</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="num">39</td><td class="from">INPUT</td><td class="ev">Submit URL</td><td>No session at all — <code>handleAddSite</code> re-signs anonymously first</td><td class="to">ANALYZING</td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">40</td><td class="from">INPUT</td><td class="ev">Submit URL</td><td>Empty input</td><td class="to">INPUT <span class="sub">Blocked by <code>required</code>; the submit button is also disabled.</span></td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">41</td><td class="from">INPUT</td><td class="ev">Submit URL</td><td>Tenant insert refused by RLS or the database</td><td class="to">INPUT + error banner <span class="sub">Message is the raw Postgres error.</span></td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="num">42</td><td class="from">INPUT</td><td class="ev">Submit URL</td><td>Site insert rejected by <code>enforce_site_limit()</code></td><td class="to">AT_LIMIT <span class="sub"><strong>Today the code does something else:</strong> any insert failure falls through to a "maybe it is a duplicate domain" branch that selects a site by domain <em>with no tenant filter</em> and re-points its <code>tenant_id</code> at the current tenant. RLS blocks it in practice, so it is not live-exploitable, but it is a tenant-takeover primitive and dead code — ADR 057 removes it.</span></td><td class="status"><span class="st miss">missing</span></td></tr>
+            <tr><td class="num">43</td><td class="from">ANALYZING</td><td class="ev">Theme extraction succeeds</td><td><code>/api/chat/theme</code> returns a colour and org name</td><td class="to">CRAWLING</td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">44</td><td class="from">ANALYZING</td><td class="ev">Theme extraction fails or times out</td><td>Any error — the call is wrapped in its own try/catch</td><td class="to">CRAWLING with the default brand colour <span class="sub">Deliberate: branding is cosmetic and must never block onboarding.</span></td><td class="status"><span class="st des">by design</span></td></tr>
+            <tr><td class="num">45</td><td class="from">ANALYZING</td><td class="ev">Captcha unavailable</td><td>Turnstile script absent → empty token. Server passes it through when <code>TURNSTILE_SECRET_KEY</code> is unset, and 403s when it is set</td><td class="to">CRAWLING with the default colour <span class="sub">The 403 is swallowed by the same try/catch as #44, so onboarding continues either way.</span></td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">46</td><td class="from">ANALYZING</td><td class="ev"><code>onAddSite</code> throws</td><td>Tenant or site insert failed</td><td class="to">INPUT + <code>statusMsg</code></td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">47</td><td class="from">ANALYZING</td><td class="ev">Refresh</td><td>The insert may already have landed</td><td class="to">READY on a site with zero documents <span class="sub">Or INPUT if the insert had not landed. Either way an orphan row is possible and nothing reconciles it.</span></td><td class="status"><span class="st miss">missing</span></td></tr>
+            <tr><td class="num">48</td><td class="from">ANALYZING</td><td class="ev">Back</td><td>—</td><td class="to">INPUT, scan abandoned <span class="sub">Today Back leaves the application entirely. With real routing it must cancel and return.</span></td><td class="status"><span class="st miss">missing</span></td></tr>
+            <tr><td class="num">49</td><td class="from">CRAWLING</td><td class="ev">Discovery returns pages</td><td><code>pages.length &lt;= getMaxPagesForPlan(plan)</code></td><td class="to">CRAWLING (batch scan, 10× concurrency) → READY</td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">50</td><td class="from">CRAWLING</td><td class="ev">Discovery returns pages</td><td><code>pages.length &gt; getMaxPagesForPlan(plan)</code></td><td class="to">PAGE_SELECT <span class="sub">Explicitly never a silent truncation.</span></td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">51</td><td class="from">CRAWLING</td><td class="ev">Discovery fails or times out</td><td><code>/api/crawler/crawl</code> non-OK or throws (2.5s per-fetch timeout inside)</td><td class="to">CRAWLING of the single entry URL → READY <span class="sub">Deliberate: one indexed page beats a dead end.</span></td><td class="status"><span class="st des">by design</span></td></tr>
+            <tr><td class="num">52</td><td class="from">CRAWLING</td><td class="ev">Per-page scan fails</td><td>Page auth-protected, or yields zero chunks</td><td class="to">READY, page marked <em>Auth Protected</em> / <em>Empty</em> and deselected</td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">53</td><td class="from">CRAWLING</td><td class="ev">Every page fails</td><td><code>loadedCount === 0</code></td><td class="to">READY with an empty knowledge base <span class="sub">The modal still reports "✓ Scan finished" and the dashboard still shows "Assistant Active &amp; Ready". Needs an explicit empty-KB state that offers a re-scan or a different URL.</span></td><td class="status"><span class="st miss">missing</span></td></tr>
+            <tr><td class="num">54</td><td class="from">CRAWLING</td><td class="ev">Summary generation fails</td><td><code>/api/crawler/summarize</code> non-OK</td><td class="to">READY without a summary <span class="sub"><code>fetchSiteSummary</code> retries lazily the next time the site is opened.</span></td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">55</td><td class="from">CRAWLING</td><td class="ev">Refresh / tab closed</td><td>Loop is browser-side; no <code>scan_jobs</code> row exists</td><td class="to">READY, partially indexed, no resume <span class="sub">Same gap as #20. Server-side job tracking is the fix.</span></td><td class="status"><span class="st miss">missing</span></td></tr>
+            <tr><td class="num">56</td><td class="from">CRAWLING</td><td class="ev">Click Test / Preview</td><td><code>isCrawling</code></td><td class="to">— <span class="sub">Button disabled and relabelled "Indexing website…".</span></td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">57</td><td class="from">CRAWLING</td><td class="ev">Delete the site mid-crawl</td><td>Delete succeeds while scans are still in flight</td><td class="to">INPUT <span class="sub">In-flight <code>/api/crawler/scan</code> calls keep writing documents for a deleted <code>site_id</code>; the FK cascade removes them, but the loop and its progress modal carry on. Needs an abort signal.</span></td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="num">58</td><td class="from">PAGE_SELECT</td><td class="ev">Confirm selection</td><td><code>0 &lt; selected &lt;= page limit</code></td><td class="to">CRAWLING (selected pages only) → READY</td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">59</td><td class="from">PAGE_SELECT</td><td class="ev">Confirm selection</td><td>Zero selected (button disabled, but the handler also guards)</td><td class="to">CRAWLING of the first page → READY</td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">60</td><td class="from">PAGE_SELECT</td><td class="ev">Select beyond the allowance</td><td><code>selected.size &gt;= page limit</code></td><td class="to">PAGE_SELECT unchanged <span class="sub">Communicated with a blocking <code>alert()</code>. Should be inline.</span></td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="num">61</td><td class="from">PAGE_SELECT</td><td class="ev">Upgrade for more pages</td><td>—</td><td class="to">PRICING <span class="sub">The pending crawl is dropped: <code>pendingSiteObj</code>/<code>pendingCrawlPages</code> stay in state but the modal closes and nothing resumes it after checkout.</span></td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="num">62</td><td class="from">PAGE_SELECT</td><td class="ev">Cancel</td><td>—</td><td class="to">READY with an empty knowledge base <span class="sub">The site row already exists. Should offer "index the first N pages" rather than leaving a mute assistant.</span></td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="num">63</td><td class="from">PAGE_SELECT</td><td class="ev">Refresh</td><td>Modal state is not persisted</td><td class="to">READY with an empty knowledge base</td><td class="status"><span class="st miss">missing</span></td></tr>
+            <tr><td class="num">64</td><td class="from">READY</td><td class="ev">Click Test</td><td><code>!isCrawling</code></td><td class="to">PREVIEW</td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">65</td><td class="from">READY</td><td class="ev">Click Embed</td><td><code>!isGuest</code></td><td class="to">INTEGRATION</td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">66</td><td class="from">READY</td><td class="ev">Click Embed</td><td><code>!isGuest</code> and indexed pages exceed the plan page allowance</td><td class="to">INTEGRATION with an upgrade-or-deactivate warning</td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">67</td><td class="from">READY</td><td class="ev">Re-scan</td><td><code>!isCrawling</code></td><td class="to">CRAWLING <span class="sub">Deletes every document for the site first, so a failed re-scan leaves the assistant emptier than before. No confirm.</span></td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="num">68</td><td class="from">READY</td><td class="ev">Toggle a page off</td><td>Page currently indexed</td><td class="to">READY, documents for that URL deleted</td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">69</td><td class="from">READY</td><td class="ev">Toggle a page on</td><td>Page currently disabled</td><td class="to">READY, single-page re-scan</td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">70</td><td class="from">READY</td><td class="ev">Switch site tab</td><td><code>sites.length &gt; 1</code></td><td class="to">READY on the selected site <span class="sub">Preview session is reset per site so conversations never bleed across sites.</span></td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">71</td><td class="from">READY</td><td class="ev">Open site parked by a downgrade</td><td><code>sites.is_active = false</code></td><td class="to">READY showing a parked banner and a reactivate/upgrade CTA <span class="sub">Today the hero card says "Assistant Active &amp; Ready" regardless, while <code>/api/chat</code> returns 403 <code>site_inactive</code> to real visitors.</span></td><td class="status"><span class="st miss">missing</span></td></tr>
+            <tr><td class="num">72</td><td class="from">PREVIEW</td><td class="ev">Send a test message</td><td>Site active</td><td class="to">PREVIEW, streamed answer over SSE</td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">73</td><td class="from">PREVIEW</td><td class="ev">Send a test message</td><td>Site parked (<code>is_active = false</code>)</td><td class="to">PREVIEW rendering the 403 as <code>Error: …</code> <span class="sub">The server message is well written; the preview shows it as a generic chat error rather than a parked-site state.</span></td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="num">74</td><td class="from">PREVIEW</td><td class="ev">Close</td><td>—</td><td class="to">READY</td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">75</td><td class="from">INTEGRATION</td><td class="ev">Copy snippet</td><td>Branding attribute depends on plan — hidden on Pro/Premium</td><td class="to">INTEGRATION, clipboard written <span class="sub">One builder function feeds both the visible block and the copy button, so they cannot drift.</span></td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">76</td><td class="from">ADD_SITE</td><td class="ev">Submit domain</td><td>Under the limit</td><td class="to">ANALYZING → CRAWLING for the new site</td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">77</td><td class="from">ADD_SITE</td><td class="ev">Submit domain</td><td>At the limit</td><td class="to">AT_LIMIT <span class="sub">Client check fires first using the wrong numbers; the trigger is the backstop.</span></td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="num">78</td><td class="from">ADD_SITE</td><td class="ev">Submit domain</td><td>Domain already exists <em>in this workspace</em> — <code>sites_tenant_domain_uq</code></td><td class="to">READY on the existing site <span class="sub">Today the unique index rejects the insert and the fallback branch re-points a matching row's <code>tenant_id</code> instead of simply selecting the existing site. Same dead branch as #42.</span></td><td class="status"><span class="st miss">missing</span></td></tr>
+            <tr><td class="num">79</td><td class="from">ADD_SITE</td><td class="ev">Submit domain</td><td>Domain exists in a <em>different</em> tenant</td><td class="to">ANALYZING — a normal new site <span class="sub">The unique index is per-tenant on purpose: two unrelated customers may both register the same domain, and a global index would leak one's existence to the other.</span></td><td class="status"><span class="st des">by design</span></td></tr>
+            <tr><td class="num">80</td><td class="from">ADD_SITE</td><td class="ev">Cancel</td><td>—</td><td class="to">READY</td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">81</td><td class="from">AT_LIMIT</td><td class="ev">Choose upgrade</td><td>—</td><td class="to">PRICING → CHECKOUT <span class="sub">The inline error tells the user to upgrade but gives them no button to do it.</span></td><td class="status"><span class="st miss">missing</span></td></tr>
+            <tr><td class="num">82</td><td class="from">AT_LIMIT</td><td class="ev">Delete a site to free a slot</td><td>—</td><td class="to">DELETE_CONFIRM → ADD_SITE <span class="sub">Possible manually; not offered from the AT_LIMIT message.</span></td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="num">83</td><td class="from">AT_LIMIT</td><td class="ev">Dismiss</td><td>—</td><td class="to">READY</td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">84</td><td class="from">DELETE_CONFIRM</td><td class="ev">Confirm</td><td><code>delete_site_cascade</code> succeeds; other sites remain</td><td class="to">READY on the next remaining site <span class="sub">Also purges the preview widget's <code>localStorage</code> session for that public key.</span></td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">85</td><td class="from">DELETE_CONFIRM</td><td class="ev">Confirm</td><td>Succeeds; it was the last site</td><td class="to">INPUT</td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">86</td><td class="from">DELETE_CONFIRM</td><td class="ev">Confirm</td><td>Server refuses or the network fails</td><td class="to">DELETE_CONFIRM with the real error and a Retry button <span class="sub">Explicitly not optimistic — the old behaviour left "ghost" sites: gone from the UI, still in the database.</span></td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">87</td><td class="from">DELETE_CONFIRM</td><td class="ev">Cancel</td><td>—</td><td class="to">READY</td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">88</td><td class="from">OVER_LIMIT_CHOOSE</td><td class="ev">App load after a downgrade</td><td><code>active site count &gt; plan_site_limit(plan)</code></td><td class="to">OVER_LIMIT_CHOOSE, blocking <span class="sub">Must be entered on load, not only at the moment the webhook lands, because the user is usually not in the app then.</span></td><td class="status"><span class="st miss">missing</span></td></tr>
+            <tr><td class="num">89</td><td class="from">OVER_LIMIT_CHOOSE</td><td class="ev">Pick which sites stay active</td><td>Chosen count ≤ limit</td><td class="to">READY; the rest get <code>is_active = false</code> <span class="sub">Parked, never deleted. Their documents, summaries and leads are untouched.</span></td><td class="status"><span class="st miss">missing</span></td></tr>
+            <tr><td class="num">90</td><td class="from">OVER_LIMIT_CHOOSE</td><td class="ev">Choose upgrade instead</td><td>—</td><td class="to">PRICING → CHECKOUT → READY with everything active</td><td class="status"><span class="st miss">missing</span></td></tr>
+            <tr><td class="num">91</td><td class="from">OVER_LIMIT_CHOOSE</td><td class="ev">Dismiss / refresh</td><td>Still over the limit</td><td class="to">OVER_LIMIT_CHOOSE <span class="sub">Deliberately not skippable: the alternative is sites silently serving on a plan that does not cover them.</span></td><td class="status"><span class="st miss">missing</span></td></tr>
+            <tr><td class="num">92</td><td class="from">READY</td><td class="ev">Reactivate a parked site</td><td>Active count already at the limit — the trigger's re-activation branch counts only active sites</td><td class="to">AT_LIMIT <span class="sub">Enforced by <code>enforce_site_limit()</code> on <code>UPDATE OF is_active</code>, so a client cannot flip everything back on. No UI exists to attempt it yet.</span></td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="num">93</td><td class="from">READY</td><td class="ev">Reactivate a parked site</td><td>A slot is free</td><td class="to">READY, site serving again</td><td class="status"><span class="st miss">missing</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- DIAGRAM 3 — magic link return / claim                        -->
+  <!-- ============================================================ -->
+  <div class="card">
+    <div class="card-head">
+      <div class="card-head-left">
+        <span class="card-badge">§5</span>
+        <div>
+          <div class="card-title">Magic-link return and the guest-workspace claim</div>
+          <div class="card-sub">Every branch of <code>claim_guest_site()</code>, and where each one lands the user</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <p>
+        The claim is split across two requests made by two different sessions, and neither half is
+        sufficient alone: <strong>create</strong> is run by the anonymous session that built the
+        workspace, at link-send time, while it can still prove it owns the guest tenant;
+        <strong>redeem</strong> is run after the round trip by the authenticated user and supplies
+        nothing at all — the claim is looked up by the verified email on their own token, and the
+        destination tenant is derived from their own user id. A claim id in
+        <code>localStorage</code> would let anyone adopt anyone's guest workspace.
+      </p>
+<pre class="mermaid">
+stateDiagram-v2
+    state redeem <<choice>>
+
+    [*] --> LINK_SENT: claim created, email dispatched
+    LINK_SENT --> LINK_RETURN: link clicked, session established
+    LINK_SENT --> LINK_SENT: link expired or already used, resend
+
+    LINK_RETURN --> redeem: POST /api/sites/claim redeem
+
+    redeem --> REGISTERED: not_found, no claim for this email
+    redeem --> REGISTERED: expired, older than 12h
+    redeem --> REGISTERED: already_redeemed
+    redeem --> REGISTERED: stale, site moved or deleted
+    redeem --> DUPLICATE: duplicate_domain
+    redeem --> TRANSFER_PROMPT: room on the plan
+    redeem --> TRANSFER_AT_LIMIT: at_limit, claim stays open
+
+    DUPLICATE --> READY: open the account's existing site, no transfer
+
+    TRANSFER_PROMPT --> MOVED: confirm
+    TRANSFER_PROMPT --> REGISTERED: decline, guest copy expires on its own
+    MOVED --> READY: documents, summaries, scan jobs and leads moved with the site
+
+    TRANSFER_AT_LIMIT --> CHECKOUT: upgrade, lead CTA
+    TRANSFER_AT_LIMIT --> REPLACE: replace an existing site, secondary
+    REPLACE --> DELETE_CONFIRM: destructive confirm naming what is deleted
+    DELETE_CONFIRM --> TRANSFER_PROMPT: slot freed, retry the claim
+    CHECKOUT --> TRANSFER_PROMPT: plan raised, retry the claim
+    TRANSFER_AT_LIMIT --> REGISTERED: cancel, claim retryable for 12h
+</pre>
+      <div class="note info">
+        <strong>What moves:</strong> the site row and its <code>documents</code>,
+        <code>site_summaries</code>, <code>scan_jobs</code> and <code>leads</code> — all in one
+        transaction, <code>sites</code> last so the limit trigger sees the final state.
+        <strong>What does not:</strong> <code>messages</code>. Those are the guest's own test
+        conversations with their own draft assistant, not the new owner's customer history — and
+        the schema agrees, since <code>messages</code> carries no <code>site_id</code>, only
+        <code>tenant_id</code> and <code>session_id</code>, so there is no way to move just this
+        site's.
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- TABLE 3 — auth                                               -->
+  <!-- ============================================================ -->
+  <div class="card">
+    <div class="card-head">
+      <div class="card-head-left">
+        <span class="card-badge">§6</span>
+        <div>
+          <div class="card-title">Transitions — auth sub-states</div>
+          <div class="card-sub">LOGIN_MODAL · LINK_SENT · LINK_RETURN · TRANSFER_PROMPT · TRANSFER_AT_LIMIT</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr><th>#</th><th>From</th><th>Event</th><th>Guard / condition</th><th>→ Target state</th><th>Status</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="num">94</td><td class="from">LOGIN_MODAL</td><td class="ev">Submit email</td><td>Anonymous session, address not yet registered</td><td class="to">LINK_SENT <span class="sub"><code>updateUser({email})</code>; the workspace stays on the same user id.</span></td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">95</td><td class="from">LOGIN_MODAL</td><td class="ev">Submit email</td><td>Anonymous session, address already has an account</td><td class="to">LINK_SENT + claim recorded <span class="sub">Requires: catch the duplicate-email error, <code>POST /api/sites/claim {action:'create'}</code> with <code>{guest_tenant_id, site_id, email}</code>, then <code>signInWithOtp</code>. The route exists and is unreferenced by any client code.</span></td><td class="status"><span class="st miss">missing</span></td></tr>
+            <tr><td class="num">96</td><td class="from">LOGIN_MODAL</td><td class="ev">Submit email</td><td>Non-anonymous session (ordinary sign-in)</td><td class="to">LINK_SENT <span class="sub"><code>signInWithOtp</code> with <code>emailRedirectTo: window.location.origin</code>.</span></td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">97</td><td class="from">LOGIN_MODAL</td><td class="ev">Submit email</td><td>Guest session has no site yet — nothing to claim</td><td class="to">LINK_SENT, no claim created <span class="sub">A claim needs a <code>site_id</code>; the create endpoint rejects a request without one.</span></td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">98</td><td class="from">LOGIN_MODAL</td><td class="ev">Submit malformed email</td><td>Browser validation, plus a permissive server-side regex on the claim route</td><td class="to">LOGIN_MODAL unchanged <span class="sub">Deliberately permissive server-side: the magic link is the real verification, since an address that is not yours never produces a session.</span></td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">99</td><td class="from">LOGIN_MODAL</td><td class="ev">Close</td><td>Non-anonymous user</td><td class="to">Previous view</td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">100</td><td class="from">LOGIN_MODAL</td><td class="ev">Close</td><td>Anonymous user (see #7)</td><td class="to">Previous view <span class="sub">No close control is rendered. Should be closable whenever the modal was opened voluntarily.</span></td><td class="status"><span class="st miss">missing</span></td></tr>
+            <tr><td class="num">101</td><td class="from">LOGIN_MODAL</td><td class="ev">Refresh</td><td>Modal visibility is component state</td><td class="to">Previous view, modal gone</td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="num">102</td><td class="from">LINK_SENT</td><td class="ev">Resend the link</td><td>An open claim already exists for this site</td><td class="to">LINK_SENT, previous claim replaced <span class="sub"><code>guest_site_claims_open_site_uq</code> permits exactly one unredeemed claim per site, so the create path deletes the old one first — a second address can never redeem a stale claim later.</span></td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">103</td><td class="from">LINK_SENT</td><td class="ev">Click a valid link</td><td>Session established at the app origin</td><td class="to">LINK_RETURN</td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">104</td><td class="from">LINK_SENT</td><td class="ev">Click an expired link</td><td>Error in the URL fragment</td><td class="to">LINK_SENT with a re-send CTA <span class="sub">The fragment error is never read today.</span></td><td class="status"><span class="st miss">missing</span></td></tr>
+            <tr><td class="num">105</td><td class="from">LINK_SENT</td><td class="ev">Click an already-used link</td><td>One-time token consumed</td><td class="to">LINK_SENT with a re-send CTA</td><td class="status"><span class="st miss">missing</span></td></tr>
+            <tr><td class="num">106</td><td class="from">LINK_RETURN</td><td class="ev">Redeem</td><td>Caller still anonymous → <code>status: anonymous</code></td><td class="to">No-op; stays GUEST_WITH_SITE</td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">107</td><td class="from">LINK_RETURN</td><td class="ev">Redeem</td><td>No open, unexpired claim for this verified email → <code>not_found</code></td><td class="to">REGISTERED · DASHBOARD, silently <span class="sub">By far the common case — every ordinary sign-in hits it. Must stay silent.</span></td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="num">108</td><td class="from">LINK_RETURN</td><td class="ev">Redeem</td><td>Claim older than 12h → <code>expired</code></td><td class="to">REGISTERED · DASHBOARD <span class="sub">Should say the saved preview expired, rather than silently dropping it.</span></td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="num">109</td><td class="from">LINK_RETURN</td><td class="ev">Redeem</td><td>Claim already redeemed (double click, two tabs) → <code>already_redeemed</code></td><td class="to">REGISTERED · READY on the already-moved site <span class="sub">Idempotent by construction: the row is locked <code>FOR UPDATE</code> and marked redeemed inside the same transaction as the move.</span></td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="num">110</td><td class="from">LINK_RETURN</td><td class="ev">Redeem</td><td>Site no longer in the guest tenant → <code>stale</code>, claim closed</td><td class="to">REGISTERED · DASHBOARD</td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="num">111</td><td class="from">LINK_RETURN</td><td class="ev">Redeem</td><td>Account already owns that domain → <code>duplicate_domain</code>, claim closed</td><td class="to">REGISTERED · READY on the <em>existing</em> site <span class="sub">No transfer: the account's own copy is the one with their history. The guest copy expires on its own.</span></td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="num">112</td><td class="from">LINK_RETURN</td><td class="ev">Redeem</td><td>Room on the plan → transfer possible</td><td class="to">TRANSFER_PROMPT</td><td class="status"><span class="st miss">missing</span></td></tr>
+            <tr><td class="num">113</td><td class="from">LINK_RETURN</td><td class="ev">Redeem</td><td><code>site count &gt;= plan_site_limit</code> → <code>at_limit</code>, <strong>claim left open</strong></td><td class="to">TRANSFER_AT_LIMIT</td><td class="status"><span class="st miss">missing</span></td></tr>
+            <tr><td class="num">114</td><td class="from">LINK_RETURN</td><td class="ev">Redeem</td><td>Signed in but owns no tenant → <code>no_tenant</code></td><td class="to">REGISTERED · INPUT</td><td class="status"><span class="st miss">missing</span></td></tr>
+            <tr><td class="num">115</td><td class="from">TRANSFER_PROMPT</td><td class="ev">Confirm</td><td>RPC returns <code>transferred</code></td><td class="to">REGISTERED · READY on the moved site <span class="sub">Site becomes <code>is_active = true</code> on arrival.</span></td><td class="status"><span class="st miss">missing</span></td></tr>
+            <tr><td class="num">116</td><td class="from">TRANSFER_PROMPT</td><td class="ev">Decline</td><td>—</td><td class="to">REGISTERED · DASHBOARD <span class="sub">The guest workspace is left alone; its claim lapses at 12h and the workspace is swept at 24h. Nothing is deleted early on a decline.</span></td><td class="status"><span class="st miss">missing</span></td></tr>
+            <tr><td class="num">117</td><td class="from">TRANSFER_PROMPT</td><td class="ev">Refresh / navigate away</td><td>Claim is still open</td><td class="to">TRANSFER_PROMPT on the next load <span class="sub">State lives in the database, not the tab — the prompt is recoverable by design.</span></td><td class="status"><span class="st miss">missing</span></td></tr>
+            <tr><td class="num">118</td><td class="from">TRANSFER_PROMPT</td><td class="ev">Confirm, but the site vanished</td><td>Guest workspace swept between prompt and confirm → <code>stale</code></td><td class="to">REGISTERED · DASHBOARD with an explanation</td><td class="status"><span class="st miss">missing</span></td></tr>
+            <tr><td class="num">119</td><td class="from">TRANSFER_AT_LIMIT</td><td class="ev">Upgrade (lead CTA)</td><td>—</td><td class="to">CHECKOUT → webhook raises the plan → retry redeem → TRANSFER_PROMPT</td><td class="status"><span class="st miss">missing</span></td></tr>
+            <tr><td class="num">120</td><td class="from">TRANSFER_AT_LIMIT</td><td class="ev">Replace an existing site (secondary)</td><td>Behind a destructive confirm naming the domain, its pages and its leads</td><td class="to">DELETE_CONFIRM → retry redeem → TRANSFER_PROMPT</td><td class="status"><span class="st miss">missing</span></td></tr>
+            <tr><td class="num">121</td><td class="from">TRANSFER_AT_LIMIT</td><td class="ev">Cancel</td><td>Claim was never marked redeemed</td><td class="to">REGISTERED · DASHBOARD; the claim stays retryable for the rest of its 12h <span class="sub">The RPC returns <code>at_limit</code> without redeeming precisely so this retry is possible.</span></td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="num">122</td><td class="from">TRANSFER_AT_LIMIT</td><td class="ev">Claim expires before a retry</td><td>12h elapsed</td><td class="to">REGISTERED · DASHBOARD; guest workspace swept at 24h</td><td class="status"><span class="st imp">implemented</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- TABLE 4 — views & navigation                                 -->
+  <!-- ============================================================ -->
+  <div class="card">
+    <div class="card-head">
+      <div class="card-head-left">
+        <span class="card-badge">§7</span>
+        <div>
+          <div class="card-title">Transitions — views, routing, Back / Forward / refresh</div>
+          <div class="card-sub">DASHBOARD · LEADS · PRICING · ABOUT · PRIVACY · TERMS · PAYMENT_SUCCESS · PAYMENT_CANCEL</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <p>
+        Views are React state today: <code>currentView</code> is read once from
+        <code>window.location.pathname</code> at mount for the two Stripe returns and one landing
+        page, and never written back. Every in-app navigation therefore leaves the URL unchanged,
+        which makes Back exit the application and refresh reset to the dashboard. The fix is
+        <code>history.pushState</code> + a <code>popstate</code> listener, keeping
+        <code>currentView</code> as the single render switch; the SPA rewrite already serves
+        <code>index.html</code> for every path.
+      </p>
+      <div class="scroll" style="margin-top:16px">
+        <table>
+          <thead>
+            <tr><th>#</th><th>From</th><th>Event</th><th>Guard / condition</th><th>→ Target state</th><th>Status</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="num">123</td><td class="from">any view</td><td class="ev">Click Dashboard</td><td>—</td><td class="to">DASHBOARD, URL <code>/</code> <span class="sub">View switches; URL does not.</span></td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="num">124</td><td class="from">any view</td><td class="ev">Click Leads</td><td>—</td><td class="to">LEADS, URL <code>/leads</code></td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="num">125</td><td class="from">DASHBOARD</td><td class="ev">Click "View All Leads"</td><td><code>leads.length &gt; 0</code> — the inline block only renders then</td><td class="to">LEADS</td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">126</td><td class="from">any view</td><td class="ev">Click Plans</td><td>—</td><td class="to">PRICING, URL <code>/pricing</code></td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="num">127</td><td class="from">any view</td><td class="ev">Footer About / Privacy / Terms</td><td>—</td><td class="to">ABOUT / PRIVACY / TERMS, URLs <code>/about</code>, <code>/privacy</code>, <code>/terms</code></td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="num">128</td><td class="from">any view</td><td class="ev">Back</td><td>At least one in-app navigation happened</td><td class="to">Previous view <span class="sub">Today: leaves the application, because nothing was ever pushed.</span></td><td class="status"><span class="st miss">missing</span></td></tr>
+            <tr><td class="num">129</td><td class="from">any view</td><td class="ev">Forward</td><td>After a Back</td><td class="to">The view that was left <span class="sub">Not reachable today.</span></td><td class="status"><span class="st miss">missing</span></td></tr>
+            <tr><td class="num">130</td><td class="from">any view</td><td class="ev">Back out of a modal</td><td>PREVIEW / INTEGRATION / ADD_SITE / DELETE_CONFIRM / LOGIN_MODAL open</td><td class="to">The underlying view, modal closed <span class="sub">Modals are not history entries; Back leaves the app instead of closing them. Worth pushing at least for the full-screen PREVIEW.</span></td><td class="status"><span class="st miss">missing</span></td></tr>
+            <tr><td class="num">131</td><td class="from">—</td><td class="ev">Direct URL <code>/leads</code>, <code>/pricing</code>, <code>/about</code>, <code>/privacy</code>, <code>/terms</code></td><td>SPA rewrite serves <code>index.html</code></td><td class="to">The matching view <span class="sub">Today all of them land on DASHBOARD with the URL intact but ignored — the deep link looks like it worked and did not.</span></td><td class="status"><span class="st miss">missing</span></td></tr>
+            <tr><td class="num">132</td><td class="from">—</td><td class="ev">Direct URL <code>/solutions/osteopathes</code></td><td>Matched at mount</td><td class="to">Landing page, app chrome suppressed <span class="sub">The only deep link that works today besides the Stripe returns.</span></td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">133</td><td class="from">—</td><td class="ev">Direct URL, unknown path</td><td>Rewrite catches everything</td><td class="to">DASHBOARD <span class="sub">No 404 state. Acceptable, but should normalise the URL to <code>/</code> so Back does not bounce through a path that renders nothing.</span></td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="num">134</td><td class="from">CHECKOUT</td><td class="ev">Stripe redirects on success</td><td>Path <code>/payment-success?session_id=…</code></td><td class="to">PAYMENT_SUCCESS <span class="sub">URL is immediately <code>replaceState</code>d to <code>/</code>, so a refresh lands on DASHBOARD rather than replaying the celebration.</span></td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">135</td><td class="from">PAYMENT_SUCCESS</td><td class="ev">6s timer, or "Go to dashboard"</td><td>—</td><td class="to">DASHBOARD <span class="sub">The plan may not have landed yet: the webhook is asynchronous and the SPA only re-reads the tenant when <code>selectedTenant.id</code> changes.</span></td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="num">136</td><td class="from">CHECKOUT</td><td class="ev">Stripe redirects on cancel</td><td>Path <code>/payment-cancel</code></td><td class="to">PRICING + a 5s toast <span class="sub">Never charged, nothing to undo.</span></td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">137</td><td class="from">any view</td><td class="ev">Refresh</td><td>—</td><td class="to">The same view, restored from the URL <span class="sub">Today: always DASHBOARD.</span></td><td class="status"><span class="st miss">missing</span></td></tr>
+            <tr><td class="num">138</td><td class="from">any view</td><td class="ev">Admin copilot <code>navigate_to</code> tool call</td><td>Widget dispatches a <code>b2b_tool_call</code> DOM event</td><td class="to">The named view <span class="sub">Bypasses the URL entirely; must go through the same navigate helper once routing exists, or the copilot will desynchronise history.</span></td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="num">139</td><td class="from">LEADS</td><td class="ev">Sign out from Leads</td><td>—</td><td class="to">ANON · DASHBOARD · INPUT <span class="sub">Leads are cleared from state; the view is not reset, so a signed-out visitor can be left looking at an empty leads table.</span></td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="num">140</td><td class="from">PRICING</td><td class="ev">Switch workspace in the header</td><td>Multiple tenants owned</td><td class="to">PRICING for the newly selected tenant <span class="sub"><code>currentPlan</code> follows the selection; checkout targets the selected tenant.</span></td><td class="status"><span class="st imp">implemented</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- DIAGRAM 4 — billing / parking                                -->
+  <!-- ============================================================ -->
+  <div class="card">
+    <div class="card-head">
+      <div class="card-head-left">
+        <span class="card-badge">§8</span>
+        <div>
+          <div class="card-title">Billing, plan changes and site parking</div>
+          <div class="card-sub">What a Stripe webhook is allowed to do to sites the customer already built</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+<pre class="mermaid">
+stateDiagram-v2
+    state WEBHOOK_RECEIVED <<choice>>
+
+    [*] --> DASHBOARD
+    DASHBOARD --> PRICING: Plans
+    DASHBOARD --> PORTAL: Manage billing
+    PORTAL --> DASHBOARD: returns to root, changes arrive by webhook
+
+    PRICING --> CHECKOUT: choose Basic or Pro
+    PRICING --> MAILTO_ENQUIRY: choose Premium, no self-serve
+    CHECKOUT --> PAYMENT_SUCCESS: paid
+    CHECKOUT --> PAYMENT_CANCEL: abandoned
+    PAYMENT_CANCEL --> PRICING: toast, nothing charged
+    PAYMENT_SUCCESS --> DASHBOARD: after six seconds
+
+    CHECKOUT --> WEBHOOK_RECEIVED: Stripe event, out of band
+    PORTAL --> WEBHOOK_RECEIVED: Stripe event, out of band
+
+    WEBHOOK_RECEIVED --> PLAN_RAISED: checkout completed or subscription upgraded
+    WEBHOOK_RECEIVED --> PLAN_LOWERED: subscription downgraded
+    WEBHOOK_RECEIVED --> PLAN_CANCELED: subscription deleted, falls back to Basic
+    WEBHOOK_RECEIVED --> PAST_DUE: invoice payment failed
+
+    PLAN_RAISED --> REACTIVATED: parked sites restored up to the new limit
+    REACTIVATED --> DASHBOARD
+
+    PLAN_LOWERED --> OVER_LIMIT_CHOOSE: site count now exceeds the limit
+    PLAN_CANCELED --> OVER_LIMIT_CHOOSE: Basic allows one site
+    PLAN_LOWERED --> DASHBOARD: still within the new limit
+
+    OVER_LIMIT_CHOOSE --> PARKED: chosen sites stay active, rest set is_active false
+    OVER_LIMIT_CHOOSE --> CHECKOUT: upgrade instead
+    PARKED --> DASHBOARD: nothing deleted, restored on upgrade
+
+    PAST_DUE --> DASHBOARD: recorded on the tenant, nothing gated yet
+</pre>
+      <div class="note bad">
+        <strong>The parking half does not exist yet.</strong> The webhook writes
+        <code>tenants.plan</code> and returns 200. Nothing computes the new limit, nothing sets
+        <code>is_active</code>, nothing restores parked sites on upgrade, and the dashboard has no
+        chooser. The database column, the trigger and the <code>/api/chat</code> refusal are in
+        place, so the gap is exactly: webhook → park, upgrade → restore, and the
+        OVER_LIMIT_CHOOSE screen.
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- TABLE 5 — billing                                            -->
+  <!-- ============================================================ -->
+  <div class="card">
+    <div class="card-head">
+      <div class="card-head-left">
+        <span class="card-badge">§9</span>
+        <div>
+          <div class="card-title">Transitions — billing and plan changes</div>
+          <div class="card-sub">CHECKOUT · PORTAL · Stripe webhook events</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr><th>#</th><th>From</th><th>Event</th><th>Guard / condition</th><th>→ Target state</th><th>Status</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="num">141</td><td class="from">PRICING</td><td class="ev">Choose Basic / Pro</td><td><code>tenantId</code> present; caller proves tenant ownership server-side</td><td class="to">CHECKOUT (off-origin)</td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">142</td><td class="from">PRICING</td><td class="ev">Choose Premium</td><td>—</td><td class="to"><code>mailto:</code> enquiry <span class="sub">Deliberate: Premium is sold by conversation, not self-serve. The placeholder address still needs replacing.</span></td><td class="status"><span class="st des">by design</span></td></tr>
+            <tr><td class="num">143</td><td class="from">PRICING</td><td class="ev">Choose a plan</td><td>No <code>tenantId</code> — a visitor who has not scanned anything yet</td><td class="to">DASHBOARD · INPUT <span class="sub">Silently returns them to the dashboard with no explanation of why nothing happened. Should say "start with a website first" or create the workspace inline.</span></td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="num">144</td><td class="from">PRICING</td><td class="ev">Choose the current plan</td><td><code>currentPlan === planId</code></td><td class="to">— <span class="sub">Button disabled and labelled "Active Plan".</span></td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">145</td><td class="from">PRICING</td><td class="ev">Checkout session creation fails</td><td>Stripe error, or ownership check refuses</td><td class="to">PRICING with an inline error</td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">146</td><td class="from">DASHBOARD</td><td class="ev">Manage billing</td><td>Tenant has a <code>stripe_customer_id</code>; ownership verified</td><td class="to">PORTAL (off-origin)</td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">147</td><td class="from">DASHBOARD</td><td class="ev">Manage billing</td><td>No <code>stripe_customer_id</code> (never subscribed)</td><td class="to">DASHBOARD <span class="sub">Server returns 400; the header logs it and silently stops spinning. No user-visible message.</span></td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="num">148</td><td class="from">PORTAL</td><td class="ev">Return to the app</td><td>—</td><td class="to">DASHBOARD <span class="sub">Portal <code>return_url</code> is the app root; any plan change arrives separately by webhook.</span></td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">149</td><td class="from">any</td><td class="ev">Webhook <code>checkout.session.completed</code></td><td><code>tenant_id</code> from subscription metadata, session metadata, or <code>client_reference_id</code></td><td class="to">Plan, status, customer, subscription and period end written to the tenant</td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">150</td><td class="from">any</td><td class="ev">Webhook <code>customer.subscription.updated</code> (upgrade)</td><td>New price maps to a higher plan</td><td class="to">Plan raised <em>and</em> parked sites reactivated up to the new limit <span class="sub">Only the plan write happens today; parked sites stay parked and their widgets stay silent after the customer has paid to fix exactly that.</span></td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="num">151</td><td class="from">any</td><td class="ev">Webhook <code>customer.subscription.updated</code> (downgrade)</td><td><code>site count &gt; plan_site_limit(new plan)</code></td><td class="to">OVER_LIMIT_CHOOSE on next load; sites parked once chosen <span class="sub">Today: plan lowered, every site keeps serving.</span></td><td class="status"><span class="st miss">missing</span></td></tr>
+            <tr><td class="num">152</td><td class="from">any</td><td class="ev">Webhook <code>customer.subscription.updated</code></td><td>Subscription metadata carries no <code>tenant_id</code></td><td class="to">Event dropped <span class="sub">Unlike the delete branch, this one has no <code>stripe_customer_id</code> fallback lookup, so a plan change can be missed entirely.</span></td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="num">153</td><td class="from">any</td><td class="ev">Webhook <code>customer.subscription.deleted</code></td><td>Metadata <code>tenant_id</code>, else lookup by <code>stripe_customer_id</code></td><td class="to">Plan <code>basic</code>, status <code>canceled</code> → limit becomes 1 <span class="sub">Plan write implemented; the parking that must follow it is not.</span></td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="num">154</td><td class="from">any</td><td class="ev">Webhook <code>invoice.payment_failed</code></td><td>Tenant found by customer id</td><td class="to"><code>plan_status = 'past_due'</code> <span class="sub">Recorded and never read: nothing in the app or the chat API gates on <code>plan_status</code>, so a past-due workspace keeps full service indefinitely.</span></td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="num">155</td><td class="from">any</td><td class="ev">Webhook signature invalid</td><td><code>constructEvent</code> throws</td><td class="to">400, nothing written</td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">156</td><td class="from">DASHBOARD</td><td class="ev">Plan changes while the tab is open</td><td>Webhook lands out of band</td><td class="to">DASHBOARD, stale plan until the tenant is re-read <span class="sub">The tenant is only refetched when <code>selectedTenant.id</code> changes, so the plan badge, site limit and page limit can all be a plan behind.</span></td><td class="status"><span class="st part">partial</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- TABLE 6 — ambient                                            -->
+  <!-- ============================================================ -->
+  <div class="card">
+    <div class="card-head">
+      <div class="card-head-left">
+        <span class="card-badge">§10</span>
+        <div>
+          <div class="card-title">Ambient events</div>
+          <div class="card-sub">Things that happen to a state rather than in it: expiry, sweeps, database guards</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr><th>#</th><th>Applies to</th><th>Event</th><th>Guard / condition</th><th>→ Target state</th><th>Status</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="num">157</td><td class="from">any state</td><td class="ev">Site insert or tenant re-point</td><td><code>enforce_site_limit()</code> on INSERT or <code>UPDATE OF tenant_id</code>: <code>count &gt;= plan_site_limit(plan)</code></td><td class="to">Rejected with <code>site_limit_reached</code> (SQLSTATE 23514) → AT_LIMIT <span class="sub">Fires on <code>tenant_id</code> updates too, because a claimed guest workspace arrives as an UPDATE — an insert-only trigger would miss exactly the path most likely to overshoot.</span></td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">158</td><td class="from">any state</td><td class="ev">Re-activating a parked site</td><td><code>UPDATE OF is_active</code>: active sites (excluding this one) already at the limit</td><td class="to">Rejected → AT_LIMIT <span class="sub">Counts only active sites here, so parking is not a way around the limit and un-parking is not either.</span></td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">159</td><td class="from">visitor on a customer site</td><td class="ev">Widget sends a message</td><td><code>sites.is_active = false</code></td><td class="to">403 <code>site_inactive</code> with a plain explanation <span class="sub">Explicitly not a 404: the tenant looking at their own widget must be able to tell "my plan no longer covers this site" from "my key is wrong".</span></td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">160</td><td class="from">visitor on a customer site</td><td class="ev">Widget opens (greeting fetch)</td><td><code>sites.is_active = false</code></td><td class="to">Should also refuse <span class="sub"><strong>Gap:</strong> <code>api/chat/init.js</code> resolves the site by <code>public_key</code> and never reads <code>is_active</code>, so a parked site still greets visitors in their own language and only fails once they type. ADR 057 claims both entry points enforce it; only one does.</span></td><td class="status"><span class="st miss">missing</span></td></tr>
+            <tr><td class="num">161</td><td class="from">GUEST_*</td><td class="ev">24h cleanup sweep</td><td>Tenant <code>Guest_%</code>, older than 24h, owner still anonymous</td><td class="to">Tenant + sites + documents + summaries + leads + messages + usage cascade-deleted</td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="num">162</td><td class="from">converted account under a stale name</td><td class="ev">24h cleanup sweep</td><td>Name still <code>Guest_%</code> but the owner is no longer anonymous</td><td class="to">Skipped <span class="sub">Two independent guards: the sweep re-checks the owner, and the app renames the tenant to the email as soon as it sees a confirmed account. Names are only ever set at creation, which is what made this dangerous.</span></td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">163</td><td class="from">ANON</td><td class="ev">24h cleanup sweep</td><td>Anonymous auth user, no email, older than 24h, tenant or not</td><td class="to">Auth user deleted <span class="sub">Users still linked to a tenant fail on <code>ON DELETE RESTRICT</code> and are skipped per user rather than aborting the sweep.</span></td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="num">164</td><td class="from">any</td><td class="ev">Cleanup sweep never runs</td><td>No <code>crons</code> entry in any <code>vercel.json</code></td><td class="to">Guest workspaces accumulate indefinitely <span class="sub">The endpoint is written, secured by <code>CRON_SECRET</code>, and unscheduled. Every "expires after 24h" promise in the product copy and the privacy policy depends on this one missing config block.</span></td><td class="status"><span class="st miss">missing</span></td></tr>
+            <tr><td class="num">165</td><td class="from">GUEST_PENDING_CONFIRM</td><td class="ev">12h claim expiry</td><td><code>expires_at &lt; now()</code>; also filtered in the redeem query and re-checked in the RPC</td><td class="to">Claim unusable; workspace still swept at 24h</td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">166</td><td class="from">any</td><td class="ev">Claim table reached from a browser</td><td>RLS enabled with zero policies, and privileges revoked from <code>anon</code>/<code>authenticated</code></td><td class="to">Refused <span class="sub">Only the service role in <code>api/</code> touches <code>guest_site_claims</code>, and <code>claim_guest_site()</code> is EXECUTE-granted to <code>service_role</code> alone.</span></td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">167</td><td class="from">any signed-in state</td><td class="ev">Session expiry</td><td>Refresh token expired or revoked mid-session</td><td class="to">Re-auth prompt, then back to the same view <span class="sub">Today the app just loses <code>currentUser</code> and keeps rendering stale data until something forces a reload.</span></td><td class="status"><span class="st miss">missing</span></td></tr>
+            <tr><td class="num">168</td><td class="from">any</td><td class="ev">Two tabs on the same workspace</td><td>Both hold the same session</td><td class="to">Last writer wins <span class="sub">Site list and plan are read per tab with no invalidation, so a delete in one tab leaves a ghost card in the other until reload.</span></td><td class="status"><span class="st part">partial</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- Deliberately unhandled                                       -->
+  <!-- ============================================================ -->
+  <div class="card">
+    <div class="card-head">
+      <div class="card-head-left">
+        <span class="card-badge">§11</span>
+        <div>
+          <div class="card-title">Deliberately unhandled</div>
+          <div class="card-sub">Transitions that exist in the space but are intentionally not implemented</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <dl class="kv">
+        <div>
+          <dt>Guests cannot sign out</dt>
+          <dd>The anonymous session <em>is</em> the key to the guest workspace: there is no email,
+            no password and no other credential that could get them back in. Offering sign-out
+            would strand the workspace for its remaining 24 hours with no way to reach it. Guests
+            leave by saving with an email, or by letting the sweep collect it.</dd>
+        </div>
+        <div>
+          <dt>Test conversations do not move with a transferred workspace</dt>
+          <dd><code>messages</code> are the guest's own experiments against their own draft
+            assistant, not the new owner's customer history. The schema makes the same call:
+            <code>messages</code> carries <code>tenant_id</code> and <code>session_id</code> but no
+            <code>site_id</code>, so "move only this site's messages" is not expressible. Leads,
+            which <em>are</em> business data and do carry <code>site_id</code>, move.</dd>
+        </div>
+        <div>
+          <dt>The same domain in two different workspaces is allowed</dt>
+          <dd>The unique index is <code>(tenant_id, lower(domain))</code>, not global. Two
+            unrelated customers may legitimately both register the same domain — an agency and
+            its client, for instance — and a global constraint would let one of them discover
+            that the other exists.</dd>
+        </div>
+        <div>
+          <dt>A claim can never be redeemed with a browser-supplied id</dt>
+          <dd>The redeem call takes no input beyond the caller's own bearer token. A claim id or
+            tenant id from the browser would let anyone who guessed one adopt someone else's guest
+            workspace, which is precisely the attack the two-request split exists to prevent.</dd>
+        </div>
+        <div>
+          <dt>Premium has no self-serve checkout</dt>
+          <dd>Premium opens a <code>mailto:</code>. It is sold by conversation, so a Stripe price
+            exists for the webhook to recognise but no Checkout path leads to it.</dd>
+        </div>
+        <div>
+          <dt>A failed theme extraction never blocks onboarding</dt>
+          <dd>Brand colour and org name are cosmetic. Every failure mode — captcha refusal, LLM
+            timeout, unreachable site — falls back to the default indigo and continues. The same
+            reasoning covers a failed page-discovery call, which falls back to indexing the single
+            entry URL.</dd>
+        </div>
+        <div>
+          <dt>Parked sites are never deleted</dt>
+          <dd>A downgrade parks sites; it does not destroy work the customer paid to create. They
+            stop answering and nothing else, and an upgrade restores them untouched. The limit
+            counts <em>owned</em> sites, not active ones, so parking is not a way to hold eleven
+            sites on a Basic plan.</dd>
+        </div>
+      </dl>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- Open questions                                               -->
+  <!-- ============================================================ -->
+  <div class="card">
+    <div class="card-head">
+      <div class="card-head-left">
+        <span class="card-badge">§12</span>
+        <div>
+          <div class="card-title">Open questions</div>
+          <div class="card-sub">Transitions whose target state is a judgement call, not a derivation</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <dl class="kv">
+        <div>
+          <dt>Should a declined transfer delete the guest workspace immediately? (#116)</dt>
+          <dd>Modelled here as "leave it alone; it lapses at 12h and is swept at 24h", because a
+            decline may be a misclick and the data is still the user's own. The alternative —
+            delete on decline — is cleaner but destroys a preview the user might return to. No
+            decision recorded in ADR 057.</dd>
+        </div>
+        <div>
+          <dt>Where does a user land after "replace an existing site" during a transfer? (#120)</dt>
+          <dd>Modelled as: destructive confirm → delete → retry redeem → TRANSFER_PROMPT →
+            READY on the newly moved site. It could equally land on the account's dashboard with
+            a summary of what changed. The retry-the-claim shape is what the RPC's "leave the
+            claim open" behaviour is built for, so that is what is written here.</dd>
+        </div>
+        <div>
+          <dt>Does a past-due plan gate anything? (#154)</dt>
+          <dd><code>plan_status = 'past_due'</code> is written and read by nothing. Whether it
+            should park sites, restrict the widget, or only show a banner is a commercial
+            decision, not an engineering one. Left as recorded-only until someone decides.</dd>
+        </div>
+        <div>
+          <dt>Which site is the "current" one after a downgrade chooser? (#89)</dt>
+          <dd>The chooser picks which sites stay active; it does not obviously pick which one the
+            dashboard opens on. Modelled as "the first still-active site", matching the existing
+            <code>activeSite</code> fallback, but a deliberate choice would be better.</dd>
+        </div>
+        <div>
+          <dt>Should PAGE_SELECT survive a reload? (#63)</dt>
+          <dd>Marked missing rather than by-design: a site row exists at that point, so losing the
+            selection leaves a mute assistant. Whether the fix is persisting the pending crawl or
+            simply auto-indexing the top N pages is undecided.</dd>
+        </div>
+      </dl>
+    </div>
+  </div>
+
+  <div class="note">
+    <strong>Sources of truth.</strong> Site limits and the transfer semantics:
+    <code>supabase/migrations/20260905030000_site_limits_and_guest_claims.sql</code>. The claim
+    protocol: <code>api/sites/claim.js</code>. The rationale for every decision above:
+    <code>ADR.md</code>, ADR 057. Everything marked <em>implemented</em> was verified against
+    <code>apps/admin/src/App.jsx</code>,
+    <code>apps/admin/src/features/dashboard/Dashboard.jsx</code>,
+    <code>apps/admin/src/components/Pricing.jsx</code>, <code>api/chat/</code>,
+    <code>api/billing/webhook.js</code> and <code>api/cron/cleanup.js</code> rather than assumed
+    from the ADR.
+  </div>
+
+  <footer>
+    <span>Repondo — user-flow automaton · 168 transitions across 31 states</span>
+    <span>Last verified against the working tree 2026-09-06</span>
+  </footer>
+
+</div>
+
+<script>
+// Diagrams are authored as mermaid source inside <pre class="mermaid">, which many
+// renderers (including Artifacts) draw natively. In a plain browser we upgrade them
+// if the library is reachable; if it is not, the source stays visible and readable,
+// and the page needs nothing beyond the fonts it already loads.
+(function () {
+  var s = document.createElement('script');
+  s.src = 'https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js';
+  s.onload = function () {
+    if (!window.mermaid) return;
+    var root = document.documentElement.getAttribute('data-theme');
+    var dark = root === 'dark' ||
+      (root !== 'light' && window.matchMedia &&
+       window.matchMedia('(prefers-color-scheme: dark)').matches);
+    try {
+      window.mermaid.initialize({
+        startOnLoad: true,
+        securityLevel: 'strict',
+        theme: dark ? 'dark' : 'default',
+        fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif"
+      });
+    } catch (e) { /* leave the source visible */ }
+  };
+  s.onerror = function () { /* offline: the mermaid source stays on screen as text */ };
+  document.head.appendChild(s);
+})();
+</script>
+</body>
+</html>
