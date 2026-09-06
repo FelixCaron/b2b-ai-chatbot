@@ -45,33 +45,34 @@ at-limit retry; idempotent across three applications.
 
 ## NOT DONE — pick up here
 
-### 1. `docs/user-flow-automaton.html` — written, but its status markers are stale
+### 1. `docs/user-flow-automaton.html` — re-verified and re-marked. Done.
 
-**The document exists and is committed** (`72c6feb`, ~109KB): 206 numbered transitions
-across 7 tables, 5 mermaid diagrams, each row carrying source state, event, guard,
-target state and an implemented / partial / missing marker. The transitions and target
-states are correct and reviewed.
+**The document exists and is committed** (`72c6feb`, ~109KB): 168 numbered transitions
+(the "206" and "5 mermaid diagrams" in the previous revision of this section were wrong
+— it has always been 168 transitions across 7 tables and 4 diagrams; nobody had
+recounted it) across a state catalogue, four mermaid diagrams and six transition
+tables, each row carrying source state, event, guard, target state and an implemented /
+partial / missing marker.
 
-**What is wrong with it:** the markers were captured against the codebase *before* the
-four commits below landed, so work that now exists still reads as `partial` or
-`missing`. Current tally: 92 implemented / 58 partial / 47 missing — several of which
-are no longer true. Rows known to need re-marking (by their `num` column):
+Every row this section previously flagged, plus several more the flagging pass missed
+(the whole guest-workspace-transfer table, §6 rows 112/113/115/116/119–121, and the
+LOGIN_MODAL duplicate-email row, 95), has now been individually re-checked against the
+current code and re-marked. Confirmed still accurate and left alone: 7/100 (no close
+button on LOGIN_MODAL for a guest — it's gated on `!isGuest`, not on whether a site
+exists), 25/26/104/105 (expired/already-used magic-link fragment errors are still never
+read), 63 (PAGE_SELECT still doesn't survive a reload), 73 (PREVIEW still surfaces a
+parked-site 403 as a generic chat error), 81/82 only in the sense that they *were*
+already fixed by `815fbb3` before this pass even started. Newly found while verifying
+row 117 (not something the original flagging list named): the TRANSFER_PROMPT confirm
+step is skipped for a magic link opened in a different browser than the one that
+requested it — no local pending-claim note there, so `redeemGuestSiteClaim()` runs
+straight away instead of asking first. Left marked `partial` in the doc with that
+caveat; worth a real fix (e.g. have `redeem` return enough to render the prompt even
+without the local note) if this flow gets picked up again.
 
-- Guest → already-registered email and the claim round trip: **14, 25, 26, 27, 28**
-- At-limit add-site and the upgrade-first flow: **16, 31, 42, 77, 78, 81, 82**
-- `OVER_LIMIT_CHOOSE` (downgrade parking): **38, 88, 89, 90, 91**
-- Parked sites (`is_active`) in dashboard and preview: **71, 73**
-- URL routing — Back/Forward/refresh/direct entry: **123** and the other view rows that
-  say "View switches; URL does not"
-
-Re-verify each against the code before flipping it; do not bulk-replace. Rows genuinely
-still missing (mid-scan refresh with no resume, expired/used magic-link handling,
-malformed-URL validation) must stay marked missing — that honesty is the point of the
-document.
-
-Optional: publish it as an Artifact. Note the file is a full standalone HTML page with
-`<html>`/`<head>`/`<body>`; the Artifact publisher wants page content only, so it needs
-a stripped variant rather than the file as-is.
+Not yet published as an Artifact — still worth doing (the file needs its
+`<html>`/`<head>`/`<body>` wrapper stripped first, since the publisher wants page
+content only) but wasn't part of this pass.
 
 For reference, the spec it was built to — reuse if regenerating any part:
 
