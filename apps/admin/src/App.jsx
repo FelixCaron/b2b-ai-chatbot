@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { authenticatedHeaders, supabase, supabaseConfigurationError } from './lib/supabase';
 import Header from './components/Header';
 import Dashboard from './features/dashboard/Dashboard';
@@ -9,7 +9,88 @@ import PaymentSuccessPage from './components/PaymentSuccessPage';
 import AboutPage from './components/AboutPage';
 import { PrivacyPolicy, TermsOfService } from './components/LegalPages';
 import OsteopathyLanding from './components/OsteopathyLanding';
+import WorkspaceTransfer from './components/WorkspaceTransfer';
 import { Users, Menu, X } from 'lucide-react';
+
+// ---------------------------------------------------------------------------
+// Views ↔ URLs. `currentView` stays the single render switch below; this map
+// is only the translation layer that gives each view a real address, so Back
+// moves between views instead of leaving the application and a refresh lands
+// where the user was (ADR 057). Deliberately not a router: the whole change
+// is this map, navigate(), and one popstate listener.
+// ---------------------------------------------------------------------------
+const VIEW_PATHS = {
+  dashboard: '/',
+  leads: '/leads',
+  pricing: '/pricing',
+  about: '/about',
+  privacy: '/privacy',
+  terms: '/terms',
+  'payment-success': '/payment-success',
+  osteopathes: '/solutions/osteopathes'
+};
+
+function viewForPath(pathname) {
+  // Stripe's cancel URL has no view of its own — it drops the user back on the
+  // pricing table (and the URL is rewritten to '/' by the toast effect below).
+  if (pathname === '/payment-cancel') return 'pricing';
+  const normalized = pathname !== '/' ? pathname.replace(/\/+$/, '') : pathname;
+  return Object.keys(VIEW_PATHS).find((view) => VIEW_PATHS[view] === normalized) || 'dashboard';
+}
+
+// ---------------------------------------------------------------------------
+// Pending guest-workspace claim (ADR 057). The claim itself lives server-side
+// in `guest_site_claims` — this is only a local note that we filed one, so the
+// returning session knows to *ask* before anything moves and can name the
+// domain in the question. It is never trusted as proof of anything: redeeming
+// takes no ids at all, only the verified email on the caller's own token.
+// ---------------------------------------------------------------------------
+const PENDING_CLAIM_KEY = 'repondo.pending_site_claim';
+
+function readPendingClaim() {
+  try {
+    const raw = window.localStorage.getItem(PENDING_CLAIM_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (err) {
+    return null;
+  }
+}
+
+function writePendingClaim(claim) {
+  try {
+    window.localStorage.setItem(PENDING_CLAIM_KEY, JSON.stringify(claim));
+  } catch (err) {
+    // Private mode / disabled storage: we simply won't be able to pre-announce
+    // the domain on return. The claim on the server is unaffected.
+  }
+}
+
+function clearPendingClaim() {
+  try {
+    window.localStorage.removeItem(PENDING_CLAIM_KEY);
+  } catch (err) {
+    /* nothing to clean up */
+  }
+}
+
+// Supabase's specific "there is no account for this address" answer to a probe
+// sign-in with shouldCreateUser:false. Matching on anything broader (any error
+// at all) would read a network blip or a rate limit as "new user" and send the
+// guest down the conversion path straight into a collision with a real account.
+function isUnknownUserOtpError(error) {
+  return (
+    error?.code === 'otp_disabled' ||
+    /signups not allowed for otp/i.test(error?.message || '')
+  );
+}
+
+// Dashboard selects sites[0] when it has no selection of its own, so "land the
+// user on this site" is expressed by ordering the list around it.
+function orderSitesForFocus(rows, focusSiteId) {
+  if (!focusSiteId) return rows;
+  const focused = rows.find((site) => site.id === focusSiteId);
+  return focused ? [focused, ...rows.filter((site) => site.id !== focusSiteId)] : rows;
+}
 
 export default function App() {
   if (supabaseConfigurationError) {
@@ -35,17 +116,47 @@ export default function App() {
   const [authMessage, setAuthMessage] = useState('');
   const [paymentToast, setPaymentToast] = useState(null); // 'success' | 'cancel' | null
 
-  // Detect Stripe redirect routes
+  // Guest-workspace transfer (ADR 057): null, or one of the states rendered by
+  // <WorkspaceTransfer /> — { phase: 'prompt' | 'at_limit' | 'transferred' | 'duplicate', ... }
+  const [transferState, setTransferState] = useState(null);
+  const [transferBusy, setTransferBusy] = useState(false);
+  const [transferError, setTransferError] = useState('');
+
+  // Resolve the first view from the address bar (Stripe redirects included),
+  // so a deep link — /solutions/osteopathes, /pricing, a refreshed /leads —
+  // renders that view rather than always booting into the dashboard.
   const path = window.location.pathname;
-  const [currentView, setCurrentView] = useState(
-    path === '/payment-success' ? 'payment-success' :
-    path === '/payment-cancel' ? 'pricing' :
-    path === '/solutions/osteopathes' ? 'osteopathes' :
-    'dashboard'
-  );
+  const [currentView, setCurrentView] = useState(() => viewForPath(path));
+
+  // Redeeming a claim must happen at most once per session however many times
+  // the auth listener fires, and only for a session that actually *became*
+  // signed-in here (a page load into an existing session has nothing to redeem).
+  const redeemAttemptedRef = useRef(false);
+  const sawUnauthenticatedRef = useRef(false);
+  const focusSiteIdRef = useRef(null);
 
   const sessionEmail = currentUser?.email || null;
   const isGuest = Boolean(currentUser?.is_anonymous);
+
+  // The one place a view change happens: keep `currentView` (the render switch)
+  // and the URL in step.
+  const navigate = (view) => {
+    const nextView = VIEW_PATHS[view] ? view : 'dashboard';
+    setCurrentView(nextView);
+    const target = VIEW_PATHS[nextView];
+    if (window.location.pathname !== target) {
+      window.history.pushState({ view: nextView }, '', target);
+    }
+  };
+
+  // Back/forward buttons: the URL is already where the browser wants it, so
+  // only the render switch has to catch up (no pushState here — that would
+  // fight the history entry we are moving to).
+  useEffect(() => {
+    const handlePopState = () => setCurrentView(viewForPath(window.location.pathname));
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   useEffect(() => {
     async function initSession() {
@@ -69,7 +180,7 @@ export default function App() {
     const handleCopilotTool = (e) => {
       const { name, args } = e.detail;
       if (name === 'navigate_to' && args?.page) {
-        setCurrentView(args.page.toLowerCase());
+        navigate(args.page.toLowerCase());
       }
     };
     window.addEventListener('b2b_tool_call', handleCopilotTool);
@@ -79,11 +190,76 @@ export default function App() {
     };
   }, []);
 
+  // File the claim that lets the workspace this guest just built follow them
+  // into the account they are about to sign into. It has to happen *now*,
+  // while the anonymous session is live and can prove it owns the guest tenant
+  // — after the magic-link round trip that proof is gone for good.
+  // Returns the claimed domain (for the confirmation copy), or null.
+  const createGuestSiteClaim = async (email) => {
+    const guestTenantId = selectedTenant?.id;
+    const guestSite = sites[0];
+    if (!guestTenantId || !guestSite?.id) return null;
+
+    try {
+      const res = await fetch(`${window.location.origin}/api/sites/claim`, {
+        method: 'POST',
+        headers: await authenticatedHeaders(),
+        body: JSON.stringify({
+          action: 'create',
+          guest_tenant_id: guestTenantId,
+          site_id: guestSite.id,
+          email
+        })
+      });
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || !data?.claim_id) {
+        // Not fatal: the sign-in link is already on its way, so the user is
+        // never blocked by this — they just don't get the transfer offer.
+        console.warn('[claim] Could not record the guest workspace claim:', data?.error || res.status);
+        return null;
+      }
+
+      const domain = data.domain || guestSite.domain || '';
+      writePendingClaim({ email: email.trim().toLowerCase(), domain, site_id: guestSite.id });
+      return domain;
+    } catch (err) {
+      console.warn('[claim] Could not record the guest workspace claim:', err);
+      return null;
+    }
+  };
+
   const handleLogin = async (email) => {
     setLoading(true);
     setAuthMessage('');
     try {
       if (currentUser?.is_anonymous) {
+        // Probe first. A guest typing an address that already has an account
+        // used to dead-end here: updateUser() failed with "email already
+        // registered" and the workspace they had just built was orphaned.
+        // shouldCreateUser:false means this either mails a sign-in link to an
+        // existing account or tells us there is no account — it never creates
+        // one, so it is safe to run before we know which case we are in.
+        const { error: otpError } = await supabase.auth.signInWithOtp({
+          email,
+          options: { shouldCreateUser: false, emailRedirectTo: window.location.origin }
+        });
+
+        if (!otpError) {
+          const claimedDomain = await createGuestSiteClaim(email);
+          setAuthMessage(
+            claimedDomain
+              ? `That email already has an account — sign-in link sent. When you land, we'll offer to move ${claimedDomain} into it.`
+              : 'That email already has an account — sign-in link sent. Check your email.'
+          );
+          return;
+        }
+
+        // Anything that isn't Supabase's specific "no such user" answer is a
+        // real failure (network, rate limit, SMTP) and must surface as one.
+        if (!isUnknownUserOtpError(otpError)) throw otpError;
+
+        // No account for this address: convert the guest in place, as before.
         const { error } = await supabase.auth.updateUser({ email });
         if (error) throw error;
         setAuthMessage('Check your email to confirm and secure your workspace.');
@@ -112,6 +288,153 @@ export default function App() {
     const { data } = await supabase.auth.signInAnonymously();
     setCurrentUser(data.user || null);
   };
+
+  // Pull the account's data back in around a site that just arrived (or that
+  // already lived here), and put the user in front of it.
+  const landOnSite = async (tenantId, siteId) => {
+    focusSiteIdRef.current = siteId || null;
+
+    const { data: tenantRow } = await supabase.from('tenants').select('*').eq('id', tenantId).maybeSingle();
+    if (tenantRow) {
+      setTenants((prev) => (prev.some((t) => t.id === tenantRow.id) ? prev : [...prev, tenantRow]));
+      setSelectedTenant(tenantRow);
+    }
+
+    const { data: sitesData } = await supabase.from('sites').select('*').eq('tenant_id', tenantId);
+    setSites(orderSitesForFocus(sitesData || [], siteId));
+
+    const { data: leadsData } = await supabase
+      .from('leads')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .order('created_at', { ascending: false });
+    setLeads(leadsData || []);
+
+    navigate('dashboard');
+  };
+
+  // Redeem the pending claim. This call *is* the transfer — claim_guest_site()
+  // moves the site and everything hanging off it in one transaction — which is
+  // why the confirmation happens before we get here, never after.
+  const redeemGuestSiteClaim = async () => {
+    setTransferBusy(true);
+    setTransferError('');
+    try {
+      const res = await fetch(`${window.location.origin}/api/sites/claim`, {
+        method: 'POST',
+        headers: await authenticatedHeaders(),
+        body: JSON.stringify({ action: 'redeem' })
+      });
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || !data?.status) {
+        console.warn('[claim] Redeem failed:', data?.error || res.status);
+        clearPendingClaim();
+        setTransferState(null);
+        return;
+      }
+
+      switch (data.status) {
+        case 'transferred':
+          clearPendingClaim();
+          await landOnSite(data.tenant_id, data.site_id);
+          setTransferState({ phase: 'transferred', domain: data.domain || '' });
+          break;
+
+        case 'at_limit':
+          // The claim is deliberately left open by the RPC in this case, so the
+          // user can upgrade or free a slot and we can call redeem again.
+          setTransferState({
+            phase: 'at_limit',
+            domain: data.domain || '',
+            plan: data.plan,
+            limit: data.limit,
+            siteCount: data.site_count
+          });
+          break;
+
+        case 'duplicate_domain':
+          // Nothing moved: the account's own copy is the one with its history.
+          clearPendingClaim();
+          if (selectedTenant?.id) await landOnSite(selectedTenant.id, data.existing_site_id);
+          setTransferState({ phase: 'duplicate', domain: data.domain || '' });
+          break;
+
+        default:
+          // not_found (by far the common case — every ordinary login lands
+          // here), already_redeemed, expired, stale: nothing to say.
+          clearPendingClaim();
+          setTransferState(null);
+      }
+    } catch (err) {
+      console.warn('[claim] Redeem error:', err);
+      setTransferState(null);
+    } finally {
+      setTransferBusy(false);
+    }
+  };
+
+  // TRANSFER_AT_LIMIT → "replace an existing site". The confirm that names what
+  // this destroys lives in <WorkspaceTransfer />; by the time we are called the
+  // user has been through it.
+  const handleReplaceSiteForTransfer = async (siteId) => {
+    setTransferBusy(true);
+    setTransferError('');
+    const result = await handleDeleteSite(siteId);
+    if (!result?.success) {
+      setTransferBusy(false);
+      setTransferError(result?.error || 'Could not delete that website. Please try again.');
+      return;
+    }
+    await redeemGuestSiteClaim();
+  };
+
+  // The LINK_RETURN moment: the session has just become a real (non-anonymous)
+  // one. Ask before moving anything — the transfer itself is irreversible from
+  // the browser's side.
+  useEffect(() => {
+    if (!authReady) return;
+
+    if (!currentUser || currentUser.is_anonymous) {
+      // Seeing a guest/signed-out session is what makes a *later* signed-in one
+      // a genuine sign-in rather than a page load into an existing session.
+      sawUnauthenticatedRef.current = true;
+      redeemAttemptedRef.current = false;
+      return;
+    }
+
+    if (redeemAttemptedRef.current) return;
+
+    const pending = readPendingClaim();
+    const pendingMatchesSession =
+      pending?.email && currentUser.email &&
+      pending.email.toLowerCase() === currentUser.email.toLowerCase();
+
+    if (pendingMatchesSession) {
+      redeemAttemptedRef.current = true;
+      setTransferState({ phase: 'prompt', domain: pending.domain || '' });
+      return;
+    }
+
+    // A note left for somebody else's address is stale the moment this session
+    // proves it belongs to a different one.
+    if (pending) clearPendingClaim();
+
+    // No local note: we cannot name what would move, so there is nothing to
+    // confirm. Still worth asking the server on a real sign-in — the note is
+    // lost if the link is opened in another browser — but never on a plain
+    // page load into a session that was already signed in.
+    if (!sawUnauthenticatedRef.current) return;
+    redeemAttemptedRef.current = true;
+    redeemGuestSiteClaim();
+  }, [authReady, currentUser?.id, currentUser?.is_anonymous, currentUser?.email]);
+
+  // The two notices are informational — they shouldn't need dismissing.
+  useEffect(() => {
+    if (transferState?.phase !== 'transferred' && transferState?.phase !== 'duplicate') return;
+    const t = setTimeout(() => setTransferState(null), 8000);
+    return () => clearTimeout(t);
+  }, [transferState?.phase]);
 
   // Show toast on payment redirect
   useEffect(() => {
@@ -177,7 +500,10 @@ export default function App() {
       if (freshTenant) setSelectedTenant(freshTenant);
 
       const { data: sitesData } = await supabase.from('sites').select('*').eq('tenant_id', tId);
-      setSites(sitesData || []);
+      // Same ordering as landOnSite(), so a workspace transfer that also
+      // switches tenant lands on the moved site whichever of the two refreshes
+      // finishes last.
+      setSites(orderSitesForFocus(sitesData || [], focusSiteIdRef.current));
 
       const { data: leadsData } = await supabase.from('leads').select('*').eq('tenant_id', tId).order('created_at', { ascending: false });
       setLeads(leadsData || []);
@@ -253,25 +579,30 @@ export default function App() {
       return newSite;
     }
 
-    if (siteInsertErr) {
-      console.warn('[handleAddSite] Insert site warning, checking existing domain:', siteInsertErr.message);
+    // 2. Translate the two constraints the database now enforces (see
+    //    20260905030000_site_limits_and_guest_claims.sql) into something a
+    //    user can act on.
+    //
+    //    There used to be a "fallback" here that looked the domain up across
+    //    *all* tenants and, if it found one, re-pointed that row's tenant_id at
+    //    the current tenant. That is a cross-tenant takeover primitive — it only
+    //    failed to be exploitable because RLS happened to block the update — and
+    //    it was dead code anyway: nothing made domains collide globally. A
+    //    failed insert now fails, full stop.
+    const insertMessage = siteInsertErr?.message || '';
+    console.warn('[handleAddSite] Insert site failed:', insertMessage);
+
+    if (insertMessage.includes('site_limit_reached')) {
+      throw new Error(
+        'Your plan has no room for another website. Upgrade your plan, or remove a website you no longer use.'
+      );
     }
 
-    // 2. If duplicate domain error, fetch existing site for this domain
-    const { data: existingSite } = await supabase
-      .from('sites')
-      .select('*')
-      .eq('domain', domain)
-      .maybeSingle();
-
-    if (existingSite) {
-      await supabase.from('sites').update({ tenant_id: tId }).eq('id', existingSite.id);
-      existingSite.tenant_id = tId;
-      setSites((prev) => [existingSite, ...prev.filter((s) => s.id !== existingSite.id)]);
-      return existingSite;
+    if (siteInsertErr?.code === '23505' || insertMessage.includes('sites_tenant_domain_uq')) {
+      throw new Error(`${domain} is already in this workspace. Open it from your website list instead of adding it again.`);
     }
 
-    throw new Error(siteInsertErr?.message || 'Failed to save the domain to the database.');
+    throw new Error(insertMessage || 'Failed to save the domain to the database.');
   };
 
   // Handler: Update site settings
@@ -361,8 +692,8 @@ export default function App() {
           setSelectedTenant={setSelectedTenant}
           onLogout={handleLogout}
           currentView={currentView}
-          onSelectView={(v) => setCurrentView(v)}
-          onShowPricing={() => setCurrentView('pricing')}
+          onSelectView={navigate}
+          onShowPricing={() => navigate('pricing')}
           leadsCount={leads.length}
         />
       )}
@@ -371,10 +702,31 @@ export default function App() {
         <LoginModal 
           onLogin={handleLogin} 
           onClose={!isGuest ? () => setShowLoginModal(false) : undefined}
-          isGuestConversion={isGuest} 
+          isGuestConversion={isGuest}
           message={authMessage}
         />
       )}
+
+      {/* Guest workspace waiting to move into the account just signed into */}
+      <WorkspaceTransfer
+        state={transferState}
+        sites={sites}
+        busy={transferBusy}
+        error={transferError}
+        onConfirm={redeemGuestSiteClaim}
+        onDismiss={() => {
+          // 'at_limit' keeps its note: the claim is still open server-side for
+          // another 12h, so the offer can come back after an upgrade.
+          if (transferState?.phase !== 'at_limit') clearPendingClaim();
+          setTransferError('');
+          setTransferState(null);
+        }}
+        onUpgrade={() => {
+          setTransferState(null);
+          navigate('pricing');
+        }}
+        onReplaceSite={handleReplaceSiteForTransfer}
+      />
 
       {/* For Guest, we add a simple brand header with navigation tabs.
           It's skipped on marketing/landing screens (the niche pages, and
@@ -387,7 +739,7 @@ export default function App() {
           <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
             <div className="flex items-center gap-6">
               <div
-                onClick={() => { setCurrentView('dashboard'); setMobileMenuOpen(false); }}
+                onClick={() => { navigate('dashboard'); setMobileMenuOpen(false); }}
                 className="flex items-center gap-3 cursor-pointer"
               >
                 <div className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-400 shadow-lg flex items-center justify-center">
@@ -400,7 +752,7 @@ export default function App() {
               {/* Desktop nav */}
               <nav className="hidden sm:flex items-center gap-1 bg-dark-900/80 p-1 rounded-xl border border-white/5">
                 <button
-                  onClick={() => setCurrentView('dashboard')}
+                  onClick={() => navigate('dashboard')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                     currentView === 'dashboard' ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-white'
                   }`}
@@ -408,7 +760,7 @@ export default function App() {
                   Dashboard
                 </button>
                 <button
-                  onClick={() => setCurrentView('leads')}
+                  onClick={() => navigate('leads')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                     currentView === 'leads' ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-white'
                   }`}
@@ -416,7 +768,7 @@ export default function App() {
                   Leads ({leads.length})
                 </button>
                 <button
-                  onClick={() => setCurrentView('pricing')}
+                  onClick={() => navigate('pricing')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                     currentView === 'pricing' ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-white'
                   }`}
@@ -424,7 +776,7 @@ export default function App() {
                   Plans
                 </button>
                 <button
-                  onClick={() => setCurrentView('about')}
+                  onClick={() => navigate('about')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                     currentView === 'about' ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-white'
                   }`}
@@ -457,7 +809,7 @@ export default function App() {
           {mobileMenuOpen && (
             <div className="sm:hidden max-w-7xl mx-auto mt-3 pt-3 border-t border-white/10 flex flex-col gap-1 animate-in fade-in slide-in-from-top-2 duration-150">
               <button
-                onClick={() => { setCurrentView('dashboard'); setMobileMenuOpen(false); }}
+                onClick={() => { navigate('dashboard'); setMobileMenuOpen(false); }}
                 className={`text-left px-3.5 py-2.5 rounded-lg text-sm font-semibold transition-colors ${
                   currentView === 'dashboard' ? 'bg-brand-600 text-white' : 'text-gray-300 hover:bg-white/5'
                 }`}
@@ -465,7 +817,7 @@ export default function App() {
                 Dashboard
               </button>
               <button
-                onClick={() => { setCurrentView('leads'); setMobileMenuOpen(false); }}
+                onClick={() => { navigate('leads'); setMobileMenuOpen(false); }}
                 className={`text-left px-3.5 py-2.5 rounded-lg text-sm font-semibold transition-colors ${
                   currentView === 'leads' ? 'bg-brand-600 text-white' : 'text-gray-300 hover:bg-white/5'
                 }`}
@@ -473,7 +825,7 @@ export default function App() {
                 Leads ({leads.length})
               </button>
               <button
-                onClick={() => { setCurrentView('pricing'); setMobileMenuOpen(false); }}
+                onClick={() => { navigate('pricing'); setMobileMenuOpen(false); }}
                 className={`text-left px-3.5 py-2.5 rounded-lg text-sm font-semibold transition-colors ${
                   currentView === 'pricing' ? 'bg-brand-600 text-white' : 'text-gray-300 hover:bg-white/5'
                 }`}
@@ -481,7 +833,7 @@ export default function App() {
                 Plans
               </button>
               <button
-                onClick={() => { setCurrentView('about'); setMobileMenuOpen(false); }}
+                onClick={() => { navigate('about'); setMobileMenuOpen(false); }}
                 className={`text-left px-3.5 py-2.5 rounded-lg text-sm font-semibold transition-colors ${
                   currentView === 'about' ? 'bg-brand-600 text-white' : 'text-gray-300 hover:bg-white/5'
                 }`}
@@ -507,18 +859,18 @@ export default function App() {
       )}
 
       {currentView === 'payment-success' ? (
-        <PaymentSuccessPage onGoToDashboard={() => { setCurrentView('dashboard'); setPaymentToast(null); }} />
+        <PaymentSuccessPage onGoToDashboard={() => { navigate('dashboard'); setPaymentToast(null); }} />
       ) : currentView === 'pricing' ? (
         <Pricing
-          onSelectPlan={() => setCurrentView('dashboard')}
+          onSelectPlan={() => navigate('dashboard')}
           tenantId={selectedTenant?.id}
           currentPlan={selectedTenant?.plan || 'free'}
-          onNavigate={setCurrentView}
+          onNavigate={navigate}
         />
       ) : currentView === 'about' ? (
         <AboutPage />
       ) : currentView === 'osteopathes' ? (
-        <OsteopathyLanding onNavigate={setCurrentView} />
+        <OsteopathyLanding onNavigate={navigate} />
       ) : currentView === 'privacy' ? (
         <PrivacyPolicy />
       ) : currentView === 'terms' ? (
@@ -536,7 +888,7 @@ export default function App() {
               </div>
             </div>
             <button
-              onClick={() => setCurrentView('dashboard')}
+              onClick={() => navigate('dashboard')}
               className="text-xs text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg border border-white/10"
             >
               ← Back to Dashboard
@@ -557,8 +909,8 @@ export default function App() {
               onDeleteSite={handleDeleteSite}
               isGuest={isGuest}
               onRequireLogin={() => setShowLoginModal(true)}
-              onViewLeads={() => setCurrentView('leads')}
-              onShowPricing={() => setCurrentView('pricing')}
+              onViewLeads={() => navigate('leads')}
+              onShowPricing={() => navigate('pricing')}
               leadsCount={leads.length}
             />
           </section>
@@ -576,7 +928,7 @@ export default function App() {
                   </div>
                 </div>
                 <button
-                  onClick={() => setCurrentView('leads')}
+                  onClick={() => navigate('leads')}
                   className="text-xs text-brand-400 hover:text-brand-300 font-semibold"
                 >
                   View All Leads →
@@ -589,13 +941,13 @@ export default function App() {
       )}
 
       <footer className="max-w-7xl mx-auto px-4 sm:px-8 py-8 mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-gray-500 border-t border-white/5">
-        <button onClick={() => setCurrentView('about')} className="hover:text-gray-300 transition-colors">
+        <button onClick={() => navigate('about')} className="hover:text-gray-300 transition-colors">
           About
         </button>
-        <button onClick={() => setCurrentView('privacy')} className="hover:text-gray-300 transition-colors">
+        <button onClick={() => navigate('privacy')} className="hover:text-gray-300 transition-colors">
           Privacy Policy
         </button>
-        <button onClick={() => setCurrentView('terms')} className="hover:text-gray-300 transition-colors">
+        <button onClick={() => navigate('terms')} className="hover:text-gray-300 transition-colors">
           Terms of Service
         </button>
         <span>&copy; {new Date().getFullYear()} Repondo</span>
