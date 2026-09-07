@@ -177,14 +177,39 @@ import { parseMarkdown } from "./markdown.js";
       // On Tool Event (hidden from conversation feed for clean UX)
       () => {},
       // On Error
-      (errText) => {
+      (errText, meta = {}) => {
+        // Every real failure reason (rate limit, paused site, unauthorized
+        // origin, DB error, network drop, ...) collapsed into the same
+        // silent "technical issue" bubble below, with nothing in the
+        // console either — making every incident look identical and
+        // impossible to diagnose from a user's bug report alone. Log the
+        // real reason, and give the two common, non-catastrophic cases
+        // (rate limiting, a deliberately paused site) their own accurate
+        // message instead of the generic "sorry, leave your email" fallback,
+        // which is misleading when there's nothing actually broken.
+        console.error('[Dorafi widget] chat request failed:', errText, meta);
+
+        if (meta.status === 429) {
+          assistantMsgEl.innerHTML = `<span>You're sending messages a little too fast. Please wait a moment and try again. 🙏</span>`;
+          isStreaming = false;
+          sendBtn.disabled = false;
+          return;
+        }
+
+        if (meta.code === 'site_inactive') {
+          assistantMsgEl.innerHTML = `<span>${errText}</span>`;
+          isStreaming = false;
+          sendBtn.disabled = false;
+          return;
+        }
+
         const id = Date.now();
         assistantMsgEl.innerHTML = `<span>Sorry! A technical issue occurred. 😔<br><br><b>Leave us your email so our team can follow up with you:</b></span>
         <div style="display:flex; gap:5px; margin-top:10px;">
            <input type="email" id="fallback-email-${id}" placeholder="your@email.com" class="b2b-chat-input" style="flex:1; padding:8px; border-radius:6px; border:1px solid #334155; font-size:12px; color:#fff; background:#0f172a;" />
            <button id="fallback-btn-${id}" style="padding:8px 12px; border-radius:6px; background:${themeColor}; color:white; border:none; cursor:pointer; font-weight:bold; font-size:12px;">Submit</button>
         </div>`;
-        
+
         const btn = shadowRoot.getElementById(`fallback-btn-${id}`);
         const inputFallback = shadowRoot.getElementById(`fallback-email-${id}`);
         if (btn && inputFallback) {
@@ -196,7 +221,7 @@ import { parseMarkdown } from "./markdown.js";
             }
           });
         }
-        
+
         isStreaming = false;
         sendBtn.disabled = false;
       },

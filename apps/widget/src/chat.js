@@ -48,11 +48,19 @@ export class ChatManager {
           session_id: this.sessionId
         }),
         async onopen(response) {
-          if (response.ok && response.headers.get('content-type')?.includes('application/json')) {
-            const errJson = await response.json().catch(() => ({}));
-            throw new Error(errJson.error || `HTTP Error ${response.status}`);
-          } else if (!response.ok) {
-            throw new Error(`HTTP Error ${response.status}`);
+          // Every error path in api/chat/index.js (rate limit, paused site,
+          // unauthorized origin, missing site, DB error, ...) replies with a
+          // JSON body carrying a specific `error` (and sometimes `code`)
+          // rather than an SSE stream. Read it whenever the response isn't a
+          // stream — ok or not — so the real reason reaches onError instead
+          // of being flattened into a generic "HTTP Error <status>".
+          const isJson = response.headers.get('content-type')?.includes('application/json');
+          if (!response.ok || isJson) {
+            const errJson = isJson ? await response.json().catch(() => ({})) : {};
+            const err = new Error(errJson.error || `HTTP Error ${response.status}`);
+            err.status = response.status;
+            err.code = errJson.code;
+            throw err;
           }
         },
         onmessage(ev) {
@@ -94,7 +102,7 @@ export class ChatManager {
         }
       });
     } catch (err) {
-      onError(err.message || "Network connection error");
+      onError(err.message || "Network connection error", { status: err.status, code: err.code });
       if (!doneCalled) {
         doneCalled = true;
         onDone();
