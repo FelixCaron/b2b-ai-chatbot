@@ -12,6 +12,7 @@ export default {
         // backgrounds, but were never used for text, so repurposing them here
         // is collision-free. Use `text-dark-900/700/600` for body/muted text.
         dark: {
+          950: '#05070c',
           900: '#0b0f19',
           800: '#111827',
           700: '#1f2937',

@@ -10,6 +10,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { supabase, authenticatedHeaders } from '../../lib/supabase';
 import { fetchEventSource } from '@microsoft/fetch-event-source';
+import LogoMark from '../../components/LogoMark';
 
 export default function Dashboard({
   selectedTenant,
@@ -844,7 +845,7 @@ export default function Dashboard({
       const captchaToken = await executeTurnstileCaptcha();
 
       let currentDomain = formattedUrl.replace('https://', '').replace('http://', '').replace('www.', '').split('/')[0];
-      let brandColor = '#4f46e5';
+      let brandColor = '#293f68';
 
       try {
         const authHeaders = await authenticatedHeaders();
@@ -936,7 +937,7 @@ export default function Dashboard({
 
     try {
       const captchaToken = await executeTurnstileCaptcha();
-      let brandColor = '#6366f1';
+      let brandColor = '#293f68';
 
       try {
         const authHeaders = await authenticatedHeaders();
@@ -1089,7 +1090,7 @@ export default function Dashboard({
   const buildWidgetSnippet = (key) => {
     // "Powered by" badge shows on Basic (growth lever), hidden on Pro/Premium.
     const hideBrandingAttr = tenantPlan !== 'basic' ? ' data-hide-branding="true"' : '';
-    return `<script src="${window.location.origin}/widget.iife.js" data-tenant-key="${key}" data-api-url="${window.location.origin}/api/chat" data-theme-color="${activeSite?.theme_primary_color || '#6366f1'}"${hideBrandingAttr}></script>`;
+    return `<script src="${window.location.origin}/widget.iife.js" data-tenant-key="${key}" data-api-url="${window.location.origin}/api/chat" data-theme-color="${activeSite?.theme_primary_color || '#293f68'}"${hideBrandingAttr}></script>`;
   };
 
   const copyWidgetScript = (key) => {
@@ -1098,35 +1099,36 @@ export default function Dashboard({
     setTimeout(() => setCopiedScriptKey(null), 2000);
   };
 
-  const themeColor = activeSite?.theme_primary_color || '#6366f1';
+  const themeColor = activeSite?.theme_primary_color || '#293f68';
 
   return (
     <div className="space-y-8">
       {/* 1. HERO ONBOARDING (When no site exists) */}
       {(!activeSite || step !== 'dashboard') ? (
         <div className="relative max-w-2xl mx-auto mt-6 sm:mt-12">
-          <div className="relative bg-dark-800/50 backdrop-blur-sm p-6 sm:p-10 rounded-2xl border border-white/10 text-center shadow-lg overflow-hidden">
-            <div className="relative w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-tr from-brand-600 to-indigo-400 mx-auto mb-4 sm:mb-6 shadow-sm flex items-center justify-center">
-              <span className="text-white font-extrabold text-xl sm:text-2xl leading-none select-none">R</span>
-              <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-emerald-500 border-2 border-dark-800" />
+          <div className="relative bg-white/70 backdrop-blur-sm p-6 sm:p-10 rounded-2xl border border-dark-900/10 text-center shadow-lg overflow-hidden">
+            <div className="relative w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-tr from-brand-700 to-brand-400 mx-auto mb-4 sm:mb-6 shadow-sm flex items-center justify-center">
+              <div className="w-6 h-6 sm:w-8 sm:h-8 text-white">
+                <LogoMark className="w-full h-full" />
+              </div>
             </div>
 
-            <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight leading-tight mb-2.5 sm:mb-3">
+            <h2 className="text-2xl sm:text-3xl font-bold text-dark-900 tracking-tight leading-tight mb-2.5 sm:mb-3">
               Deploy Your AI Assistant in 30 Seconds
             </h2>
-            <p className="text-sm sm:text-base text-gray-400 mb-6 sm:mb-10 max-w-lg mx-auto">
+            <p className="text-sm sm:text-base text-gray-500 mb-6 sm:mb-10 max-w-lg mx-auto">
               Enter your website address. Our system will automatically crawl your site, learn your business, and configure your custom AI assistant.
             </p>
 
             <form onSubmit={handleAnalyzeSite} className="space-y-4">
               <div className="relative max-w-lg mx-auto">
-                <Globe className="w-5 h-5 text-gray-400 absolute left-4 top-3.5 pointer-events-none" />
+                <Globe className="w-5 h-5 text-gray-500 absolute left-4 top-3.5 pointer-events-none" />
                 <input
                   type="text"
                   placeholder="your-company.com"
                   value={siteUrl}
                   onChange={(e) => setSiteUrl(e.target.value)}
-                  className="w-full bg-dark-900 border border-gray-700 text-white rounded-2xl pl-12 pr-4 py-3.5 text-sm outline-none focus:border-brand-500 transition-colors shadow-inner"
+                  className="w-full bg-surface-100 border border-gray-300 text-dark-900 rounded-2xl pl-12 pr-4 py-3.5 text-sm outline-none focus:border-brand-500 transition-colors shadow-inner"
                   required
                 />
               </div>
@@ -1147,7 +1149,7 @@ export default function Dashboard({
             </form>
 
             {statusMsg && (
-              <div className="mt-6 flex items-center justify-center gap-3 text-sm text-brand-400 font-medium bg-brand-500/10 p-3 rounded-xl border border-brand-500/20">
+              <div className="mt-6 flex items-center justify-center gap-3 text-sm text-brand-700 font-medium bg-brand-500/10 p-3 rounded-xl border border-brand-500/20">
                 {isAnalyzing && <RefreshCw className="w-4 h-4 animate-spin" />}
                 {statusMsg}
               </div>
@@ -1159,13 +1161,13 @@ export default function Dashboard({
         <div className="space-y-8">
           {/* Transient feedback (duplicate domain, parking, reactivation) */}
           {siteNotice && (
-            <div className="flex items-start gap-3 bg-brand-500/10 border border-brand-500/30 text-brand-200 text-xs rounded-2xl px-4 py-3 animate-in fade-in">
-              <Sparkles className="w-4 h-4 shrink-0 mt-0.5 text-brand-400" />
+            <div className="flex items-start gap-3 bg-brand-500/10 border border-brand-500/30 text-brand-800 text-xs rounded-2xl px-4 py-3 animate-in fade-in">
+              <Sparkles className="w-4 h-4 shrink-0 mt-0.5 text-brand-600" />
               <span className="flex-1 leading-relaxed">{siteNotice}</span>
               <button
                 type="button"
                 onClick={() => setSiteNotice('')}
-                className="text-brand-300/70 hover:text-white transition-colors"
+                className="text-brand-600/70 hover:text-brand-900 transition-colors"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -1177,7 +1179,7 @@ export default function Dashboard({
               leave the user wondering why a widget stopped answering. */}
           {sites && sites.length > 1 && (
             <div className="flex items-center gap-2 overflow-x-auto pb-1">
-              <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider shrink-0 mr-1">Websites:</span>
+              <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider shrink-0 mr-1">Websites:</span>
               {sites.map((s) => {
                 const isSelected = activeSite?.id === s.id;
                 const isParked = !isSiteActive(s);
@@ -1188,18 +1190,18 @@ export default function Dashboard({
                     title={isParked ? 'Parked — this website\'s assistant is paused until your plan has room' : s.domain}
                     className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 border ${
                       isSelected
-                        ? 'bg-brand-600/20 text-white border-brand-500/40 shadow-sm'
+                        ? 'bg-brand-600 text-white border-brand-600 shadow-sm'
                         : isParked
-                        ? 'bg-dark-900/60 text-gray-500 border-white/5 hover:border-amber-500/30 hover:text-gray-300'
-                        : 'bg-dark-900/80 text-gray-400 border-white/5 hover:border-white/20 hover:text-gray-200'
+                        ? 'bg-surface-200 text-gray-500 border-dark-900/5 hover:border-amber-500/30 hover:text-gray-700'
+                        : 'bg-surface-200 text-gray-500 border-dark-900/5 hover:border-dark-900/20 hover:text-dark-900'
                     }`}
                   >
                     <span className={`w-2 h-2 rounded-full ${
-                      isParked ? 'bg-amber-500/70' : isSelected ? 'bg-emerald-400 animate-pulse' : 'bg-gray-600'
+                      isParked ? 'bg-amber-500/70' : isSelected ? 'bg-emerald-400 animate-pulse' : 'bg-gray-400'
                     }`} />
                     <span className={isParked ? 'opacity-70' : ''}>{s.domain}</span>
                     {isParked && (
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400/90 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded-full">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded-full">
                         Paused
                       </span>
                     )}
@@ -1208,7 +1210,7 @@ export default function Dashboard({
               })}
               <button
                 onClick={handleOpenAddSiteModal}
-                className="text-xs text-brand-400 hover:text-brand-300 font-semibold px-2.5 py-1.5 rounded-xl border border-brand-500/20 hover:bg-brand-500/10 transition-all shrink-0"
+                className="text-xs text-brand-700 hover:text-brand-800 font-semibold px-2.5 py-1.5 rounded-xl border border-brand-500/20 hover:bg-brand-500/10 transition-all shrink-0"
               >
                 + Add Website
               </button>
@@ -1216,7 +1218,7 @@ export default function Dashboard({
           )}
 
           {/* Active Site Hero Card */}
-          <div className="bg-dark-800/80 p-6 sm:p-8 rounded-2xl border border-white/5 shadow-sm space-y-6">
+          <div className="bg-white/90 p-6 sm:p-8 rounded-2xl border border-dark-900/5 shadow-sm space-y-6">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div className="flex items-center gap-4">
                 <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-bold shadow-md" style={{ backgroundColor: themeColor }}>
@@ -1224,21 +1226,21 @@ export default function Dashboard({
                 </div>
                 <div>
                   <div className="flex items-center gap-2.5 flex-wrap">
-                    <h2 className="text-2xl font-bold text-white tracking-tight">{activeSite.domain}</h2>
+                    <h2 className="text-2xl font-bold text-dark-900 tracking-tight">{activeSite.domain}</h2>
                     {isSiteActive(activeSite) ? (
-                      <span className="bg-emerald-500/15 text-emerald-400 text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5 border border-emerald-500/20">
-                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                      <span className="bg-emerald-500/15 text-emerald-700 text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5 border border-emerald-500/20">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                         Assistant Active & Ready
                       </span>
                     ) : (
-                      <span className="bg-amber-500/15 text-amber-400 text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5 border border-amber-500/20">
+                      <span className="bg-amber-500/15 text-amber-700 text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5 border border-amber-500/20">
                         <span className="w-2 h-2 rounded-full bg-amber-500/80"></span>
                         Assistant Paused (Parked)
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-gray-400 mt-1 flex items-center gap-2">
-                    Public Key: <span className="font-mono text-indigo-300 bg-dark-900 px-2 py-0.5 rounded border border-white/5">{activeSite.public_key}</span>
+                  <p className="text-xs text-gray-500 mt-1 flex items-center gap-2">
+                    Public Key: <span className="font-mono text-brand-700 bg-surface-200 px-2 py-0.5 rounded border border-dark-900/10">{activeSite.public_key}</span>
                   </p>
                 </div>
               </div>
@@ -1252,13 +1254,13 @@ export default function Dashboard({
                   onClick={() => setShowPreviewModal(true)}
                   className={`w-full md:w-auto text-white font-semibold px-6 py-3 rounded-xl text-sm flex items-center justify-center gap-2 shadow-lg transition-all ${
                     isCrawling
-                      ? 'bg-gray-800 text-gray-400 cursor-not-allowed border border-white/10 opacity-70'
-                      : 'bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 shadow-brand-900/50 hover:scale-[1.02] active:scale-98'
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed border border-dark-900/10 opacity-70'
+                      : 'bg-gradient-to-r from-brand-700 to-brand-500 hover:from-brand-600 hover:to-brand-400 shadow-brand-900/30 hover:scale-[1.02] active:scale-98'
                   }`}
                 >
                   {isCrawling ? (
                     <>
-                      <RefreshCw className="w-4 h-4 animate-spin text-brand-400" /> Indexing website...
+                      <RefreshCw className="w-4 h-4 animate-spin text-brand-600" /> Indexing website...
                     </>
                   ) : (
                     <>
@@ -1273,9 +1275,9 @@ export default function Dashboard({
                       if (isGuest) onRequireLogin();
                       else setShowIntegrationModal(true);
                     }}
-                    className="bg-dark-900 hover:bg-gray-800 border border-white/10 text-gray-200 hover:text-white px-3 sm:px-4 py-3 rounded-xl text-xs sm:text-sm font-medium flex items-center justify-center gap-2 transition-all shadow-sm"
+                    className="bg-white hover:bg-surface-200 border border-dark-900/10 text-gray-700 hover:text-dark-900 px-3 sm:px-4 py-3 rounded-xl text-xs sm:text-sm font-medium flex items-center justify-center gap-2 transition-all shadow-sm"
                   >
-                    <Code className="w-4 h-4 text-brand-400 shrink-0" /> <span className="truncate">Embed Widget</span>
+                    <Code className="w-4 h-4 text-brand-600 shrink-0" /> <span className="truncate">Embed Widget</span>
                   </button>
 
                   <button
@@ -1286,10 +1288,10 @@ export default function Dashboard({
                         document.getElementById('advanced-settings-section')?.scrollIntoView({ behavior: 'smooth' });
                       }, 50);
                     }}
-                    className="bg-dark-900 hover:bg-gray-800 border border-white/10 text-gray-300 hover:text-white px-3 sm:px-4 py-3 rounded-xl text-xs sm:text-sm font-medium flex items-center justify-center gap-2 transition-all shadow-sm"
+                    className="bg-white hover:bg-surface-200 border border-dark-900/10 text-gray-600 hover:text-dark-900 px-3 sm:px-4 py-3 rounded-xl text-xs sm:text-sm font-medium flex items-center justify-center gap-2 transition-all shadow-sm"
                     title="Configure Bot & Settings"
                   >
-                    <Settings2 className="w-4 h-4 text-indigo-400 shrink-0" /> Settings
+                    <Settings2 className="w-4 h-4 text-brand-600 shrink-0" /> Settings
                   </button>
                 </div>
 
@@ -1297,16 +1299,16 @@ export default function Dashboard({
                   <button
                     onClick={handleRecrawlSite}
                     disabled={isCrawling}
-                    className="bg-dark-900 hover:bg-gray-800 border border-white/10 text-gray-400 hover:text-white px-3 py-3 rounded-xl text-xs sm:text-sm font-medium flex items-center justify-center gap-2 transition-all md:p-3"
+                    className="bg-white hover:bg-surface-200 border border-dark-900/10 text-gray-500 hover:text-dark-900 px-3 py-3 rounded-xl text-xs sm:text-sm font-medium flex items-center justify-center gap-2 transition-all md:p-3"
                     title="Re-scan and re-learn website"
                   >
-                    <RefreshCw className={`w-4 h-4 shrink-0 ${isCrawling ? 'animate-spin text-brand-400' : ''}`} />
+                    <RefreshCw className={`w-4 h-4 shrink-0 ${isCrawling ? 'animate-spin text-brand-600' : ''}`} />
                     <span className="md:hidden">Re-scan</span>
                   </button>
 
                   <button
                     onClick={handleOpenAddSiteModal}
-                    className="bg-dark-900 hover:bg-gray-800 border border-white/10 text-gray-400 hover:text-white px-3 sm:px-3.5 py-3 rounded-xl text-xs font-medium transition-all whitespace-nowrap"
+                    className="bg-white hover:bg-surface-200 border border-dark-900/10 text-gray-500 hover:text-dark-900 px-3 sm:px-3.5 py-3 rounded-xl text-xs font-medium transition-all whitespace-nowrap"
                     title="Add another website"
                   >
                     + Add Website
@@ -1316,7 +1318,7 @@ export default function Dashboard({
                 <button
                   type="button"
                   onClick={() => setShowDeleteConfirmModal(true)}
-                  className="w-full md:w-auto bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 hover:text-red-300 px-3.5 py-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-sm"
+                  className="w-full md:w-auto bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-600 hover:text-red-700 px-3.5 py-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-sm"
                   title="Delete this website"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -1330,18 +1332,18 @@ export default function Dashboard({
             {!isSiteActive(activeSite) && (
               <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 space-y-3 animate-in fade-in">
                 <div className="flex items-start gap-3">
-                  <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400 shrink-0 mt-0.5">
+                  <div className="p-2 rounded-xl bg-amber-500/20 text-amber-700 shrink-0 mt-0.5">
                     <AlertTriangle className="w-5 h-5" />
                   </div>
                   <div className="flex-1 text-xs">
-                    <h4 className="font-bold text-white text-sm mb-1">
+                    <h4 className="font-bold text-dark-900 text-sm mb-1">
                       This website is parked — its assistant is not answering
                     </h4>
-                    <p className="text-amber-200/90 leading-relaxed">
+                    <p className="text-amber-800 leading-relaxed">
                       Your <strong>{tenantPlan.toUpperCase()}</strong> plan covers <strong>{maxSitesForPlan} active website(s)</strong>, and you currently have <strong>{activeSites.length}</strong> active.
                     </p>
-                    <p className="text-gray-300 mt-1">
-                      Nothing was deleted: every indexed page, lead and API key for <strong className="text-white">{activeSite.domain}</strong> is still here, exactly as you left it. Upgrade your plan and it comes straight back online.
+                    <p className="text-gray-600 mt-1">
+                      Nothing was deleted: every indexed page, lead and API key for <strong className="text-dark-900">{activeSite.domain}</strong> is still here, exactly as you left it. Upgrade your plan and it comes straight back online.
                     </p>
                   </div>
                 </div>
@@ -1352,7 +1354,7 @@ export default function Dashboard({
                     disabled={reactivatingSiteId === activeSite.id || activeSites.length >= maxSitesForPlan}
                     onClick={() => handleReactivateSite(activeSite)}
                     title={activeSites.length >= maxSitesForPlan ? 'Your plan has no free slot — park another website or upgrade first' : 'Bring this website back online'}
-                    className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-semibold text-gray-300 hover:text-white bg-dark-900 border border-white/10 hover:bg-dark-800 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+                    className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-semibold text-gray-600 hover:text-dark-900 bg-white border border-dark-900/10 hover:bg-surface-200 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
                   >
                     {reactivatingSiteId === activeSite.id ? (
                       <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Reactivating...</>
@@ -1375,77 +1377,77 @@ export default function Dashboard({
             )}
 
             {/* Quick 3-Step Guided Roadmap */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-white/5">
-              <div className="bg-dark-900/60 p-4 rounded-xl border border-white/5 flex items-center gap-3.5">
-                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/20 font-bold text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-dark-900/5">
+              <div className="bg-surface-100 p-4 rounded-xl border border-dark-900/5 flex items-center gap-3.5">
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-700 flex items-center justify-center shrink-0 border border-emerald-500/20 font-bold text-xs">
                   1
                 </div>
                 <div>
-                  <div className="text-xs font-bold text-white flex items-center gap-1.5">
-                    AI Knowledge Learned <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  <div className="text-xs font-bold text-dark-900 flex items-center gap-1.5">
+                    AI Knowledge Learned <Check className="w-3.5 h-3.5 text-emerald-600" />
                   </div>
-                  <div className="text-[11px] text-gray-400">{discoveredPages.filter(p => p.status === 'loaded').length || 1} pages indexed in memory</div>
+                  <div className="text-[11px] text-gray-500">{discoveredPages.filter(p => p.status === 'loaded').length || 1} pages indexed in memory</div>
                 </div>
               </div>
 
-              <div 
+              <div
                 onClick={() => !isCrawling && setShowPreviewModal(true)}
-                className="bg-dark-900/60 hover:bg-dark-900 p-4 rounded-xl border border-white/5 flex items-center gap-3.5 cursor-pointer group transition-all"
+                className="bg-surface-100 hover:bg-surface-200 p-4 rounded-xl border border-dark-900/5 flex items-center gap-3.5 cursor-pointer group transition-all"
               >
-                <div className="w-8 h-8 rounded-lg bg-brand-500/10 text-brand-400 flex items-center justify-center shrink-0 border border-brand-500/20 font-bold text-xs group-hover:scale-105 transition-transform">
+                <div className="w-8 h-8 rounded-lg bg-brand-500/10 text-brand-700 flex items-center justify-center shrink-0 border border-brand-500/20 font-bold text-xs group-hover:scale-105 transition-transform">
                   2
                 </div>
                 <div className="flex-1">
-                  <div className="text-xs font-bold text-white flex items-center gap-1.5 group-hover:text-brand-300">
-                    Test Your Bot Live <ArrowUpRight className="w-3.5 h-3.5 text-brand-400" />
+                  <div className="text-xs font-bold text-dark-900 flex items-center gap-1.5 group-hover:text-brand-700">
+                    Test Your Bot Live <ArrowUpRight className="w-3.5 h-3.5 text-brand-600" />
                   </div>
-                  <div className="text-[11px] text-gray-400">Try live questions in sandbox preview</div>
+                  <div className="text-[11px] text-gray-500">Try live questions in sandbox preview</div>
                 </div>
               </div>
 
-              <div 
+              <div
                 onClick={() => {
                   if (isGuest) onRequireLogin();
                   else setShowIntegrationModal(true);
                 }}
-                className="bg-dark-900/60 hover:bg-dark-900 p-4 rounded-xl border border-white/5 flex items-center gap-3.5 cursor-pointer group transition-all"
+                className="bg-surface-100 hover:bg-surface-200 p-4 rounded-xl border border-dark-900/5 flex items-center gap-3.5 cursor-pointer group transition-all"
               >
-                <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center shrink-0 border border-indigo-500/20 font-bold text-xs group-hover:scale-105 transition-transform">
+                <div className="w-8 h-8 rounded-lg bg-brand-500/10 text-brand-700 flex items-center justify-center shrink-0 border border-brand-500/20 font-bold text-xs group-hover:scale-105 transition-transform">
                   3
                 </div>
                 <div className="flex-1">
-                  <div className="text-xs font-bold text-white flex items-center gap-1.5 group-hover:text-indigo-300">
-                    Embed on Website <Code className="w-3.5 h-3.5 text-indigo-400" />
+                  <div className="text-xs font-bold text-dark-900 flex items-center gap-1.5 group-hover:text-brand-700">
+                    Embed on Website <Code className="w-3.5 h-3.5 text-brand-600" />
                   </div>
-                  <div className="text-[11px] text-gray-400">Copy 1-line script for your site</div>
+                  <div className="text-[11px] text-gray-500">Copy 1-line script for your site</div>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Collapsible Section for Non-Essential / Advanced Settings */}
-          <div id="advanced-settings-section" className="bg-dark-800/40 rounded-2xl border border-white/5 overflow-hidden transition-all scroll-mt-20">
+          <div id="advanced-settings-section" className="bg-white/70 rounded-2xl border border-dark-900/5 overflow-hidden transition-all scroll-mt-20">
             <button
               type="button"
               onClick={(e) => {
                 e.preventDefault();
                 setShowAdvancedSettings((prev) => !prev);
               }}
-              className="w-full p-5 sm:p-6 flex items-center justify-between text-left hover:bg-white/[0.02] transition-colors cursor-pointer select-none"
+              className="w-full p-5 sm:p-6 flex items-center justify-between text-left hover:bg-dark-900/[0.02] transition-colors cursor-pointer select-none"
             >
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-dark-700/80 border border-white/10 flex items-center justify-center text-indigo-400">
+                <div className="w-10 h-10 rounded-xl bg-surface-200 border border-dark-900/10 flex items-center justify-center text-brand-700">
                   <Settings2 className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <h3 className="text-base font-bold text-dark-900 flex items-center gap-2">
                     Advanced Settings & Knowledge Base
                   </h3>
-                  <p className="text-xs text-gray-400">Customize bot personality, widget colors, lead capture, business summary, and individual page URLs.</p>
+                  <p className="text-xs text-gray-500">Customize bot personality, widget colors, lead capture, business summary, and individual page URLs.</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 text-xs font-semibold text-brand-400 bg-brand-500/10 px-3.5 py-1.5 rounded-lg border border-brand-500/20">
+              <div className="flex items-center gap-2 text-xs font-semibold text-brand-700 bg-brand-500/10 px-3.5 py-1.5 rounded-lg border border-brand-500/20">
                 {showAdvancedSettings ? (
                   <>Hide Settings <ChevronUp className="w-4 h-4" /></>
                 ) : (
@@ -1455,16 +1457,16 @@ export default function Dashboard({
             </button>
 
             {showAdvancedSettings && (
-              <div className="p-6 pt-2 border-t border-white/5 space-y-6 animate-in fade-in duration-300">
+              <div className="p-6 pt-2 border-t border-dark-900/5 space-y-6 animate-in fade-in duration-300">
                 {/* 1. Feature Toggles Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Lead Capture Toggle */}
-                  <div className="bg-dark-900/60 p-5 rounded-xl border border-white/5 flex items-center justify-between">
+                  <div className="bg-surface-100 p-5 rounded-xl border border-dark-900/5 flex items-center justify-between">
                     <div>
-                      <h4 className="text-sm font-bold text-white flex items-center gap-2 mb-1">
-                        <ShieldCheck className="w-4 h-4 text-brand-400" /> Lead Capture & Email Collection
+                      <h4 className="text-sm font-bold text-dark-900 flex items-center gap-2 mb-1">
+                        <ShieldCheck className="w-4 h-4 text-brand-600" /> Lead Capture & Email Collection
                       </h4>
-                      <p className="text-xs text-gray-400">
+                      <p className="text-xs text-gray-500">
                         Automatically prompts visitors for email and contact info.
                       </p>
                     </div>
@@ -1478,20 +1480,20 @@ export default function Dashboard({
                       aria-label="Toggle lead capture & email collection"
                     >
                       {activeSite.enable_lead_capture ? (
-                        <ToggleRight className="w-9 h-9 text-emerald-400" />
+                        <ToggleRight className="w-9 h-9 text-emerald-600" />
                       ) : (
-                        <ToggleLeft className="w-9 h-9 text-gray-600" />
+                        <ToggleLeft className="w-9 h-9 text-gray-500" />
                       )}
                     </button>
                   </div>
 
                   {/* Widget Color */}
-                  <div className="bg-dark-900/60 p-5 rounded-xl border border-white/5 flex items-center justify-between">
+                  <div className="bg-surface-100 p-5 rounded-xl border border-dark-900/5 flex items-center justify-between">
                     <div>
-                      <h4 className="text-sm font-bold text-white flex items-center gap-2 mb-1">
-                        <Settings2 className="w-4 h-4 text-indigo-400" /> Widget Accent Color
+                      <h4 className="text-sm font-bold text-dark-900 flex items-center gap-2 mb-1">
+                        <Settings2 className="w-4 h-4 text-brand-600" /> Widget Accent Color
                       </h4>
-                      <p className="text-xs text-gray-400">Match your brand styling.</p>
+                      <p className="text-xs text-gray-500">Match your brand styling.</p>
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -1505,18 +1507,18 @@ export default function Dashboard({
                   </div>
 
                   {/* Bot Goal */}
-                  <div className="bg-dark-900/60 p-5 rounded-xl border border-white/5 flex items-center justify-between">
+                  <div className="bg-surface-100 p-5 rounded-xl border border-dark-900/5 flex items-center justify-between">
                     <div>
-                      <h4 className="text-sm font-bold text-white flex items-center gap-2 mb-1">
-                        <Sparkles className="w-4 h-4 text-emerald-400" /> Primary Objective
+                      <h4 className="text-sm font-bold text-dark-900 flex items-center gap-2 mb-1">
+                        <Sparkles className="w-4 h-4 text-emerald-600" /> Primary Objective
                       </h4>
-                      <p className="text-xs text-gray-400">AI conversation focus.</p>
+                      <p className="text-xs text-gray-500">AI conversation focus.</p>
                     </div>
 
                     <select
                       value={activeSite.bot_goal || 'support'}
                       onChange={(e) => onUpdateSiteSettings(activeSite.id, { bot_goal: e.target.value })}
-                      className="bg-dark-800 border border-white/10 text-white text-xs rounded-lg px-3 py-2 outline-none"
+                      className="bg-white border border-gray-300 text-dark-900 text-xs rounded-lg px-3 py-2 outline-none"
                     >
                       <option value="support">Information & Support</option>
                       <option value="lead">Lead Generation & Sales</option>
@@ -1524,18 +1526,18 @@ export default function Dashboard({
                   </div>
 
                   {/* Bot Tone */}
-                  <div className="bg-dark-900/60 p-5 rounded-xl border border-white/5 flex items-center justify-between">
+                  <div className="bg-surface-100 p-5 rounded-xl border border-dark-900/5 flex items-center justify-between">
                     <div>
-                      <h4 className="text-sm font-bold text-white flex items-center gap-2 mb-1">
-                        <Sparkles className="w-4 h-4 text-emerald-400" /> Voice Tone
+                      <h4 className="text-sm font-bold text-dark-900 flex items-center gap-2 mb-1">
+                        <Sparkles className="w-4 h-4 text-emerald-600" /> Voice Tone
                       </h4>
-                      <p className="text-xs text-gray-400">Personality & communication style.</p>
+                      <p className="text-xs text-gray-500">Personality & communication style.</p>
                     </div>
 
                     <select
                       value={activeSite.bot_tone || 'professionnel'}
                       onChange={(e) => onUpdateSiteSettings(activeSite.id, { bot_tone: e.target.value })}
-                      className="bg-dark-800 border border-white/10 text-white text-xs rounded-lg px-3 py-2 outline-none"
+                      className="bg-white border border-gray-300 text-dark-900 text-xs rounded-lg px-3 py-2 outline-none"
                     >
                       <option value="professionnel">Professional & Courteous</option>
                       <option value="amical">Warm & Friendly</option>
@@ -1543,7 +1545,7 @@ export default function Dashboard({
                   </div>
 
                   {/* PRO Integrations: Support Email & Calendar Link */}
-                  <div className="bg-dark-900/60 p-5 rounded-xl border border-brand-500/20 flex flex-col gap-4 relative overflow-hidden">
+                  <div className="bg-surface-100 p-5 rounded-xl border border-brand-500/20 flex flex-col gap-4 relative overflow-hidden">
                     {selectedTenant?.plan !== 'pro' && selectedTenant?.plan !== 'premium' && (
                       <div className="absolute inset-0 bg-dark-950/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center p-4 text-center">
                         <Lock className="w-6 h-6 text-brand-400 mb-2" />
@@ -1551,33 +1553,33 @@ export default function Dashboard({
                         <p className="text-xs text-gray-400 mb-3 max-w-[250px]">Upgrade to the Pro Appointment plan to unlock calendar integrations and support email forwarding.</p>
                       </div>
                     )}
-                    
+
                     <div className="flex items-center gap-2 mb-2">
-                      <Sparkles className="w-5 h-5 text-brand-400" />
-                      <h4 className="text-base font-bold text-white">Pro Integrations</h4>
+                      <Sparkles className="w-5 h-5 text-brand-600" />
+                      <h4 className="text-base font-bold text-dark-900">Pro Integrations</h4>
                     </div>
 
                     <div className="flex flex-col sm:flex-row gap-4">
                       <div className="flex-1">
-                        <label className="text-xs font-semibold text-gray-400 mb-1 block">Support Email</label>
+                        <label className="text-xs font-semibold text-gray-500 mb-1 block">Support Email</label>
                         <input
                           type="email"
                           placeholder="support@yourcompany.com"
                           value={activeSite.support_email || ''}
                           onChange={(e) => onUpdateSiteSettings(activeSite.id, { support_email: e.target.value })}
-                          className="w-full bg-dark-800 border border-white/10 text-white text-sm rounded-lg px-4 py-2.5 outline-none focus:border-brand-500/50"
+                          className="w-full bg-white border border-gray-300 text-dark-900 text-sm rounded-lg px-4 py-2.5 outline-none focus:border-brand-500/50"
                         />
                         <p className="text-[10px] text-gray-500 mt-1">Where the assistant sends support requests.</p>
                       </div>
 
                       <div className="flex-1">
-                        <label className="text-xs font-semibold text-gray-400 mb-1 block">Calendar Link</label>
+                        <label className="text-xs font-semibold text-gray-500 mb-1 block">Calendar Link</label>
                         <input
                           type="url"
                           placeholder="https://calendly.com/your-name"
                           value={activeSite.calendar_link || ''}
                           onChange={(e) => onUpdateSiteSettings(activeSite.id, { calendar_link: e.target.value })}
-                          className="w-full bg-dark-800 border border-white/10 text-white text-sm rounded-lg px-4 py-2.5 outline-none focus:border-brand-500/50"
+                          className="w-full bg-white border border-gray-300 text-dark-900 text-sm rounded-lg px-4 py-2.5 outline-none focus:border-brand-500/50"
                         />
                         <p className="text-[10px] text-gray-500 mt-1">Calendly, Cal.com, or Google Calendar link.</p>
                       </div>
@@ -1586,31 +1588,31 @@ export default function Dashboard({
                 </div>
 
                 {/* 2. Website Summary Card */}
-                <div className="bg-dark-900/60 p-5 sm:p-6 rounded-xl border border-white/5 space-y-4">
+                <div className="bg-surface-100 p-5 sm:p-6 rounded-xl border border-dark-900/5 space-y-4">
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                     <div>
                       <div className="flex items-center gap-3 flex-wrap">
-                        <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                          <FileText className="w-4 h-4 text-emerald-400" /> AI Business Summary
+                        <h4 className="text-sm font-bold text-dark-900 flex items-center gap-2">
+                          <FileText className="w-4 h-4 text-emerald-600" /> AI Business Summary
                         </h4>
                         {(isLoadingSummary || isRegeneratingSummary) ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/20 animate-pulse">
-                            <RefreshCw className="w-3 h-3 animate-spin text-amber-400" /> Generating Summary...
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-700 border border-amber-500/20 animate-pulse">
+                            <RefreshCw className="w-3 h-3 animate-spin text-amber-600" /> Generating Summary...
                           </span>
                         ) : siteSummary ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-700 border border-emerald-500/20">
                             <Check className="w-3 h-3" /> Summary Ready
                           </span>
                         ) : null}
                       </div>
-                      <p className="text-xs text-gray-400 mt-1">
+                      <p className="text-xs text-gray-500 mt-1">
                         High-level context injected into the system prompt to answer general business inquiries accurately.
                       </p>
                     </div>
 
                     <button
                       onClick={() => setShowSummaryEditor(!showSummaryEditor)}
-                      className="text-xs font-semibold text-brand-400 bg-brand-500/10 px-3.5 py-1.5 rounded-lg border border-brand-500/20 hover:bg-brand-500/20 transition-all flex items-center gap-1.5"
+                      className="text-xs font-semibold text-brand-700 bg-brand-500/10 px-3.5 py-1.5 rounded-lg border border-brand-500/20 hover:bg-brand-500/20 transition-all flex items-center gap-1.5"
                     >
                       <Edit3 className="w-3.5 h-3.5" />
                       {showSummaryEditor ? 'Collapse' : 'View / Edit Summary'}
@@ -1618,14 +1620,14 @@ export default function Dashboard({
                   </div>
 
                   {summarySuccessMsg && (
-                    <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs font-medium text-emerald-400 flex items-center gap-2 animate-in fade-in">
+                    <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs font-medium text-emerald-700 flex items-center gap-2 animate-in fade-in">
                       <Check className="w-4 h-4 shrink-0" />
                       <span>{summarySuccessMsg}</span>
                     </div>
                   )}
 
                   {showSummaryEditor && (
-                    <div className="pt-3 border-t border-white/5 space-y-4">
+                    <div className="pt-3 border-t border-dark-900/5 space-y-4">
                       <textarea
                         rows={5}
                         disabled={isLoadingSummary || isRegeneratingSummary}
@@ -1644,9 +1646,9 @@ export default function Dashboard({
                         <button
                           disabled={isLoadingSummary || isRegeneratingSummary}
                           onClick={handleRegenerateSummary}
-                          className="w-full sm:w-auto bg-dark-800 hover:bg-gray-700 border border-white/10 text-gray-300 hover:text-white px-4 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                          className="w-full sm:w-auto bg-white hover:bg-surface-200 border border-dark-900/10 text-gray-600 hover:text-dark-900 px-4 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all disabled:opacity-50"
                         >
-                          <RefreshCw className={`w-3.5 h-3.5 text-brand-400 ${(isLoadingSummary || isRegeneratingSummary) ? 'animate-spin' : ''}`} />
+                          <RefreshCw className={`w-3.5 h-3.5 text-brand-600 ${(isLoadingSummary || isRegeneratingSummary) ? 'animate-spin' : ''}`} />
                           Regenerate with AI
                         </button>
 
@@ -1664,32 +1666,32 @@ export default function Dashboard({
                 </div>
 
                 {/* 3. Knowledge Base / Indexed Pages Management */}
-                <div id="knowledge-base-section" className="bg-dark-900/60 p-5 sm:p-6 rounded-xl border border-white/5 space-y-4 scroll-mt-24">
+                <div id="knowledge-base-section" className="bg-surface-100 p-5 sm:p-6 rounded-xl border border-dark-900/5 space-y-4 scroll-mt-24">
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                     <div>
-                      <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                        <Layers className="w-4 h-4 text-indigo-400" /> Knowledge Base & Page Management
+                      <h4 className="text-sm font-bold text-dark-900 flex items-center gap-2">
+                        <Layers className="w-4 h-4 text-brand-600" /> Knowledge Base & Page Management
                       </h4>
-                      <p className="text-xs text-gray-400">Select which discovered website URLs are indexed into the vector database.</p>
+                      <p className="text-xs text-gray-500">Select which discovered website URLs are indexed into the vector database.</p>
                     </div>
 
                     <div className="flex items-center gap-2 w-full sm:w-auto">
                       <div className="relative flex-1 sm:w-60">
-                        <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-2.5 pointer-events-none" />
+                        <Search className="w-3.5 h-3.5 text-gray-500 absolute left-3 top-2.5 pointer-events-none" />
                         <input
                           type="text"
                           placeholder="Filter pages by URL or title..."
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
-                          className="w-full bg-dark-950 border border-white/10 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white outline-none focus:border-brand-500"
+                          className="w-full bg-white border border-gray-300 rounded-xl pl-8 pr-3 py-1.5 text-xs text-dark-900 outline-none focus:border-brand-500"
                         />
                       </div>
                     </div>
                   </div>
 
-                  <div className="overflow-x-auto rounded-xl border border-white/5 bg-dark-950/60 shadow-inner">
+                  <div className="overflow-x-auto rounded-xl border border-dark-900/5 bg-white shadow-inner">
                     <table className="w-full text-left text-xs">
-                      <thead className="bg-dark-800/80 text-gray-400 uppercase tracking-wider border-b border-white/5">
+                      <thead className="bg-surface-200 text-gray-500 uppercase tracking-wider border-b border-dark-900/5">
                         <tr>
                           <th className="py-2.5 px-4 font-semibold w-12 text-center">Active</th>
                           <th className="py-2.5 px-4 font-semibold">Page Title</th>
@@ -1697,7 +1699,7 @@ export default function Dashboard({
                           <th className="py-2.5 px-4 font-semibold text-right">Status & Actions</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-white/5 text-gray-300">
+                      <tbody className="divide-y divide-dark-900/5 text-gray-700">
                         {discoveredPages
                           .filter(p => p.url.toLowerCase().includes(searchQuery.toLowerCase()) || (p.title && p.title.toLowerCase().includes(searchQuery.toLowerCase())))
                           .map((page) => {
@@ -1707,28 +1709,28 @@ export default function Dashboard({
                             return (
                               <tr
                                 key={page.url}
-                                className={`hover:bg-white/[0.03] transition-colors ${isIncluded ? 'bg-brand-500/5' : 'opacity-75'}`}
+                                className={`hover:bg-dark-900/[0.03] transition-colors ${isIncluded ? 'bg-brand-500/5' : 'opacity-75'}`}
                               >
                                 <td className="py-2.5 px-4 text-center">
-                                  <input 
-                                    type="checkbox" 
-                                    checked={isIncluded} 
+                                  <input
+                                    type="checkbox"
+                                    checked={isIncluded}
                                     onChange={() => handleTogglePageActivation(page.url)}
-                                    className="w-4 h-4 rounded accent-brand-500 cursor-pointer" 
+                                    className="w-4 h-4 rounded accent-brand-500 cursor-pointer"
                                   />
                                 </td>
                                 <td className="py-2.5 px-4">
-                                  <div className="font-medium text-white line-clamp-1">{page.title || 'Untitled Page'}</div>
+                                  <div className="font-medium text-dark-900 line-clamp-1">{page.title || 'Untitled Page'}</div>
                                 </td>
                                 <td className="py-2.5 px-4">
-                                  <div className="text-gray-400 font-mono truncate max-w-[200px]" title={page.url}>
+                                  <div className="text-gray-500 font-mono truncate max-w-[200px]" title={page.url}>
                                     {page.url.replace(`https://${activeSite?.domain}`, '') || '/'}
                                   </div>
                                 </td>
                                 <td className="py-2.5 px-4 text-right space-x-2">
-                                  <button 
+                                  <button
                                     onClick={(e) => handleEditPage(page.url, e)}
-                                    className="text-[10px] bg-dark-800 hover:bg-gray-700 text-gray-300 px-2 py-1 rounded border border-white/10 transition-colors"
+                                    className="text-[10px] bg-white hover:bg-surface-200 text-gray-600 px-2 py-1 rounded border border-dark-900/10 transition-colors"
                                   >
                                     Edit
                                   </button>
@@ -1737,31 +1739,31 @@ export default function Dashboard({
                                     onClick={() => handleTogglePageActivation(page.url)}
                                     className={`text-[10px] px-2 py-1 rounded font-semibold border transition-colors ${
                                       isIncluded
-                                        ? 'bg-red-500/10 hover:bg-red-500/20 text-red-400 border-red-500/20'
-                                        : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/20'
+                                        ? 'bg-red-500/10 hover:bg-red-500/20 text-red-600 border-red-500/20'
+                                        : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 border-emerald-500/20'
                                     }`}
                                   >
                                     {isIncluded ? 'Disable' : 'Enable'}
                                   </button>
 
                                   {currentStatus === 'protected' ? (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/10 text-rose-700 border border-rose-500/20">
                                       <Lock className="w-2.5 h-2.5" /> Auth Protected
                                     </span>
                                   ) : currentStatus === 'empty' ? (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-dark-900 text-gray-400 border border-gray-700/60">
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-surface-200 text-gray-500 border border-gray-300">
                                       Empty (0 chunks)
                                     </span>
                                   ) : currentStatus === 'loading' ? (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-700 border border-amber-500/20">
                                       <RefreshCw className="w-2.5 h-2.5 animate-spin" /> Indexing...
                                     </span>
                                   ) : currentStatus === 'loaded' ? (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-700 border border-emerald-500/20">
                                       <Check className="w-2.5 h-2.5" /> Indexed
                                     </span>
                                   ) : (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-500/10 text-gray-400 border border-gray-500/20">
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-500/10 text-gray-600 border border-gray-500/20">
                                       Disabled
                                     </span>
                                   )}
@@ -1775,12 +1777,12 @@ export default function Dashboard({
                 </div>
 
                 {/* 4. Danger Zone: Delete Website */}
-                <div className="bg-red-950/20 border border-red-500/20 rounded-xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                   <div>
-                    <h4 className="text-sm font-bold text-red-400 flex items-center gap-2">
-                      <AlertTriangle className="w-4 h-4 text-red-400" /> Danger Zone: Delete Website
+                    <h4 className="text-sm font-bold text-red-600 flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-red-600" /> Danger Zone: Delete Website
                     </h4>
-                    <p className="text-xs text-gray-400 mt-1">
+                    <p className="text-xs text-gray-500 mt-1">
                       Permanently remove <strong>{activeSite?.domain}</strong>, all indexed vector pages, custom business summaries, and revoke the public API key.
                     </p>
                   </div>
@@ -1802,13 +1804,13 @@ export default function Dashboard({
       {/* 3. DEDICATED LEARNING PROGRESS MODAL (POPUP WITH PROGRESS BAR) */}
       {showLearningModal && (
         <div className="fixed inset-0 z-[999999] bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="glass-card p-8 sm:p-10 rounded-3xl w-full max-w-lg border border-white/10 shadow-2xl relative text-center overflow-hidden animate-in fade-in zoom-in-95 duration-300">
+          <div className="glass-card p-8 sm:p-10 rounded-3xl w-full max-w-lg border border-dark-900/10 shadow-2xl relative text-center overflow-hidden animate-in fade-in zoom-in-95 duration-300">
             {/* Background Glow */}
             <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-64 h-64 rounded-full bg-brand-500/20 blur-[90px] pointer-events-none" />
 
             {/* AI Avatar / Radar */}
             <div className="relative mx-auto mb-6 flex justify-center">
-              <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-brand-600 to-indigo-500 flex items-center justify-center text-white shadow-2xl shadow-brand-500/30 border border-white/20">
+              <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-brand-700 to-brand-400 flex items-center justify-center text-white shadow-2xl shadow-brand-500/30 border border-dark-900/10">
                 {learningStep === 4 ? (
                   <CheckCircle2 className="w-10 h-10 text-emerald-300" />
                 ) : (
@@ -1818,10 +1820,10 @@ export default function Dashboard({
             </div>
 
             {/* Title & Description */}
-            <h3 className="text-2xl font-bold text-white mb-2">
+            <h3 className="text-2xl font-bold text-dark-900 mb-2">
               {learningStep === 4 ? "🎉 Your AI Assistant is Ready!" : `Teaching Your AI from ${learningDomain || 'Website'}`}
             </h3>
-            <p className="text-sm text-gray-400 mb-8 max-w-md mx-auto">
+            <p className="text-sm text-gray-500 mb-8 max-w-md mx-auto">
               {learningStep === 4
                 ? `Our system successfully crawled, indexed, and synthesized your website content. You can now test it live!`
                 : `Our system is analyzing your website pages, extracting content & services, and training your custom 24/7 AI chatbot.`}
@@ -1830,45 +1832,45 @@ export default function Dashboard({
             {/* Progress Bar */}
             <div className="space-y-2 mb-8 text-left">
               <div className="flex items-center justify-between text-xs font-semibold">
-                <span className="text-gray-300 flex items-center gap-2">
-                  {learningStep < 4 && <RefreshCw className="w-3.5 h-3.5 animate-spin text-brand-400" />}
+                <span className="text-gray-600 flex items-center gap-2">
+                  {learningStep < 4 && <RefreshCw className="w-3.5 h-3.5 animate-spin text-brand-600" />}
                   {crawlProgressMsg || "Processing website..."}
                 </span>
-                <span className="text-brand-400 font-mono">{learningProgress}%</span>
+                <span className="text-brand-700 font-mono">{learningProgress}%</span>
               </div>
-              <div className="w-full h-3 bg-dark-900 rounded-full overflow-hidden border border-white/10 p-0.5">
-                <div 
-                  className="h-full bg-gradient-to-r from-brand-500 via-indigo-500 to-emerald-400 rounded-full transition-all duration-500 shadow-sm"
+              <div className="w-full h-3 bg-surface-200 rounded-full overflow-hidden border border-dark-900/10 p-0.5">
+                <div
+                  className="h-full bg-gradient-to-r from-brand-600 via-brand-400 to-emerald-400 rounded-full transition-all duration-500 shadow-sm"
                   style={{ width: `${learningProgress}%` }}
                 />
               </div>
             </div>
 
             {/* Step Checklist */}
-            <div className="bg-dark-900/70 p-4 rounded-2xl border border-white/5 text-left space-y-3 mb-8">
+            <div className="bg-surface-100 p-4 rounded-2xl border border-dark-900/5 text-left space-y-3 mb-8">
               <div className="flex items-center gap-3 text-xs">
-                <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${learningStep >= 2 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-brand-500/20 text-brand-400 animate-pulse'}`}>
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${learningStep >= 2 ? 'bg-emerald-500/20 text-emerald-700' : 'bg-brand-500/20 text-brand-700 animate-pulse'}`}>
                   {learningStep >= 2 ? <Check className="w-3 h-3" /> : '1'}
                 </div>
-                <span className={learningStep >= 2 ? 'text-gray-300 font-medium' : 'text-white font-semibold'}>
+                <span className={learningStep >= 2 ? 'text-gray-600 font-medium' : 'text-dark-900 font-semibold'}>
                   Discovering all website pages & sitemap
                 </span>
               </div>
 
               <div className="flex items-center gap-3 text-xs">
-                <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${learningStep >= 3 ? 'bg-emerald-500/20 text-emerald-400' : learningStep === 2 ? 'bg-brand-500/20 text-brand-400 animate-pulse' : 'bg-gray-800 text-gray-500'}`}>
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${learningStep >= 3 ? 'bg-emerald-500/20 text-emerald-700' : learningStep === 2 ? 'bg-brand-500/20 text-brand-700 animate-pulse' : 'bg-surface-200 text-gray-500'}`}>
                   {learningStep >= 3 ? <Check className="w-3 h-3" /> : '2'}
                 </div>
-                <span className={learningStep >= 3 ? 'text-gray-300 font-medium' : learningStep === 2 ? 'text-white font-semibold' : 'text-gray-500'}>
+                <span className={learningStep >= 3 ? 'text-gray-600 font-medium' : learningStep === 2 ? 'text-dark-900 font-semibold' : 'text-gray-500'}>
                   Extracting text & building semantic vector index
                 </span>
               </div>
 
               <div className="flex items-center gap-3 text-xs">
-                <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${learningStep >= 4 ? 'bg-emerald-500/20 text-emerald-400' : learningStep === 3 ? 'bg-brand-500/20 text-brand-400 animate-pulse' : 'bg-gray-800 text-gray-500'}`}>
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${learningStep >= 4 ? 'bg-emerald-500/20 text-emerald-700' : learningStep === 3 ? 'bg-brand-500/20 text-brand-700 animate-pulse' : 'bg-surface-200 text-gray-500'}`}>
                   {learningStep >= 4 ? <Check className="w-3 h-3" /> : '3'}
                 </div>
-                <span className={learningStep >= 4 ? 'text-gray-300 font-medium' : learningStep === 3 ? 'text-white font-semibold' : 'text-gray-500'}>
+                <span className={learningStep >= 4 ? 'text-gray-600 font-medium' : learningStep === 3 ? 'text-dark-900 font-semibold' : 'text-gray-500'}>
                   Synthesizing AI Business Summary
                 </span>
               </div>
@@ -1882,13 +1884,13 @@ export default function Dashboard({
                     setShowLearningModal(false);
                     setShowPreviewModal(true);
                   }}
-                  className="flex-1 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white font-bold py-3.5 px-6 rounded-xl text-sm flex items-center justify-center gap-2 shadow-lg shadow-brand-900/40 transition-all hover:scale-[1.02] active:scale-98"
+                  className="flex-1 bg-gradient-to-r from-brand-700 to-brand-500 hover:from-brand-600 hover:to-brand-400 text-white font-bold py-3.5 px-6 rounded-xl text-sm flex items-center justify-center gap-2 shadow-lg shadow-brand-900/30 transition-all hover:scale-[1.02] active:scale-98"
                 >
                   <Eye className="w-4 h-4" /> Test My Bot Now →
                 </button>
                 <button
                   onClick={() => setShowLearningModal(false)}
-                  className="bg-dark-800 hover:bg-gray-700 text-gray-300 hover:text-white font-semibold py-3.5 px-5 rounded-xl text-sm transition-all"
+                  className="bg-white hover:bg-surface-200 border border-dark-900/10 text-gray-600 hover:text-dark-900 font-semibold py-3.5 px-5 rounded-xl text-sm transition-all"
                 >
                   Go to Dashboard
                 </button>
@@ -2160,36 +2162,36 @@ export default function Dashboard({
 
         return (
           <div className="fixed inset-0 z-[9999999] bg-black/80 flex items-center justify-center p-4 animate-in fade-in">
-            <div className="glass-card p-6 sm:p-8 rounded-3xl w-full max-w-2xl border border-white/10 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+            <div className="glass-card p-6 sm:p-8 rounded-3xl w-full max-w-2xl border border-dark-900/10 shadow-2xl relative max-h-[90vh] overflow-y-auto">
               <button
                 onClick={() => setShowIntegrationModal(false)}
-                className="absolute top-4 right-4 text-gray-400 hover:text-white p-2 rounded-lg hover:bg-white/5 transition-colors"
+                className="absolute top-4 right-4 text-gray-500 hover:text-dark-900 p-2 rounded-lg hover:bg-dark-900/5 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
 
-              <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
-                <Code className="w-6 h-6 text-brand-400" /> Embed Widget on Your Website
+              <h3 className="text-xl font-bold text-dark-900 mb-2 flex items-center gap-2">
+                <Code className="w-6 h-6 text-brand-600" /> Embed Widget on Your Website
               </h3>
-              <p className="text-sm text-gray-400 mb-6">
-                Copy this code snippet and paste it right before the closing <code className="text-indigo-300 font-mono text-xs bg-dark-800 px-1 py-0.5 rounded">&lt;/body&gt;</code> tag on any pages where you want the assistant to appear.
+              <p className="text-sm text-gray-500 mb-6">
+                Copy this code snippet and paste it right before the closing <code className="text-brand-300 font-mono text-xs bg-dark-800 px-1 py-0.5 rounded">&lt;/body&gt;</code> tag on any pages where you want the assistant to appear.
               </p>
 
               {/* PLAN LIMIT WARNING BANNER */}
               {isOverPlanLimit && (
                 <div className="mb-6 bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 text-left space-y-3 animate-in fade-in">
                   <div className="flex items-start gap-3">
-                    <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400 shrink-0 mt-0.5">
+                    <div className="p-2 rounded-xl bg-amber-500/20 text-amber-700 shrink-0 mt-0.5">
                       <AlertTriangle className="w-5 h-5" />
                     </div>
                     <div className="flex-1 text-xs">
-                      <h4 className="font-bold text-white text-sm mb-1 flex items-center gap-2">
+                      <h4 className="font-bold text-dark-900 text-sm mb-1 flex items-center gap-2">
                         Plan Limit Exceeded ({activeIndexedPagesCount} / {allowedPagesForPlan} pages)
                       </h4>
-                      <p className="text-amber-200/90 leading-relaxed">
+                      <p className="text-amber-800 leading-relaxed">
                         Your website has <strong>{activeIndexedPagesCount} active pages</strong>, which exceeds your current <strong>{tenantPlan.toUpperCase()}</strong> plan limit of <strong>{allowedPagesForPlan} pages</strong>.
                       </p>
-                      <p className="text-gray-300 mt-1">
+                      <p className="text-gray-600 mt-1">
                         To deploy to your live website, either <strong>upgrade your plan</strong> or <strong>deactivate {activeIndexedPagesCount - allowedPagesForPlan} extra page(s)</strong> in your Knowledge Base table.
                       </p>
                     </div>
@@ -2205,7 +2207,7 @@ export default function Dashboard({
                           if (kbTable) kbTable.scrollIntoView({ behavior: 'smooth' });
                         }, 200);
                       }}
-                      className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-semibold text-gray-300 hover:text-white bg-dark-900 border border-white/10 hover:bg-dark-800 transition-all"
+                      className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-semibold text-gray-600 hover:text-dark-900 bg-white border border-dark-900/10 hover:bg-surface-200 transition-all"
                     >
                       Manage & Deactivate Pages
                     </button>
@@ -2251,16 +2253,16 @@ export default function Dashboard({
       {/* 6. EDIT PAGE CONTENT MODAL */}
       {editingPage && (
         <div className="fixed inset-0 z-[9999999] bg-black/80 flex items-center justify-center p-4">
-          <div className="bg-dark-900 p-6 rounded-2xl w-full max-w-3xl border border-white/10 shadow-2xl relative flex flex-col h-[80vh]">
+          <div className="bg-white p-6 rounded-2xl w-full max-w-3xl border border-dark-900/10 shadow-2xl relative flex flex-col h-[80vh]">
             <button
               onClick={() => setEditingPage(null)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-white p-2 rounded-lg hover:bg-white/5 transition-colors"
+              className="absolute top-4 right-4 text-gray-500 hover:text-dark-900 p-2 rounded-lg hover:bg-dark-900/5 transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
-            
-            <h3 className="text-lg font-bold text-white mb-1">Edit Indexed Knowledge Content</h3>
-            <p className="text-xs text-gray-400 font-mono mb-4 truncate pr-10">{editingPage.url}</p>
+
+            <h3 className="text-lg font-bold text-dark-900 mb-1">Edit Indexed Knowledge Content</h3>
+            <p className="text-xs text-gray-500 font-mono mb-4 truncate pr-10">{editingPage.url}</p>
 
             <div className="flex-1 overflow-hidden flex flex-col min-h-0">
               <textarea
@@ -2272,10 +2274,10 @@ export default function Dashboard({
               />
             </div>
 
-            <div className="mt-4 flex justify-end gap-3 pt-4 border-t border-white/10">
+            <div className="mt-4 flex justify-end gap-3 pt-4 border-t border-dark-900/10">
               <button
                 onClick={() => setEditingPage(null)}
-                className="px-5 py-2.5 rounded-xl text-sm text-gray-400 hover:text-white font-medium"
+                className="px-5 py-2.5 rounded-xl text-sm text-gray-500 hover:text-dark-900 font-medium"
               >
                 Cancel
               </button>
@@ -2295,30 +2297,30 @@ export default function Dashboard({
       {/* 7. NON-BLOCKING ADD WEBSITE MODAL */}
       {showAddSiteModal && (
         <div className="fixed inset-0 z-[9999999] bg-black/80 flex items-center justify-center p-4 animate-in fade-in">
-          <div className="glass-card p-8 rounded-3xl w-full max-w-lg border border-white/10 shadow-2xl relative">
+          <div className="glass-card p-8 rounded-3xl w-full max-w-lg border border-dark-900/10 shadow-2xl relative">
             <button
               onClick={() => setShowAddSiteModal(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-white p-2 rounded-lg hover:bg-white/5 transition-colors"
+              className="absolute top-4 right-4 text-gray-500 hover:text-dark-900 p-2 rounded-lg hover:bg-dark-900/5 transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
 
-            <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
-              <Globe className="w-6 h-6 text-brand-400" /> Add a New Website
+            <h3 className="text-xl font-bold text-dark-900 mb-2 flex items-center gap-2">
+              <Globe className="w-6 h-6 text-brand-600" /> Add a New Website
             </h3>
-            <p className="text-sm text-gray-400 mb-6">
+            <p className="text-sm text-gray-500 mb-6">
               Connect another website to your account without interrupting your active assistant.
             </p>
 
             {newSiteError && (
-              <div className="mb-4 bg-red-500/10 border border-red-500/30 text-red-400 text-xs rounded-xl p-3">
+              <div className="mb-4 bg-red-500/10 border border-red-500/30 text-red-600 text-xs rounded-xl p-3">
                 ⚠️ {newSiteError}
               </div>
             )}
 
             <form onSubmit={handleAddSiteModalSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-300 mb-2">Website URL / Domain</label>
+                <label className="block text-xs font-semibold text-gray-600 mb-2">Website URL / Domain</label>
                 <div className="relative">
                   <Globe className="w-4 h-4 text-gray-500 absolute left-3.5 top-3 pointer-events-none" />
                   <input
@@ -2327,8 +2329,7 @@ export default function Dashboard({
                     placeholder="https://second-company.com"
                     value={newSiteUrlInput}
                     onChange={(e) => setNewSiteUrlInput(e.target.value)}
-                    style={{ backgroundColor: '#090d16', color: '#f3f4f6' }}
-                    className="w-full bg-dark-950 border border-white/10 text-gray-100 placeholder-gray-500 rounded-xl pl-10 pr-4 py-2.5 text-xs outline-none focus:border-brand-500 transition-colors"
+                    className="w-full bg-white border border-gray-300 text-dark-900 placeholder-gray-400 rounded-xl pl-10 pr-4 py-2.5 text-xs outline-none focus:border-brand-500 transition-colors"
                   />
                 </div>
               </div>
@@ -2337,7 +2338,7 @@ export default function Dashboard({
                 <button
                   type="button"
                   onClick={() => setShowAddSiteModal(false)}
-                  className="px-4 py-2 text-xs font-medium text-gray-400 hover:text-white"
+                  className="px-4 py-2 text-xs font-medium text-gray-500 hover:text-dark-900"
                 >
                   Cancel
                 </button>
@@ -2362,19 +2363,19 @@ export default function Dashboard({
       {showDeleteConfirmModal && activeSite && (
         <div className="fixed inset-0 z-[9999999] bg-black/80 flex items-center justify-center p-4 animate-in fade-in">
           <div className="glass-card p-8 rounded-3xl w-full max-w-md border border-red-500/30 shadow-2xl relative text-center">
-            <div className="w-14 h-14 rounded-2xl bg-red-500/10 text-red-400 border border-red-500/20 flex items-center justify-center mx-auto mb-4">
+            <div className="w-14 h-14 rounded-2xl bg-red-500/10 text-red-600 border border-red-500/20 flex items-center justify-center mx-auto mb-4">
               <AlertTriangle className="w-7 h-7" />
             </div>
 
-            <h3 className="text-xl font-bold text-white mb-2">
+            <h3 className="text-xl font-bold text-dark-900 mb-2">
               Delete Website?
             </h3>
-            <p className="text-sm text-gray-400 mb-6 leading-relaxed">
-              Are you sure you want to delete <strong className="text-white">{activeSite.domain}</strong>? All indexed knowledge pages, business summaries, and the chatbot API key will be permanently removed.
+            <p className="text-sm text-gray-500 mb-6 leading-relaxed">
+              Are you sure you want to delete <strong className="text-dark-900">{activeSite.domain}</strong>? All indexed knowledge pages, business summaries, and the chatbot API key will be permanently removed.
             </p>
 
             {deleteSiteError && (
-              <div className="mb-5 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-xs font-medium text-red-300 text-left flex items-start gap-2 animate-in fade-in">
+              <div className="mb-5 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-xs font-medium text-red-700 text-left flex items-start gap-2 animate-in fade-in">
                 <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
                 <span>{deleteSiteError}</span>
               </div>
@@ -2388,7 +2389,7 @@ export default function Dashboard({
                   setShowDeleteConfirmModal(false);
                   setDeleteSiteError('');
                 }}
-                className="w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-semibold text-gray-300 hover:text-white bg-dark-900 border border-white/10 hover:bg-dark-800 transition-all"
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-semibold text-gray-600 hover:text-dark-900 bg-white border border-dark-900/10 hover:bg-surface-200 transition-all"
               >
                 Cancel
               </button>
@@ -2417,14 +2418,14 @@ export default function Dashboard({
           <div className="glass-card p-6 sm:p-8 rounded-3xl w-full max-w-3xl border border-amber-500/30 shadow-2xl relative flex flex-col max-h-[88vh]">
             <div className="flex items-start justify-between gap-4 mb-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/30">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-700 flex items-center justify-center shrink-0 border border-amber-500/30">
                   <AlertTriangle className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-white">
+                  <h3 className="text-lg font-bold text-dark-900">
                     Large Website ({pendingCrawlPages.length} Pages Discovered)
                   </h3>
-                  <p className="text-xs text-gray-400">
+                  <p className="text-xs text-gray-500">
                     Your current <strong>{tenantPlan.toUpperCase()}</strong> plan includes up to <strong>{getMaxPagesForPlan(tenantPlan)} pages</strong>. Select which pages to index or upgrade your plan.
                   </p>
                 </div>
@@ -2432,24 +2433,23 @@ export default function Dashboard({
 
               <span className={`px-3 py-1 rounded-full text-xs font-bold shrink-0 ${
                 selectedUrls.size > getMaxPagesForPlan(tenantPlan)
-                  ? 'bg-red-500/20 text-red-400 border border-red-500/30'
-                  : 'bg-brand-500/20 text-brand-300 border border-brand-500/30'
+                  ? 'bg-red-500/20 text-red-700 border border-red-500/30'
+                  : 'bg-brand-500/20 text-brand-800 border border-brand-500/30'
               }`}>
                 {selectedUrls.size} / {getMaxPagesForPlan(tenantPlan)} pages selected
               </span>
             </div>
 
             {/* Quick Actions & Search */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pb-3 border-b border-white/5">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pb-3 border-b border-dark-900/5">
               <div className="relative w-full sm:w-72">
-                <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-2.5 pointer-events-none" />
+                <Search className="w-3.5 h-3.5 text-gray-500 absolute left-3 top-2.5 pointer-events-none" />
                 <input
                   type="text"
                   placeholder="Filter pages by URL or title..."
                   value={pageSelectionSearch}
                   onChange={(e) => setPageSelectionSearch(e.target.value)}
-                  style={{ backgroundColor: '#090d16', color: '#f3f4f6' }}
-                  className="w-full bg-dark-950 border border-white/10 text-gray-100 placeholder-gray-500 rounded-xl pl-8 pr-3 py-1.5 text-xs outline-none focus:border-brand-500 transition-colors"
+                  className="w-full bg-white border border-gray-300 text-dark-900 placeholder-gray-400 rounded-xl pl-8 pr-3 py-1.5 text-xs outline-none focus:border-brand-500 transition-colors"
                 />
               </div>
 
@@ -2460,14 +2460,14 @@ export default function Dashboard({
                     const topN = pendingCrawlPages.slice(0, getMaxPagesForPlan(tenantPlan));
                     setSelectedUrls(new Set(topN.map(p => p.url)));
                   }}
-                  className="text-xs text-gray-300 hover:text-white bg-dark-800 hover:bg-dark-700 px-3 py-1.5 rounded-lg border border-white/10 transition-colors"
+                  className="text-xs text-gray-600 hover:text-dark-900 bg-white hover:bg-surface-200 px-3 py-1.5 rounded-lg border border-dark-900/10 transition-colors"
                 >
                   Select Top {getMaxPagesForPlan(tenantPlan)}
                 </button>
                 <button
                   type="button"
                   onClick={() => setSelectedUrls(new Set())}
-                  className="text-xs text-gray-400 hover:text-white bg-dark-800 hover:bg-dark-700 px-3 py-1.5 rounded-lg border border-white/10 transition-colors"
+                  className="text-xs text-gray-500 hover:text-dark-900 bg-white hover:bg-surface-200 px-3 py-1.5 rounded-lg border border-dark-900/10 transition-colors"
                 >
                   Clear All
                 </button>
@@ -2475,7 +2475,7 @@ export default function Dashboard({
             </div>
 
             {/* Scrollable Page Checklist */}
-            <div className="flex-1 overflow-y-auto min-h-0 my-3 divide-y divide-white/5 rounded-xl border border-white/5 bg-dark-950/60">
+            <div className="flex-1 overflow-y-auto min-h-0 my-3 divide-y divide-dark-900/5 rounded-xl border border-dark-900/5 bg-white">
               {pendingCrawlPages
                 .filter(p => p.url.toLowerCase().includes(pageSelectionSearch.toLowerCase()) || (p.title && p.title.toLowerCase().includes(pageSelectionSearch.toLowerCase())))
                 .map((page, idx) => {
@@ -2498,7 +2498,7 @@ export default function Dashboard({
                           return next;
                         });
                       }}
-                      className={`p-3 flex items-center justify-between gap-3 cursor-pointer hover:bg-white/[0.03] transition-colors ${
+                      className={`p-3 flex items-center justify-between gap-3 cursor-pointer hover:bg-dark-900/[0.03] transition-colors ${
                         isChecked ? 'bg-brand-500/5' : ''
                       }`}
                     >
@@ -2507,15 +2507,15 @@ export default function Dashboard({
                           type="checkbox"
                           checked={isChecked}
                           onChange={() => {}}
-                          className="w-4 h-4 rounded text-brand-600 bg-dark-800 border-white/20 focus:ring-0 shrink-0"
+                          className="w-4 h-4 rounded text-brand-600 bg-white border-gray-300 focus:ring-0 shrink-0"
                         />
                         <div className="min-w-0">
-                          <div className="text-xs font-semibold text-white truncate">{page.title || page.url}</div>
-                          <div className="text-[11px] text-gray-400 font-mono truncate">{page.url}</div>
+                          <div className="text-xs font-semibold text-dark-900 truncate">{page.title || page.url}</div>
+                          <div className="text-[11px] text-gray-500 font-mono truncate">{page.url}</div>
                         </div>
                       </div>
                       <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${
-                        isChecked ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-gray-800 text-gray-400'
+                        isChecked ? 'bg-emerald-500/10 text-emerald-700 border border-emerald-500/20' : 'bg-gray-200 text-gray-600'
                       }`}>
                         {isChecked ? 'Selected' : 'Skipped'}
                       </span>
@@ -2525,16 +2525,16 @@ export default function Dashboard({
             </div>
 
             {/* Modal Footer Actions */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-white/5">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-dark-900/5">
               <button
                 type="button"
                 onClick={() => {
                   setShowPageSelectionModal(false);
                   if (onShowPricing) onShowPricing();
                 }}
-                className="w-full sm:w-auto text-xs text-amber-300 hover:text-amber-200 font-semibold flex items-center gap-1.5 px-3 py-2"
+                className="w-full sm:w-auto text-xs text-amber-700 hover:text-amber-800 font-semibold flex items-center gap-1.5 px-3 py-2"
               >
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <Sparkles className="w-3.5 h-3.5 text-amber-600" />
                 Upgrade plan for unlimited pages →
               </button>
 
@@ -2542,7 +2542,7 @@ export default function Dashboard({
                 <button
                   type="button"
                   onClick={() => setShowPageSelectionModal(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-gray-400 hover:text-white"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-gray-500 hover:text-dark-900"
                 >
                   Cancel
                 </button>
@@ -2576,22 +2576,22 @@ export default function Dashboard({
             <div className="glass-card p-8 rounded-3xl w-full max-w-md border border-brand-500/30 shadow-2xl relative text-center">
               <button
                 onClick={() => setShowUpgradeRequiredModal(false)}
-                className="absolute top-4 right-4 text-gray-400 hover:text-white p-2 rounded-lg hover:bg-white/5 transition-colors"
+                className="absolute top-4 right-4 text-gray-500 hover:text-dark-900 p-2 rounded-lg hover:bg-dark-900/5 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
 
-              <div className="w-14 h-14 rounded-2xl bg-brand-500/10 text-brand-300 border border-brand-500/20 flex items-center justify-center mx-auto mb-4">
+              <div className="w-14 h-14 rounded-2xl bg-brand-500/10 text-brand-700 border border-brand-500/20 flex items-center justify-center mx-auto mb-4">
                 <Sparkles className="w-7 h-7" />
               </div>
 
-              <h3 className="text-xl font-bold text-white mb-2">
+              <h3 className="text-xl font-bold text-dark-900 mb-2">
                 Add {upgradeRequiredDomain || 'another website'} with an upgrade
               </h3>
-              <p className="text-sm text-gray-400 mb-6 leading-relaxed">
-                Your <strong className="text-white">{tenantPlan.toUpperCase()}</strong> plan covers <strong className="text-white">{maxSitesForPlan} website{maxSitesForPlan > 1 ? 's' : ''}</strong>, and your workspace already has {sites?.length ?? 0}.
+              <p className="text-sm text-gray-500 mb-6 leading-relaxed">
+                Your <strong className="text-dark-900">{tenantPlan.toUpperCase()}</strong> plan covers <strong className="text-dark-900">{maxSitesForPlan} website{maxSitesForPlan > 1 ? 's' : ''}</strong>, and your workspace already has {sites?.length ?? 0}.
                 {nextPlan
-                  ? <> Upgrading to <strong className="text-white">{nextPlan.name}</strong> raises that to <strong className="text-white">{nextPlan.sites} websites</strong> — your current assistants keep running exactly as they are.</>
+                  ? <> Upgrading to <strong className="text-dark-900">{nextPlan.name}</strong> raises that to <strong className="text-dark-900">{nextPlan.sites} websites</strong> — your current assistants keep running exactly as they are.</>
                   : <> That is our largest plan; get in touch and we will work out what you need.</>}
               </p>
 
@@ -2603,7 +2603,7 @@ export default function Dashboard({
                       setShowUpgradeRequiredModal(false);
                       onShowPricing();
                     }}
-                    className="w-full bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white font-bold px-6 py-3 rounded-xl text-sm flex items-center justify-center gap-2 transition-all shadow-lg shadow-brand-900/50 hover:scale-[1.02] active:scale-95"
+                    className="w-full bg-gradient-to-r from-brand-700 to-brand-500 hover:from-brand-600 hover:to-brand-400 text-white font-bold px-6 py-3 rounded-xl text-sm flex items-center justify-center gap-2 transition-all shadow-lg shadow-brand-900/30 hover:scale-[1.02] active:scale-95"
                   >
                     <Sparkles className="w-4 h-4" />
                     {nextPlan ? `Upgrade to ${nextPlan.name}` : 'See plans'} →
@@ -2618,7 +2618,7 @@ export default function Dashboard({
                     setShowUpgradeRequiredModal(false);
                     setShowDeleteConfirmModal(true);
                   }}
-                  className="w-full px-5 py-2 rounded-xl text-xs font-medium text-gray-400 hover:text-white transition-colors"
+                  className="w-full px-5 py-2 rounded-xl text-xs font-medium text-gray-500 hover:text-dark-900 transition-colors"
                 >
                   Or delete {activeSite?.domain || 'an existing website'} to free a slot
                 </button>
@@ -2626,7 +2626,7 @@ export default function Dashboard({
                 <button
                   type="button"
                   onClick={() => setShowUpgradeRequiredModal(false)}
-                  className="w-full px-5 py-1 text-xs font-medium text-gray-500 hover:text-gray-300 transition-colors"
+                  className="w-full px-5 py-1 text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors"
                 >
                   Not now
                 </button>
@@ -2644,14 +2644,14 @@ export default function Dashboard({
           <div className="glass-card p-6 sm:p-8 rounded-3xl w-full max-w-2xl border border-amber-500/30 shadow-2xl relative flex flex-col max-h-[88vh]">
             <div className="flex items-start justify-between gap-4 mb-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/30">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-700 flex items-center justify-center shrink-0 border border-amber-500/30">
                   <AlertTriangle className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-white">
+                  <h3 className="text-lg font-bold text-dark-900">
                     Choose which website{maxSitesForPlan > 1 ? 's' : ''} stay{maxSitesForPlan > 1 ? '' : 's'} active
                   </h3>
-                  <p className="text-xs text-gray-400">
+                  <p className="text-xs text-gray-500">
                     Your <strong>{tenantPlan.toUpperCase()}</strong> plan covers <strong>{maxSitesForPlan} active website{maxSitesForPlan > 1 ? 's' : ''}</strong>, and you have <strong>{activeSites.length}</strong>.
                   </p>
                 </div>
@@ -2659,29 +2659,29 @@ export default function Dashboard({
 
               <span className={`px-3 py-1 rounded-full text-xs font-bold shrink-0 ${
                 overLimitKeepIds.size === 0
-                  ? 'bg-red-500/20 text-red-400 border border-red-500/30'
-                  : 'bg-brand-500/20 text-brand-300 border border-brand-500/30'
+                  ? 'bg-red-500/20 text-red-700 border border-red-500/30'
+                  : 'bg-brand-500/20 text-brand-800 border border-brand-500/30'
               }`}>
                 {overLimitKeepIds.size} / {maxSitesForPlan} selected
               </span>
             </div>
 
-            <div className="bg-emerald-500/10 border border-emerald-500/25 rounded-2xl p-3.5 text-xs text-emerald-200/90 leading-relaxed flex items-start gap-2.5">
-              <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5 text-emerald-400" />
+            <div className="bg-emerald-500/10 border border-emerald-500/25 rounded-2xl p-3.5 text-xs text-emerald-800 leading-relaxed flex items-start gap-2.5">
+              <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5 text-emerald-600" />
               <span>
-                The websites you do not select are <strong className="text-white">parked, not deleted</strong>. Their indexed pages, business summary, captured leads and API keys stay untouched — only their chat widget stops answering. Upgrade your plan and they come back online exactly as they were.
+                The websites you do not select are <strong className="text-dark-900">parked, not deleted</strong>. Their indexed pages, business summary, captured leads and API keys stay untouched — only their chat widget stops answering. Upgrade your plan and they come back online exactly as they were.
               </span>
             </div>
 
             {overLimitError && (
-              <div className="mt-3 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-xs font-medium text-red-300 text-left flex items-start gap-2 animate-in fade-in">
+              <div className="mt-3 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-xs font-medium text-red-700 text-left flex items-start gap-2 animate-in fade-in">
                 <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
                 <span>{overLimitError}</span>
               </div>
             )}
 
             {/* Scrollable Website Checklist */}
-            <div className="flex-1 overflow-y-auto min-h-0 my-3 divide-y divide-white/5 rounded-xl border border-white/5 bg-dark-950/60">
+            <div className="flex-1 overflow-y-auto min-h-0 my-3 divide-y divide-dark-900/5 rounded-xl border border-dark-900/5 bg-white">
               {activeSites.map((s) => {
                 const isChecked = overLimitKeepIds.has(s.id);
                 const isFull = !isChecked && overLimitKeepIds.size >= maxSitesForPlan;
@@ -2691,7 +2691,7 @@ export default function Dashboard({
                     onClick={() => toggleOverLimitKeep(s.id)}
                     title={isFull ? 'Unselect another website first' : ''}
                     className={`p-3 flex items-center justify-between gap-3 transition-colors ${
-                      isFull ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-white/[0.03]'
+                      isFull ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-dark-900/[0.03]'
                     } ${isChecked ? 'bg-brand-500/5' : ''}`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
@@ -2699,17 +2699,17 @@ export default function Dashboard({
                         type="checkbox"
                         checked={isChecked}
                         onChange={() => {}}
-                        className="w-4 h-4 rounded text-brand-600 bg-dark-800 border-white/20 focus:ring-0 shrink-0"
+                        className="w-4 h-4 rounded text-brand-600 bg-white border-gray-300 focus:ring-0 shrink-0"
                       />
                       <div className="min-w-0">
-                        <div className="text-xs font-semibold text-white truncate">{s.domain}</div>
-                        <div className="text-[11px] text-gray-400 font-mono truncate">{s.public_key}</div>
+                        <div className="text-xs font-semibold text-dark-900 truncate">{s.domain}</div>
+                        <div className="text-[11px] text-gray-500 font-mono truncate">{s.public_key}</div>
                       </div>
                     </div>
                     <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${
                       isChecked
-                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                        : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                        ? 'bg-emerald-500/10 text-emerald-700 border border-emerald-500/20'
+                        : 'bg-amber-500/10 text-amber-700 border border-amber-500/20'
                     }`}>
                       {isChecked ? 'Stays active' : 'Will be parked'}
                     </span>
@@ -2719,7 +2719,7 @@ export default function Dashboard({
             </div>
 
             {/* Modal Footer Actions */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-white/5">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-dark-900/5">
               {onShowPricing ? (
                 <button
                   type="button"
@@ -2727,9 +2727,9 @@ export default function Dashboard({
                     setShowOverLimitModal(false);
                     onShowPricing();
                   }}
-                  className="w-full sm:w-auto text-xs text-amber-300 hover:text-amber-200 font-semibold flex items-center gap-1.5 px-3 py-2"
+                  className="w-full sm:w-auto text-xs text-amber-700 hover:text-amber-800 font-semibold flex items-center gap-1.5 px-3 py-2"
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                  <Sparkles className="w-3.5 h-3.5 text-amber-600" />
                   Upgrade instead and keep all {activeSites.length} online →
                 </button>
               ) : <span />}
