@@ -426,7 +426,7 @@ ${supportInstruction}`;
 
             // Use GPT Luna across all plans for optimal response speed & accuracy
             const defaultModel = process.env.DEFAULT_MODEL || 'openai/gpt-5.6-luna';
-            const premiumModel = process.env.PREMIUM_MODEL || 'anthropic/claude-3.5-sonnet';
+            const premiumModel = process.env.PREMIUM_MODEL || 'anthropic/claude-sonnet-5';
             const selectedModel = hasProPlan ? premiumModel : defaultModel;
 
             const responseData = await generateChatResponse({ 
