@@ -2210,3 +2210,22 @@ Le produit est passé au thème clair (rebrand dorafi), mais plusieurs surfaces 
 - Les écrans de chargement — analyse de site et aperçu — sont clairs, et le restent dans un navigateur en mode sombre.
 - Les bordures d'accent que le balisage demandait depuis toujours s'affichent enfin.
 - Suite E2E : 24 réussites / 11 échecs, exactement le même ensemble d'échecs qu'avant (réseau bloqué dans l'environnement de test), donc aucune régression.
+
+## ADR : Migration hors de l'URL Vercel temporaire vers `dorafi.logafi.com`
+**Date:** 7 Septembre 2026
+**Statut:** Accepté
+
+### Contexte
+Depuis le rebrand « Dorafi », le produit tournait encore sous l'URL Vercel temporaire `admin-seven-alpha-37.vercel.app`, codée en dur à plusieurs endroits qui ne sont pas de simples éléments de marque mais participent à des mécanismes de requête réels : l'URL de repli que le widget utilise pour appeler `/api/chat` quand l'attribut `data-api-url` n'est pas fourni, l'en-tête `HTTP-Referer` envoyé à OpenRouter, et l'adresse d'expédition des emails transactionnels. Un domaine définitif est maintenant réservé : `https://dorafi.logafi.com`.
+
+### Décision
+- **`apps/widget/src/main.js`** — `defaultApiUrl` et `brandingHost` pointent désormais vers `https://dorafi.logafi.com` au lieu de l'URL Vercel temporaire. Le détour spécial pour les previews Vercel (`window.location.hostname.includes('vercel.app')` → utiliser l'origine courante plutôt que le repli codé en dur) est conservé tel quel, pour que les déploiements de preview continuent d'appeler leur propre `/api/chat`.
+- **`apps/admin/public/widget.iife.js`** régénéré via `npm run build:widget` (copie de `apps/widget/dist/widget.iife.js`) plutôt que modifié à la main — ce fichier est un artefact de build, jamais la source de vérité.
+- **`api/lib/llm.js`** — les cinq en-têtes `HTTP-Referer` envoyés à OpenRouter (un par fonction d'appel LLM) pointent vers le nouveau domaine.
+- **`api/lib/email.js`** — `systemEmail` (l'adresse `from` des emails transactionnels Resend) passe de `noreply@b2b-chatbot.com` à `noreply@dorafi.logafi.com`.
+- **`.env.example`** — `VITE_APP_URL` et `ADMIN_ALLOWED_ORIGINS` illustrent désormais le vrai domaine plutôt qu'un placeholder générique. Rappel : `ADMIN_ALLOWED_ORIGINS` reste déclarée mais non lue par le code (voir `docs/INTEGRATION_REVIEW.md`) — le verrouillage de domaine réel du chat (`api/chat/index.js`, `requestOrigin` / `normalizedHostname`) compare l'origine de la requête au domaine **du site client** enregistré en base (`sites.domain`), jamais à celui de l'admin — ce mécanisme n'avait donc rien à changer ici.
+
+### Conséquences
+- Le widget, une fois embarqué sans `data-api-url` explicite, appelle le bon domaine de production.
+- Les demandes de complétion OpenRouter s'identifient sous le domaine réel du produit plutôt qu'une URL de déploiement temporaire.
+- Reste hors du dépôt, à faire manuellement : pointer le DNS de `dorafi.logafi.com` vers le déploiement Vercel, ajouter le domaine aux **Redirect URLs** / **Site URL** de Supabase Auth (`docs/setup/supabase.md`), et vérifier le domaine dans Resend — sans quoi l'envoi depuis `noreply@dorafi.logafi.com` échouera silencieusement.

@@ -171,7 +171,7 @@ export async function generateChatResponse({ systemPrompt, messagesHistory, apiK
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${openRouterKey}`,
-        'HTTP-Referer': 'https://admin-seven-alpha-37.vercel.app',
+        'HTTP-Referer': 'https://dorafi.logafi.com',
         'X-Title': 'Dorafi',
         'Content-Type': 'application/json'
       },
@@ -228,7 +228,7 @@ Respond STRICTLY in raw JSON format, without backticks, without markdown:
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${openRouterKey}`,
-        'HTTP-Referer': 'https://admin-seven-alpha-37.vercel.app',
+        'HTTP-Referer': 'https://dorafi.logafi.com',
         'X-Title': 'Dorafi',
         'Content-Type': 'application/json'
       },
@@ -282,7 +282,7 @@ Respond strictly in raw JSON format, without markdown or backticks:
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${openRouterKey}`,
-        'HTTP-Referer': 'https://admin-seven-alpha-37.vercel.app',
+        'HTTP-Referer': 'https://dorafi.logafi.com',
         'X-Title': 'Dorafi',
         'Content-Type': 'application/json'
       },
@@ -331,7 +331,7 @@ STRICT INSTRUCTION: Be factual and direct. Do NOT add any preamble or system met
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${openRouterKey}`,
-        'HTTP-Referer': 'https://admin-seven-alpha-37.vercel.app',
+        'HTTP-Referer': 'https://dorafi.logafi.com',
         'X-Title': 'Dorafi',
         'Content-Type': 'application/json'
       },
@@ -432,7 +432,7 @@ Respond strictly in raw JSON, no markdown or backticks:
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${openRouterKey}`,
-        'HTTP-Referer': 'https://admin-seven-alpha-37.vercel.app',
+        'HTTP-Referer': 'https://dorafi.logafi.com',
         'X-Title': 'Dorafi',
         'Content-Type': 'application/json'
       },

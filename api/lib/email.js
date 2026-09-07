@@ -2,7 +2,7 @@
 
 const resendApiKey = process.env.RESEND_API_KEY;
 const adminEmail = process.env.ADMIN_EMAIL || 'admin@example.com';
-const systemEmail = 'noreply@b2b-chatbot.com'; // TODO: swap for a real Dorafi domain once one is registered (see TODO.md)
+const systemEmail = 'noreply@dorafi.logafi.com'; // Requires this domain to be verified in Resend before sending will actually deliver
 
 const resend = resendApiKey ? new Resend(resendApiKey) : null;
 
