@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Check, Zap, Shield, Sparkles, ArrowRight, Loader2, ExternalLink } from 'lucide-react';
-import { authenticatedHeaders } from '../lib/supabase';
+import api from '../lib/api';
 
 // The website counts advertised here are the ones actually enforced: the
 // database refuses anything above them (public.plan_site_limit and the
@@ -80,29 +80,17 @@ export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'basic',
     setLoadingPlanId(planId);
     setError(null);
 
-    try {
-      const res = await fetch('/api/billing/checkout', {
-        method: 'POST',
-        headers: await authenticatedHeaders(),
-        body: JSON.stringify({ planId, tenantId }),
-      });
+    const result = await api.billing.checkout({ planId, tenantId });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Error creating checkout session');
-      }
-
-      if (data.url) {
-        // Redirect to Stripe Checkout
-        window.location.href = data.url;
-      }
-    } catch (err) {
-      console.error('[Pricing] Checkout error:', err);
-      setError(err.message);
-    } finally {
-      setLoadingPlanId(null);
+    if (result.ok && result.data?.url) {
+      // Redirect to Stripe Checkout
+      window.location.href = result.data.url;
+      return;
     }
+
+    console.error('[Pricing] Checkout error:', result.error);
+    setError(result.error || 'Error creating checkout session');
+    setLoadingPlanId(null);
   };
 
   const isCurrentPlan = (planId) => currentPlan === planId;

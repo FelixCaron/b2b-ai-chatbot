@@ -1,10 +1,16 @@
 import React, { useState } from 'react';
-import { ShieldCheck, LogOut, Settings, Loader2, Users, LayoutDashboard, Sparkles, Menu, X } from 'lucide-react';
-import PlanBadge from './PlanBadge';
-import LogoMark from './LogoMark';
-import { authenticatedHeaders } from '../lib/supabase';
+import { ShieldCheck, LogOut, Settings, Loader2, Menu, X } from 'lucide-react';
+import PlanBadge from '../PlanBadge';
+import LogoMark from '../LogoMark';
+import { navItemsWithBadges } from './navigation';
+import api from '../../lib/api';
 
-export default function Header({ 
+/**
+ * The full header a signed-in user gets: workspace selector, plan badge, and
+ * the billing action their plan calls for. The nav tabs themselves come from
+ * ./navigation.js, shared with <GuestHeader />.
+ */
+export default function AppHeader({ 
   tenants, 
   selectedTenant, 
   setSelectedTenant, 
@@ -17,12 +23,7 @@ export default function Header({
   const [portalLoading, setPortalLoading] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
-  const navItems = [
-    { view: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, iconClassName: '' },
-    { view: 'leads', label: 'Leads', icon: Users, iconClassName: 'text-emerald-500', badge: leadsCount },
-    { view: 'pricing', label: 'Plans', icon: Sparkles, iconClassName: 'text-amber-500' },
-    { view: 'about', label: 'About', icon: Users, iconClassName: '' },
-  ];
+  const navItems = navItemsWithBadges({ leadsCount });
 
   const selectView = (view) => {
     onSelectView?.(view);
@@ -36,21 +37,13 @@ export default function Header({
   const handleManageSubscription = async () => {
     if (!selectedTenant?.id) return;
     setPortalLoading(true);
-    try {
-      const res = await fetch('/api/billing/portal', {
-        method: 'POST',
-        headers: await authenticatedHeaders(),
-        body: JSON.stringify({ tenantId: selectedTenant.id }),
-      });
-      const data = await res.json();
-      if (data.url) {
-        window.location.href = data.url;
-      }
-    } catch (err) {
-      console.error('[Header] Portal error:', err);
-    } finally {
-      setPortalLoading(false);
+    const result = await api.billing.portal({ tenantId: selectedTenant.id });
+    if (result.ok && result.data?.url) {
+      window.location.href = result.data.url;
+      return;
     }
+    console.error('[AppHeader] Portal error:', result.error);
+    setPortalLoading(false);
   };
 
   return (
@@ -75,7 +68,7 @@ export default function Header({
 
           {/* Navigation Tabs — inline pills from sm: up, a sandwich menu below that */}
           <nav className="hidden sm:flex items-center gap-1 bg-surface-200 p-1 rounded-xl border border-dark-900/5">
-            {navItems.map(({ view, label, icon: Icon, iconClassName, badge }) => (
+            {navItems.map(({ view, label, icon: Icon, iconClassName, badgeValue }) => (
               <button
                 key={view}
                 onClick={() => selectView(view)}
@@ -87,9 +80,9 @@ export default function Header({
               >
                 <Icon className={`w-3.5 h-3.5 ${iconClassName}`} />
                 <span>{label}</span>
-                {badge > 0 && (
+                {badgeValue > 0 && (
                   <span className="bg-emerald-500/15 text-emerald-700 text-[10px] px-1.5 py-0.2 rounded-full font-bold">
-                    {badge}
+                    {badgeValue}
                   </span>
                 )}
               </button>
@@ -109,7 +102,7 @@ export default function Header({
 
         {mobileNavOpen && (
           <nav className="sm:hidden w-full flex flex-col gap-1 pt-2 border-t border-dark-900/5">
-            {navItems.map(({ view, label, icon: Icon, iconClassName, badge }) => (
+            {navItems.map(({ view, label, icon: Icon, iconClassName, badgeValue }) => (
               <button
                 key={view}
                 onClick={() => selectView(view)}
@@ -121,9 +114,9 @@ export default function Header({
               >
                 <Icon className={`w-4 h-4 ${iconClassName}`} />
                 <span>{label}</span>
-                {badge > 0 && (
+                {badgeValue > 0 && (
                   <span className="bg-emerald-500/15 text-emerald-700 text-[10px] px-1.5 py-0.2 rounded-full font-bold">
-                    {badge}
+                    {badgeValue}
                   </span>
                 )}
               </button>

@@ -2164,3 +2164,27 @@ L'utilisateur a signalé des boutons inactifs ou difficiles d'accès pour l'affi
 
 ### Conséquences
 - L'utilisateur peut ouvrir et fermer les paramètres en un clic et supprimer n'importe quel site web de manière fluide avec confirmation de sécurité.
+
+## ADR : Modularisation de l'application (composants, hooks) et contrats de données pour les APIs
+**Date:** 7 Septembre 2026
+**Statut:** Accepté
+
+### Contexte
+Deux obstacles rendaient chaque refonte risquée et chaque modification coûteuse :
+- **Côté interface**, `App.jsx` (957 lignes) et `Dashboard.jsx` (2 736 lignes) mélangeaient session, données, routage, chrome de page et rendu. Les deux en-têtes (celui de l'utilisateur connecté dans `components/Header.jsx`, celui de l'invité écrit en clair dans `App.jsx`) portaient chacun leur propre copie de la liste d'onglets, dans deux fichiers différents — c'est ainsi qu'ils ont divergé. Le pied de page n'existait qu'au fond d'une chaîne de ternaires de cent lignes.
+- **Côté API**, chaque route répétait les mêmes quarante lignes (branche `OPTIONS`, vérification de méthode, `try/catch` autour de `req.json()`, contrôles `if (!champ) return 400` écrits à la main, littéraux CORS par réponse). La forme d'une requête n'était décrite nulle part : elle était devinée des deux côtés du réseau. Un champ renommé dans `Dashboard.jsx` et oublié dans `api/crawler/scan.js` ne se découvrait qu'en production.
+
+### Décision
+- **Création de `packages/contracts`** — chaque API est décrite une seule fois comme un *produit* : adresse, posture d'authentification (`public` / `user` / `tenant` / `staff` / `webhook` / `cron`), schéma de requête, schéma de réponse, erreurs attendues. Paquet ESM sans dépendance et **sans étape de build** : les fonctions Edge, les bundles Vite et les scripts de test Node importent la source directement. Vocabulaire de validation maison (~150 lignes) plutôt que Zod, pour cette raison précise (poids au démarrage à froid côté serveur, poids de téléchargement côté navigateur).
+- **`api/lib/http.js`** — `edgeRoute()` / `nodeRoute()` enveloppent un gestionnaire dans son contrat et font une seule fois ce que chaque route répétait : CORS, méthode, analyse JSON, validation de la requête, authentification et propriété du tenant, mise en forme des erreurs. Bilan : −372 lignes dans `api/`.
+- **`createApiClient()`** (dans `packages/contracts`) — un seul transport navigateur, partagé par `apps/admin` et `apps/internal-admin`, chaque application ne fournissant que ses propres en-têtes d'authentification. Une seule enveloppe de résultat (`{ ok, status, data, error }`), jamais d'exception, et validation de la charge utile **avant** l'envoi. Les composants n'appellent plus jamais `fetch('/api/...')`.
+- **Composants de mise en page** (`apps/admin/src/components/layout/`) — `AppShell` (en-tête + contenu + pied de page), `Header` comme composant unique choisissant sa forme selon `isAuthenticated` (`AppHeader` / `GuestHeader`), `Footer`, et `navigation.js` comme source unique des onglets.
+- **Extraction de l'état en hooks** (`apps/admin/src/hooks/`) — `useRouter`, `useAuthSession`, `useWorkspace`, `useGuestSiteClaim`, `usePaymentToast`, `useCopilotNavigation`. `App.jsx` devient la racine de composition : il ne possède plus aucune donnée hormis l'ouverture de la fenêtre de connexion.
+- **Décomposition de `Dashboard.jsx`** en composants de section, modales et hooks dédiés sous `features/dashboard/`.
+- **`scripts/tests/test-contracts.js`**, branché sur `npm test` : prouve que chaque endpoint du registre possède un gestionnaire sur disque, que tout endpoint à portée tenant transporte bien un identifiant de tenant, et que le transport partagé émet chaque requête conformément à son contrat.
+- **`docs/ARCHITECTURE.md`** : la carte — où vit chaque chose, et où faire une modification donnée.
+
+### Conséquences
+- Renommer un champ d'API est une modification dans un seul fichier ; les deux extrémités suivent, et le test de contrats échoue si une route disparaît.
+- Ajouter un onglet de navigation, changer l'en-tête ou le pied de page se fait à un seul endroit, pour les deux variantes.
+- Deux changements de comportement assumés : `crawler.scan` / `update` / `summarize` déclarent désormais leur portée tenant au niveau du contrat (elles vérifiaient déjà la propriété du site, mais la posture est maintenant déclarée et appliquée uniformément), et `chat.send` refuse une `tenant_public_key` malformée par un 400 avant d'atteindre la base plutôt que par un 404 après.
