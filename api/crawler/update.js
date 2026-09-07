@@ -1,4 +1,6 @@
+import { contracts } from '@b2b-ai-chatbot/contracts';
 import { createClient } from '@supabase/supabase-js';
+import { edgeRoute } from '../lib/http.js';
 import { generateEmbedding } from '../lib/llm.js';
 import { requireSiteOwnership } from '../lib/server-config.js';
 
@@ -80,83 +82,59 @@ function cleanAndChunk(text, targetUrl = '', maxChunkLength = 800) {
 }
 
 
-export default async function handler(req) {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-        'Access-Control-Allow-Methods': 'POST, GET, OPTIONS'
-      }
-    });
-  }
+export default edgeRoute(contracts.crawler.update, async (req, { data, json }) => {
+  const { site_id, tenant_id, url, content } = data;
 
-  try {
-    const { site_id, tenant_id, url, content } = await req.json();
+  // The contract's tenant auth already proved the caller owns tenant_id; this
+  // additionally proves the site itself lives in that tenant, so nothing can be
+  // written into somebody else's site row.
+  await requireSiteOwnership(req, tenant_id, site_id);
 
-    if (!site_id || !tenant_id || !url || typeof content !== 'string') {
-      return new Response(JSON.stringify({ error: 'Missing fields: site_id, tenant_id, url, content' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-      });
-    }
+  const chunks = cleanAndChunk(content, url, 800);
 
-    await requireSiteOwnership(req, tenant_id, site_id);
+  // Generate embeddings in batches of 20 to respect Jina API Free Tier limits
+  const FALLBACK_EMBEDDING = Array(768).fill(0).map((_, i) => (i % 2 === 0 ? 0.05 : -0.05));
+  const allEmbeddings = [];
+  const jinaKey = process.env.JINA_API_KEY;
+  const BATCH_SIZE = 20;
 
-    const chunks = cleanAndChunk(content, url, 800);
-
-    // Generate embeddings in batches of 20 to respect Jina API Free Tier limits
-    const FALLBACK_EMBEDDING = Array(768).fill(0).map((_, i) => (i % 2 === 0 ? 0.05 : -0.05));
-    const allEmbeddings = [];
-    const jinaKey = process.env.JINA_API_KEY;
-    const BATCH_SIZE = 20;
-
-    if (jinaKey && chunks.length > 0) {
-      for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
-        const batch = chunks.slice(i, i + BATCH_SIZE);
-        try {
-          const batchResult = await generateEmbedding(batch, 'retrieval.passage', jinaKey);
-          if (Array.isArray(batchResult)) {
-            allEmbeddings.push(...batchResult);
-          } else if (batchResult) {
-            allEmbeddings.push(batchResult);
-          } else {
-            allEmbeddings.push(...Array(batch.length).fill(FALLBACK_EMBEDDING));
-          }
-        } catch (embErr) {
-          console.warn(`[update-document] Embedding batch starting at ${i} failed:`, embErr.message);
+  if (jinaKey && chunks.length > 0) {
+    for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
+      const batch = chunks.slice(i, i + BATCH_SIZE);
+      try {
+        const batchResult = await generateEmbedding(batch, 'retrieval.passage', jinaKey);
+        if (Array.isArray(batchResult)) {
+          allEmbeddings.push(...batchResult);
+        } else if (batchResult) {
+          allEmbeddings.push(batchResult);
+        } else {
           allEmbeddings.push(...Array(batch.length).fill(FALLBACK_EMBEDDING));
         }
-        if (i + BATCH_SIZE < chunks.length) {
-          await new Promise(r => setTimeout(r, 200));
-        }
+      } catch (embErr) {
+        console.warn(`[update-document] Embedding batch starting at ${i} failed:`, embErr.message);
+        allEmbeddings.push(...Array(batch.length).fill(FALLBACK_EMBEDDING));
+      }
+      if (i + BATCH_SIZE < chunks.length) {
+        await new Promise(r => setTimeout(r, 200));
       }
     }
-
-    // Remove old chunks
-    await supabase.from('documents').delete().eq('site_id', site_id).eq('url', url);
-
-    if (chunks.length > 0) {
-      const records = chunks.map((chunk, i) => ({
-        tenant_id,
-        site_id,
-        url,
-        content: chunk,
-        embedding: allEmbeddings[i] ?? FALLBACK_EMBEDDING
-      }));
-
-      const { error: insertErr } = await supabase.from('documents').insert(records);
-      if (insertErr) throw insertErr;
-    }
-
-    return new Response(JSON.stringify({ success: true }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-    });
-  } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-    });
   }
-}
+
+  // Remove old chunks
+  await supabase.from('documents').delete().eq('site_id', site_id).eq('url', url);
+
+  if (chunks.length > 0) {
+    const records = chunks.map((chunk, i) => ({
+      tenant_id,
+      site_id,
+      url,
+      content: chunk,
+      embedding: allEmbeddings[i] ?? FALLBACK_EMBEDDING
+    }));
+
+    const { error: insertErr } = await supabase.from('documents').insert(records);
+    if (insertErr) throw insertErr;
+  }
+
+  return json({ success: true });
+});

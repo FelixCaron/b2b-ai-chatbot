@@ -1,4 +1,4 @@
-// GET/POST /api/chat/init?tenant_public_key=... — the widget calls this once
+// GET /api/chat/init?tenant_public_key=... — the widget calls this once
 // on load, before the visitor has said anything, to render its opening state
 // (greeting bubble, header title, status line, input placeholder) in the
 // site's own language instead of a hardcoded English default. Read-only,
@@ -8,7 +8,9 @@
 // site_summaries. Public/unauthenticated like api/chat/index.js — anonymous
 // site visitors are exactly who calls this — but scoped to the one site a
 // public_key identifies, same as the chat endpoint itself.
+import { contracts } from '@b2b-ai-chatbot/contracts';
 import { createClient } from '@supabase/supabase-js';
+import { edgeRoute } from '../lib/http.js';
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
 const SECRET_KEY = process.env.SUPABASE_SECRET_KEY;
@@ -27,34 +29,18 @@ export const config = {
   runtime: 'edge',
 };
 
-export default async function handler(req) {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'content-type',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
-      }
-    });
-  }
-
-  const url = new URL(req.url);
-  let tenantPublicKey = url.searchParams.get('tenant_public_key');
-  if (!tenantPublicKey && req.method === 'POST') {
-    try {
-      const body = await req.json();
-      tenantPublicKey = body?.tenant_public_key;
-    } catch { /* no body sent, fall through to the missing-key response below */ }
-  }
+// `validate: false` on purpose: the contract requires a tenant_public_key, but
+// this route must never answer a widget with a 400. A missing or malformed key
+// is just "show the English defaults", so the query payload arrives unvalidated
+// and every failure below lands on the same 200 + FALLBACK.
+export default edgeRoute(contracts.chat.init, async (req, { data, json }) => {
+  const tenantPublicKey = data.tenant_public_key;
 
   if (!tenantPublicKey || !supabase) {
     // Never a hard error for the widget over this — a missing key or unset
     // server config just means "show the English defaults", the same
     // experience every tenant had before this feature existed.
-    return new Response(JSON.stringify(FALLBACK), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-    });
+    return json(FALLBACK);
   }
 
   try {
@@ -78,10 +64,7 @@ export default async function handler(req) {
     }
 
     if (!site) {
-      return new Response(JSON.stringify(FALLBACK), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-      });
+      return json(FALLBACK);
     }
 
     // Parked by a plan downgrade: the widget must not open as if it were ready
@@ -91,17 +74,14 @@ export default async function handler(req) {
     // the conversation itself (api/chat/index.js).
     if (site.is_active === false) {
       const message = 'This assistant is paused because the workspace plan no longer covers this website.';
-      return new Response(
-        JSON.stringify({
-          ...FALLBACK,
-          site_inactive: true,
-          code: 'site_inactive',
-          welcome_message: message,
-          ui_status_online: 'Paused',
-          theme_primary_color: site.theme_primary_color || null,
-        }),
-        { status: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
-      );
+      return json({
+        ...FALLBACK,
+        site_inactive: true,
+        code: 'site_inactive',
+        welcome_message: message,
+        ui_status_online: 'Paused',
+        theme_primary_color: site.theme_primary_color || null,
+      });
     }
 
     const { data: summary } = await supabase
@@ -111,26 +91,20 @@ export default async function handler(req) {
       .eq('site_id', site.id)
       .maybeSingle();
 
-    return new Response(
-      JSON.stringify({
-        welcome_message: summary?.welcome_message || FALLBACK.welcome_message,
-        ui_status_title: summary?.ui_status_title || FALLBACK.ui_status_title,
-        ui_status_online: summary?.ui_status_online || FALLBACK.ui_status_online,
-        ui_input_placeholder: summary?.ui_input_placeholder || FALLBACK.ui_input_placeholder,
-        language: summary?.language || FALLBACK.language,
-        // Read live on every widget load so a color change in the dashboard
-        // takes effect immediately — not baked into the embed snippet's
-        // static data-theme-color attribute, which only reflects whatever
-        // the color was at copy-paste time.
-        theme_primary_color: site.theme_primary_color || null,
-      }),
-      { status: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
-    );
+    return json({
+      welcome_message: summary?.welcome_message || FALLBACK.welcome_message,
+      ui_status_title: summary?.ui_status_title || FALLBACK.ui_status_title,
+      ui_status_online: summary?.ui_status_online || FALLBACK.ui_status_online,
+      ui_input_placeholder: summary?.ui_input_placeholder || FALLBACK.ui_input_placeholder,
+      language: summary?.language || FALLBACK.language,
+      // Read live on every widget load so a color change in the dashboard
+      // takes effect immediately — not baked into the embed snippet's
+      // static data-theme-color attribute, which only reflects whatever
+      // the color was at copy-paste time.
+      theme_primary_color: site.theme_primary_color || null,
+    });
   } catch (err) {
     console.error('[chat/init] Error:', err);
-    return new Response(JSON.stringify(FALLBACK), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-    });
+    return json(FALLBACK);
   }
-}
+}, { validate: false });

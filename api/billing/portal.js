@@ -1,60 +1,42 @@
-﻿// api/create-portal-session.js
+// api/create-portal-session.js
 // Vercel Serverless Function — Creates a Stripe Billing Portal Session
 import Stripe from 'stripe';
 import WebSocket from 'ws';
-import { createServiceRoleClient, requireServerEnv, requireTenantOwnership } from '../lib/server-config.js';
+import { contracts } from '@b2b-ai-chatbot/contracts';
+import { nodeRoute } from '../lib/http.js';
+import { requireServerEnv } from '../lib/server-config.js';
 
 if (typeof globalThis !== 'undefined' && !globalThis.WebSocket) {
   globalThis.WebSocket = WebSocket;
 }
 
-export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+// The contract is tenant-scoped: the wrapper has already proved the caller owns
+// tenantId. Without that, anyone who knows/guesses a tenantId could open the
+// Stripe billing portal for a DIFFERENT tenant's customer — viewing invoices,
+// changing payment methods, or cancelling their subscription.
+export default nodeRoute(contracts.billing.portal, async (req, res, { data, supabase }) => {
+  const { STRIPE_SECRET_KEY } = requireServerEnv('STRIPE_SECRET_KEY');
+  const stripe = new Stripe(STRIPE_SECRET_KEY);
+  const { tenantId } = data;
+
+  const { data: tenant } = await supabase
+    .from('tenants')
+    .select('stripe_customer_id')
+    .eq('id', tenantId)
+    .single();
+
+  if (!tenant?.stripe_customer_id) {
+    return res.status(400).json({ error: 'No Stripe customer found for this tenant' });
   }
 
-  try {
-    const { STRIPE_SECRET_KEY } = requireServerEnv('STRIPE_SECRET_KEY');
-    const stripe = new Stripe(STRIPE_SECRET_KEY);
-    const { tenantId } = req.body || {};
+  const host = req.headers?.host || 'localhost:3000';
+  const protocol = host.includes('localhost') ? 'http' : 'https';
+  const baseUrl = process.env.VITE_APP_URL || `${protocol}://${host}`;
 
-    if (!tenantId) {
-      return res.status(400).json({ error: 'tenantId is required' });
-    }
+  const portalSession = await stripe.billingPortal.sessions.create({
+    customer: tenant.stripe_customer_id,
+    return_url: baseUrl,
+  });
 
-    // Without this, anyone who knows/guesses a tenantId could open the
-    // Stripe billing portal for a DIFFERENT tenant's customer — viewing
-    // invoices, changing payment methods, or cancelling their subscription.
-    try {
-      await requireTenantOwnership(req, tenantId);
-    } catch (authErr) {
-      return res.status(authErr.statusCode || 401).json({ error: authErr.message || 'Unauthorized' });
-    }
-
-    const supabase = createServiceRoleClient();
-
-    const { data: tenant } = await supabase
-      .from('tenants')
-      .select('stripe_customer_id')
-      .eq('id', tenantId)
-      .single();
-
-    if (!tenant?.stripe_customer_id) {
-      return res.status(400).json({ error: 'No Stripe customer found for this tenant' });
-    }
-
-    const host = req.headers?.host || 'localhost:3000';
-    const protocol = host.includes('localhost') ? 'http' : 'https';
-    const baseUrl = process.env.VITE_APP_URL || `${protocol}://${host}`;
-
-    const portalSession = await stripe.billingPortal.sessions.create({
-      customer: tenant.stripe_customer_id,
-      return_url: baseUrl,
-    });
-
-    return res.status(200).json({ url: portalSession.url });
-  } catch (err) {
-    console.error('[create-portal-session] Error:', err);
-    return res.status(500).json({ error: err.message });
-  }
-}
+  return res.status(200).json({ url: portalSession.url });
+});

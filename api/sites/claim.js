@@ -25,24 +25,18 @@
 //
 // Both actions live on this one route on purpose: bracket-segment routes
 // (`[id].js`) do not build in this project, so the action is a body field.
-// requireAuthentication / requireTenantOwnership hand back the service-role
-// client they used to verify the token (createServiceRoleClient under the
-// hood), which is also the only role allowed to touch guest_site_claims and to
-// execute claim_guest_site — so every query below runs through it.
-import { requireAuthentication, requireTenantOwnership } from '../lib/server-config.js';
+// The contract's `user` auth (and requireTenantOwnership below) hand back the
+// service-role client they used to verify the token (createServiceRoleClient
+// under the hood), which is also the only role allowed to touch
+// guest_site_claims and to execute claim_guest_site — so every query below
+// runs through it.
+import { contracts } from '@b2b-ai-chatbot/contracts';
+import { edgeRoute } from '../lib/http.js';
+import { requireTenantOwnership } from '../lib/server-config.js';
 
 export const config = {
   runtime: 'edge',
 };
-
-const CORS = {
-  'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*'
-};
-
-function json(body, status = 200) {
-  return new Response(JSON.stringify(body), { status, headers: CORS });
-}
 
 // Deliberately permissive: this only guards against obvious junk. The real
 // verification is the magic link itself — an address that isn't yours never
@@ -55,48 +49,20 @@ function normalizeEmail(raw) {
   return email;
 }
 
-export default async function handler(req) {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS'
-      }
-    });
-  }
-
-  if (req.method !== 'POST') {
-    return json({ error: 'Method not allowed' }, 405);
-  }
-
-  try {
-    let body = {};
-    try {
-      body = (await req.json()) || {};
-    } catch {
-      return json({ error: 'Invalid JSON body' }, 400);
-    }
-
-    const action = body.action;
-    if (action === 'create') return await createClaim(req, body);
-    if (action === 'redeem') return await redeemClaim(req);
-
-    return json({ error: "Unknown action. Expected 'create' or 'redeem'." }, 400);
-  } catch (err) {
-    console.error('[sites/claim] Handler exception:', err);
-    return json({ error: err.message || 'Internal error' }, 500);
-  }
-}
+// The contract's `action` field is a oneOf, so an unknown action never reaches
+// here — the wrapper answers it with a 400.
+export default edgeRoute(contracts.sites.claim, async (req, ctx) => {
+  if (ctx.data.action === 'create') return await createClaim(req, ctx);
+  return await redeemClaim(ctx);
+});
 
 // ---------------------------------------------------------------------------
 // create — called by the anonymous guest session, just before the magic link
 // is sent. Records "the holder of this guest workspace intends to hand it to
 // whoever proves they own <email>".
 // ---------------------------------------------------------------------------
-async function createClaim(req, body) {
-  const { guest_tenant_id, site_id } = body;
-  const email = normalizeEmail(body.email);
+async function createClaim(req, { data, json }) {
+  const { guest_tenant_id, site_id, email } = data;
 
   if (!guest_tenant_id || !site_id) {
     return json({ error: 'Missing required fields: guest_tenant_id, site_id' }, 400);
@@ -105,13 +71,10 @@ async function createClaim(req, body) {
     return json({ error: 'A valid email is required' }, 400);
   }
 
-  let user;
-  let supabase;
-  try {
-    ({ user, supabase } = await requireTenantOwnership(req, guest_tenant_id));
-  } catch (authErr) {
-    return json({ error: authErr.message || 'Unauthorized' }, authErr.statusCode || 401);
-  }
+  // The wrapper verified the caller's token, but not that they own THIS guest
+  // tenant — a claim's whole point is that the tenant id comes from the body,
+  // so ownership of it has to be proved here.
+  const { user, supabase } = await requireTenantOwnership(req, guest_tenant_id);
 
   // Owning the tenant is not enough: only an anonymous session can create a
   // claim. A fully signed-in user has no guest workspace to hand over, and
@@ -176,17 +139,10 @@ async function createClaim(req, body) {
 
 // ---------------------------------------------------------------------------
 // redeem — called once after any real (non-anonymous) sign-in. Takes no input
-// at all beyond the caller's own bearer token.
+// at all beyond the caller's own bearer token, which the wrapper has already
+// verified.
 // ---------------------------------------------------------------------------
-async function redeemClaim(req) {
-  let user;
-  let supabase;
-  try {
-    ({ user, supabase } = await requireAuthentication(req));
-  } catch (authErr) {
-    return json({ error: authErr.message || 'Unauthorized' }, authErr.statusCode || 401);
-  }
-
+async function redeemClaim({ user, supabase, json }) {
   // An anonymous caller has no verified email, therefore nothing to redeem
   // into and no identity to redeem with.
   if (user.is_anonymous) {
@@ -242,7 +198,8 @@ async function redeemClaim(req) {
 
   // claim_guest_site is EXECUTE-granted to service_role only (see the GRANT at
   // the bottom of the migration); `supabase` here is the service-role client
-  // requireAuthentication built to verify the token, so the call goes through.
+  // the wrapper's authentication built to verify the token, so the call goes
+  // through.
   const { data: result, error: rpcError } = await supabase.rpc('claim_guest_site', {
     p_claim_id: claim.id,
     p_new_tenant_id: tenant.id

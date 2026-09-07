@@ -44,7 +44,10 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const HEX_COLOR_RE = /^#[0-9a-f]{3,8}$/i;
 
 export const f = {
-  string({ min = 1, max = 100_000, pattern = null, trim = true } = {}) {
+  // `allowEmpty` matters because parseFields treats '' as "not supplied" — a
+  // sane default for an HTTP payload, but wrong for a field whose empty value
+  // is a real instruction (clearing a page's indexed content, say).
+  string({ min = 1, max = 100_000, pattern = null, trim = true, allowEmpty = false } = {}) {
     return field('string', (value, path) => {
       if (typeof value !== 'string') fail(path, 'must be a string');
       const out = trim ? value.trim() : value;
@@ -52,7 +55,7 @@ export const f = {
       if (out.length > max) fail(path, `must be at most ${max} character(s)`);
       if (pattern && !pattern.test(out)) fail(path, 'has an unexpected format');
       return out;
-    }, { min, max });
+    }, { min, max, allowEmpty });
   },
 
   uuid() {
@@ -167,7 +170,7 @@ export function parseFields(fields, input, basePath = '') {
     const path = basePath ? `${basePath}.${name}` : name;
     const raw = source[name];
 
-    if (isAbsent(raw)) {
+    if (isAbsent(raw) && !(raw === '' && fieldDef.allowEmpty)) {
       if (!fieldDef.optional) issues.push({ path, message: 'is required' });
       continue;
     }

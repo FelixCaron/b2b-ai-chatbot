@@ -1,3 +1,5 @@
+import { contracts } from '@b2b-ai-chatbot/contracts';
+import { edgeRoute } from '../lib/http.js';
 import { assertSafeExternalUrl, fetchSafeExternalUrl } from '../lib/url-security.js';
 import { verifyTurnstileToken } from '../lib/captcha.js';
 
@@ -41,198 +43,165 @@ function isValidPageUrl(urlStr, cleanHost) {
   }
 }
 
-export default async function handler(req) {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, cf-turnstile-token',
-        'Access-Control-Allow-Methods': 'POST, GET, OPTIONS'
-      }
+export default edgeRoute(contracts.crawler.discover, async (req, { data, json }) => {
+  const { url, cf_turnstile_token } = data;
+
+  // Some call sites send the Turnstile token as a header instead of a body
+  // field (see apps/admin Dashboard.jsx); accept either.
+  const token = cf_turnstile_token || req.headers.get('cf-turnstile-token');
+  const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0] || '';
+  const captchaCheck = await verifyTurnstileToken(token, clientIp);
+  if (!captchaCheck.success) {
+    return json({ error: 'Captcha verification failed. Please try again.' }, 403);
+  }
+
+  if (process.env.TEST_MODE === 'true') {
+    const cleanHost = url.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0];
+    return json({
+      url,
+      pages: [
+        { url: `https://${cleanHost}`, title: 'Home' },
+        { url: `https://${cleanHost}/products`, title: 'Products' },
+        { url: `https://${cleanHost}/services`, title: 'Services' },
+        { url: `https://${cleanHost}/contact`, title: 'Contact & Head Office' }
+      ]
     });
   }
 
-  try {
-    const { url, cf_turnstile_token } = await req.json();
-    if (!url) {
-      return new Response(JSON.stringify({ error: 'Missing required field: url' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+  let targetUrl = url.trim();
+  if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
+    targetUrl = `https://${targetUrl}`;
+  }
+
+  const initialParsed = assertSafeExternalUrl(targetUrl);
+  const cleanHost = initialParsed.hostname.replace(/^www\./, '');
+
+  const discoveredUrls = new Set();
+  discoveredUrls.add(initialParsed.href.split('#')[0]);
+
+  const fetchWithTimeout = async (urlStr, timeoutMs = 2500) => {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetchSafeExternalUrl(urlStr, {
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+        }
       });
+      clearTimeout(id);
+      return res;
+    } catch (_e) {
+      clearTimeout(id);
+      return null;
     }
+  };
 
-    const token = cf_turnstile_token || req.headers.get('cf-turnstile-token');
-    const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0] || '';
-    const captchaCheck = await verifyTurnstileToken(token, clientIp);
-    if (!captchaCheck.success) {
-      return new Response(JSON.stringify({ error: 'Captcha verification failed. Please try again.' }), {
-        status: 403,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-      });
-    }
+  // 1. Discover via sitemaps & direct HTML extraction in parallel
+  const sitemapCandidates = [
+    `https://${cleanHost}/sitemap.xml`,
+    `https://${cleanHost}/sitemap_index.xml`,
+    `https://${cleanHost}/wp-sitemap.xml`
+  ];
 
-    if (process.env.TEST_MODE === 'true') {
-      const cleanHost = url.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0];
-      return new Response(JSON.stringify({
-        url,
-        pages: [
-          { url: `https://${cleanHost}`, title: 'Home' },
-          { url: `https://${cleanHost}/products`, title: 'Products' },
-          { url: `https://${cleanHost}/services`, title: 'Services' },
-          { url: `https://${cleanHost}/contact`, title: 'Contact & Head Office' }
-        ]
-      }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-      });
-    }
+  const subSitemapUrls = new Set();
 
-    let targetUrl = url.trim();
-    if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
-      targetUrl = `https://${targetUrl}`;
-    }
+  // Fetch sitemaps and direct HTML simultaneously
+  const [sitemapResults, htmlRes] = await Promise.all([
+    Promise.allSettled(sitemapCandidates.map(url => fetchWithTimeout(url, 2500))),
+    fetchWithTimeout(initialParsed.href, 3000)
+  ]);
 
-    const initialParsed = assertSafeExternalUrl(targetUrl);
-    const cleanHost = initialParsed.hostname.replace(/^www\./, '');
-
-    const discoveredUrls = new Set();
-    discoveredUrls.add(initialParsed.href.split('#')[0]);
-
-    const fetchWithTimeout = async (urlStr, timeoutMs = 2500) => {
-      const controller = new AbortController();
-      const id = setTimeout(() => controller.abort(), timeoutMs);
+  for (const result of sitemapResults) {
+    if (result.status === 'fulfilled' && result.value && result.value.ok) {
       try {
-        const res = await fetchSafeExternalUrl(urlStr, {
-          signal: controller.signal,
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+        const xml = await result.value.text();
+        const locMatches = xml.match(/<loc>([^<]+)<\/loc>/gi) || [];
+        for (const m of locMatches) {
+          const loc = m.replace(/<\/?loc>/gi, '').trim();
+          if (loc.endsWith('.xml') || loc.includes('sitemap')) {
+            if (!loc.includes('sales-orders') && !loc.includes('sales-lines')) {
+              subSitemapUrls.add(loc);
+            }
+          } else if (isValidPageUrl(loc, cleanHost)) {
+            discoveredUrls.add(loc.split('#')[0]);
           }
-        });
-        clearTimeout(id);
-        return res;
-      } catch (_e) {
-        clearTimeout(id);
-        return null;
-      }
-    };
+        }
+      } catch (_e) {}
+    }
+  }
 
-    // 1. Discover via sitemaps & direct HTML extraction in parallel
-    const sitemapCandidates = [
-      `https://${cleanHost}/sitemap.xml`,
-      `https://${cleanHost}/sitemap_index.xml`,
-      `https://${cleanHost}/wp-sitemap.xml`
-    ];
-
-    const subSitemapUrls = new Set();
-
-    // Fetch sitemaps and direct HTML simultaneously
-    const [sitemapResults, htmlRes] = await Promise.all([
-      Promise.allSettled(sitemapCandidates.map(url => fetchWithTimeout(url, 2500))),
-      fetchWithTimeout(initialParsed.href, 3000)
-    ]);
-
-    for (const result of sitemapResults) {
-      if (result.status === 'fulfilled' && result.value && result.value.ok) {
+  // Fetch sub-sitemaps in parallel if needed (up to 50 sub-sitemaps for comprehensive multi-section sites)
+  if (subSitemapUrls.size > 0) {
+    const subPromises = Array.from(subSitemapUrls).slice(0, 50).map(async (subUrl) => {
+      const res = await fetchWithTimeout(subUrl, 2500);
+      if (res && res.ok) {
         try {
-          const xml = await result.value.text();
+          const xml = await res.text();
           const locMatches = xml.match(/<loc>([^<]+)<\/loc>/gi) || [];
           for (const m of locMatches) {
             const loc = m.replace(/<\/?loc>/gi, '').trim();
-            if (loc.endsWith('.xml') || loc.includes('sitemap')) {
-              if (!loc.includes('sales-orders') && !loc.includes('sales-lines')) {
-                subSitemapUrls.add(loc);
-              }
-            } else if (isValidPageUrl(loc, cleanHost)) {
+            if (!loc.endsWith('.xml') && isValidPageUrl(loc, cleanHost)) {
               discoveredUrls.add(loc.split('#')[0]);
             }
           }
         } catch (_e) {}
       }
-    }
-
-    // Fetch sub-sitemaps in parallel if needed (up to 50 sub-sitemaps for comprehensive multi-section sites)
-    if (subSitemapUrls.size > 0) {
-      const subPromises = Array.from(subSitemapUrls).slice(0, 50).map(async (subUrl) => {
-        const res = await fetchWithTimeout(subUrl, 2500);
-        if (res && res.ok) {
-          try {
-            const xml = await res.text();
-            const locMatches = xml.match(/<loc>([^<]+)<\/loc>/gi) || [];
-            for (const m of locMatches) {
-              const loc = m.replace(/<\/?loc>/gi, '').trim();
-              if (!loc.endsWith('.xml') && isValidPageUrl(loc, cleanHost)) {
-                discoveredUrls.add(loc.split('#')[0]);
-              }
-            }
-          } catch (_e) {}
-        }
-      });
-      await Promise.all(subPromises);
-    }
-
-    // Extract links from homepage HTML
-    if (htmlRes && htmlRes.ok) {
-      try {
-        const html = await htmlRes.text();
-        const hrefRegex = /href=["']([^"']+)["']/gi;
-        let match;
-        while ((match = hrefRegex.exec(html)) !== null) {
-          try {
-            const resolved = new URL(match[1], initialParsed.href);
-            const cleanUrl = resolved.href.split('#')[0];
-            if (isValidPageUrl(cleanUrl, cleanHost)) {
-              discoveredUrls.add(cleanUrl);
-            }
-          } catch (_e) {}
-        }
-      } catch (_e) {}
-    }
-
-    // Deduplicate and normalize discovered URLs cleanly
-    const normalizedSet = new Set();
-    discoveredUrls.forEach(url => {
-      const norm = normalizePageUrl(url);
-      if (norm && isValidPageUrl(norm, cleanHost)) {
-        normalizedSet.add(norm);
-      }
     });
-
-    const pages = Array.from(normalizedSet).map((pageUrl) => {
-      const u = new URL(pageUrl);
-      let pageTitle = (u.pathname === '/' || u.pathname === '') ? "Page d'accueil" : u.pathname;
-      pageTitle = pageTitle
-        .replace(/^\//, '')
-        .replace(/\/$/, '')
-        .replace(/-/g, ' ')
-        .replace(/_/g, ' ');
-
-      if (!pageTitle) pageTitle = "Page d'accueil";
-      else pageTitle = pageTitle.charAt(0).toUpperCase() + pageTitle.slice(1);
-
-      return {
-        url: pageUrl,
-        title: pageTitle
-      };
-    });
-
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        root_url: targetUrl,
-        total_discovered: pages.length,
-        pages: pages
-      }),
-      {
-        status: 200,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-      }
-    );
-  } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-    });
+    await Promise.all(subPromises);
   }
-}
+
+  // Extract links from homepage HTML
+  if (htmlRes && htmlRes.ok) {
+    try {
+      const html = await htmlRes.text();
+      const hrefRegex = /href=["']([^"']+)["']/gi;
+      let match;
+      while ((match = hrefRegex.exec(html)) !== null) {
+        try {
+          const resolved = new URL(match[1], initialParsed.href);
+          const cleanUrl = resolved.href.split('#')[0];
+          if (isValidPageUrl(cleanUrl, cleanHost)) {
+            discoveredUrls.add(cleanUrl);
+          }
+        } catch (_e) {}
+      }
+    } catch (_e) {}
+  }
+
+  // Deduplicate and normalize discovered URLs cleanly
+  const normalizedSet = new Set();
+  discoveredUrls.forEach(url => {
+    const norm = normalizePageUrl(url);
+    if (norm && isValidPageUrl(norm, cleanHost)) {
+      normalizedSet.add(norm);
+    }
+  });
+
+  const pages = Array.from(normalizedSet).map((pageUrl) => {
+    const u = new URL(pageUrl);
+    let pageTitle = (u.pathname === '/' || u.pathname === '') ? "Page d'accueil" : u.pathname;
+    pageTitle = pageTitle
+      .replace(/^\//, '')
+      .replace(/\/$/, '')
+      .replace(/-/g, ' ')
+      .replace(/_/g, ' ');
+
+    if (!pageTitle) pageTitle = "Page d'accueil";
+    else pageTitle = pageTitle.charAt(0).toUpperCase() + pageTitle.slice(1);
+
+    return {
+      url: pageUrl,
+      title: pageTitle
+    };
+  });
+
+
+  return json({
+    success: true,
+    root_url: targetUrl,
+    total_discovered: pages.length,
+    pages: pages
+  });
+});

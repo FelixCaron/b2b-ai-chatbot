@@ -69,7 +69,8 @@ export const crawlerUpdate = defineEndpoint({
     site_id: f.uuid(),
     tenant_id: f.uuid(),
     url: f.url(),
-    content: f.string({ min: 1, max: 500_000 })
+    // Empty is legal: it is how an operator clears a page's indexed content.
+    content: f.string({ min: 0, max: 500_000, allowEmpty: true })
   },
   response: {
     success: f.boolean()
@@ -102,7 +103,7 @@ export const crawlerSummarize = defineEndpoint({
   errors: {
     400: 'Missing required fields: tenant_id, site_id — or not enough content to summarize',
     403: 'The caller does not own this tenant',
-    502: 'The model could not produce a summary'
+    500: 'The model could not produce a summary'
   }
 });
 

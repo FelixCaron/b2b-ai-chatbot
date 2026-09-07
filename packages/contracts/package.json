@@ -8,7 +8,8 @@
   "exports": {
     ".": "./src/index.js",
     "./schema": "./src/schema.js",
-    "./endpoint": "./src/endpoint.js"
+    "./endpoint": "./src/endpoint.js",
+    "./client": "./src/client.js"
   },
   "files": [
     "src"

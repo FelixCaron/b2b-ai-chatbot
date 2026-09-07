@@ -1,4 +1,6 @@
+import { contracts } from '@b2b-ai-chatbot/contracts';
 import { createClient } from '@supabase/supabase-js';
+import { edgeRoute } from '../lib/http.js';
 import { generateEmbedding } from '../lib/llm.js';
 import { sendLeadEmail, sendBugAlertEmail } from '../lib/email.js';
 
@@ -33,27 +35,13 @@ function requestOrigin(req) {
   }
 }
 
-export default async function handler(req) {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', {
-      headers: {
-        'Access-Control-Allow-Origin': req.headers.get('origin') || '*',
-        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-        'Access-Control-Allow-Methods': 'POST, GET, OPTIONS'
-      }
-    });
-  }
+export default edgeRoute(contracts.chat.send, async (req, { data, json }) => {
+  const { message, tenant_public_key, session_id } = data;
 
+  // The only try/catch left: the wrapper already shapes a throw into the 500
+  // response, this just makes sure an unexpected failure raises a bug alert
+  // on its way there.
   try {
-    const { message, tenant_public_key, session_id } = await req.json();
-
-    if (!message || !tenant_public_key || !session_id) {
-      return new Response(JSON.stringify({ error: 'Fields required: message, tenant_public_key, session_id' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-      });
-    }
-
     // IP-based Rate Limiting (10 req / minute per IP)
     const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
     const now = Date.now();
@@ -65,10 +53,7 @@ export default async function handler(req) {
       } else {
         record.count++;
         if (record.count > 10) {
-          return new Response(JSON.stringify({ error: 'Rate limit reached. Please wait a moment.' }), {
-            status: 429,
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-          });
+          return json({ error: 'Rate limit reached. Please wait a moment.' }, 429);
         }
       }
       rateLimitMap.set(ip, record);
@@ -97,10 +82,7 @@ export default async function handler(req) {
             .eq('public_key', tenant_public_key)
             .maybeSingle();
           if (coreError || !coreData) {
-            return new Response(JSON.stringify({ error: 'Site not found (core query failed)' }), {
-              status: 404,
-              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-            });
+            return json({ error: 'Site not found (core query failed)' }, 404);
           }
           // Inject safe defaults for missing optional columns. is_active
           // included: on a database that predates the site-limit migration
@@ -116,10 +98,7 @@ export default async function handler(req) {
             tenants: null
           });
         } else {
-          return new Response(JSON.stringify({ error: `Database error: ${fullError.message}` }), {
-            status: 500,
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-          });
+          return json({ error: `Database error: ${fullError.message}` }, 500);
         }
       } else {
         site = fullData;
@@ -127,10 +106,7 @@ export default async function handler(req) {
     }
 
     if (!site) {
-      return new Response(JSON.stringify({ error: `Invalid site key (${tenant_public_key}). The site was not found in the database.` }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-      });
+      return json({ error: `Invalid site key (${tenant_public_key}). The site was not found in the database.` }, 404);
     }
 
     // A site parked by a plan downgrade (sites.is_active = FALSE) keeps all of
@@ -138,16 +114,10 @@ export default async function handler(req) {
     // the tenant looking at their own widget needs to be able to tell "my plan
     // no longer covers this site" apart from "my key is wrong".
     if (site.is_active === false) {
-      return new Response(
-        JSON.stringify({
-          error: 'This chatbot is currently paused because the workspace plan no longer covers this website. Reactivate the site or upgrade the plan to bring it back online.',
-          code: 'site_inactive'
-        }),
-        {
-          status: 403,
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-        }
-      );
+      return json({
+        error: 'This chatbot is currently paused because the workspace plan no longer covers this website. Reactivate the site or upgrade the plan to bring it back online.',
+        code: 'site_inactive'
+      }, 403);
     }
 
     const tenantId = site.tenant_id;
@@ -187,10 +157,7 @@ export default async function handler(req) {
     }
 
     if (!isOriginAuthorized) {
-      return new Response(JSON.stringify({ error: 'Origin not authorized for this site.' }), {
-        status: 403,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-      });
+      return json({ error: 'Origin not authorized for this site.' }, 403);
     }
     const isLeadCaptureEnabled = site.enable_lead_capture || false;
 
@@ -624,9 +591,6 @@ ${supportInstruction}`;
     });
   } catch (err) {
     sendBugAlertEmail(err, { source: 'chat_init' }).catch(console.error);
-      return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-    });
+    throw err;
   }
-}
+});

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Search } from 'lucide-react';
-import { authenticatedHeaders } from '../lib/supabase';
+import { api } from '../lib/api';
 
 const PLAN_BADGE = {
   basic: 'bg-slate-700 text-slate-200',
@@ -26,12 +26,10 @@ export default function TenantsList({ onSelectTenant }) {
     let cancelled = false;
     (async () => {
       try {
-        const headers = await authenticatedHeaders();
-        const res = await fetch('/api/staff/tenants', { headers });
-        const body = await res.json();
+        const res = await api.staff.listTenants();
         if (cancelled) return;
-        if (!res.ok) throw new Error(body.error || 'Failed to load tenants');
-        setTenants(body.tenants || []);
+        if (!res.ok) throw new Error(res.data?.error || 'Failed to load tenants');
+        setTenants(res.data.tenants || []);
       } catch (err) {
         if (!cancelled) setError(err.message);
       } finally {

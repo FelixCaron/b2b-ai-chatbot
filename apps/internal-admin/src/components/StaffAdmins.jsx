@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { UserPlus } from 'lucide-react';
-import { authenticatedHeaders } from '../lib/supabase';
+import { api } from '../lib/api';
 
 export default function StaffAdmins() {
   const [admins, setAdmins] = useState([]);
@@ -14,11 +14,9 @@ export default function StaffAdmins() {
     setLoading(true);
     setError('');
     try {
-      const headers = await authenticatedHeaders();
-      const res = await fetch('/api/staff/admins', { headers });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.error || 'Failed to load staff');
-      setAdmins(body.admins || []);
+      const res = await api.staff.listAdmins();
+      if (!res.ok) throw new Error(res.data?.error || 'Failed to load staff');
+      setAdmins(res.data.admins || []);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -34,15 +32,9 @@ export default function StaffAdmins() {
     setSubmitting(true);
     setFormMessage(null);
     try {
-      const headers = await authenticatedHeaders();
-      const res = await fetch('/api/staff/admins', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ email: email.trim() }),
-      });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.error || 'Failed to grant staff access');
-      setFormMessage({ type: 'success', text: `Granted staff access to ${body.admin?.email || email}.` });
+      const res = await api.staff.addAdmin({ email: email.trim() });
+      if (!res.ok) throw new Error(res.data?.error || 'Failed to grant staff access');
+      setFormMessage({ type: 'success', text: `Granted staff access to ${res.data.admin?.email || email}.` });
       setEmail('');
       await loadAdmins();
     } catch (err) {

@@ -9,7 +9,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { contracts, endpoints, ValidationError } from '../../packages/contracts/src/index.js';
+import { contracts, endpoints, ValidationError, createApiClient } from '../../packages/contracts/src/index.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -99,6 +99,13 @@ check('sites.claim normalizes the email it files a claim against', () => {
   assert(parsed.email === 'jane@example.com', `email was not normalized: ${parsed.email}`);
 });
 
+check('crawler.update still accepts an empty content — how a page is cleared', () => {
+  const parsed = contracts.crawler.update.parseRequest({
+    site_id: UUID_A, tenant_id: UUID_B, url: 'https://acme.com/a', content: ''
+  });
+  assert(parsed.content === '', 'an empty content was rejected or dropped');
+});
+
 check('billing.checkout requires a tenant, billing.portal too', () => {
   assert(!contracts.billing.checkout.safeParseRequest({ planId: 'pro' }).ok, 'checkout without tenantId was accepted');
   assert(!contracts.billing.portal.safeParseRequest({}).ok, 'portal without tenantId was accepted');
@@ -136,6 +143,64 @@ check('chat.init describes the widget fallback payload', () => {
   });
   assert(result.ok, `the widget fallback failed its own contract: ${result.message}`);
 });
+
+// --- 4. The shared browser transport --------------------------------------
+// One client for every app, so the request a component *means* to make and the
+// request that goes on the wire cannot drift.
+function withFetchSpy(run) {
+  const calls = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    calls.push({ url: String(url), init });
+    return { ok: true, status: 200, json: async () => ({ success: true }) };
+  };
+  const client = createApiClient({
+    getAuthHeaders: async () => ({ 'Content-Type': 'application/json', Authorization: 'Bearer test-token' }),
+    getOrigin: () => 'https://dorafi.test'
+  });
+  return run(client, calls).finally(() => { globalThis.fetch = originalFetch; });
+}
+
+async function clientChecks() {
+  await withFetchSpy(async (client, calls) => {
+    await client.callEndpoint(contracts.crawler.scan, { site_id: UUID_A, tenant_id: UUID_B, url: 'https://acme.com' });
+    check('the client posts a tenant-scoped call to its contract address, with a bearer token', () => {
+      assert(calls[0].url === 'https://dorafi.test/api/crawler/scan', `wrong url: ${calls[0].url}`);
+      assert(calls[0].init.method === 'POST', 'wrong method');
+      assert(calls[0].init.headers.Authorization === 'Bearer test-token', 'no bearer token on a tenant-scoped call');
+      assert(JSON.parse(calls[0].init.body).tenant_id === UUID_B, 'tenant_id did not reach the body');
+    });
+  });
+
+  await withFetchSpy(async (client, calls) => {
+    await client.callEndpoint(contracts.chat.init, { tenant_public_key: UUID_A });
+    check('a GET endpoint carries its payload in the query string, unauthenticated', () => {
+      assert(calls[0].url === `https://dorafi.test/api/chat/init?tenant_public_key=${UUID_A}`, `wrong url: ${calls[0].url}`);
+      assert(!calls[0].init.body, 'a GET was given a body');
+      assert(!calls[0].init.headers.Authorization, 'a public endpoint was sent a bearer token');
+    });
+  });
+
+  await withFetchSpy(async (client, calls) => {
+    await client.callEndpoint(contracts.staff.updateTenantPlan, { id: UUID_A, plan: 'pro' });
+    check('a query-addressed PATCH splits the addressing key into the URL and the rest into the body', () => {
+      assert(calls[0].url === `https://dorafi.test/api/staff/tenants?id=${UUID_A}`, `wrong url: ${calls[0].url}`);
+      const body = JSON.parse(calls[0].init.body);
+      assert(body.plan === 'pro', 'plan did not reach the body');
+      assert(!('id' in body), 'the addressing key was duplicated into the body');
+    });
+  });
+
+  await withFetchSpy(async (client, calls) => {
+    const result = await client.callEndpoint(contracts.crawler.scan, { site_id: 'not-a-uuid', tenant_id: UUID_B, url: 'https://acme.com' });
+    check('an invalid payload never reaches the network', () => {
+      assert(!result.ok, 'an invalid payload was reported as ok');
+      assert(calls.length === 0, 'a request we knew was invalid was still sent');
+    });
+  });
+}
+
+await clientChecks();
 
 console.log(`\nContract Test Results: ${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);

@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { supabase, supabaseConfigurationError, authenticatedHeaders } from './lib/supabase';
+import { supabase, supabaseConfigurationError } from './lib/supabase';
+import { api } from './lib/api';
+import AppShell from './components/layout/AppShell';
 import LoginScreen from './components/LoginScreen';
 import AccessDenied from './components/AccessDenied';
 import TenantsList from './components/TenantsList';
@@ -43,8 +45,9 @@ export default function App() {
     let cancelled = false;
     (async () => {
       try {
-        const headers = await authenticatedHeaders();
-        const res = await fetch('/api/staff/tenants', { headers });
+        // Any staff-only endpoint answers the access question; this one is the
+        // page the console opens on anyway.
+        const res = await api.staff.listTenants();
         if (cancelled) return;
         setStaffStatus(res.status === 200 ? 'granted' : 'denied');
       } catch {
@@ -68,6 +71,11 @@ export default function App() {
     setStaffStatus('checking');
   };
 
+  const handleTabChange = (tabId) => {
+    setActiveTab(tabId);
+    setSelectedTenantId(null);
+  };
+
   if (!authReady) return null;
 
   if (!currentUser) {
@@ -87,48 +95,19 @@ export default function App() {
   }
 
   return (
-    <main className="min-h-screen bg-surface-100 text-dark-900">
-      <header className="border-b border-dark-900/5 px-6 py-4 flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-bold">Dorafi — Staff Console</h1>
-          <p className="text-xs text-gray-500">Signed in as {currentUser.email}.</p>
-        </div>
-        <button
-          onClick={handleLogout}
-          className="text-xs text-gray-500 hover:text-dark-900 px-3 py-1.5 rounded-lg border border-dark-900/10"
-        >
-          Sign out
-        </button>
-      </header>
-
-      <nav className="px-6 pt-4 flex gap-2 border-b border-dark-900/5">
-        {[
-          { id: 'tenants', label: 'Tenants' },
-          { id: 'staff', label: 'Staff' },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => { setActiveTab(tab.id); setSelectedTenantId(null); }}
-            className={`text-sm px-3 py-2 border-b-2 -mb-px transition-colors ${
-              activeTab === tab.id
-                ? 'border-brand-500 text-dark-900'
-                : 'border-transparent text-gray-500 hover:text-gray-600'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </nav>
-
-      <div className="p-6">
-        {activeTab === 'staff' ? (
-          <StaffAdmins />
-        ) : selectedTenantId ? (
-          <TenantDetail tenantId={selectedTenantId} onBack={() => setSelectedTenantId(null)} />
-        ) : (
-          <TenantsList onSelectTenant={setSelectedTenantId} />
-        )}
-      </div>
-    </main>
+    <AppShell
+      email={currentUser.email}
+      activeTab={activeTab}
+      onTabChange={handleTabChange}
+      onLogout={handleLogout}
+    >
+      {activeTab === 'staff' ? (
+        <StaffAdmins />
+      ) : selectedTenantId ? (
+        <TenantDetail tenantId={selectedTenantId} onBack={() => setSelectedTenantId(null)} />
+      ) : (
+        <TenantsList onSelectTenant={setSelectedTenantId} />
+      )}
+    </AppShell>
   );
 }

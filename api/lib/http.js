@@ -23,7 +23,7 @@ export function corsHeaders(endpoint, origin = '*') {
   const methods = [endpoint?.method || 'POST', 'OPTIONS'].join(', ');
   return {
     'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, cf-turnstile-token',
     'Access-Control-Allow-Methods': methods
   };
 }

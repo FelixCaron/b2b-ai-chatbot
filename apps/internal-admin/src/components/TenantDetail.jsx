@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowLeft, ExternalLink, Trash2 } from 'lucide-react';
-import { authenticatedHeaders } from '../lib/supabase';
+import { api } from '../lib/api';
 
 const PLANS = ['basic', 'pro', 'premium'];
 const STATUSES = ['free', 'active', 'trialing', 'past_due', 'canceled'];
@@ -19,13 +19,11 @@ export default function TenantDetail({ tenantId, onBack }) {
     setLoading(true);
     setError('');
     try {
-      const headers = await authenticatedHeaders();
-      const res = await fetch(`/api/staff/tenants?id=${tenantId}`, { headers });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.error || 'Failed to load tenant');
-      setData(body);
-      setPlan(body.tenant.plan);
-      setPlanStatus(body.tenant.plan_status);
+      const res = await api.staff.getTenant({ id: tenantId });
+      if (!res.ok) throw new Error(res.data?.error || 'Failed to load tenant');
+      setData(res.data);
+      setPlan(res.data.tenant.plan);
+      setPlanStatus(res.data.tenant.plan_status);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -39,14 +37,8 @@ export default function TenantDetail({ tenantId, onBack }) {
     setSaving(true);
     setSaveMessage(null);
     try {
-      const headers = await authenticatedHeaders();
-      const res = await fetch(`/api/staff/tenants?id=${tenantId}`, {
-        method: 'PATCH',
-        headers,
-        body: JSON.stringify({ plan, plan_status: planStatus }),
-      });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.error || 'Failed to update tenant');
+      const res = await api.staff.updateTenantPlan({ id: tenantId, plan, plan_status: planStatus });
+      if (!res.ok) throw new Error(res.data?.error || 'Failed to update tenant');
       setSaveMessage({ type: 'success', text: 'Saved. Note: this does not change anything in Stripe.' });
       await load();
     } catch (err) {
@@ -62,10 +54,8 @@ export default function TenantDetail({ tenantId, onBack }) {
     }
     setDeletingSiteId(site.id);
     try {
-      const headers = await authenticatedHeaders();
-      const res = await fetch(`/api/staff/sites?id=${site.id}`, { method: 'DELETE', headers });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.error || 'Failed to delete site');
+      const res = await api.staff.deleteSite({ id: site.id });
+      if (!res.ok) throw new Error(res.data?.error || 'Failed to delete site');
       await load();
     } catch (err) {
       alert(`Failed to delete site: ${err.message}`);
