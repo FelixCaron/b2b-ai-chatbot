@@ -14,7 +14,7 @@
     "dev": "npm run dev --workspaces --if-present",
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",
-    "test": "node scripts/tests/test-schemas.js && node scripts/tests/test-api-imports.cjs",
+    "test": "node scripts/tests/test-contracts.js && node scripts/tests/test-schemas.js && node scripts/tests/test-api-imports.cjs",
     "test:secrets": "node scripts/ops/check-no-secrets.cjs",
     "test:api": "node scripts/tests/test-api-imports.cjs",
     "test:pipeline": "node scripts/tests/test-pipeline.js",
@@ -24,9 +24,11 @@
     "test:e2e:report": "playwright show-report",
     "reingest:delafontaine": "node scripts/adhoc/reingest-delafontaine.mjs",
     "setup:stripe": "node scripts/ops/setup-stripe.mjs",
-    "setup:supabase": "node scripts/ops/setup-supabase.mjs"
+    "setup:supabase": "node scripts/ops/setup-supabase.mjs",
+    "test:contracts": "node scripts/tests/test-contracts.js"
   },
   "dependencies": {
+    "@b2b-ai-chatbot/contracts": "*",
     "@supabase/supabase-js": "^2.39.8",
     "resend": "^6.20.0",
     "stripe": "^22.6.1",

@@ -1,0 +1,19 @@
+{
+  "name": "@b2b-ai-chatbot/contracts",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Data contracts for every Dorafi API product — the single source of truth shared by the serverless handlers and the browser clients.",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./schema": "./src/schema.js",
+    "./endpoint": "./src/endpoint.js"
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "test": "node ../../scripts/tests/test-contracts.js"
+  }
+}
