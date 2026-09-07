@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShieldCheck, LogOut, Settings, Loader2, Users, LayoutDashboard, Sparkles } from 'lucide-react';
+import { ShieldCheck, LogOut, Settings, Loader2, Users, LayoutDashboard, Sparkles, Menu, X } from 'lucide-react';
 import PlanBadge from './PlanBadge';
 import LogoMark from './LogoMark';
 import { authenticatedHeaders } from '../lib/supabase';
@@ -15,6 +15,19 @@ export default function Header({
   leadsCount = 0
 }) {
   const [portalLoading, setPortalLoading] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  const navItems = [
+    { view: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, iconClassName: '' },
+    { view: 'leads', label: 'Leads', icon: Users, iconClassName: 'text-emerald-500', badge: leadsCount },
+    { view: 'pricing', label: 'Plans', icon: Sparkles, iconClassName: 'text-amber-500' },
+    { view: 'about', label: 'About', icon: Users, iconClassName: '' },
+  ];
+
+  const selectView = (view) => {
+    onSelectView?.(view);
+    setMobileNavOpen(false);
+  };
 
   const plan = selectedTenant?.plan || 'free';
   const planStatus = selectedTenant?.plan_status || 'free';
@@ -60,62 +73,63 @@ export default function Header({
             </div>
           </div>
 
-          {/* Navigation Tabs */}
-          <nav className="flex items-center gap-1 bg-surface-200 p-1 rounded-xl border border-dark-900/5">
-            <button
-              onClick={() => onSelectView?.('dashboard')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                currentView === 'dashboard'
-                  ? 'bg-brand-600 text-white shadow-sm'
-                  : 'text-gray-500 hover:text-dark-900 hover:bg-white'
-              }`}
-            >
-              <LayoutDashboard className="w-3.5 h-3.5" />
-              <span>Dashboard</span>
-            </button>
-
-            <button
-              onClick={() => onSelectView?.('leads')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                currentView === 'leads'
-                  ? 'bg-brand-600 text-white shadow-sm'
-                  : 'text-gray-500 hover:text-dark-900 hover:bg-white'
-              }`}
-            >
-              <Users className="w-3.5 h-3.5 text-emerald-500" />
-              <span>Leads</span>
-              {leadsCount > 0 && (
-                <span className="bg-emerald-500/15 text-emerald-700 text-[10px] px-1.5 py-0.2 rounded-full font-bold">
-                  {leadsCount}
-                </span>
-              )}
-            </button>
-
-            <button
-              onClick={() => onSelectView?.('pricing')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                currentView === 'pricing'
-                  ? 'bg-brand-600 text-white shadow-sm'
-                  : 'text-gray-500 hover:text-dark-900 hover:bg-white'
-              }`}
-            >
-              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-              <span>Plans</span>
-            </button>
-
-            <button
-              onClick={() => onSelectView?.('about')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                currentView === 'about'
-                  ? 'bg-brand-600 text-white shadow-sm'
-                  : 'text-gray-500 hover:text-dark-900 hover:bg-white'
-              }`}
-            >
-              <Users className="w-3.5 h-3.5" />
-              <span>About</span>
-            </button>
+          {/* Navigation Tabs — inline pills from sm: up, a sandwich menu below that */}
+          <nav className="hidden sm:flex items-center gap-1 bg-surface-200 p-1 rounded-xl border border-dark-900/5">
+            {navItems.map(({ view, label, icon: Icon, iconClassName, badge }) => (
+              <button
+                key={view}
+                onClick={() => selectView(view)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  currentView === view
+                    ? 'bg-brand-600 text-white shadow-sm'
+                    : 'text-gray-500 hover:text-dark-900 hover:bg-white'
+                }`}
+              >
+                <Icon className={`w-3.5 h-3.5 ${iconClassName}`} />
+                <span>{label}</span>
+                {badge > 0 && (
+                  <span className="bg-emerald-500/15 text-emerald-700 text-[10px] px-1.5 py-0.2 rounded-full font-bold">
+                    {badge}
+                  </span>
+                )}
+              </button>
+            ))}
           </nav>
+
+          {/* Sandwich menu toggle — mobile only */}
+          <button
+            onClick={() => setMobileNavOpen((open) => !open)}
+            className="sm:hidden w-9 h-9 rounded-lg bg-surface-200 hover:bg-surface-300 border border-dark-900/10 flex items-center justify-center text-gray-600 transition-colors"
+            aria-label={mobileNavOpen ? 'Close navigation' : 'Open navigation'}
+            aria-expanded={mobileNavOpen}
+          >
+            {mobileNavOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+          </button>
         </div>
+
+        {mobileNavOpen && (
+          <nav className="sm:hidden w-full flex flex-col gap-1 pt-2 border-t border-dark-900/5">
+            {navItems.map(({ view, label, icon: Icon, iconClassName, badge }) => (
+              <button
+                key={view}
+                onClick={() => selectView(view)}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-all ${
+                  currentView === view
+                    ? 'bg-brand-600 text-white shadow-sm'
+                    : 'text-gray-500 hover:text-dark-900 hover:bg-surface-200'
+                }`}
+              >
+                <Icon className={`w-4 h-4 ${iconClassName}`} />
+                <span>{label}</span>
+                {badge > 0 && (
+                  <span className="bg-emerald-500/15 text-emerald-700 text-[10px] px-1.5 py-0.2 rounded-full font-bold">
+                    {badge}
+                  </span>
+                )}
+              </button>
+            ))}
+          </nav>
+        )}
 
         {/* Tenant Selector, Plan Badge & Actions */}
         <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 border-dark-900/5 pt-2 sm:pt-0">
