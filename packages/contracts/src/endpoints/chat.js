@@ -46,7 +46,10 @@ export const chatInit = defineEndpoint({
     ui_status_online: f.string(),
     ui_input_placeholder: f.string(),
     language: f.string({ min: 2, max: 8 }),
-    theme_primary_color: optional(f.hexColor())
+    theme_primary_color: optional(f.hexColor()),
+    // Whether the "Powered by Dorafi" badge should be hidden — driven by the
+    // tenant's plan (see api/chat/init.js), never by the embed snippet.
+    hide_branding: optional(f.boolean())
   }
 });
 

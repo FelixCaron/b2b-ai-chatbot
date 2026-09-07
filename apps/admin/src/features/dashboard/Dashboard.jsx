@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Sparkles, X } from 'lucide-react';
-import api from '../../lib/api';
 import { getMaxSitesForPlan } from './lib/plan-limits';
 import { domainFromUrl, hasProtocol } from './lib/page-url';
 import { executeTurnstileCaptcha } from './lib/turnstile';
@@ -169,13 +168,15 @@ export default function Dashboard({
 
   // Single source of truth for the embed snippet, used both for the visible
   // <pre> block and the "Copy Code" button — keeps them from drifting apart.
-  // The data-api-url comes from the chat contract rather than a literal, so a
-  // widget pasted on a customer's site cannot end up pointing at an address the
-  // API no longer answers on.
+  // Carries only the site's tenant key: the API URL, theme color and
+  // "Powered by" badge visibility are no longer baked into the snippet at
+  // copy-paste time — the widget resolves them itself (its own production
+  // default for the API, and a live /chat/init read for color + branding,
+  // see apps/widget/src/main.js and api/chat/init.js) so a color change or
+  // plan upgrade takes effect on the customer's site without anyone
+  // re-pasting anything.
   const buildWidgetSnippet = (key) => {
-    // "Powered by" badge shows on Basic (growth lever), hidden on Pro/Premium.
-    const hideBrandingAttr = tenantPlan !== 'basic' ? ' data-hide-branding="true"' : '';
-    return `<script src="${window.location.origin}/widget.iife.js" data-tenant-key="${key}" data-api-url="${api.chat.endpointUrl()}" data-theme-color="${activeSite?.theme_primary_color || '#293f68'}"${hideBrandingAttr}></script>`;
+    return `<script src="${window.location.origin}/widget.iife.js" data-tenant-key="${key}"></script>`;
   };
 
   const copyWidgetScript = (key) => {

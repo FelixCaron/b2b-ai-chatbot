@@ -22,13 +22,17 @@ import { parseMarkdown } from "./markdown.js";
   let themeColor = scriptTag?.getAttribute("data-theme-color") || "#293f68";
 
   // Growth lever: a small "Powered by" badge shown on the free/basic tier,
-  // removed on Pro/Premium. The embed snippet (see Dashboard.jsx's
-  // copyWidgetScript) sets data-hide-branding="true" for paid tenants above
-  // basic; absence of the attribute means "show it" — a safe default so a
-  // missing/stripped attribute never accidentally hides it for a tenant who
-  // should still be showing it. Note this is a soft, client-side nudge like
-  // most embeddable widgets' badges, not a hard anti-tamper mechanism.
-  const hideBranding = scriptTag?.getAttribute("data-hide-branding") === "true";
+  // removed on Pro/Premium. The embed snippet only carries data-tenant-key —
+  // this is resolved from the tenant's live plan by the /chat/init fetch
+  // below (api/chat/init.js's hide_branding), not baked into the snippet, so
+  // a plan change takes effect without anyone re-pasting anything. The
+  // data-hide-branding attribute is kept as a back-compat/no-flash override
+  // for older snippets and internal tooling (see preview.html); absence of
+  // both means "show it" — a safe default so a missing/stripped signal never
+  // accidentally hides it for a tenant who should still be showing it. Note
+  // this is a soft, client-side nudge like most embeddable widgets' badges,
+  // not a hard anti-tamper mechanism.
+  let hideBranding = scriptTag?.getAttribute("data-hide-branding") === "true";
   let brandingHost = "https://dorafi.logafi.com";
   try {
     brandingHost = new URL(apiEndpoint).origin;
@@ -95,10 +99,9 @@ import { parseMarkdown } from "./markdown.js";
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
         </button>
       </div>
-      ${hideBranding ? "" : `
-      <a class="b2b-branding" id="b2b-branding" href="${brandingHost}" target="_blank" rel="noopener noreferrer">
+      <a class="b2b-branding" id="b2b-branding" href="${brandingHost}" target="_blank" rel="noopener noreferrer" ${hideBranding ? "hidden" : ""}>
         Powered by <strong>dorafi</strong>
-      </a>`}
+      </a>
     </div>
     <button class="b2b-chat-launcher" id="b2b-launcher" aria-label="Open chat assistant">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
@@ -117,6 +120,7 @@ import { parseMarkdown } from "./markdown.js";
   const statusTitleEl = shadowRoot.getElementById("b2b-status-title");
   const statusOnlineEl = shadowRoot.getElementById("b2b-status-online");
   const welcomeMsgEl = shadowRoot.getElementById("b2b-welcome-msg");
+  const brandingEl = shadowRoot.getElementById("b2b-branding");
 
   // Fetch the site's own greeting/labels (pregenerated once at scan time,
   // see api/lib/llm.js's generateWelcomeExperience — this is a fast DB read,
@@ -142,6 +146,12 @@ import { parseMarkdown } from "./markdown.js";
       // under it would be a confusing thing to happen mid-read.
       if (data.welcome_message && messagesFeed.children.length === 1) {
         welcomeMsgEl.textContent = data.welcome_message;
+      }
+      // The DB is authoritative for this once it answers — overrides
+      // whatever data-hide-branding said (or didn't say) at first paint.
+      if (typeof data.hide_branding === "boolean" && brandingEl) {
+        hideBranding = data.hide_branding;
+        brandingEl.hidden = hideBranding;
       }
     })
     .catch(() => { /* keep the English defaults already on screen */ });

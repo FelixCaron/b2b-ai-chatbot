@@ -361,9 +361,12 @@ export async function installMockBackend(page, overrides = {}) {
 
   // The embedded widget's own load-time greeting fetch (see the module-level
   // comment above) — same fallback shape api/chat/init.js returns when it
-  // has nothing better to say.
+  // has nothing better to say, plus the plan-driven fields (theme color,
+  // "Powered by" branding) real api/chat/init.js resolves from the site's
+  // tenant so the widget never needs them baked into its embed snippet.
   await page.route('**/api/chat/init', async (route) => {
     state.calls.push({ type: 'api', path: 'chat/init' });
+    const tenantPlan = db.tenants[0]?.plan || 'basic';
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -373,6 +376,8 @@ export async function installMockBackend(page, overrides = {}) {
         ui_status_online: 'Online',
         ui_input_placeholder: 'Ask a question...',
         language: 'en',
+        theme_primary_color: db.sites[0]?.theme_primary_color || null,
+        hide_branding: tenantPlan === 'pro' || tenantPlan === 'premium',
       }),
     });
   });

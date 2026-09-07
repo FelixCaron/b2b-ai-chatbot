@@ -36,7 +36,7 @@ test.describe('Dashboard — settings & embed flows', () => {
 test.describe('Dashboard — embed flow (authenticated)', () => {
   test.use({ authenticated: true });
 
-  test('Embed Widget modal shows a working snippet with the site public key', async ({ page, mock, context }) => {
+  test('Embed Widget modal shows a minimal snippet carrying only the site public key', async ({ page, mock, context }) => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write']).catch(() => {});
     await page.goto('/');
 
@@ -46,28 +46,14 @@ test.describe('Dashboard — embed flow (authenticated)', () => {
     const snippet = page.locator('pre');
     await expect(snippet).toContainText('widget.iife.js');
     await expect(snippet).toContainText(mock.db.sites[0].public_key);
-    // Fixture tenant is on 'pro' — the "Powered by" badge should be hidden.
-    expect(mock.db.tenants[0].plan).toBe('pro');
-    await expect(snippet).toContainText('data-hide-branding="true"');
+    // Everything else (API URL, theme color, "Powered by" branding) is
+    // resolved by the widget itself at load time — from its own production
+    // default and a live /chat/init read — never baked into the snippet.
+    await expect(snippet).not.toContainText('data-api-url');
+    await expect(snippet).not.toContainText('data-theme-color');
+    await expect(snippet).not.toContainText('data-hide-branding');
 
     await page.getByRole('button', { name: /Copy Code/i }).click();
     await expect(page.getByRole('button', { name: /^Copied$/ })).toBeVisible();
-  });
-});
-
-// The "Powered by" badge is a growth lever: shown by default (Basic tier),
-// removed for Pro/Premium via the data-hide-branding embed attribute (see
-// Dashboard.jsx's buildWidgetSnippet and apps/widget/src/main.js).
-test.describe('Dashboard — embed snippet branding by plan', () => {
-  test.use({
-    authenticated: true,
-    mockOverrides: { tenantPatch: { plan: 'basic', plan_status: 'active' } },
-  });
-
-  test('a Basic-tier tenant\'s snippet does NOT hide the branding badge', async ({ page, mock }) => {
-    await page.goto('/');
-    await page.getByRole('button', { name: /Embed Widget/i }).first().click();
-    await expect(page.getByRole('heading', { name: /Embed Widget on Your Website/i })).toBeVisible();
-    await expect(page.locator('pre')).not.toContainText('data-hide-branding');
   });
 });

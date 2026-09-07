@@ -23,6 +23,10 @@ const FALLBACK = {
   ui_status_online: 'Online',
   ui_input_placeholder: 'Ask a question...',
   language: 'en',
+  // Safe default: show the badge. Only a confirmed pro/premium plan (below)
+  // ever turns this true, so an unknown site/key never accidentally hides it
+  // for a tenant who should still be showing it.
+  hide_branding: false,
 };
 
 export const config = {
@@ -46,7 +50,7 @@ export default edgeRoute(contracts.chat.init, async (req, { data, json }) => {
   try {
     let { data: site, error: siteError } = await supabase
       .from('sites')
-      .select('id, tenant_id, is_active, theme_primary_color')
+      .select('id, tenant_id, is_active, theme_primary_color, tenants(plan)')
       .eq('public_key', tenantPublicKey)
       .maybeSingle();
 
@@ -60,12 +64,18 @@ export default edgeRoute(contracts.chat.init, async (req, { data, json }) => {
         .select('id, tenant_id')
         .eq('public_key', tenantPublicKey)
         .maybeSingle();
-      site = coreSite ? { ...coreSite, is_active: true } : null;
+      site = coreSite ? { ...coreSite, is_active: true, tenants: null } : null;
     }
 
     if (!site) {
       return json(FALLBACK);
     }
+
+    // "Powered by" badge is a growth lever: shown on Basic (default), hidden
+    // on Pro/Premium — driven by the tenant's live plan, not the embed
+    // snippet, so a plan change takes effect without re-pasting anything.
+    const tenantPlan = (Array.isArray(site.tenants) ? site.tenants[0]?.plan : site.tenants?.plan) || 'basic';
+    const hideBranding = tenantPlan === 'pro' || tenantPlan === 'premium';
 
     // Parked by a plan downgrade: the widget must not open as if it were ready
     // to answer, and the reason has to be legible to the tenant looking at
@@ -81,6 +91,7 @@ export default edgeRoute(contracts.chat.init, async (req, { data, json }) => {
         welcome_message: message,
         ui_status_online: 'Paused',
         theme_primary_color: site.theme_primary_color || null,
+        hide_branding: hideBranding,
       });
     }
 
@@ -102,6 +113,7 @@ export default edgeRoute(contracts.chat.init, async (req, { data, json }) => {
       // static data-theme-color attribute, which only reflects whatever
       // the color was at copy-paste time.
       theme_primary_color: site.theme_primary_color || null,
+      hide_branding: hideBranding,
     });
   } catch (err) {
     console.error('[chat/init] Error:', err);
