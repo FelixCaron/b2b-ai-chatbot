@@ -1107,8 +1107,11 @@ export default function Dashboard({
       {(!activeSite || step !== 'dashboard') ? (
         <div className="relative max-w-2xl mx-auto mt-6 sm:mt-12">
           <div className="relative bg-white/70 backdrop-blur-sm p-6 sm:p-10 rounded-2xl border border-dark-900/10 text-center shadow-lg overflow-hidden">
-            <div className="w-12 h-12 sm:w-16 sm:h-16 text-brand-900 mx-auto mb-4 sm:mb-6 flex items-center justify-center">
-              <LogoMark className="w-full h-full" />
+            <div className="flex items-center justify-center gap-2.5 mb-4 sm:mb-6">
+              <div className="w-9 h-9 sm:w-12 sm:h-12 text-brand-900 shrink-0 flex items-center justify-center">
+                <LogoMark className="w-full h-full" />
+              </div>
+              <span className="text-2xl sm:text-3xl font-bold text-dark-900 tracking-tight lowercase">dorafi</span>
             </div>
 
             <h2 className="text-2xl sm:text-3xl font-bold text-dark-900 tracking-tight leading-tight mb-2.5 sm:mb-3">
@@ -1312,16 +1315,6 @@ export default function Dashboard({
                     + Add Website
                   </button>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={() => setShowDeleteConfirmModal(true)}
-                  className="w-full md:w-auto bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-600 hover:text-red-700 px-3.5 py-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-sm"
-                  title="Delete this website"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  <span>Delete</span>
-                </button>
               </div>
             </div>
 
@@ -1923,16 +1916,6 @@ export default function Dashboard({
             </div>
 
             <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
-              <button
-                type="button"
-                onClick={() => setShowDeleteConfirmModal(true)}
-                className="bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/20 text-xs font-semibold px-2.5 sm:px-3.5 py-1.5 rounded-xl flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
-                title="Delete this website"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Delete Website</span>
-              </button>
-
               <a
                 href={`${window.location.origin}/preview.html?domain=${encodeURIComponent(activeSite.domain)}&tenant_key=${encodeURIComponent(activeSite.public_key)}&theme_color=${encodeURIComponent(themeColor)}&api_url=${encodeURIComponent(`${window.location.origin}/api/chat`)}`}
                 target="_blank"
