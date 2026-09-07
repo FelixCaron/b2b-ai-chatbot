@@ -1107,10 +1107,8 @@ export default function Dashboard({
       {(!activeSite || step !== 'dashboard') ? (
         <div className="relative max-w-2xl mx-auto mt-6 sm:mt-12">
           <div className="relative bg-white/70 backdrop-blur-sm p-6 sm:p-10 rounded-2xl border border-dark-900/10 text-center shadow-lg overflow-hidden">
-            <div className="relative w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-tr from-brand-700 to-brand-400 mx-auto mb-4 sm:mb-6 shadow-sm flex items-center justify-center">
-              <div className="w-6 h-6 sm:w-8 sm:h-8 text-white">
-                <LogoMark className="w-full h-full" />
-              </div>
+            <div className="w-12 h-12 sm:w-16 sm:h-16 text-brand-900 mx-auto mb-4 sm:mb-6 flex items-center justify-center">
+              <LogoMark className="w-full h-full" />
             </div>
 
             <h2 className="text-2xl sm:text-3xl font-bold text-dark-900 tracking-tight leading-tight mb-2.5 sm:mb-3">

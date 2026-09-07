@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ShieldCheck } from 'lucide-react';
+import LogoMark from './LogoMark';
 
 export default function LoginScreen({ onLogin }) {
   const [email, setEmail] = useState('');
@@ -20,8 +21,8 @@ export default function LoginScreen({ onLogin }) {
     <main className="min-h-screen bg-surface-100 flex items-center justify-center p-4">
       <div className="glass-card p-10 rounded-3xl w-full max-w-md border border-dark-900/10 shadow-2xl">
         <div className="flex flex-col items-center mb-8">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-brand-600 to-brand-400 flex items-center justify-center text-white shadow-xl shadow-brand-500/30 mb-6">
-            <span className="font-extrabold text-xl">R</span>
+          <div className="w-14 h-14 text-brand-900 flex items-center justify-center mb-6">
+            <LogoMark className="w-full h-full" />
           </div>
           <h1 className="text-xl font-bold text-dark-900 text-center">Staff Console</h1>
           <p className="text-gray-500 text-sm mt-2 text-center">
