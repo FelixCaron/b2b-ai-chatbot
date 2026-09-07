@@ -67,11 +67,9 @@ export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'basic',
   const [error, setError] = useState(null);
 
   const handleSelectPlan = async (planId) => {
-    if (planId === 'premium') {
-      window.open('mailto:hello@your-domain.com?subject=Premium Plan Inquiry', '_blank');
-      return;
-    }
-
+    // Premium used to be a sales-assisted "Contact Us" tier (a mailto: link
+    // to a placeholder address) rather than real Stripe checkout. It's now
+    // self-serve like Basic/Pro, using STRIPE_PRICE_ID_PREMIUM below.
     if (planId === 'free' || !tenantId) {
       onSelectPlan?.(planId);
       return;
