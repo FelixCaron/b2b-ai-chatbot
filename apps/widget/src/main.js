@@ -13,7 +13,11 @@ import { parseMarkdown } from "./markdown.js";
   }
   
   const apiEndpoint = scriptTag?.getAttribute("data-api-url") || defaultApiUrl;
-  const themeColor = scriptTag?.getAttribute("data-theme-color") || "#293f68";
+  // Mutable: the /chat/init fetch below can replace this with the site's
+  // live theme_primary_color, and the one other consumer of this value
+  // (the error-fallback button, built well after load) should track that
+  // update too rather than freezing on the embed snippet's static color.
+  let themeColor = scriptTag?.getAttribute("data-theme-color") || "#293f68";
 
   // Growth lever: a small "Powered by" badge shown on the free/basic tier,
   // removed on Pro/Premium. The embed snippet (see Dashboard.jsx's
@@ -47,11 +51,22 @@ import { parseMarkdown } from "./markdown.js";
 
   const container = document.createElement("div");
   container.id = "b2b-chatbot-container";
-  container.style.setProperty("--b2b-theme", themeColor);
-  container.style.setProperty("--b2b-theme-shadow", `${themeColor}66`);
-  container.style.setProperty("--b2b-theme-border", `${themeColor}44`);
-  container.style.setProperty("--b2b-theme-header", `${themeColor}2a`);
-  container.style.setProperty("--b2b-theme-light", `${themeColor}1a`);
+
+  // Applies a brand color to every themed CSS variable at once. Called once
+  // below with the embed snippet's static data-theme-color (so there's a
+  // correct color on first paint, no flash), and again from the /chat/init
+  // fetch below with the site's live theme_primary_color — a tenant who
+  // changes their color in the dashboard sees it on their own site without
+  // having to re-copy and re-paste the embed snippet.
+  function applyThemeColor(color) {
+    themeColor = color;
+    container.style.setProperty("--b2b-theme", color);
+    container.style.setProperty("--b2b-theme-shadow", `${color}66`);
+    container.style.setProperty("--b2b-theme-border", `${color}44`);
+    container.style.setProperty("--b2b-theme-header", `${color}2a`);
+    container.style.setProperty("--b2b-theme-light", `${color}1a`);
+  }
+  applyThemeColor(themeColor);
 
   container.innerHTML = `
     <div class="b2b-chat-panel" id="b2b-panel">
@@ -114,6 +129,11 @@ import { parseMarkdown } from "./markdown.js";
       if (data.ui_status_title) statusTitleEl.textContent = data.ui_status_title;
       if (data.ui_status_online) statusOnlineEl.textContent = data.ui_status_online;
       if (data.ui_input_placeholder) input.placeholder = data.ui_input_placeholder;
+      // Only a real 6-digit hex — never trust a DB value into a CSS custom
+      // property without validating its shape first.
+      if (data.theme_primary_color && /^#[0-9a-fA-F]{6}$/.test(data.theme_primary_color)) {
+        applyThemeColor(data.theme_primary_color);
+      }
       // Only replace the greeting bubble if the visitor hasn't started
       // chatting yet (it's still the only message in the feed) — once a
       // real conversation is underway, swapping the first bubble's text

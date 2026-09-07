@@ -60,7 +60,7 @@ export default async function handler(req) {
   try {
     let { data: site, error: siteError } = await supabase
       .from('sites')
-      .select('id, tenant_id, is_active')
+      .select('id, tenant_id, is_active, theme_primary_color')
       .eq('public_key', tenantPublicKey)
       .maybeSingle();
 
@@ -98,6 +98,7 @@ export default async function handler(req) {
           code: 'site_inactive',
           welcome_message: message,
           ui_status_online: 'Paused',
+          theme_primary_color: site.theme_primary_color || null,
         }),
         { status: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
       );
@@ -117,6 +118,11 @@ export default async function handler(req) {
         ui_status_online: summary?.ui_status_online || FALLBACK.ui_status_online,
         ui_input_placeholder: summary?.ui_input_placeholder || FALLBACK.ui_input_placeholder,
         language: summary?.language || FALLBACK.language,
+        // Read live on every widget load so a color change in the dashboard
+        // takes effect immediately — not baked into the embed snippet's
+        // static data-theme-color attribute, which only reflects whatever
+        // the color was at copy-paste time.
+        theme_primary_color: site.theme_primary_color || null,
       }),
       { status: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
     );
