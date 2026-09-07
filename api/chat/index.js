@@ -76,8 +76,6 @@ export default async function handler(req) {
       if (rateLimitMap.size > 10000) rateLimitMap.clear();
     }
 
-    const isAdminCopilot = (tenant_public_key === 'b2b00000-0000-4000-a000-000000000000');
-
     // Lookup site - fetch core columns (always exist) + optional personality cols
     // If the full query fails due to a missing column (42703), fall back to core columns only
     let site = null;
@@ -159,7 +157,7 @@ export default async function handler(req) {
     const originHostname = origin ? normalizedHostname(origin) : '';
     const isDomainMatch = originHostname && (originHostname === siteDomainClean || originHostname.endsWith(`.${siteDomainClean}`));
 
-    let isOriginAuthorized = isAdminCopilot || isDomainMatch;
+    let isOriginAuthorized = isDomainMatch;
 
     // If request does NOT come from the client's registered domain (e.g. preview from admin or dev),
     // require an authenticated session token belonging to the tenant owner.
@@ -196,15 +194,13 @@ export default async function handler(req) {
     }
     const isLeadCaptureEnabled = site.enable_lead_capture || false;
 
-    // Save user message (Skip if Copilot to avoid filling the DB with internal logs, or let it save to the mock ID if it doesn't crash)
-    if (!isAdminCopilot) {
-      await supabase.from('messages').insert({
-        tenant_id: tenantId,
-        session_id,
-        role: 'user',
-        content: message
-      });
-    }
+    // Save user message
+    await supabase.from('messages').insert({
+      tenant_id: tenantId,
+      session_id,
+      role: 'user',
+      content: message
+    });
 
     // Fetch site summary from site_summaries if available, with fallback to documents table (#site-summary)
     let summaryText = null;
@@ -258,12 +254,6 @@ export default async function handler(req) {
     }
 
     let siteSummaryText = summaryText ? `\nWEBSITE SUMMARY AND COMPANY OVERVIEW:\n${summaryText}\n` : '';
-
-    // Admin Copilot: provide admin-facing platform summary and plan info instead
-    // of a crawled-site summary (there's no customer site to summarize here).
-    if (isAdminCopilot) {
-      siteSummaryText = `\nPLATFORM SUMMARY (Admin Copilot):\nYou are the official Copilot for the Dorafi admin dashboard. Your role is to help administrators configure their AI agent.\n- APPOINTMENTS & SUPPORT: To enable calendar booking or support email forwarding, the tenant must subscribe to the Pro plan ($40/month) or higher. After subscribing, they can enter their calendar link and support email in the Dashboard under Pro Integrations.\n- WIDGET INTEGRATION: Copy the <script> snippet provided in the Dashboard and paste it into the tenant's website.\n- PLANS: Basic ($15/month), Pro ($40/month), Premium ($65/month).\n- UI TOOLS: You have access to the 'navigate_to' tool; use it when the user asks where to find a feature.\nDo not mention unrelated internal topics or implementation details.\n`;
-    }
 
     const apiKey = process.env.OPENROUTER_API_KEY;
 
@@ -382,27 +372,6 @@ ${supportInstruction}`;
       });
     }
 
-    if (isAdminCopilot) {
-      tools.push({
-        type: "function",
-        function: {
-          name: "navigate_to",
-          description: "Opens a specific page of the admin panel for the user. Use this if the user wants to see their invoices (pricing), their dashboard, their leads, or the 'About' page.",
-          parameters: {
-            type: "object",
-            properties: {
-              page: { 
-                type: "string", 
-                enum: ["dashboard", "pricing", "leads", "about"],
-                description: "The target page."
-              }
-            },
-            required: ["page"]
-          }
-        }
-      });
-    }
-
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
@@ -413,10 +382,6 @@ ${supportInstruction}`;
           // Allows up to MAX_TURNS iterations of tool calls & query reformulations
           const MAX_TURNS = 4;
           let currentHistory = [...fullHistory];
-          
-          if (isAdminCopilot) {
-            currentHistory.push({ role: 'user', content: message });
-          }
 
           let finalReply = '';
           let loopCount = 0;
@@ -548,28 +513,6 @@ ${supportInstruction}`;
                     content: emailResponse,
                     tool_call_id: toolCall.id
                   });
-                } else if (toolCall.function.name === 'navigate_to') {
-                  const toolArgs = JSON.parse(toolCall.function.arguments || '{}');
-                  
-                  // Stream tool badge to UI
-                  controller.enqueue(
-                    encoder.encode(
-                      `data: ${JSON.stringify({
-                        tool_call: {
-                          name: 'navigate_to',
-                          page: toolArgs.page
-                        }
-                      })}\n\n`
-                    )
-                  );
-
-                  const navResponse = `Successfully redirected the user to the ${toolArgs.page} page.`;
-                  
-                  currentHistory.push({
-                    role: 'tool',
-                    content: navResponse,
-                    tool_call_id: toolCall.id
-                  });
                 }
               }
             } else {
@@ -594,16 +537,14 @@ ${supportInstruction}`;
           }
 
           // Save assistant message to Supabase
-          if (!isAdminCopilot) {
-            await supabase.from('messages').insert({
-              tenant_id: tenantId,
-              session_id,
-              role: 'assistant',
-              content: finalReply
-            });
+          await supabase.from('messages').insert({
+            tenant_id: tenantId,
+            session_id,
+            role: 'assistant',
+            content: finalReply
+          });
 
-            await supabase.rpc('increment_usage', { target_tenant_id: tenantId });
-          }
+          await supabase.rpc('increment_usage', { target_tenant_id: tenantId });
 
           // Lead Extraction Process
           if (isLeadCaptureEnabled) {
