@@ -10,8 +10,21 @@
 // realistic responses — it does not (and cannot, without live infra) verify
 // server-side logic like RLS or the delete_site_cascade SQL function itself.
 
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
 const MOCK_SUPABASE_URL = 'https://mock.supabase.test';
 const MOCK_ANON_KEY = 'mock-anon-key-for-e2e-tests';
+
+// apps/admin/index.html unconditionally embeds Dorafi's own production
+// widget snippet (dogfooding — see 43be108) pointed at a real, absolute
+// admin-felix-fe3e.vercel.app URL rather than a same-origin path, so every
+// page load in these tests fires two real, unmocked cross-origin requests
+// regardless of which spec is running. Routed host-agnostically (`**/...`,
+// no domain hardcoded) so this also covers the widget being embedded
+// against any other absolute host later, exactly like the `/api/chat` and
+// `/api/chat/theme` mocks above already do.
+const WIDGET_BUNDLE_PATH = fileURLToPath(new URL('../../../apps/admin/public/widget.iife.js', import.meta.url));
 
 function uuid() {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
@@ -343,6 +356,36 @@ export async function installMockBackend(page, overrides = {}) {
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({ primary_color: '#4f46e5', org_name: 'Acme Corp' }),
+    });
+  });
+
+  // The embedded widget's own load-time greeting fetch (see the module-level
+  // comment above) — same fallback shape api/chat/init.js returns when it
+  // has nothing better to say.
+  await page.route('**/api/chat/init', async (route) => {
+    state.calls.push({ type: 'api', path: 'chat/init' });
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        welcome_message: 'Hello! How can I help you today?',
+        ui_status_title: 'Virtual Assistant',
+        ui_status_online: 'Online',
+        ui_input_placeholder: 'Ask a question...',
+        language: 'en',
+      }),
+    });
+  });
+
+  // Serve the real, locally-built widget bundle for the embedded widget's
+  // <script src> itself, so it still boots and behaves exactly like
+  // production (widget-clickthrough.spec.js exercises its real shadow-DOM
+  // behavior) without depending on a real round-trip to an external host.
+  await page.route('**/widget.iife.js', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/javascript',
+      body: readFileSync(WIDGET_BUNDLE_PATH, 'utf-8'),
     });
   });
 

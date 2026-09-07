@@ -21,6 +21,16 @@ test.describe('Full header (authenticated user)', () => {
     // copy elsewhere on the page, e.g. "prospect captured").
     await expect(page.locator(`[title^="Plan "]`)).toContainText(new RegExp(mock.db.tenants[0].plan, 'i'));
 
+    // Below the sm breakpoint the four tabs move behind a sandwich menu
+    // (Header.jsx's own toggle, `sm:hidden` — separate from App.jsx's guest
+    // hamburger that clickGuestNavButton opens), closed by default; open it
+    // first so the assertions below see the same tabs on every viewport this
+    // spec runs under (including the Mobile Chrome project).
+    const mobileNavToggle = page.getByRole('banner').getByRole('button', { name: /open navigation/i });
+    if (await mobileNavToggle.isVisible().catch(() => false)) {
+      await mobileNavToggle.click();
+    }
+
     for (const tab of [/^Dashboard/i, /^Leads/i, /^Plans/i, /^About/i]) {
       await expect(page.getByRole('banner').getByRole('button', { name: tab })).toBeVisible();
     }
