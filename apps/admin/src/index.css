@@ -5,6 +5,11 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
 html {
+  /* This app is light-only. Declaring it keeps a browser in dark mode from
+     force-darkening the page and from painting UA scrollbars and form
+     controls dark over a light design. */
+  color-scheme: light;
+
   /* Prevent any single element with a slightly-too-wide layout (a wide table,
      a long public key, a fixed-width preview iframe) from creating horizontal
      page scroll/jitter on narrow phone screens. */
@@ -60,12 +65,20 @@ body {
   }
 }
 
-.glass-card {
-  background: rgba(255, 255, 255, 0.75);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+/* In the components layer, not at the end of the file: as a plain top-level
+   rule this sits *after* Tailwind's utilities, and its `border` shorthand then
+   silently beats any `border-*` colour used alongside it — which is why
+   Pricing's "Most Popular" emerald ring and the accent borders on the modals
+   never actually rendered. The components layer is emitted before utilities,
+   so a utility now wins, as it should. */
+@layer components {
+  .glass-card {
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  }
 }
 
 @keyframes pulseGlow {

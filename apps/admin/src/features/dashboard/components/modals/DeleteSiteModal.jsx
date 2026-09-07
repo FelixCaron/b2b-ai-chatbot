@@ -13,8 +13,8 @@ export default function DeleteSiteModal({
   if (!show || !activeSite) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999999] bg-black/80 flex items-center justify-center p-4 animate-in fade-in">
-      <div className="glass-card p-8 rounded-3xl w-full max-w-md border border-red-500/30 shadow-2xl relative text-center">
+    <div className="fixed inset-0 z-[9999999] bg-dark-900/55 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
+      <div className="bg-white p-8 rounded-3xl w-full max-w-md border border-red-500/30 shadow-2xl relative text-center">
         <div className="w-14 h-14 rounded-2xl bg-red-500/10 text-red-600 border border-red-500/20 flex items-center justify-center mx-auto mb-4">
           <AlertTriangle className="w-7 h-7" />
         </div>

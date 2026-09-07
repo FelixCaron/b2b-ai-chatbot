@@ -2188,3 +2188,25 @@ Deux obstacles rendaient chaque refonte risquée et chaque modification coûteus
 - Renommer un champ d'API est une modification dans un seul fichier ; les deux extrémités suivent, et le test de contrats échoue si une route disparaît.
 - Ajouter un onglet de navigation, changer l'en-tête ou le pied de page se fait à un seul endroit, pour les deux variantes.
 - Deux changements de comportement assumés : `crawler.scan` / `update` / `summarize` déclarent désormais leur portée tenant au niveau du contrat (elles vérifiaient déjà la propriété du site, mais la posture est maintenant déclarée et appliquée uniformément), et `chat.send` refuse une `tenant_public_key` malformée par un 400 avant d'atteindre la base plutôt que par un 404 après.
+
+## ADR : Achèvement du thème clair sur les écrans de chargement et la couche modale
+**Date:** 7 Septembre 2026
+**Statut:** Accepté
+
+### Contexte
+Le produit est passé au thème clair (rebrand dorafi), mais plusieurs surfaces ne l'avaient jamais suivi — et ce sont précisément celles que l'utilisateur regarde le plus longtemps :
+- `apps/admin/public/preview.html` (l'aperçu « Open in new tab », avec son état « Checking site security... ») avait encore un fond `#0b0f19` et une barre supérieure quasi noire.
+- La modale de progression affichée pendant l'analyse d'un site — celle qui occupe l'écran pendant toute la durée d'un crawl — s'affichait sur un voile `bg-black/85`.
+- Surtout, 8 des 10 boîtes de dialogue posaient une carte `.glass-card` (blanc à **75 %**, donc translucide) sur ce voile noir : la carte, censée être blanche, était rendue **grise**. C'est ce qui donnait à toute la couche modale une allure sombre dans une application claire.
+- Deux bugs de cascade CSS aggravaient l'ensemble : `.glass-card` était déclarée **après** les utilitaires Tailwind, si bien que son raccourci `border:` écrasait silencieusement toute couleur de bordure appliquée à côté d'elle (l'anneau émeraude « Most Popular » de la page Tarifs, les bordures d'accent rouge/ambre des modales : jamais rendues) ; et aucune page ne déclarait `color-scheme`, ce qui laissait un navigateur en mode sombre assombrir d'office la page et peindre ascenseurs et contrôles de formulaire en sombre par-dessus un design clair.
+
+### Décision
+- **`preview.html`** repeint avec les jetons de l'application (`#f7f8fb` de fond, encre `#0b0f19`, accent `#293f68`), barre supérieure en verre clair. La chrome de `LivePreviewModal` — l'autre vue de la même fonctionnalité — est alignée dessus.
+- **Couche modale** : voile unifié `bg-dark-900/55 backdrop-blur-sm` (l'encre de l'application, pas du noir pur) au lieu de `bg-black/80`–`/85`, et cartes en `bg-white` opaque au lieu de `.glass-card`. Chaque carte déclarait déjà sa propre bordure et son ombre : `.glass-card` n'y apportait que cette translucidité parasite.
+- **`.glass-card` déplacée dans `@layer components`** dans les deux applications, pour qu'un utilitaire `border-*` reprenne l'avantage — ce que la cascade doit faire. La classe reste ce qu'elle est, sur les surfaces claires auxquelles elle est destinée (en-têtes, cartes de tarifs, listes).
+- **`color-scheme: light`** déclaré dans les deux `index.css`, dans les deux `index.html` (balise `<meta>`, qui s'applique avant même le chargement de la feuille de style — exactement la fenêtre pendant laquelle le premier écran de chargement était peint) et dans `preview.html`.
+
+### Conséquences
+- Les écrans de chargement — analyse de site et aperçu — sont clairs, et le restent dans un navigateur en mode sombre.
+- Les bordures d'accent que le balisage demandait depuis toujours s'affichent enfin.
+- Suite E2E : 24 réussites / 11 échecs, exactement le même ensemble d'échecs qu'avant (réseau bloqué dans l'environnement de test), donc aucune régression.

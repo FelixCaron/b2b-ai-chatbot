@@ -11,7 +11,7 @@ export default function EditPageModal({
   if (!editingPage) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999999] bg-black/80 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[9999999] bg-dark-900/55 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="bg-white p-6 rounded-2xl w-full max-w-3xl border border-dark-900/10 shadow-2xl relative flex flex-col h-[80vh]">
         <button
           onClick={onClose}

@@ -22,8 +22,8 @@ export default function UpgradeRequiredModal({
   const nextPlan = getNextPlanUpgrade(tenantPlan);
 
   return (
-    <div className="fixed inset-0 z-[9999999] bg-black/80 flex items-center justify-center p-4 animate-in fade-in">
-      <div className="glass-card p-8 rounded-3xl w-full max-w-md border border-brand-500/30 shadow-2xl relative text-center">
+    <div className="fixed inset-0 z-[9999999] bg-dark-900/55 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
+      <div className="bg-white p-8 rounded-3xl w-full max-w-md border border-brand-500/30 shadow-2xl relative text-center">
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-gray-500 hover:text-dark-900 p-2 rounded-lg hover:bg-dark-900/5 transition-colors"

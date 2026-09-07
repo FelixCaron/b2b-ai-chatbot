@@ -1,7 +1,10 @@
 ﻿const fs = require('fs');
 const path = require('path');
 
-const root = path.resolve(__dirname, '..');
+// __dirname is scripts/ops, so the repo root is two levels up. This used to
+// be '..' — the scan covered scripts/ only, and would have missed a
+// credential committed anywhere else in the monorepo.
+const root = path.resolve(__dirname, '../..');
 const ignored = new Set(['.git', 'node_modules', 'dist', 'build']);
 const patterns = [
   { label: 'Supabase service-role JWT', value: /eyJ[a-zA-Z0-9_-]{20,}\.[a-zA-Z0-9_-]{20,}\.[a-zA-Z0-9_-]{20,}/ },

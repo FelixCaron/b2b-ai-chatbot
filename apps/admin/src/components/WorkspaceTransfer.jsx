@@ -59,8 +59,8 @@ export default function WorkspaceTransfer({
   }
 
   const shell = (children) => (
-    <div className="fixed inset-0 z-[9999999] bg-black/80 flex items-center justify-center p-4">
-      <div className="relative glass-card p-8 sm:p-10 rounded-3xl w-full max-w-lg border border-dark-900/10 shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-[9999999] bg-dark-900/55 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="relative bg-white p-8 sm:p-10 rounded-3xl w-full max-w-lg border border-dark-900/10 shadow-2xl overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-brand-900/20 to-brand-700/20 pointer-events-none" />
         <div className="relative">{children}</div>
       </div>

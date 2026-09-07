@@ -14,8 +14,8 @@ export default function LearningProgressModal({
   if (!show) return null;
 
   return (
-    <div className="fixed inset-0 z-[999999] bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-      <div className="glass-card p-8 sm:p-10 rounded-3xl w-full max-w-lg border border-dark-900/10 shadow-2xl relative text-center overflow-hidden animate-in fade-in zoom-in-95 duration-300">
+    <div className="fixed inset-0 z-[999999] bg-dark-900/55 backdrop-blur-md flex items-center justify-center p-4">
+      <div className="bg-white p-8 sm:p-10 rounded-3xl w-full max-w-lg border border-dark-900/10 shadow-2xl relative text-center overflow-hidden animate-in fade-in zoom-in-95 duration-300">
         {/* Background Glow */}
         <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-64 h-64 rounded-full bg-brand-500/20 blur-[90px] pointer-events-none" />
 

@@ -2,6 +2,11 @@
 @import 'tailwindcss/components';
 @import 'tailwindcss/utilities';
 
+html {
+  /* Light-only by design — see apps/admin/src/index.css for why this matters. */
+  color-scheme: light;
+}
+
 body {
   font-family: system-ui, -apple-system, sans-serif;
   background-color: #f7f8fb;
@@ -10,10 +15,18 @@ body {
   padding: 0;
 }
 
-.glass-card {
-  background: rgba(255, 255, 255, 0.75);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+/* In the components layer, not at the end of the file: as a plain top-level
+   rule this sits *after* Tailwind's utilities, and its `border` shorthand then
+   silently beats any `border-*` colour used alongside it — which is why
+   Pricing's "Most Popular" emerald ring and the accent borders on the modals
+   never actually rendered. The components layer is emitted before utilities,
+   so a utility now wins, as it should. */
+@layer components {
+  .glass-card {
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  }
 }

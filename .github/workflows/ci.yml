@@ -40,9 +40,26 @@ jobs:
 
       - name: Build Admin Single Page App (@b2b-ai-chatbot/admin)
         run: npm run build --prefix apps/admin
+        env:
+          # Not secrets: placeholders that keep supabaseConfigurationError from
+          # folding to a constant at build time. Without them Rollup shakes the
+          # whole app out behind the config-error guard and this step "passes"
+          # having compiled almost nothing.
+          VITE_SUPABASE_URL: https://placeholder.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
 
       - name: Build Internal Staff Console (@b2b-ai-chatbot/internal-admin)
         run: npm run build --prefix apps/internal-admin
+        env:
+          # Not secrets: placeholders that keep supabaseConfigurationError from
+          # folding to a constant at build time. Without them Rollup shakes the
+          # whole app out behind the config-error guard and this step "passes"
+          # having compiled almost nothing.
+          VITE_SUPABASE_URL: https://placeholder.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
+
+      - name: Run API Contract Verification
+        run: node scripts/tests/test-contracts.js
 
       - name: Run Schema Contracts Verification
         run: node scripts/tests/test-schemas.js
