@@ -6,8 +6,10 @@ import { parseMarkdown } from "./markdown.js";
   const scriptTag = document.currentScript || document.querySelector("script[data-tenant-key]");
   const tenantPublicKey = scriptTag?.getAttribute("data-tenant-key") || "8d0d146d-2d1f-43e7-aab4-85e8663e0956";
   
-  // Default API endpoint fallback to working live Vercel Edge API route
-  let defaultApiUrl = "https://admin-seven-alpha-37.vercel.app/api/chat";
+  // Default API endpoint fallback to the production domain's Edge API route.
+  // Vercel preview deployments (*.vercel.app) don't share that domain, so
+  // they fall back to their own origin instead.
+  let defaultApiUrl = "https://dorafi.logafi.com/api/chat";
   if (typeof window !== "undefined" && window.location.hostname.includes("vercel.app")) {
     defaultApiUrl = `${window.location.origin}/api/chat`;
   }
@@ -27,7 +29,7 @@ import { parseMarkdown } from "./markdown.js";
   // should still be showing it. Note this is a soft, client-side nudge like
   // most embeddable widgets' badges, not a hard anti-tamper mechanism.
   const hideBranding = scriptTag?.getAttribute("data-hide-branding") === "true";
-  let brandingHost = "https://admin-seven-alpha-37.vercel.app";
+  let brandingHost = "https://dorafi.logafi.com";
   try {
     brandingHost = new URL(apiEndpoint).origin;
   } catch (e) {
