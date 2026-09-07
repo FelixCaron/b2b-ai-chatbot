@@ -7,7 +7,9 @@ test.describe('Delete website flow', () => {
 
     mock.state.deleteSiteShouldFail = true;
 
-    await page.getByRole('button', { name: /^Delete$/ }).first().click();
+    // Delete now lives only in the Danger Zone, inside Advanced Settings.
+    await page.getByRole('button', { name: /Show Settings/i }).click();
+    await page.getByRole('button', { name: /^Delete Website$/ }).click();
     await expect(page.getByRole('heading', { name: /Delete Website\?/i })).toBeVisible();
 
     await page.getByRole('button', { name: /Delete Permanently/i }).click();
@@ -23,14 +25,17 @@ test.describe('Delete website flow', () => {
     expect(mock.db.sites.some((s) => s.domain === 'acme.example.com')).toBe(true);
     await expect(page.getByRole('heading', { name: /Delete Website\?/i })).toBeVisible();
     await page.getByRole('button', { name: /^Cancel$/ }).click();
-    await expect(page.getByText('acme.example.com')).toBeVisible();
+    // Settings is still expanded, so "acme.example.com" now also appears in
+    // the Danger Zone's own description — scope to the page heading.
+    await expect(page.getByRole('heading', { name: 'acme.example.com' })).toBeVisible();
   });
 
   test('a successful deletion removes the site and returns to onboarding when it was the only site', async ({ page, mock }) => {
     await page.goto('/');
     await expect(page.getByText('acme.example.com')).toBeVisible();
 
-    await page.getByRole('button', { name: /^Delete$/ }).first().click();
+    await page.getByRole('button', { name: /Show Settings/i }).click();
+    await page.getByRole('button', { name: /^Delete Website$/ }).click();
     await expect(page.getByRole('heading', { name: /Delete Website\?/i })).toBeVisible();
     await page.getByRole('button', { name: /Delete Permanently/i }).click();
 
@@ -49,7 +54,8 @@ test.describe('Delete website flow', () => {
     await page.goto('/');
     mock.state.deleteSiteShouldFail = true;
 
-    await page.getByRole('button', { name: /^Delete$/ }).first().click();
+    await page.getByRole('button', { name: /Show Settings/i }).click();
+    await page.getByRole('button', { name: /^Delete Website$/ }).click();
     await page.getByRole('button', { name: /Delete Permanently/i }).click();
     await expect(page.getByRole('button', { name: /Retry Delete/i })).toBeVisible();
 

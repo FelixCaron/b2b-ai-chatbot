@@ -39,7 +39,10 @@ for (const viewport of VIEWPORTS) {
       await page.goto('/');
       await expect(page.getByText('acme.example.com')).toBeVisible();
 
-      const buttonNames = [/Test Live Assistant/i, /Embed Widget/i, /Show Settings/i, /\+ Add Website/i, /^Delete$/];
+      // Delete is no longer a quick-access dashboard action — it lives in the
+      // Danger Zone behind "Show Settings", so it's checked separately below
+      // once that section is expanded.
+      const buttonNames = [/Test Live Assistant/i, /Embed Widget/i, /Show Settings/i, /\+ Add Website/i];
       for (const name of buttonNames) {
         const button = page.getByRole('button', { name }).first();
         await expect(button).toBeVisible();
@@ -51,6 +54,16 @@ for (const viewport of VIEWPORTS) {
         expect(box.x).toBeGreaterThanOrEqual(-1);
         expect(box.x + box.width).toBeLessThanOrEqual(viewport.width + 1);
       }
+
+      await page.getByRole('button', { name: /Show Settings/i }).click();
+      const deleteButton = page.getByRole('button', { name: /^Delete Website$/ });
+      await expect(deleteButton).toBeVisible();
+      const deleteBox = await deleteButton.boundingBox();
+      expect(deleteBox, 'Delete Website should have a layout box').not.toBeNull();
+      expect(deleteBox.width).toBeGreaterThan(0);
+      expect(deleteBox.height).toBeGreaterThan(0);
+      expect(deleteBox.x).toBeGreaterThanOrEqual(-1);
+      expect(deleteBox.x + deleteBox.width).toBeLessThanOrEqual(viewport.width + 1);
     });
   });
 }
