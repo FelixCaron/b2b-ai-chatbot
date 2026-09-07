@@ -60,7 +60,13 @@ export default function App() {
   const handleLogin = async (email) => {
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: window.location.origin },
+      // window.location.origin never includes the path — fine while this
+      // app owns its whole domain, but once it's reachable at
+      // <main-domain>/admin (a path prefix on a domain another app also
+      // answers on), an origin-only redirect would bounce a signed-in staff
+      // member back to that other app's root instead of here. Preserve
+      // whatever path the login screen was actually opened at.
+      options: { emailRedirectTo: window.location.origin + window.location.pathname },
     });
     return error?.message || null;
   };
