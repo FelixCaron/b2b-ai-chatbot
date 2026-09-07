@@ -1,0 +1,61 @@
+import React from 'react';
+import { Check, ArrowUpRight, Code } from 'lucide-react';
+
+/** Quick 3-Step Guided Roadmap */
+export default function GuidedRoadmap({
+  loadedPagesCount,
+  isCrawling,
+  isGuest,
+  onRequireLogin,
+  onOpenPreview,
+  onOpenIntegration
+}) {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-dark-900/5">
+      <div className="bg-surface-100 p-4 rounded-xl border border-dark-900/5 flex items-center gap-3.5">
+        <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-700 flex items-center justify-center shrink-0 border border-emerald-500/20 font-bold text-xs">
+          1
+        </div>
+        <div>
+          <div className="text-xs font-bold text-dark-900 flex items-center gap-1.5">
+            AI Knowledge Learned <Check className="w-3.5 h-3.5 text-emerald-600" />
+          </div>
+          <div className="text-[11px] text-gray-500">{loadedPagesCount || 1} pages indexed in memory</div>
+        </div>
+      </div>
+
+      <div
+        onClick={() => !isCrawling && onOpenPreview()}
+        className="bg-surface-100 hover:bg-surface-200 p-4 rounded-xl border border-dark-900/5 flex items-center gap-3.5 cursor-pointer group transition-all"
+      >
+        <div className="w-8 h-8 rounded-lg bg-brand-500/10 text-brand-700 flex items-center justify-center shrink-0 border border-brand-500/20 font-bold text-xs group-hover:scale-105 transition-transform">
+          2
+        </div>
+        <div className="flex-1">
+          <div className="text-xs font-bold text-dark-900 flex items-center gap-1.5 group-hover:text-brand-700">
+            Test Your Bot Live <ArrowUpRight className="w-3.5 h-3.5 text-brand-600" />
+          </div>
+          <div className="text-[11px] text-gray-500">Try live questions in sandbox preview</div>
+        </div>
+      </div>
+
+      <div
+        onClick={() => {
+          if (isGuest) onRequireLogin();
+          else onOpenIntegration();
+        }}
+        className="bg-surface-100 hover:bg-surface-200 p-4 rounded-xl border border-dark-900/5 flex items-center gap-3.5 cursor-pointer group transition-all"
+      >
+        <div className="w-8 h-8 rounded-lg bg-brand-500/10 text-brand-700 flex items-center justify-center shrink-0 border border-brand-500/20 font-bold text-xs group-hover:scale-105 transition-transform">
+          3
+        </div>
+        <div className="flex-1">
+          <div className="text-xs font-bold text-dark-900 flex items-center gap-1.5 group-hover:text-brand-700">
+            Embed on Website <Code className="w-3.5 h-3.5 text-brand-600" />
+          </div>
+          <div className="text-[11px] text-gray-500">Copy 1-line script for your site</div>
+        </div>
+      </div>
+    </div>
+  );
+}

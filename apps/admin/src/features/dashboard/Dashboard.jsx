@@ -1,16 +1,29 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Sparkles, Globe, Eye, CheckCircle2, ArrowRight, Settings2, ShieldCheck, 
-  ToggleLeft, ToggleRight, Check, RefreshCw, Copy, Layers, Laptop, 
-  Smartphone, X, Send, Code, Lock, FileText, Save, Edit3, ExternalLink,
-  ChevronDown, ChevronUp, Bot, ArrowUpRight, Search, Trash2, AlertTriangle,
-  ZoomIn, ZoomOut, RotateCcw
-} from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import { supabase, authenticatedHeaders } from '../../lib/supabase';
-import { fetchEventSource } from '@microsoft/fetch-event-source';
-import LogoMark from '../../components/LogoMark';
+import React, { useState, useEffect } from 'react';
+import { Sparkles, X } from 'lucide-react';
+import api from '../../lib/api';
+import { getMaxSitesForPlan } from './lib/plan-limits';
+import { domainFromUrl, hasProtocol } from './lib/page-url';
+import { executeTurnstileCaptcha } from './lib/turnstile';
+import { fetchBrandTheme } from './lib/brand-theme';
+import useSiteSummary from './hooks/useSiteSummary';
+import useCrawlPipeline from './hooks/useCrawlPipeline';
+import usePreviewChat from './hooks/usePreviewChat';
+import useSiteLifecycle from './hooks/useSiteLifecycle';
+import OnboardingHero from './components/OnboardingHero';
+import SiteTabs from './components/SiteTabs';
+import SiteHeroCard from './components/SiteHeroCard';
+import ParkedSiteBanner from './components/ParkedSiteBanner';
+import GuidedRoadmap from './components/GuidedRoadmap';
+import AdvancedSettingsPanel from './components/AdvancedSettings/AdvancedSettingsPanel';
+import LearningProgressModal from './components/modals/LearningProgressModal';
+import LivePreviewModal from './components/modals/LivePreviewModal';
+import IntegrationModal from './components/modals/IntegrationModal';
+import EditPageModal from './components/modals/EditPageModal';
+import AddSiteModal from './components/modals/AddSiteModal';
+import DeleteSiteModal from './components/modals/DeleteSiteModal';
+import PageSelectionModal from './components/modals/PageSelectionModal';
+import UpgradeRequiredModal from './components/modals/UpgradeRequiredModal';
+import OverLimitModal from './components/modals/OverLimitModal';
 
 export default function Dashboard({
   selectedTenant,
@@ -31,41 +44,7 @@ export default function Dashboard({
   const activeSite = (sites && sites.find(s => s.id === selectedSiteId)) || sites?.[0] || localCreatedSite;
 
   const tenantPlan = selectedTenant?.plan || 'basic';
-  // Plan → website limit. The database enforces exactly these numbers in
-  // public.plan_site_limit() and the sites_enforce_limit trigger (migration
-  // 20260905030000_site_limits_and_guest_claims.sql), so this check only exists
-  // to spare the user a doomed round trip — it never has the last word.
-  const getMaxSitesForPlan = (plan) => {
-    if (plan === 'premium') return 10;
-    if (plan === 'pro') return 2;
-    return 1; // basic — and any unknown/legacy plan value: 1 website
-  };
-  const getMaxPagesForPlan = (plan) => {
-    if (plan === 'premium') return 9999;
-    if (plan === 'pro' || plan === 'basic') return 2000;
-    return 500; // Do not block unless over 500 pages
-  };
   const maxSitesForPlan = getMaxSitesForPlan(tenantPlan);
-
-  // Local is_active overrides for websites parked or re-activated in this
-  // session: `sites` is owned by App.jsx and is not refetched after a plain
-  // supabase update, so without this the list would keep showing the previous
-  // state until the next tenant load.
-  const [siteActiveOverrides, setSiteActiveOverrides] = useState({});
-
-  // A parked site (is_active = false) keeps every page, lead and key it had —
-  // only its widget stops answering (api/chat/index.js refuses an inactive
-  // site). Rows created before the migration have no column at all, so anything
-  // that is not explicitly false counts as active.
-  const isSiteActive = (site) => {
-    if (!site) return false;
-    if (Object.prototype.hasOwnProperty.call(siteActiveOverrides, site.id)) {
-      return siteActiveOverrides[site.id];
-    }
-    return site.is_active !== false;
-  };
-  const activeSites = (sites || []).filter(isSiteActive);
-  const isOverSiteLimit = activeSites.length > maxSitesForPlan;
 
   // Onboarding Step State
   const [siteUrl, setSiteUrl] = useState('');
@@ -73,217 +52,57 @@ export default function Dashboard({
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [detectedTheme, setDetectedTheme] = useState(null);
   const [step, setStep] = useState(activeSite ? 'dashboard' : 'input');
+  const [statusMsg, setStatusMsg] = useState('');
 
-  // Add Site Modal state (non-blocking)
-  const [showAddSiteModal, setShowAddSiteModal] = useState(false);
-  const [newSiteUrlInput, setNewSiteUrlInput] = useState('');
-  const [isAddingNewSite, setIsAddingNewSite] = useState(false);
-  const [newSiteError, setNewSiteError] = useState('');
-  // Upgrade-first prompt: shown instead of an inline error when the workspace
-  // is already at its plan's website limit — either our own pre-check or the
-  // sites_enforce_limit trigger refusing the insert.
-  const [showUpgradeRequiredModal, setShowUpgradeRequiredModal] = useState(false);
-  const [upgradeRequiredDomain, setUpgradeRequiredDomain] = useState('');
+  // View state shared by several sections
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
+  const [showIntegrationModal, setShowIntegrationModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [copiedScriptKey, setCopiedScriptKey] = useState(null);
 
-  // OVER_LIMIT_CHOOSE state — a Stripe downgrade (or a past_due plan change)
-  // can leave a workspace holding more websites than its new plan covers. The
-  // user picks which ones stay active; every other one is parked
-  // (is_active = false), never deleted, and comes back on upgrade.
-  const [showOverLimitModal, setShowOverLimitModal] = useState(false);
-  const [overLimitKeepIds, setOverLimitKeepIds] = useState(new Set());
-  const [isParkingSites, setIsParkingSites] = useState(false);
-  const [overLimitError, setOverLimitError] = useState('');
-  const [reactivatingSiteId, setReactivatingSiteId] = useState(null);
-  const [siteNotice, setSiteNotice] = useState('');
+  const summary = useSiteSummary(activeSite);
 
-  // Delete Site state
-  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
-  const [isDeletingSite, setIsDeletingSite] = useState(false);
-  const [deleteSiteError, setDeleteSiteError] = useState('');
+  const pipeline = useCrawlPipeline({
+    activeSite,
+    tenantPlan,
+    onTriggerScan,
+    onDeleteDocumentUrls,
+    onEnterDashboard: () => setStep('dashboard'),
+    setSiteSummary: summary.setSiteSummary,
+    setIsRegeneratingSummary: summary.setIsRegeneratingSummary,
+    refreshSiteSummary: summary.fetchSiteSummary
+  });
 
-  // Best-effort cleanup of any browser-side (this admin session's own origin)
-  // references to a deleted site: the Live Preview widget (injected by
-  // preview.html on this same origin) keeps its own chat session in
-  // localStorage, scoped per public_key. If we don't clear it, re-adding a
-  // site with a reused domain — or simply the browser tab sticking around —
-  // could keep pointing at conversation state tied to the now-deleted site.
-  const purgeLocalSiteReferences = (site) => {
-    if (!site) return;
-    try {
-      window.localStorage?.removeItem(`b2b_chat_session_id_${site.public_key}`);
-    } catch (e) {
-      // localStorage unavailable (private mode, SSR, etc.) — nothing to clean up
-    }
-  };
+  const preview = usePreviewChat(activeSite);
 
-  // Clear any stale error message whenever the confirm modal is (re)opened,
-  // regardless of which of the several "Delete" buttons triggered it.
-  useEffect(() => {
-    if (showDeleteConfirmModal) setDeleteSiteError('');
-  }, [showDeleteConfirmModal]);
-
-  const handleConfirmDeleteSite = async () => {
-    if (!activeSite?.id || isDeletingSite || !onDeleteSite) return;
-    setIsDeletingSite(true);
-    setDeleteSiteError('');
-    const siteToDelete = activeSite;
-    try {
-      const result = await onDeleteSite(siteToDelete.id);
-      if (result?.success) {
-        purgeLocalSiteReferences(siteToDelete);
-        setShowDeleteConfirmModal(false);
-        setShowPreviewModal(false);
-        if (localCreatedSite?.id === siteToDelete.id) {
-          setLocalCreatedSite(null);
-        }
-        const remaining = sites ? sites.filter(s => s.id !== siteToDelete.id) : [];
-        if (remaining.length > 0) {
-          setSelectedSiteId(remaining[0].id);
-        } else {
-          setLocalCreatedSite(null);
-          setSelectedSiteId(null);
-          setSiteUrl('');
-          setDiscoveredPages([]);
-          setSelectedUrls(new Set());
-          setDetectedTheme(null);
-          setStep('input');
-        }
+  const lifecycle = useSiteLifecycle({
+    sites,
+    activeSite,
+    tenantPlan,
+    maxSitesForPlan,
+    onAddSite,
+    onDeleteSite,
+    onSelectSite: setSelectedSiteId,
+    onSiteDeleted: (siteToDelete) => {
+      preview.setShowPreviewModal(false);
+      if (localCreatedSite?.id === siteToDelete.id) {
+        setLocalCreatedSite(null);
+      }
+      const remaining = sites ? sites.filter(s => s.id !== siteToDelete.id) : [];
+      if (remaining.length > 0) {
+        setSelectedSiteId(remaining[0].id);
       } else {
-        // Deletion genuinely failed server-side — keep the modal open and the
-        // site in the list, and tell the user exactly what happened instead of
-        // silently pretending it worked (the previous behavior left "ghost"
-        // sites: gone from the UI, still present with all their data in the DB).
-        setDeleteSiteError(result?.error || 'Deletion failed. Please try again.');
+        setLocalCreatedSite(null);
+        setSelectedSiteId(null);
+        setSiteUrl('');
+        pipeline.setDiscoveredPages([]);
+        pipeline.setSelectedUrls(new Set());
+        setDetectedTheme(null);
+        setStep('input');
       }
-    } catch (err) {
-      console.error('[handleConfirmDeleteSite] Error:', err);
-      setDeleteSiteError(err.message || 'Unexpected error while deleting the site.');
-    } finally {
-      setIsDeletingSite(false);
-    }
-  };
-
-  // The `sites` table answers with raw Postgres errors (the limit trigger and
-  // the sites_tenant_domain_uq unique index both surface as SQL strings). Turn
-  // them into something a customer can actually act on.
-  const describeSiteWriteError = (err, fallback) => {
-    const raw = err?.message || '';
-    if (raw.includes('site_limit_reached')) {
-      return `Your ${tenantPlan.toUpperCase()} plan covers ${maxSitesForPlan} website(s). Upgrade your plan to connect another one.`;
-    }
-    if (raw.includes('sites_tenant_domain_uq') || raw.includes('duplicate key')) {
-      return 'This website is already connected to your workspace.';
-    }
-    return raw || fallback;
-  };
-
-  // Transient, non-error feedback for the dashboard view (e.g. "you already
-  // have this website — switched you to it").
-  useEffect(() => {
-    if (!siteNotice) return;
-    const timer = setTimeout(() => setSiteNotice(''), 8000);
-    return () => clearTimeout(timer);
-  }, [siteNotice]);
-
-  // OVER_LIMIT_CHOOSE: as soon as the workspace has more active websites than
-  // the plan covers, the choice is unavoidable — the widgets of whichever sites
-  // end up parked stop answering, so the user, not us, decides which ones.
-  // Pre-selects the website currently being viewed as a sane starting point.
-  useEffect(() => {
-    if (!isOverSiteLimit) {
-      setShowOverLimitModal(false);
-      return;
-    }
-    setOverLimitError('');
-    setShowOverLimitModal(true);
-    setOverLimitKeepIds(prev => {
-      // Drop anything already parked (or gone) and never keep more ids than the
-      // current plan has slots — a second downgrade can shrink the limit again.
-      const stillSelectable = [...prev]
-        .filter(id => activeSites.some(s => s.id === id))
-        .slice(0, maxSitesForPlan);
-      if (stillSelectable.length > 0) return new Set(stillSelectable);
-      return new Set(isSiteActive(activeSite) ? [activeSite.id] : []);
-    });
-  }, [isOverSiteLimit, activeSite?.id]);
-
-  const toggleOverLimitKeep = (siteId) => {
-    setOverLimitKeepIds(prev => {
-      const next = new Set(prev);
-      if (next.has(siteId)) {
-        next.delete(siteId);
-      } else {
-        if (next.size >= maxSitesForPlan) return next; // plan has no more slots
-        next.add(siteId);
-      }
-      return next;
-    });
-  };
-
-  const handleConfirmOverLimitSelection = async () => {
-    if (isParkingSites) return;
-    const keepIds = Array.from(overLimitKeepIds);
-    if (keepIds.length === 0 || keepIds.length > maxSitesForPlan) return;
-
-    const idsToPark = activeSites.filter(s => !overLimitKeepIds.has(s.id)).map(s => s.id);
-    if (idsToPark.length === 0) {
-      setShowOverLimitModal(false);
-      return;
-    }
-
-    setIsParkingSites(true);
-    setOverLimitError('');
-    try {
-      // Plain update, no RPC: parking is always allowed under owner RLS — the
-      // sites_enforce_limit trigger only guards the other direction
-      // (re-activating). Deliberately an update and never a delete: upgrading
-      // must bring these websites back with their pages, leads and keys intact.
-      const { error } = await supabase
-        .from('sites')
-        .update({ is_active: false })
-        .in('id', idsToPark);
-      if (error) throw error;
-
-      setSiteActiveOverrides(prev => {
-        const next = { ...prev };
-        idsToPark.forEach(id => { next[id] = false; });
-        keepIds.forEach(id => { next[id] = true; });
-        return next;
-      });
-      if (!overLimitKeepIds.has(activeSite?.id)) {
-        setSelectedSiteId(keepIds[0]);
-      }
-      setSiteNotice(`${idsToPark.length} website(s) parked. Nothing was deleted — upgrade your plan to bring them back online.`);
-      setShowOverLimitModal(false);
-    } catch (err) {
-      console.error('[handleConfirmOverLimitSelection] Error:', err);
-      setOverLimitError(describeSiteWriteError(err, 'Could not update your websites. Please try again.'));
-    } finally {
-      setIsParkingSites(false);
-    }
-  };
-
-  // Bring a parked website back online. The trigger re-checks the limit on
-  // re-activation, so a plan without a free slot is refused server-side too.
-  const handleReactivateSite = async (site) => {
-    if (!site?.id || reactivatingSiteId) return;
-    setReactivatingSiteId(site.id);
-    setSiteNotice('');
-    try {
-      const { error } = await supabase
-        .from('sites')
-        .update({ is_active: true })
-        .eq('id', site.id);
-      if (error) throw error;
-      setSiteActiveOverrides(prev => ({ ...prev, [site.id]: true }));
-      setSiteNotice(`${site.domain} is back online — its assistant is answering again.`);
-    } catch (err) {
-      console.error('[handleReactivateSite] Error:', err);
-      setSiteNotice(describeSiteWriteError(err, 'Could not reactivate this website. Please try again.'));
-    } finally {
-      setReactivatingSiteId(null);
-    }
-  };
+    },
+    onSiteReady: pipeline.runSynchronousCrawlAndIndex
+  });
 
   // Sync step if activeSite or sites changes
   useEffect(() => {
@@ -295,536 +114,10 @@ export default function Dashboard({
     }
   }, [activeSite, sites, localCreatedSite, step]);
 
-  // Page Management & Selection State
-  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
-  const [discoveredPages, setDiscoveredPages] = useState([]);
-  const [selectedUrls, setSelectedUrls] = useState(new Set());
-  const [isCrawling, setIsCrawling] = useState(false);
-  const [crawlProgressMsg, setCrawlProgressMsg] = useState('');
-  const [statusMsg, setStatusMsg] = useState('');
-  const [showIntegrationModal, setShowIntegrationModal] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [editingPage, setEditingPage] = useState(null);
-
-  // Learning Progress Modal State
-  const [showLearningModal, setShowLearningModal] = useState(false);
-  const [learningProgress, setLearningProgress] = useState(0);
-  const [learningStep, setLearningStep] = useState(1); // 1: Discover, 2: Index, 3: Summary, 4: Complete
-  const [learningDomain, setLearningDomain] = useState('');
-  const [learningStats, setLearningStats] = useState({ pages: 0, indexed: 0, protected: 0, empty: 0 });
-
-  // Large Website Selection Modal State (Never a silent miss)
-  const [showPageSelectionModal, setShowPageSelectionModal] = useState(false);
-  const [pendingCrawlPages, setPendingCrawlPages] = useState([]);
-  const [pendingSiteObj, setPendingSiteObj] = useState(null);
-  const [pendingTargetUrl, setPendingTargetUrl] = useState('');
-  const [pageSelectionSearch, setPageSelectionSearch] = useState('');
-
-  // Batch indexer helper
-  const executeBatchScan = async (siteObj, targetUrl, pagesToScan) => {
-    setIsCrawling(true);
-    setStep('dashboard');
-    setShowLearningModal(true);
-    setLearningProgress(20);
-    setLearningStep(2);
-    setLearningDomain(siteObj.domain || targetUrl.replace('https://', '').replace('http://', ''));
-
-    setDiscoveredPages(pagesToScan);
-    setSelectedUrls(new Set(pagesToScan.map(p => p.url)));
-
-    let loadedCount = 0;
-    let protectedCount = 0;
-    let emptyCount = 0;
-    let completedPagesCount = 0;
-
-    // Scan pages in parallel batches (10x concurrency)
-    const CONCURRENCY = 10;
-    for (let i = 0; i < pagesToScan.length; i += CONCURRENCY) {
-      const batch = pagesToScan.slice(i, i + CONCURRENCY);
-
-      await Promise.all(batch.map(async (page) => {
-        const scanRes = await onTriggerScan(siteObj.id, page.url, siteObj.tenant_id).catch(() => null);
-
-        // Verify ground truth chunk count in DB for this exact page
-        const { count } = await supabase
-          .from('documents')
-          .select('id', { count: 'exact', head: true })
-          .eq('site_id', siteObj.id)
-          .eq('url', page.url);
-
-        const isProtected = scanRes?.data?.is_protected || scanRes?.is_protected;
-        const chunksCount = count ?? scanRes?.data?.chunks_count ?? scanRes?.chunks_count ?? 0;
-        const isEmpty = !isProtected && (scanRes?.data?.is_empty || chunksCount === 0);
-
-        if (isProtected) {
-          protectedCount++;
-          setSelectedUrls(prev => {
-            const next = new Set(prev);
-            next.delete(page.url);
-            return next;
-          });
-          setDiscoveredPages(prev => prev.map(p => p.url === page.url ? { ...p, status: 'protected', isProtected: true, isEmpty: false, chunksCount: 0 } : p));
-        } else if (isEmpty) {
-          emptyCount++;
-          setSelectedUrls(prev => {
-            const next = new Set(prev);
-            next.delete(page.url);
-            return next;
-          });
-          setDiscoveredPages(prev => prev.map(p => p.url === page.url ? { ...p, status: 'empty', isEmpty: true, isProtected: false, chunksCount: 0 } : p));
-        } else {
-          loadedCount++;
-          setDiscoveredPages(prev => prev.map(p => p.url === page.url ? { ...p, status: 'loaded', isEmpty: false, isProtected: false, chunksCount } : p));
-        }
-
-        completedPagesCount++;
-        const pct = Math.round(20 + ((completedPagesCount / pagesToScan.length) * 60));
-        setLearningProgress(Math.min(pct, 85));
-        setCrawlProgressMsg(`Indexing page ${completedPagesCount}/${pagesToScan.length} (${Math.round((completedPagesCount / pagesToScan.length) * 100)}%)`);
-      }));
-    }
-
-    // Automatically generate website summary during scan
-    setLearningStep(3);
-    setLearningProgress(90);
-    setIsRegeneratingSummary(true);
-    setCrawlProgressMsg('Generating AI Business Summary...');
-    
-    try {
-      const summaryRes = await fetch(`${window.location.origin}/api/crawler/summarize`, {
-        method: 'POST',
-        headers: await authenticatedHeaders(),
-        body: JSON.stringify({
-          tenant_id: siteObj.tenant_id,
-          site_id: siteObj.id,
-          url: targetUrl
-        })
-      });
-      if (summaryRes.ok) {
-        const sumData = await summaryRes.json();
-        if (sumData?.summary) {
-          setSiteSummary(sumData.summary);
-        }
-      }
-    } catch (sumErr) {
-      console.warn('[executeBatchScan] Summary generation warning:', sumErr);
-    } finally {
-      setIsRegeneratingSummary(false);
-    }
-    await fetchSiteSummary();
-
-    // Complete
-    setLearningStats({
-      pages: pagesToScan.length,
-      indexed: loadedCount,
-      protected: protectedCount,
-      empty: emptyCount
-    });
-    setLearningStep(4);
-    setLearningProgress(100);
-    setCrawlProgressMsg(`✓ Scan finished! ${loadedCount} page(s) indexed.`);
-    setIsCrawling(false);
-  };
-
-  // Synchronous crawl and index pipeline
-  const runSynchronousCrawlAndIndex = async (siteObj, targetUrl) => {
-    setIsCrawling(true);
-    setStep('dashboard');
-    setShowLearningModal(true);
-    setLearningProgress(5);
-    setLearningStep(1);
-    setLearningDomain(siteObj.domain || targetUrl.replace('https://', '').replace('http://', ''));
-
-    setCrawlProgressMsg('Discovering website pages...');
-
-    // 1. Discover ALL pages via /api/crawler/crawl without silent drops
-    let pagesToScan = [{ url: targetUrl, title: 'Home Page', status: 'loading' }];
-    setDiscoveredPages(pagesToScan);
-    setSelectedUrls(new Set([targetUrl]));
-
-    try {
-      const crawlRes = await fetch(`${window.location.origin}/api/crawler/crawl`, {
-        method: 'POST',
-        headers: await authenticatedHeaders(),
-        body: JSON.stringify({ url: targetUrl })
-      });
-
-      if (crawlRes.ok) {
-        const crawlData = await crawlRes.json();
-        if (crawlData.pages && crawlData.pages.length > 0) {
-          pagesToScan = crawlData.pages.map(p => ({
-            url: p.url,
-            title: p.title || p.url,
-            status: 'loading'
-          }));
-        }
-      }
-    } catch (err) {
-      console.error('[runSynchronousCrawlAndIndex] Crawl error:', err);
-    }
-
-    const maxAllowedPages = getMaxPagesForPlan(tenantPlan);
-
-    // If website exceeds plan limit (e.g. over 500 pages), prompt with warning and interactive page selector
-    if (pagesToScan.length > maxAllowedPages) {
-      setPendingCrawlPages(pagesToScan);
-      setPendingSiteObj(siteObj);
-      setPendingTargetUrl(targetUrl);
-      setSelectedUrls(new Set(pagesToScan.slice(0, maxAllowedPages).map(p => p.url)));
-      setShowLearningModal(false);
-      setIsCrawling(false);
-      setShowPageSelectionModal(true);
-      return;
-    }
-
-    await executeBatchScan(siteObj, targetUrl, pagesToScan);
-  };
-
-  const handleConfirmSelectedPagesAndScan = async () => {
-    if (!pendingSiteObj || !pendingTargetUrl) return;
-    setShowPageSelectionModal(false);
-    const chosenPages = pendingCrawlPages.filter(p => selectedUrls.has(p.url));
-    const finalPages = chosenPages.length > 0 ? chosenPages : pendingCrawlPages.slice(0, 1);
-    await executeBatchScan(pendingSiteObj, pendingTargetUrl, finalPages);
-  };
-
-  const handleRecrawlSite = async () => {
-    if (!activeSite || isCrawling) return;
-    setIsCrawling(true);
-    setCrawlProgressMsg('Resetting previous database chunks...');
-
-    try {
-      await supabase.from('documents').delete().eq('site_id', activeSite.id);
-    } catch (err) {
-      console.error('[handleRecrawlSite] DB cleanup error:', err);
-    }
-
-    setDiscoveredPages([]);
-    setSelectedUrls(new Set());
-
-    const rootUrl = activeSite.domain.startsWith('http') ? activeSite.domain : `https://${activeSite.domain}`;
-    await runSynchronousCrawlAndIndex(activeSite, rootUrl);
-  };
-
-  const handleTogglePageActivation = async (pageUrl) => {
-    if (!activeSite) return;
-    const targetPage = discoveredPages.find(p => p.url === pageUrl);
-    const currentStatus = targetPage?.status || (selectedUrls.has(pageUrl) ? 'loaded' : 'disabled');
-
-    if (currentStatus === 'loaded' || currentStatus === 'loading') {
-      setDiscoveredPages(prev => prev.map(p => p.url === pageUrl ? { ...p, status: 'disabled' } : p));
-      setSelectedUrls(prev => {
-        const next = new Set(prev);
-        next.delete(pageUrl);
-        return next;
-      });
-      await onDeleteDocumentUrls(activeSite.id, [pageUrl]);
-    } else {
-      setDiscoveredPages(prev => prev.map(p => p.url === pageUrl ? { ...p, status: 'loading' } : p));
-      setSelectedUrls(prev => new Set(prev).add(pageUrl));
-      await onTriggerScan(activeSite.id, pageUrl, activeSite.tenant_id);
-      setDiscoveredPages(prev => prev.map(p => p.url === pageUrl ? { ...p, status: 'loaded' } : p));
-    }
-  };
-
-  function normalizePageUrl(rawUrl) {
-    if (!rawUrl) return '';
-    try {
-      let uStr = rawUrl.split('#')[0].split('?')[0].trim();
-      if (!uStr.startsWith('http://') && !uStr.startsWith('https://')) {
-        uStr = `https://${uStr}`;
-      }
-      const parsed = new URL(uStr);
-      parsed.pathname = parsed.pathname.replace(/\/index\.html$/i, '/').replace(/\.html$/i, '');
-      if (parsed.pathname === '' || parsed.pathname === '/') {
-        parsed.pathname = '/';
-      } else if (parsed.pathname.endsWith('/')) {
-        parsed.pathname = parsed.pathname.slice(0, -1);
-      }
-      return parsed.href;
-    } catch (e) {
-      return rawUrl;
-    }
-  }
-
-  // Auto-fetch indexed pages when site changes
-  const fetchIndexedPages = async () => {
-    if (!activeSite?.id || isCrawling) return;
-    try {
-      const { data, error } = await supabase
-        .from('documents')
-        .select('url, metadata')
-        .eq('site_id', activeSite.id)
-        .limit(10000);
-      if (error) {
-        console.error('[ClientOnboarding] Error fetching indexed pages:', error);
-        return;
-      }
-      if (data && data.length > 0) {
-        const uniqueUrls = new Set();
-        const pages = [];
-        data.forEach(d => {
-          if (d.url && !d.url.includes('#site-summary')) {
-            const normUrl = normalizePageUrl(d.url);
-            if (normUrl && !uniqueUrls.has(normUrl)) {
-              uniqueUrls.add(normUrl);
-              let title = d.metadata?.title;
-              if (!title) {
-                const u = new URL(normUrl);
-                title = (u.pathname === '/' || u.pathname === '') ? "Home Page" : u.pathname.replace(/^\//, '');
-              }
-              pages.push({ url: normUrl, title, status: 'loaded' });
-            }
-          }
-        });
-        setDiscoveredPages(pages);
-        setSelectedUrls(new Set(pages.map(p => p.url)));
-      } else {
-        setDiscoveredPages([]);
-        setSelectedUrls(new Set());
-      }
-    } catch (err) {
-      console.error('[ClientOnboarding] Exception fetching indexed pages:', err);
-    }
-  };
-
-  // Website Summary State & Handlers
-  const [siteSummary, setSiteSummary] = useState('');
-  const [isLoadingSummary, setIsLoadingSummary] = useState(true);
-  const [isSavingSummary, setIsSavingSummary] = useState(false);
-  const [isRegeneratingSummary, setIsRegeneratingSummary] = useState(false);
-  const [summarySuccessMsg, setSummarySuccessMsg] = useState('');
-  const [showSummaryEditor, setShowSummaryEditor] = useState(false);
-
-  const fetchSiteSummary = async () => {
-    if (!activeSite?.id) return;
-    setIsLoadingSummary(true);
-    try {
-      const { data: sumData } = await supabase
-        .from('site_summaries')
-        .select('summary')
-        .eq('site_id', activeSite.id)
-        .maybeSingle();
-
-      if (sumData?.summary) {
-        setSiteSummary(sumData.summary);
-        setIsLoadingSummary(false);
-        return;
-      }
-
-      const { data: docData } = await supabase
-        .from('documents')
-        .select('content')
-        .eq('site_id', activeSite.id)
-        .ilike('url', '%#site-summary')
-        .maybeSingle();
-
-      if (docData?.content) {
-        setSiteSummary(docData.content.replace(/^\[SITE_SUMMARY\]\n/, ''));
-        setIsLoadingSummary(false);
-        return;
-      }
-
-      if (activeSite?.domain) {
-        setIsRegeneratingSummary(true);
-        const summaryRes = await fetch(`${window.location.origin}/api/crawler/summarize`, {
-          method: 'POST',
-          headers: await authenticatedHeaders(),
-          body: JSON.stringify({
-            tenant_id: activeSite.tenant_id,
-            site_id: activeSite.id,
-            url: activeSite.domain
-          })
-        }).catch(() => null);
-
-        if (summaryRes && summaryRes.ok) {
-          const resData = await summaryRes.json();
-          if (resData?.summary) {
-            setSiteSummary(resData.summary);
-          }
-        }
-      }
-    } catch (err) {
-      console.error('[fetchSiteSummary] Error:', err);
-    } finally {
-      setIsLoadingSummary(false);
-      setIsRegeneratingSummary(false);
-    }
-  };
-
-  const handleSaveSummary = async () => {
-    if (!activeSite?.id || !siteSummary.trim()) return;
-    setIsSavingSummary(true);
-    try {
-      await supabase.from('site_summaries').upsert({
-        tenant_id: activeSite.tenant_id,
-        site_id: activeSite.id,
-        summary: siteSummary.trim(),
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'tenant_id,site_id' });
-
-      // Fallback document sync
-      const summaryUrl = `https://${activeSite.domain}#site-summary`;
-      await supabase.from('documents').delete().eq('site_id', activeSite.id).eq('url', summaryUrl);
-      await supabase.from('documents').insert({
-        tenant_id: activeSite.tenant_id,
-        site_id: activeSite.id,
-        url: summaryUrl,
-        content: `[SITE_SUMMARY]\n${siteSummary.trim()}`
-      });
-
-      setSummarySuccessMsg('✓ Business summary saved successfully!');
-      setTimeout(() => setSummarySuccessMsg(''), 3500);
-    } catch (err) {
-      console.error('[handleSaveSummary] Error:', err);
-    } finally {
-      setIsSavingSummary(false);
-    }
-  };
-
-  const handleRegenerateSummary = async () => {
-    if (!activeSite?.id || isRegeneratingSummary) return;
-    setIsRegeneratingSummary(true);
-    try {
-      const res = await fetch(`${window.location.origin}/api/crawler/summarize`, {
-        method: 'POST',
-        headers: await authenticatedHeaders(),
-        body: JSON.stringify({
-          tenant_id: activeSite.tenant_id,
-          site_id: activeSite.id,
-          url: activeSite.domain
-        })
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        if (data.summary) {
-          setSiteSummary(data.summary);
-          setSummarySuccessMsg('✓ AI Business Summary regenerated successfully!');
-          setTimeout(() => setSummarySuccessMsg(''), 3500);
-        }
-      }
-    } catch (err) {
-      console.error('[handleRegenerateSummary] Error:', err);
-    } finally {
-      setIsRegeneratingSummary(false);
-    }
-  };
-
   useEffect(() => {
-    fetchIndexedPages();
-    fetchSiteSummary();
+    pipeline.fetchIndexedPages();
+    summary.fetchSiteSummary();
   }, [activeSite?.id]);
-
-  // Full-Screen Preview & Live Bot Testing State
-  const [showPreviewModal, setShowPreviewModal] = useState(false);
-  const [autoScale, setAutoScale] = useState(1);
-  const [copiedScriptKey, setCopiedScriptKey] = useState(null);
-
-  const previewContainerRef = useRef(null);
-
-  // Live Preview Chatbot State
-  const [previewSessionId, setPreviewSessionId] = useState(() => 'preview_sess_' + Date.now());
-  const [previewChatOpen, setPreviewChatOpen] = useState(true);
-  const [previewMessages, setPreviewMessages] = useState([
-    { role: 'assistant', text: "Hello! I am your website's virtual assistant. Ask me any question to test my live responses!" }
-  ]);
-  const [previewInput, setPreviewInput] = useState('');
-  const [previewStreaming, setPreviewStreaming] = useState(false);
-
-  // Automatically calculate ideal viewport scale so ANY website fits 100% horizontally without clipping
-  useEffect(() => {
-    if (!showPreviewModal) return;
-    const calculateScale = () => {
-      if (!previewContainerRef.current) return;
-      const width = previewContainerRef.current.clientWidth;
-      if (width && width < 1280) {
-        setAutoScale(width / 1280);
-      } else {
-        setAutoScale(1);
-      }
-    };
-
-    calculateScale();
-    const ro = new ResizeObserver(calculateScale);
-    if (previewContainerRef.current) ro.observe(previewContainerRef.current);
-    window.addEventListener('resize', calculateScale);
-    return () => {
-      ro.disconnect();
-      window.removeEventListener('resize', calculateScale);
-    };
-  }, [showPreviewModal]);
-
-  // Hide the admin dashboard bot when in preview mode to prevent overlap
-  useEffect(() => {
-    const adminBot = document.getElementById('b2b-chatbot-host');
-    if (adminBot) {
-      adminBot.style.display = showPreviewModal ? 'none' : '';
-    }
-    return () => {
-      if (adminBot) adminBot.style.display = '';
-    };
-  }, [showPreviewModal]);
-  const chatMessagesEndRef = useRef(null);
-
-  // Reset session and welcome message whenever activeSite changes
-  useEffect(() => {
-    if (activeSite) {
-      setPreviewSessionId('preview_sess_' + Date.now());
-      setPreviewMessages([
-        { role: 'assistant', text: `Hello! I am the virtual assistant for ${activeSite.domain}. Ask me any question to test my live answers!` }
-      ]);
-    }
-  }, [activeSite?.id]);
-
-  useEffect(() => {
-    if (chatMessagesEndRef.current) {
-      chatMessagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [previewMessages, previewChatOpen]);
-
-  // Invisible Turnstile Captcha helper for seamless bot protection
-  const executeTurnstileCaptcha = async () => {
-    return new Promise((resolve) => {
-      if (typeof window === 'undefined') {
-        resolve('');
-        return;
-      }
-      if (!window.turnstile) {
-        resolve('');
-        return;
-      }
-
-      try {
-        const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || '1x00000000000000000000AA';
-        let container = document.getElementById('turnstile-invisible-container');
-        if (!container) {
-          container = document.createElement('div');
-          container.id = 'turnstile-invisible-container';
-          container.style.display = 'none';
-          document.body.appendChild(container);
-        }
-        container.innerHTML = '';
-        const widgetId = window.turnstile.render(container, {
-          sitekey: siteKey,
-          size: 'invisible',
-          callback: (token) => {
-            resolve(token);
-          },
-          'error-callback': () => {
-            resolve('');
-          },
-          'expired-callback': () => {
-            resolve('');
-          }
-        });
-        window.turnstile.execute(widgetId);
-      } catch (e) {
-        console.warn('[Turnstile] Invisible execution notice:', e);
-        resolve('');
-      }
-    });
-  };
 
   // Instant Onboarding: Client enters URL -> Environment created -> Instant Dashboard with synchronous crawl progression!
   const handleAnalyzeSite = async (e) => {
@@ -832,7 +125,7 @@ export default function Dashboard({
     if (!siteUrl) return;
 
     let formattedUrl = siteUrl.trim();
-    if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
+    if (!hasProtocol(formattedUrl)) {
       formattedUrl = `https://${formattedUrl}`;
       setSiteUrl(formattedUrl);
     }
@@ -844,24 +137,13 @@ export default function Dashboard({
       // Invisible silent captcha challenge
       const captchaToken = await executeTurnstileCaptcha();
 
-      let currentDomain = formattedUrl.replace('https://', '').replace('http://', '').replace('www.', '').split('/')[0];
+      let currentDomain = domainFromUrl(formattedUrl);
       let brandColor = '#293f68';
 
       try {
-        const authHeaders = await authenticatedHeaders();
-        const themeRes = await fetch(`${window.location.origin}/api/chat/theme`, {
-          method: 'POST',
-          headers: {
-            ...authHeaders,
-            'cf-turnstile-token': captchaToken
-          },
-          body: JSON.stringify({ url: formattedUrl, cf_turnstile_token: captchaToken })
-        });
-        if (themeRes.ok) {
-          const themeData = await themeRes.json();
-          if (themeData?.primary_color) brandColor = themeData.primary_color;
-          if (themeData?.org_name) setOrgName(themeData.org_name);
-        }
+        const themeData = await fetchBrandTheme(formattedUrl, captchaToken);
+        if (themeData?.primary_color) brandColor = themeData.primary_color;
+        if (themeData?.org_name) setOrgName(themeData.org_name);
       } catch (themeErr) {
         console.warn('Theme extraction fallback:', themeErr);
       }
@@ -873,7 +155,7 @@ export default function Dashboard({
         setLocalCreatedSite(siteObj);
         setIsAnalyzing(false);
 
-        await runSynchronousCrawlAndIndex(siteObj, formattedUrl);
+        await pipeline.runSynchronousCrawlAndIndex(siteObj, formattedUrl);
       } else {
         setStatusMsg('Error: could not add this site. Check that your Supabase session is active.');
         setIsAnalyzing(false);
@@ -885,212 +167,15 @@ export default function Dashboard({
     }
   };
 
-  // Add Website Modal Submit handler
-  const handleOpenAddSiteModal = () => {
-    setNewSiteUrlInput('');
-    setNewSiteError('');
-    setShowAddSiteModal(true);
-  };
-
-  const handleAddSiteModalSubmit = async (e) => {
-    e.preventDefault();
-    if (!newSiteUrlInput.trim()) return;
-
-    let formattedUrl = newSiteUrlInput.trim();
-    if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
-      formattedUrl = `https://${formattedUrl}`;
-    }
-    const currentDomain = formattedUrl.replace('https://', '').replace('http://', '').replace('www.', '').split('/')[0];
-
-    // Already connected? Switch to the site they have instead of attempting a
-    // second row for the same domain — sites_tenant_domain_uq would reject it,
-    // and a duplicate is never what the user actually wanted. Parked sites are
-    // matched too: the answer there is to reactivate, not to add it twice.
-    const existingSite = (sites || []).find(
-      s => (s.domain || '').toLowerCase() === currentDomain.toLowerCase()
-    );
-    if (existingSite) {
-      setSelectedSiteId(existingSite.id);
-      setShowAddSiteModal(false);
-      setNewSiteUrlInput('');
-      setNewSiteError('');
-      setSiteNotice(
-        isSiteActive(existingSite)
-          ? `${existingSite.domain} is already connected to your workspace — switched you to it.`
-          : `${existingSite.domain} is already connected to your workspace, but currently parked. Reactivate it below.`
-      );
-      return;
-    }
-
-    // Client-side pre-check, kept so a doomed crawl never starts. Counts every
-    // website in the workspace, parked ones included: the database counts rows,
-    // and parking is a consequence of exceeding the limit, not a way past it.
-    if (sites && sites.length >= maxSitesForPlan) {
-      setShowAddSiteModal(false);
-      setUpgradeRequiredDomain(currentDomain);
-      setShowUpgradeRequiredModal(true);
-      return;
-    }
-
-    setIsAddingNewSite(true);
-    setNewSiteError('');
-
-    try {
-      const captchaToken = await executeTurnstileCaptcha();
-      let brandColor = '#293f68';
-
-      try {
-        const authHeaders = await authenticatedHeaders();
-        const themeRes = await fetch(`${window.location.origin}/api/chat/theme`, {
-          method: 'POST',
-          headers: {
-            ...authHeaders,
-            'cf-turnstile-token': captchaToken
-          },
-          body: JSON.stringify({ url: formattedUrl, cf_turnstile_token: captchaToken })
-        });
-        if (themeRes.ok) {
-          const themeData = await themeRes.json();
-          if (themeData?.primary_color) brandColor = themeData.primary_color;
-        }
-      } catch (e) {}
-
-      const newSiteObj = await onAddSite(currentDomain, brandColor);
-
-      if (newSiteObj) {
-        setSelectedSiteId(newSiteObj.id);
-        setShowAddSiteModal(false);
-        setIsAddingNewSite(false);
-        await runSynchronousCrawlAndIndex(newSiteObj, formattedUrl);
-      } else {
-        setNewSiteError('Could not add this website. Please verify domain name.');
-        setIsAddingNewSite(false);
-      }
-    } catch (err) {
-      console.error('[handleAddSiteModalSubmit] Error:', err);
-      // The database has the last word on the limit (sites_enforce_limit); if
-      // it is what refused the insert, answer with the same upgrade-first
-      // prompt as the pre-check rather than a raw SQL string in a red box.
-      if ((err?.message || '').includes('site_limit_reached')) {
-        setShowAddSiteModal(false);
-        setUpgradeRequiredDomain(currentDomain);
-        setShowUpgradeRequiredModal(true);
-      } else {
-        setNewSiteError(describeSiteWriteError(err, 'Could not add this website. Please try again.'));
-      }
-      setIsAddingNewSite(false);
-    }
-  };
-
-  const handleEditPage = async (pageUrl, e) => {
-    e.stopPropagation();
-    setEditingPage({ url: pageUrl, content: 'Loading content...', saving: false });
-    try {
-      const { data, error } = await supabase.from('documents').select('content').eq('site_id', activeSite.id).eq('url', pageUrl);
-      if (error) throw error;
-      const fullContent = data ? data.map(d => d.content).join('\n\n') : '';
-      setEditingPage({ url: pageUrl, content: fullContent, saving: false });
-    } catch (err) {
-      setEditingPage({ url: pageUrl, content: 'Error loading page content.', saving: false });
-    }
-  };
-
-  const handleSavePageContent = async () => {
-    if (!editingPage) return;
-    setEditingPage(prev => ({ ...prev, saving: true }));
-    try {
-      await fetch(`${window.location.origin}/api/crawler/update`, {
-        method: 'POST',
-        headers: await authenticatedHeaders(),
-        body: JSON.stringify({
-          site_id: activeSite.id,
-          tenant_id: activeSite.tenant_id,
-          url: editingPage.url,
-          content: editingPage.content
-        })
-      });
-      setSelectedUrls(prev => new Set(prev).add(editingPage.url));
-      setEditingPage(null);
-    } catch (e) {
-      alert("Error saving page content.");
-      setEditingPage(prev => ({ ...prev, saving: false }));
-    }
-  };
-
-  // Send test message directly to live /api/chat inside preview modal
-  const handleSendPreviewChat = async () => {
-    if (!previewInput.trim() || previewStreaming || !activeSite) return;
-
-    const userText = previewInput.trim();
-    setPreviewInput('');
-    setPreviewMessages((prev) => [...prev, { role: 'user', text: userText }]);
-    setPreviewStreaming("Thinking...");
-
-    let assistantText = '';
-    let hasAssistantBubble = false;
-
-    try {
-      const authHeaders = await authenticatedHeaders();
-      await fetchEventSource(`${window.location.origin}/api/chat`, {
-        method: 'POST',
-        headers: {
-          ...authHeaders,
-          'Content-Type': 'application/json',
-          'Accept': 'text/event-stream',
-        },
-        body: JSON.stringify({
-          message: userText,
-          tenant_public_key: activeSite.public_key,
-          session_id: previewSessionId
-        }),
-        async onopen(res) {
-          if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
-             const errJson = await res.json().catch(() => ({}));
-             throw new Error(errJson.error || `Error ${res.status}`);
-          } else if (!res.ok) {
-             throw new Error(`Error ${res.status}`);
-          }
-        },
-        onmessage(ev) {
-          if (ev.data === '[DONE]') return;
-          try {
-            const parsed = JSON.parse(ev.data);
-            if (ev.event === 'tool_start' || ev.event === 'tool_end' || parsed.tool_call) {
-              setPreviewStreaming("Searching knowledge base & formulating answer...");
-            }
-            if (parsed.text) {
-              if (previewStreaming) setPreviewStreaming(false);
-              assistantText = parsed.text;
-              if (!hasAssistantBubble) {
-                hasAssistantBubble = true;
-                setPreviewMessages((prev) => [...prev, { role: 'assistant', text: assistantText }]);
-              } else {
-                setPreviewMessages((prev) => {
-                  const updated = [...prev];
-                  updated[updated.length - 1] = { role: 'assistant', text: assistantText };
-                  return updated;
-                });
-              }
-            }
-          } catch (e) {}
-        },
-        onerror(err) {
-          throw err;
-        }
-      });
-    } catch (err) {
-      setPreviewMessages((prev) => [...prev, { role: 'assistant', text: `Error: ${err.message}` }]);
-    } finally {
-      setPreviewStreaming(false);
-    }
-  };
-
   // Single source of truth for the embed snippet, used both for the visible
   // <pre> block and the "Copy Code" button — keeps them from drifting apart.
+  // The data-api-url comes from the chat contract rather than a literal, so a
+  // widget pasted on a customer's site cannot end up pointing at an address the
+  // API no longer answers on.
   const buildWidgetSnippet = (key) => {
     // "Powered by" badge shows on Basic (growth lever), hidden on Pro/Premium.
     const hideBrandingAttr = tenantPlan !== 'basic' ? ' data-hide-branding="true"' : '';
-    return `<script src="${window.location.origin}/widget.iife.js" data-tenant-key="${key}" data-api-url="${window.location.origin}/api/chat" data-theme-color="${activeSite?.theme_primary_color || '#293f68'}"${hideBrandingAttr}></script>`;
+    return `<script src="${window.location.origin}/widget.iife.js" data-tenant-key="${key}" data-api-url="${api.chat.endpointUrl()}" data-theme-color="${activeSite?.theme_primary_color || '#293f68'}"${hideBrandingAttr}></script>`;
   };
 
   const copyWidgetScript = (key) => {
@@ -1101,73 +186,37 @@ export default function Dashboard({
 
   const themeColor = activeSite?.theme_primary_color || '#293f68';
 
+  const openIntegrationModal = () => setShowIntegrationModal(true);
+  const openPreviewModal = () => preview.setShowPreviewModal(true);
+  const openAdvancedSettings = () => {
+    setShowAdvancedSettings(true);
+    setTimeout(() => {
+      document.getElementById('advanced-settings-section')?.scrollIntoView({ behavior: 'smooth' });
+    }, 50);
+  };
+
   return (
     <div className="space-y-8">
       {/* 1. HERO ONBOARDING (When no site exists) */}
       {(!activeSite || step !== 'dashboard') ? (
-        <div className="relative max-w-2xl mx-auto mt-6 sm:mt-12">
-          <div className="relative bg-white/70 backdrop-blur-sm p-6 sm:p-10 rounded-2xl border border-dark-900/10 text-center shadow-lg overflow-hidden">
-            <div className="flex items-center justify-center gap-2.5 mb-4 sm:mb-6">
-              <div className="w-9 h-9 sm:w-12 sm:h-12 text-brand-900 shrink-0 flex items-center justify-center">
-                <LogoMark className="w-full h-full" />
-              </div>
-              <span className="text-2xl sm:text-3xl font-bold text-dark-900 tracking-tight lowercase">dorafi</span>
-            </div>
-
-            <h2 className="text-2xl sm:text-3xl font-bold text-dark-900 tracking-tight leading-tight mb-2.5 sm:mb-3">
-              Deploy Your AI Assistant in 30 Seconds
-            </h2>
-            <p className="text-sm sm:text-base text-gray-500 mb-6 sm:mb-10 max-w-lg mx-auto">
-              Enter your website address. Our system will automatically crawl your site, learn your business, and configure your custom AI assistant.
-            </p>
-
-            <form onSubmit={handleAnalyzeSite} className="space-y-4">
-              <div className="relative max-w-lg mx-auto">
-                <Globe className="w-5 h-5 text-gray-500 absolute left-4 top-3.5 pointer-events-none" />
-                <input
-                  type="text"
-                  placeholder="your-company.com"
-                  value={siteUrl}
-                  onChange={(e) => setSiteUrl(e.target.value)}
-                  className="w-full bg-surface-100 border border-gray-300 text-dark-900 rounded-2xl pl-12 pr-4 py-3.5 text-sm outline-none focus:border-brand-500 transition-colors shadow-inner"
-                  required
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={!siteUrl || isAnalyzing}
-                className="w-full max-w-lg mx-auto bg-brand-600 hover:bg-brand-500 text-white font-medium py-3.5 rounded-xl text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-brand-900/40"
-              >
-                {isAnalyzing ? (
-                  <span className="flex items-center gap-2">
-                    <RefreshCw className="w-4 h-4 animate-spin" /> Analyzing your website...
-                  </span>
-                ) : (
-                  <>Create My AI Assistant <ArrowRight className="w-4 h-4" /></>
-                )}
-              </button>
-            </form>
-
-            {statusMsg && (
-              <div className="mt-6 flex items-center justify-center gap-3 text-sm text-brand-700 font-medium bg-brand-500/10 p-3 rounded-xl border border-brand-500/20">
-                {isAnalyzing && <RefreshCw className="w-4 h-4 animate-spin" />}
-                {statusMsg}
-              </div>
-            )}
-          </div>
-        </div>
+        <OnboardingHero
+          siteUrl={siteUrl}
+          setSiteUrl={setSiteUrl}
+          isAnalyzing={isAnalyzing}
+          statusMsg={statusMsg}
+          onSubmit={handleAnalyzeSite}
+        />
       ) : (
         /* 2. MAIN DASHBOARD CLIENT VIEW */
         <div className="space-y-8">
           {/* Transient feedback (duplicate domain, parking, reactivation) */}
-          {siteNotice && (
+          {lifecycle.siteNotice && (
             <div className="flex items-start gap-3 bg-brand-500/10 border border-brand-500/30 text-brand-800 text-xs rounded-2xl px-4 py-3 animate-in fade-in">
               <Sparkles className="w-4 h-4 shrink-0 mt-0.5 text-brand-600" />
-              <span className="flex-1 leading-relaxed">{siteNotice}</span>
+              <span className="flex-1 leading-relaxed">{lifecycle.siteNotice}</span>
               <button
                 type="button"
-                onClick={() => setSiteNotice('')}
+                onClick={() => lifecycle.setSiteNotice('')}
                 className="text-brand-600/70 hover:text-brand-900 transition-colors"
               >
                 <X className="w-3.5 h-3.5" />
@@ -1175,1562 +224,202 @@ export default function Dashboard({
             </div>
           )}
 
-          {/* Multi-Site Selector Tabs (if more than 1 site exists).
-              Parked sites stay in the list, visibly inactive: hiding them would
-              leave the user wondering why a widget stopped answering. */}
-          {sites && sites.length > 1 && (
-            <div className="flex items-center gap-2 overflow-x-auto pb-1">
-              <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider shrink-0 mr-1">Websites:</span>
-              {sites.map((s) => {
-                const isSelected = activeSite?.id === s.id;
-                const isParked = !isSiteActive(s);
-                return (
-                  <button
-                    key={s.id}
-                    onClick={() => setSelectedSiteId(s.id)}
-                    title={isParked ? 'Parked — this website\'s assistant is paused until your plan has room' : s.domain}
-                    className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 border ${
-                      isSelected
-                        ? 'bg-brand-600 text-white border-brand-600 shadow-sm'
-                        : isParked
-                        ? 'bg-surface-200 text-gray-500 border-dark-900/5 hover:border-amber-500/30 hover:text-gray-700'
-                        : 'bg-surface-200 text-gray-500 border-dark-900/5 hover:border-dark-900/20 hover:text-dark-900'
-                    }`}
-                  >
-                    <span className={`w-2 h-2 rounded-full ${
-                      isParked ? 'bg-amber-500/70' : isSelected ? 'bg-emerald-400 animate-pulse' : 'bg-gray-400'
-                    }`} />
-                    <span className={isParked ? 'opacity-70' : ''}>{s.domain}</span>
-                    {isParked && (
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded-full">
-                        Paused
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-              <button
-                onClick={handleOpenAddSiteModal}
-                className="text-xs text-brand-700 hover:text-brand-800 font-semibold px-2.5 py-1.5 rounded-xl border border-brand-500/20 hover:bg-brand-500/10 transition-all shrink-0"
-              >
-                + Add Website
-              </button>
-            </div>
-          )}
+          <SiteTabs
+            sites={sites}
+            activeSite={activeSite}
+            isSiteActive={lifecycle.isSiteActive}
+            onSelectSite={setSelectedSiteId}
+            onOpenAddSiteModal={lifecycle.handleOpenAddSiteModal}
+          />
 
           {/* Active Site Hero Card */}
-          <div className="bg-white/90 p-6 sm:p-8 rounded-2xl border border-dark-900/5 shadow-sm space-y-6">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-bold shadow-md" style={{ backgroundColor: themeColor }}>
-                  <Globe className="w-7 h-7" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2.5 flex-wrap">
-                    <h2 className="text-2xl font-bold text-dark-900 tracking-tight">{activeSite.domain}</h2>
-                    {isSiteActive(activeSite) ? (
-                      <span className="bg-emerald-500/15 text-emerald-700 text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5 border border-emerald-500/20">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                        Assistant Active & Ready
-                      </span>
-                    ) : (
-                      <span className="bg-amber-500/15 text-amber-700 text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5 border border-amber-500/20">
-                        <span className="w-2 h-2 rounded-full bg-amber-500/80"></span>
-                        Assistant Paused (Parked)
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1 flex items-center gap-2">
-                    Public Key: <span className="font-mono text-brand-700 bg-surface-200 px-2 py-0.5 rounded border border-dark-900/10">{activeSite.public_key}</span>
-                  </p>
-                </div>
-              </div>
-
-              {/* Action Buttons — stacked & grouped on mobile so nothing wraps
-                  raggedly or ends up too small to tap comfortably; unchanged
-                  single-row layout from md (≥768px) upward. */}
-              <div className="flex flex-col gap-2.5 w-full md:w-auto md:flex-row md:flex-wrap md:items-center md:gap-3">
-                <button
-                  disabled={isCrawling}
-                  onClick={() => setShowPreviewModal(true)}
-                  className={`w-full md:w-auto text-white font-semibold px-6 py-3 rounded-xl text-sm flex items-center justify-center gap-2 shadow-lg transition-all ${
-                    isCrawling
-                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed border border-dark-900/10 opacity-70'
-                      : 'bg-gradient-to-r from-brand-700 to-brand-500 hover:from-brand-600 hover:to-brand-400 shadow-brand-900/30 hover:scale-[1.02] active:scale-98'
-                  }`}
-                >
-                  {isCrawling ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin text-brand-600" /> Indexing website...
-                    </>
-                  ) : (
-                    <>
-                      <Eye className="w-4 h-4" /> Test Live Assistant
-                    </>
-                  )}
-                </button>
-
-                <div className="grid grid-cols-2 gap-2.5 md:contents">
-                  <button
-                    onClick={() => {
-                      if (isGuest) onRequireLogin();
-                      else setShowIntegrationModal(true);
-                    }}
-                    className="bg-white hover:bg-surface-200 border border-dark-900/10 text-gray-700 hover:text-dark-900 px-3 sm:px-4 py-3 rounded-xl text-xs sm:text-sm font-medium flex items-center justify-center gap-2 transition-all shadow-sm"
-                  >
-                    <Code className="w-4 h-4 text-brand-600 shrink-0" /> <span className="truncate">Embed Widget</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowAdvancedSettings(true);
-                      setTimeout(() => {
-                        document.getElementById('advanced-settings-section')?.scrollIntoView({ behavior: 'smooth' });
-                      }, 50);
-                    }}
-                    className="bg-white hover:bg-surface-200 border border-dark-900/10 text-gray-600 hover:text-dark-900 px-3 sm:px-4 py-3 rounded-xl text-xs sm:text-sm font-medium flex items-center justify-center gap-2 transition-all shadow-sm"
-                    title="Configure Bot & Settings"
-                  >
-                    <Settings2 className="w-4 h-4 text-brand-600 shrink-0" /> Settings
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2.5 md:contents">
-                  <button
-                    onClick={handleRecrawlSite}
-                    disabled={isCrawling}
-                    className="bg-white hover:bg-surface-200 border border-dark-900/10 text-gray-500 hover:text-dark-900 px-3 py-3 rounded-xl text-xs sm:text-sm font-medium flex items-center justify-center gap-2 transition-all md:p-3"
-                    title="Re-scan and re-learn website"
-                  >
-                    <RefreshCw className={`w-4 h-4 shrink-0 ${isCrawling ? 'animate-spin text-brand-600' : ''}`} />
-                    <span className="md:hidden">Re-scan</span>
-                  </button>
-
-                  <button
-                    onClick={handleOpenAddSiteModal}
-                    className="bg-white hover:bg-surface-200 border border-dark-900/10 text-gray-500 hover:text-dark-900 px-3 sm:px-3.5 py-3 rounded-xl text-xs font-medium transition-all whitespace-nowrap"
-                    title="Add another website"
-                  >
-                    + Add Website
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* PARKED WEBSITE BANNER — why this widget stopped answering, and
-                the two ways out. Nothing here deletes anything. */}
-            {!isSiteActive(activeSite) && (
-              <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 space-y-3 animate-in fade-in">
-                <div className="flex items-start gap-3">
-                  <div className="p-2 rounded-xl bg-amber-500/20 text-amber-700 shrink-0 mt-0.5">
-                    <AlertTriangle className="w-5 h-5" />
-                  </div>
-                  <div className="flex-1 text-xs">
-                    <h4 className="font-bold text-dark-900 text-sm mb-1">
-                      This website is parked — its assistant is not answering
-                    </h4>
-                    <p className="text-amber-800 leading-relaxed">
-                      Your <strong>{tenantPlan.toUpperCase()}</strong> plan covers <strong>{maxSitesForPlan} active website(s)</strong>, and you currently have <strong>{activeSites.length}</strong> active.
-                    </p>
-                    <p className="text-gray-600 mt-1">
-                      Nothing was deleted: every indexed page, lead and API key for <strong className="text-dark-900">{activeSite.domain}</strong> is still here, exactly as you left it. Upgrade your plan and it comes straight back online.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex flex-col sm:flex-row items-center justify-end gap-2.5 pt-2 border-t border-amber-500/20">
-                  <button
-                    type="button"
-                    disabled={reactivatingSiteId === activeSite.id || activeSites.length >= maxSitesForPlan}
-                    onClick={() => handleReactivateSite(activeSite)}
-                    title={activeSites.length >= maxSitesForPlan ? 'Your plan has no free slot — park another website or upgrade first' : 'Bring this website back online'}
-                    className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-semibold text-gray-600 hover:text-dark-900 bg-white border border-dark-900/10 hover:bg-surface-200 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
-                  >
-                    {reactivatingSiteId === activeSite.id ? (
-                      <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Reactivating...</>
-                    ) : (
-                      <><ToggleRight className="w-3.5 h-3.5" /> Reactivate this website</>
-                    )}
-                  </button>
-
-                  {onShowPricing && (
-                    <button
-                      type="button"
-                      onClick={() => onShowPricing()}
-                      className="w-full sm:w-auto px-5 py-2 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-amber-500 to-brand-600 hover:from-amber-400 hover:to-brand-500 shadow-md transition-all flex items-center justify-center gap-1.5"
-                    >
-                      <Sparkles className="w-3.5 h-3.5" /> Upgrade Plan →
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Quick 3-Step Guided Roadmap */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-dark-900/5">
-              <div className="bg-surface-100 p-4 rounded-xl border border-dark-900/5 flex items-center gap-3.5">
-                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-700 flex items-center justify-center shrink-0 border border-emerald-500/20 font-bold text-xs">
-                  1
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-dark-900 flex items-center gap-1.5">
-                    AI Knowledge Learned <Check className="w-3.5 h-3.5 text-emerald-600" />
-                  </div>
-                  <div className="text-[11px] text-gray-500">{discoveredPages.filter(p => p.status === 'loaded').length || 1} pages indexed in memory</div>
-                </div>
-              </div>
-
-              <div
-                onClick={() => !isCrawling && setShowPreviewModal(true)}
-                className="bg-surface-100 hover:bg-surface-200 p-4 rounded-xl border border-dark-900/5 flex items-center gap-3.5 cursor-pointer group transition-all"
-              >
-                <div className="w-8 h-8 rounded-lg bg-brand-500/10 text-brand-700 flex items-center justify-center shrink-0 border border-brand-500/20 font-bold text-xs group-hover:scale-105 transition-transform">
-                  2
-                </div>
-                <div className="flex-1">
-                  <div className="text-xs font-bold text-dark-900 flex items-center gap-1.5 group-hover:text-brand-700">
-                    Test Your Bot Live <ArrowUpRight className="w-3.5 h-3.5 text-brand-600" />
-                  </div>
-                  <div className="text-[11px] text-gray-500">Try live questions in sandbox preview</div>
-                </div>
-              </div>
-
-              <div
-                onClick={() => {
-                  if (isGuest) onRequireLogin();
-                  else setShowIntegrationModal(true);
-                }}
-                className="bg-surface-100 hover:bg-surface-200 p-4 rounded-xl border border-dark-900/5 flex items-center gap-3.5 cursor-pointer group transition-all"
-              >
-                <div className="w-8 h-8 rounded-lg bg-brand-500/10 text-brand-700 flex items-center justify-center shrink-0 border border-brand-500/20 font-bold text-xs group-hover:scale-105 transition-transform">
-                  3
-                </div>
-                <div className="flex-1">
-                  <div className="text-xs font-bold text-dark-900 flex items-center gap-1.5 group-hover:text-brand-700">
-                    Embed on Website <Code className="w-3.5 h-3.5 text-brand-600" />
-                  </div>
-                  <div className="text-[11px] text-gray-500">Copy 1-line script for your site</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Collapsible Section for Non-Essential / Advanced Settings */}
-          <div id="advanced-settings-section" className="bg-white/70 rounded-2xl border border-dark-900/5 overflow-hidden transition-all scroll-mt-20">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                setShowAdvancedSettings((prev) => !prev);
-              }}
-              className="w-full p-5 sm:p-6 flex items-center justify-between text-left hover:bg-dark-900/[0.02] transition-colors cursor-pointer select-none"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-surface-200 border border-dark-900/10 flex items-center justify-center text-brand-700">
-                  <Settings2 className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-dark-900 flex items-center gap-2">
-                    Advanced Settings & Knowledge Base
-                  </h3>
-                  <p className="text-xs text-gray-500">Customize bot personality, widget colors, lead capture, business summary, and individual page URLs.</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 text-xs font-semibold text-brand-700 bg-brand-500/10 px-3.5 py-1.5 rounded-lg border border-brand-500/20">
-                {showAdvancedSettings ? (
-                  <>Hide Settings <ChevronUp className="w-4 h-4" /></>
-                ) : (
-                  <>Show Settings <ChevronDown className="w-4 h-4" /></>
-                )}
-              </div>
-            </button>
-
-            {showAdvancedSettings && (
-              <div className="p-6 pt-2 border-t border-dark-900/5 space-y-6 animate-in fade-in duration-300">
-                {/* 1. Feature Toggles Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Lead Capture Toggle */}
-                  <div className="bg-surface-100 p-5 rounded-xl border border-dark-900/5 flex items-center justify-between">
-                    <div>
-                      <h4 className="text-sm font-bold text-dark-900 flex items-center gap-2 mb-1">
-                        <ShieldCheck className="w-4 h-4 text-brand-600" /> Lead Capture & Email Collection
-                      </h4>
-                      <p className="text-xs text-gray-500">
-                        Automatically prompts visitors for email and contact info.
-                      </p>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => onUpdateSiteSettings(activeSite.id, { enable_lead_capture: !activeSite.enable_lead_capture })}
-                      className="p-1 cursor-pointer transition-transform hover:scale-105"
-                      role="switch"
-                      aria-checked={!!activeSite.enable_lead_capture}
-                      aria-label="Toggle lead capture & email collection"
-                    >
-                      {activeSite.enable_lead_capture ? (
-                        <ToggleRight className="w-9 h-9 text-emerald-600" />
-                      ) : (
-                        <ToggleLeft className="w-9 h-9 text-gray-500" />
-                      )}
-                    </button>
-                  </div>
-
-                  {/* Widget Color */}
-                  <div className="bg-surface-100 p-5 rounded-xl border border-dark-900/5 flex items-center justify-between">
-                    <div>
-                      <h4 className="text-sm font-bold text-dark-900 flex items-center gap-2 mb-1">
-                        <Settings2 className="w-4 h-4 text-brand-600" /> Widget Accent Color
-                      </h4>
-                      <p className="text-xs text-gray-500">Match your brand styling.</p>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="color"
-                        value={themeColor}
-                        onChange={(e) => onUpdateSiteSettings(activeSite.id, { theme_primary_color: e.target.value })}
-                        className="w-9 h-9 rounded-xl border-0 bg-transparent cursor-pointer"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Bot Goal */}
-                  <div className="bg-surface-100 p-5 rounded-xl border border-dark-900/5 flex items-center justify-between">
-                    <div>
-                      <h4 className="text-sm font-bold text-dark-900 flex items-center gap-2 mb-1">
-                        <Sparkles className="w-4 h-4 text-emerald-600" /> Primary Objective
-                      </h4>
-                      <p className="text-xs text-gray-500">AI conversation focus.</p>
-                    </div>
-
-                    <select
-                      value={activeSite.bot_goal || 'support'}
-                      onChange={(e) => onUpdateSiteSettings(activeSite.id, { bot_goal: e.target.value })}
-                      className="bg-white border border-gray-300 text-dark-900 text-xs rounded-lg px-3 py-2 outline-none"
-                    >
-                      <option value="support">Information & Support</option>
-                      <option value="lead">Lead Generation & Sales</option>
-                    </select>
-                  </div>
-
-                  {/* Bot Tone */}
-                  <div className="bg-surface-100 p-5 rounded-xl border border-dark-900/5 flex items-center justify-between">
-                    <div>
-                      <h4 className="text-sm font-bold text-dark-900 flex items-center gap-2 mb-1">
-                        <Sparkles className="w-4 h-4 text-emerald-600" /> Voice Tone
-                      </h4>
-                      <p className="text-xs text-gray-500">Personality & communication style.</p>
-                    </div>
-
-                    <select
-                      value={activeSite.bot_tone || 'professionnel'}
-                      onChange={(e) => onUpdateSiteSettings(activeSite.id, { bot_tone: e.target.value })}
-                      className="bg-white border border-gray-300 text-dark-900 text-xs rounded-lg px-3 py-2 outline-none"
-                    >
-                      <option value="professionnel">Professional & Courteous</option>
-                      <option value="amical">Warm & Friendly</option>
-                    </select>
-                  </div>
-
-                  {/* PRO Integrations: Support Email & Calendar Link */}
-                  <div className="bg-surface-100 p-5 rounded-xl border border-brand-500/20 flex flex-col gap-4 relative overflow-hidden">
-                    {selectedTenant?.plan !== 'pro' && selectedTenant?.plan !== 'premium' && (
-                      <div className="absolute inset-0 bg-dark-950/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center p-4 text-center">
-                        <Lock className="w-6 h-6 text-brand-400 mb-2" />
-                        <h4 className="text-sm font-bold text-white">Pro Feature</h4>
-                        <p className="text-xs text-gray-400 mb-3 max-w-[250px]">Upgrade to the Pro Appointment plan to unlock calendar integrations and support email forwarding.</p>
-                      </div>
-                    )}
-
-                    <div className="flex items-center gap-2 mb-2">
-                      <Sparkles className="w-5 h-5 text-brand-600" />
-                      <h4 className="text-base font-bold text-dark-900">Pro Integrations</h4>
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row gap-4">
-                      <div className="flex-1">
-                        <label className="text-xs font-semibold text-gray-500 mb-1 block">Support Email</label>
-                        <input
-                          type="email"
-                          placeholder="support@yourcompany.com"
-                          value={activeSite.support_email || ''}
-                          onChange={(e) => onUpdateSiteSettings(activeSite.id, { support_email: e.target.value })}
-                          className="w-full bg-white border border-gray-300 text-dark-900 text-sm rounded-lg px-4 py-2.5 outline-none focus:border-brand-500/50"
-                        />
-                        <p className="text-[10px] text-gray-500 mt-1">Where the assistant sends support requests.</p>
-                      </div>
-
-                      <div className="flex-1">
-                        <label className="text-xs font-semibold text-gray-500 mb-1 block">Calendar Link</label>
-                        <input
-                          type="url"
-                          placeholder="https://calendly.com/your-name"
-                          value={activeSite.calendar_link || ''}
-                          onChange={(e) => onUpdateSiteSettings(activeSite.id, { calendar_link: e.target.value })}
-                          className="w-full bg-white border border-gray-300 text-dark-900 text-sm rounded-lg px-4 py-2.5 outline-none focus:border-brand-500/50"
-                        />
-                        <p className="text-[10px] text-gray-500 mt-1">Calendly, Cal.com, or Google Calendar link.</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 2. Website Summary Card */}
-                <div className="bg-surface-100 p-5 sm:p-6 rounded-xl border border-dark-900/5 space-y-4">
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                    <div>
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <h4 className="text-sm font-bold text-dark-900 flex items-center gap-2">
-                          <FileText className="w-4 h-4 text-emerald-600" /> AI Business Summary
-                        </h4>
-                        {(isLoadingSummary || isRegeneratingSummary) ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-700 border border-amber-500/20 animate-pulse">
-                            <RefreshCw className="w-3 h-3 animate-spin text-amber-600" /> Generating Summary...
-                          </span>
-                        ) : siteSummary ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-700 border border-emerald-500/20">
-                            <Check className="w-3 h-3" /> Summary Ready
-                          </span>
-                        ) : null}
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        High-level context injected into the system prompt to answer general business inquiries accurately.
-                      </p>
-                    </div>
-
-                    <button
-                      onClick={() => setShowSummaryEditor(!showSummaryEditor)}
-                      className="text-xs font-semibold text-brand-700 bg-brand-500/10 px-3.5 py-1.5 rounded-lg border border-brand-500/20 hover:bg-brand-500/20 transition-all flex items-center gap-1.5"
-                    >
-                      <Edit3 className="w-3.5 h-3.5" />
-                      {showSummaryEditor ? 'Collapse' : 'View / Edit Summary'}
-                    </button>
-                  </div>
-
-                  {summarySuccessMsg && (
-                    <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs font-medium text-emerald-700 flex items-center gap-2 animate-in fade-in">
-                      <Check className="w-4 h-4 shrink-0" />
-                      <span>{summarySuccessMsg}</span>
-                    </div>
-                  )}
-
-                  {showSummaryEditor && (
-                    <div className="pt-3 border-t border-dark-900/5 space-y-4">
-                      <textarea
-                        rows={5}
-                        disabled={isLoadingSummary || isRegeneratingSummary}
-                        value={
-                          (isLoadingSummary || isRegeneratingSummary)
-                            ? "Analyzing your business overview with our AI model... Please wait a few moments."
-                            : siteSummary
-                        }
-                        onChange={(e) => setSiteSummary(e.target.value)}
-                        placeholder="Write a short overview of the business, or click &quot;Regenerate with AI&quot; to have it written for you..."
-                        style={{ backgroundColor: '#090d16', color: '#f3f4f6' }}
-                        className="w-full bg-dark-950 border border-white/10 text-gray-100 placeholder-gray-500 rounded-xl p-4 text-xs leading-relaxed outline-none focus:border-brand-500 transition-colors font-mono shadow-inner"
-                      />
-
-                      <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-                        <button
-                          disabled={isLoadingSummary || isRegeneratingSummary}
-                          onClick={handleRegenerateSummary}
-                          className="w-full sm:w-auto bg-white hover:bg-surface-200 border border-dark-900/10 text-gray-600 hover:text-dark-900 px-4 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all disabled:opacity-50"
-                        >
-                          <RefreshCw className={`w-3.5 h-3.5 text-brand-600 ${(isLoadingSummary || isRegeneratingSummary) ? 'animate-spin' : ''}`} />
-                          Regenerate with AI
-                        </button>
-
-                        <button
-                          disabled={isLoadingSummary || isRegeneratingSummary || isSavingSummary || !siteSummary.trim()}
-                          onClick={handleSaveSummary}
-                          className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all shadow-md disabled:opacity-50"
-                        >
-                          {isSavingSummary ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                          Save Summary
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* 3. Knowledge Base / Indexed Pages Management */}
-                <div id="knowledge-base-section" className="bg-surface-100 p-5 sm:p-6 rounded-xl border border-dark-900/5 space-y-4 scroll-mt-24">
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                    <div>
-                      <h4 className="text-sm font-bold text-dark-900 flex items-center gap-2">
-                        <Layers className="w-4 h-4 text-brand-600" /> Knowledge Base & Page Management
-                      </h4>
-                      <p className="text-xs text-gray-500">Select which discovered website URLs are indexed into the vector database.</p>
-                    </div>
-
-                    <div className="flex items-center gap-2 w-full sm:w-auto">
-                      <div className="relative flex-1 sm:w-60">
-                        <Search className="w-3.5 h-3.5 text-gray-500 absolute left-3 top-2.5 pointer-events-none" />
-                        <input
-                          type="text"
-                          placeholder="Filter pages by URL or title..."
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                          className="w-full bg-white border border-gray-300 rounded-xl pl-8 pr-3 py-1.5 text-xs text-dark-900 outline-none focus:border-brand-500"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="overflow-x-auto rounded-xl border border-dark-900/5 bg-white shadow-inner">
-                    <table className="w-full text-left text-xs">
-                      <thead className="bg-surface-200 text-gray-500 uppercase tracking-wider border-b border-dark-900/5">
-                        <tr>
-                          <th className="py-2.5 px-4 font-semibold w-12 text-center">Active</th>
-                          <th className="py-2.5 px-4 font-semibold">Page Title</th>
-                          <th className="py-2.5 px-4 font-semibold">URL Path</th>
-                          <th className="py-2.5 px-4 font-semibold text-right">Status & Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-dark-900/5 text-gray-700">
-                        {discoveredPages
-                          .filter(p => p.url.toLowerCase().includes(searchQuery.toLowerCase()) || (p.title && p.title.toLowerCase().includes(searchQuery.toLowerCase())))
-                          .map((page) => {
-                            const currentStatus = page.status || (selectedUrls.has(page.url) ? 'loaded' : 'disabled');
-                            const isIncluded = currentStatus === 'loaded' || currentStatus === 'loading';
-
-                            return (
-                              <tr
-                                key={page.url}
-                                className={`hover:bg-dark-900/[0.03] transition-colors ${isIncluded ? 'bg-brand-500/5' : 'opacity-75'}`}
-                              >
-                                <td className="py-2.5 px-4 text-center">
-                                  <input
-                                    type="checkbox"
-                                    checked={isIncluded}
-                                    onChange={() => handleTogglePageActivation(page.url)}
-                                    className="w-4 h-4 rounded accent-brand-500 cursor-pointer"
-                                  />
-                                </td>
-                                <td className="py-2.5 px-4">
-                                  <div className="font-medium text-dark-900 line-clamp-1">{page.title || 'Untitled Page'}</div>
-                                </td>
-                                <td className="py-2.5 px-4">
-                                  <div className="text-gray-500 font-mono truncate max-w-[200px]" title={page.url}>
-                                    {page.url.replace(`https://${activeSite?.domain}`, '') || '/'}
-                                  </div>
-                                </td>
-                                <td className="py-2.5 px-4 text-right space-x-2">
-                                  <button
-                                    onClick={(e) => handleEditPage(page.url, e)}
-                                    className="text-[10px] bg-white hover:bg-surface-200 text-gray-600 px-2 py-1 rounded border border-dark-900/10 transition-colors"
-                                  >
-                                    Edit
-                                  </button>
-
-                                  <button
-                                    onClick={() => handleTogglePageActivation(page.url)}
-                                    className={`text-[10px] px-2 py-1 rounded font-semibold border transition-colors ${
-                                      isIncluded
-                                        ? 'bg-red-500/10 hover:bg-red-500/20 text-red-600 border-red-500/20'
-                                        : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 border-emerald-500/20'
-                                    }`}
-                                  >
-                                    {isIncluded ? 'Disable' : 'Enable'}
-                                  </button>
-
-                                  {currentStatus === 'protected' ? (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/10 text-rose-700 border border-rose-500/20">
-                                      <Lock className="w-2.5 h-2.5" /> Auth Protected
-                                    </span>
-                                  ) : currentStatus === 'empty' ? (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-surface-200 text-gray-500 border border-gray-300">
-                                      Empty (0 chunks)
-                                    </span>
-                                  ) : currentStatus === 'loading' ? (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-700 border border-amber-500/20">
-                                      <RefreshCw className="w-2.5 h-2.5 animate-spin" /> Indexing...
-                                    </span>
-                                  ) : currentStatus === 'loaded' ? (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-700 border border-emerald-500/20">
-                                      <Check className="w-2.5 h-2.5" /> Indexed
-                                    </span>
-                                  ) : (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-500/10 text-gray-600 border border-gray-500/20">
-                                      Disabled
-                                    </span>
-                                  )}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {/* 4. Danger Zone: Delete Website */}
-                <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                  <div>
-                    <h4 className="text-sm font-bold text-red-600 flex items-center gap-2">
-                      <AlertTriangle className="w-4 h-4 text-red-600" /> Danger Zone: Delete Website
-                    </h4>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Permanently remove <strong>{activeSite?.domain}</strong>, all indexed vector pages, custom business summaries, and revoke the public API key.
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setShowDeleteConfirmModal(true)}
-                    className="bg-red-600/80 hover:bg-red-600 text-white font-semibold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 transition-all shrink-0 shadow-md shadow-red-900/30 cursor-pointer"
-                  >
-                    <Trash2 className="w-4 h-4" /> Delete Website
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* 3. DEDICATED LEARNING PROGRESS MODAL (POPUP WITH PROGRESS BAR) */}
-      {showLearningModal && (
-        <div className="fixed inset-0 z-[999999] bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="glass-card p-8 sm:p-10 rounded-3xl w-full max-w-lg border border-dark-900/10 shadow-2xl relative text-center overflow-hidden animate-in fade-in zoom-in-95 duration-300">
-            {/* Background Glow */}
-            <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-64 h-64 rounded-full bg-brand-500/20 blur-[90px] pointer-events-none" />
-
-            {/* AI Avatar / Radar */}
-            <div className="relative mx-auto mb-6 flex justify-center">
-              <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-brand-700 to-brand-400 flex items-center justify-center text-white shadow-2xl shadow-brand-500/30 border border-dark-900/10">
-                {learningStep === 4 ? (
-                  <CheckCircle2 className="w-10 h-10 text-emerald-300" />
-                ) : (
-                  <Bot className="w-10 h-10 text-white animate-pulse" />
-                )}
-              </div>
-            </div>
-
-            {/* Title & Description */}
-            <h3 className="text-2xl font-bold text-dark-900 mb-2">
-              {learningStep === 4 ? "🎉 Your AI Assistant is Ready!" : `Teaching Your AI from ${learningDomain || 'Website'}`}
-            </h3>
-            <p className="text-sm text-gray-500 mb-8 max-w-md mx-auto">
-              {learningStep === 4
-                ? `Our system successfully crawled, indexed, and synthesized your website content. You can now test it live!`
-                : `Our system is analyzing your website pages, extracting content & services, and training your custom 24/7 AI chatbot.`}
-            </p>
-
-            {/* Progress Bar */}
-            <div className="space-y-2 mb-8 text-left">
-              <div className="flex items-center justify-between text-xs font-semibold">
-                <span className="text-gray-600 flex items-center gap-2">
-                  {learningStep < 4 && <RefreshCw className="w-3.5 h-3.5 animate-spin text-brand-600" />}
-                  {crawlProgressMsg || "Processing website..."}
-                </span>
-                <span className="text-brand-700 font-mono">{learningProgress}%</span>
-              </div>
-              <div className="w-full h-3 bg-surface-200 rounded-full overflow-hidden border border-dark-900/10 p-0.5">
-                <div
-                  className="h-full bg-gradient-to-r from-brand-600 via-brand-400 to-emerald-400 rounded-full transition-all duration-500 shadow-sm"
-                  style={{ width: `${learningProgress}%` }}
-                />
-              </div>
-            </div>
-
-            {/* Step Checklist */}
-            <div className="bg-surface-100 p-4 rounded-2xl border border-dark-900/5 text-left space-y-3 mb-8">
-              <div className="flex items-center gap-3 text-xs">
-                <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${learningStep >= 2 ? 'bg-emerald-500/20 text-emerald-700' : 'bg-brand-500/20 text-brand-700 animate-pulse'}`}>
-                  {learningStep >= 2 ? <Check className="w-3 h-3" /> : '1'}
-                </div>
-                <span className={learningStep >= 2 ? 'text-gray-600 font-medium' : 'text-dark-900 font-semibold'}>
-                  Discovering all website pages & sitemap
-                </span>
-              </div>
-
-              <div className="flex items-center gap-3 text-xs">
-                <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${learningStep >= 3 ? 'bg-emerald-500/20 text-emerald-700' : learningStep === 2 ? 'bg-brand-500/20 text-brand-700 animate-pulse' : 'bg-surface-200 text-gray-500'}`}>
-                  {learningStep >= 3 ? <Check className="w-3 h-3" /> : '2'}
-                </div>
-                <span className={learningStep >= 3 ? 'text-gray-600 font-medium' : learningStep === 2 ? 'text-dark-900 font-semibold' : 'text-gray-500'}>
-                  Extracting text & building semantic vector index
-                </span>
-              </div>
-
-              <div className="flex items-center gap-3 text-xs">
-                <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${learningStep >= 4 ? 'bg-emerald-500/20 text-emerald-700' : learningStep === 3 ? 'bg-brand-500/20 text-brand-700 animate-pulse' : 'bg-surface-200 text-gray-500'}`}>
-                  {learningStep >= 4 ? <Check className="w-3 h-3" /> : '3'}
-                </div>
-                <span className={learningStep >= 4 ? 'text-gray-600 font-medium' : learningStep === 3 ? 'text-dark-900 font-semibold' : 'text-gray-500'}>
-                  Synthesizing AI Business Summary
-                </span>
-              </div>
-            </div>
-
-            {/* Completion Buttons */}
-            {learningStep === 4 ? (
-              <div className="flex flex-col sm:flex-row gap-3">
-                <button
-                  onClick={() => {
-                    setShowLearningModal(false);
-                    setShowPreviewModal(true);
-                  }}
-                  className="flex-1 bg-gradient-to-r from-brand-700 to-brand-500 hover:from-brand-600 hover:to-brand-400 text-white font-bold py-3.5 px-6 rounded-xl text-sm flex items-center justify-center gap-2 shadow-lg shadow-brand-900/30 transition-all hover:scale-[1.02] active:scale-98"
-                >
-                  <Eye className="w-4 h-4" /> Test My Bot Now →
-                </button>
-                <button
-                  onClick={() => setShowLearningModal(false)}
-                  className="bg-white hover:bg-surface-200 border border-dark-900/10 text-gray-600 hover:text-dark-900 font-semibold py-3.5 px-5 rounded-xl text-sm transition-all"
-                >
-                  Go to Dashboard
-                </button>
-              </div>
-            ) : (
-              <div className="text-xs text-gray-500">
-                Please keep this window open while we finish learning your site...
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* 4. FULL-SCREEN LIVE SITE PREVIEW WITH FUNCTIONAL CHATBOT */}
-      {showPreviewModal && activeSite && (
-        <div className="fixed inset-0 z-[999999] w-screen h-screen bg-black flex flex-col">
-          {/* Top Control Bar */}
-          <div className="h-14 px-2.5 sm:px-6 bg-dark-900 border-b border-white/10 flex items-center justify-between text-white shrink-0 gap-1.5 sm:gap-4">
-            <div className="flex items-center gap-2 sm:gap-4 min-w-0">
-              <button
-                onClick={() => {
-                  setShowPreviewModal(false);
-                  if (isGuest) onRequireLogin();
-                }}
-                className="bg-white/10 hover:bg-white/20 text-white text-xs font-semibold px-2.5 sm:px-4 py-2 rounded-xl flex items-center gap-1.5 sm:gap-2 transition-all shrink-0"
-              >
-                ← <span className="hidden sm:inline">Back to Dashboard</span><span className="sm:hidden">Back</span>
-              </button>
-              <div className="hidden md:flex items-center gap-2 text-xs text-gray-400 font-mono min-w-0">
-                <Globe className="w-4 h-4 text-emerald-400 shrink-0" /> <span className="truncate">https://{activeSite.domain}</span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
-              <a
-                href={`${window.location.origin}/preview.html?domain=${encodeURIComponent(activeSite.domain)}&tenant_key=${encodeURIComponent(activeSite.public_key)}&theme_color=${encodeURIComponent(themeColor)}&api_url=${encodeURIComponent(`${window.location.origin}/api/chat`)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bg-white/10 hover:bg-white/20 text-white text-xs font-semibold px-2.5 sm:px-3.5 py-1.5 rounded-xl flex items-center gap-2 transition-all border border-white/5 shadow-sm"
-                title="Open site preview with chatbot"
-              >
-                <ExternalLink className="w-3.5 h-3.5 text-brand-400" />
-                <span className="hidden sm:inline">Open in new tab</span>
-              </a>
-            </div>
-
-            <button
-              onClick={() => {
-                setShowPreviewModal(false);
-                if (isGuest) onRequireLogin();
-              }}
-              className="text-gray-400 hover:text-white p-2 rounded-lg shrink-0"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          {/* Main Viewport */}
-          <div ref={previewContainerRef} className="flex-1 bg-white flex items-center justify-center relative overflow-hidden">
-            <div className="w-full h-full relative overflow-auto">
-              <iframe
-                src={activeSite.domain.startsWith('http') ? activeSite.domain : `https://${activeSite.domain}`}
-                className="border-0 bg-white block"
-                style={{
-                  width: `${100 / autoScale}%`,
-                  height: `${100 / autoScale}%`,
-                  transform: `scale(${autoScale})`,
-                  transformOrigin: 'top left',
-                  transition: 'transform 0.15s ease, width 0.15s ease, height 0.15s ease'
-                }}
-                title="Website Preview"
+          <SiteHeroCard
+            activeSite={activeSite}
+            themeColor={themeColor}
+            isActive={lifecycle.isSiteActive(activeSite)}
+            isCrawling={pipeline.isCrawling}
+            isGuest={isGuest}
+            onRequireLogin={onRequireLogin}
+            onOpenPreview={openPreviewModal}
+            onOpenIntegration={openIntegrationModal}
+            onOpenSettings={openAdvancedSettings}
+            onRecrawl={pipeline.handleRecrawlSite}
+            onOpenAddSiteModal={lifecycle.handleOpenAddSiteModal}
+          >
+            {!lifecycle.isSiteActive(activeSite) && (
+              <ParkedSiteBanner
+                activeSite={activeSite}
+                tenantPlan={tenantPlan}
+                maxSitesForPlan={maxSitesForPlan}
+                activeSitesCount={lifecycle.activeSites.length}
+                isReactivating={lifecycle.reactivatingSiteId === activeSite.id}
+                onReactivate={lifecycle.handleReactivateSite}
+                onShowPricing={onShowPricing}
               />
-
-              {/* LIVE FUNCTIONAL CHATBOT WIDGET OVERLAY */}
-              <div className="absolute bottom-3 right-3 sm:bottom-6 sm:right-6 z-[100000] flex flex-col items-end max-w-[calc(100vw-24px)]">
-                {/* Chat Panel Modal */}
-                {previewChatOpen && (
-                  <div 
-                    className="w-[calc(100vw-32px)] sm:w-[360px] h-[70vh] sm:h-[500px] max-h-[540px] bg-white text-slate-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden mb-3 animate-in fade-in slide-in-from-bottom-4 border border-slate-200/80"
-                    style={{
-                      boxShadow: `0 18px 40px -10px rgba(0, 0, 0, 0.12), 0 0 18px -4px ${themeColor}20`
-                    }}
-                  >
-                    {/* Header */}
-                    <div 
-                      className="p-3.5 border-b border-slate-100 flex items-center justify-between bg-white"
-                      style={{
-                        background: `linear-gradient(135deg, ${themeColor}10 0%, #ffffff 100%)`
-                      }}
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <div
-                          className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold text-xs shadow-sm"
-                          style={{ backgroundColor: themeColor }}
-                        >
-                          AI
-                        </div>
-                        <div>
-                          <div className="text-[13px] font-bold text-slate-900 leading-tight">Virtual Assistant</div>
-                          <div className="text-[10.5px] font-medium flex items-center gap-1 leading-tight mt-0.5" style={{ color: themeColor }}>
-                            <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: themeColor }}></span>
-                            Live on {activeSite.domain}
-                          </div>
-                        </div>
-                      </div>
-                      <button onClick={() => setPreviewChatOpen(false)} className="text-slate-400 hover:text-slate-700 transition-colors p-1">
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-
-                    {/* Messages Feed */}
-                    <div className="flex-1 p-3.5 overflow-y-auto space-y-3 text-xs bg-slate-50/70">
-                      {previewMessages.map((m, idx) => {
-                        if (m.role === 'tool') {
-                          return (
-                            <div 
-                              key={idx} 
-                              className="mr-auto my-1.5 p-2.5 rounded-xl font-mono text-[11px] space-y-1 shadow-sm animate-in fade-in border"
-                              style={{
-                                backgroundColor: `${themeColor}10`,
-                                borderColor: `${themeColor}25`,
-                                color: themeColor
-                              }}
-                            >
-                              <div className="flex items-center gap-1.5 font-bold">
-                                <span>🛠️  Tool Call:</span>
-                                <span className="px-1.5 py-0.5 rounded text-white" style={{ backgroundColor: `${themeColor}99` }}>{m.tool_call.name}</span>
-                              </div>
-                              {m.tool_call.name === 'search_knowledge_base' && (
-                                <div className="space-y-1">
-                                  <div>🔍  Search keywords: "{m.tool_call.keywords || m.tool_call.query}"</div>
-                                  <div className="text-[10px] text-slate-500 mb-1">📄 {m.tool_call.matched_chunks} chunks matched ({m.tool_call.sources?.length || 0} sources)</div>
-                                  {m.tool_call.sources && m.tool_call.sources.length > 0 && (
-                                    <div className="mt-1 flex flex-col gap-1">
-                                      {m.tool_call.sources.map((src, i) => (
-                                        <a key={i} href={src} target="_blank" rel="noopener noreferrer" className="text-[9px] truncate max-w-[200px] flex items-center gap-1 px-1.5 py-0.5 rounded border" style={{ color: themeColor, backgroundColor: `${themeColor}10`, borderColor: `${themeColor}25` }}>
-                                          🔗 {src.replace(`https://${activeSite.domain}`, '') || '/'}
-                                        </a>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                              {m.tool_call.name === 'capture_lead' && (
-                                <div className="space-y-0.5">
-                                  <div>👤 Lead captured: {m.tool_call.lead?.name || m.tool_call.lead?.email || m.tool_call.lead?.phone || 'Visitor'}</div>
-                                  <div className="text-[10px] text-emerald-600 font-semibold">✓ Saved in Supabase database</div>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        }
-
-                        return (
-                          <div
-                            key={idx}
-                            className={`max-w-[85%] p-3 rounded-2xl leading-relaxed ${
-                              m.role === 'user'
-                                ? 'ml-auto text-white rounded-br-none shadow-sm'
-                                : 'mr-auto bg-white text-slate-700 border border-slate-200/80 rounded-bl-none shadow-sm prose prose-sm max-w-none'
-                            }`}
-                            style={m.role === 'user' ? {
-                              backgroundColor: themeColor,
-                              boxShadow: `0 4px 12px -2px ${themeColor}40`
-                            } : {}}
-                          >
-                            {m.role === 'user' ? m.text : (
-                              <ReactMarkdown
-                                remarkPlugins={[remarkGfm]}
-                                components={{
-                                  a: ({ node, ...props }) => (
-                                    <a {...props} target="_blank" rel="noopener noreferrer" className="underline font-semibold transition-colors" style={{ color: themeColor }} />
-                                  ),
-                                  strong: ({ node, ...props }) => (
-                                    <strong {...props} className="font-bold text-slate-900" />
-                                  ),
-                                  ul: ({ node, ...props }) => (
-                                    <ul {...props} className="list-disc pl-4 my-1.5 space-y-1" />
-                                  ),
-                                  ol: ({ node, ...props }) => (
-                                    <ol {...props} className="list-decimal pl-4 my-1.5 space-y-1" />
-                                  ),
-                                  li: ({ node, ...props }) => (
-                                    <li {...props} className="text-slate-700 leading-relaxed" />
-                                  ),
-                                  code: ({ node, inline, ...props }) => (
-                                    inline
-                                      ? <code {...props} className="bg-slate-100 text-[11px] px-1.5 py-0.5 rounded font-mono" style={{ color: themeColor }} />
-                                      : <code {...props} className="block bg-slate-900 text-slate-100 p-2 rounded text-[11px] font-mono overflow-x-auto my-1.5 border border-slate-800" />
-                                  ),
-                                  p: ({ node, ...props }) => (
-                                    <p {...props} className="mb-2 last:mb-0 leading-relaxed" />
-                                  )
-                                }}
-                              >
-                                {m.text}
-                              </ReactMarkdown>
-                            )}
-                          </div>
-                        );
-                      })}
-
-                      {/* Typing indicator dots when AI is thinking */}
-                      {previewStreaming && (
-                        <div className="mr-auto bg-white text-slate-500 border border-slate-200/80 rounded-xl rounded-bl-none p-2.5 max-w-[200px] flex items-center gap-2 shadow-sm">
-                          <div className="flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ backgroundColor: themeColor, animationDelay: '0ms' }}></span>
-                            <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ backgroundColor: themeColor, animationDelay: '150ms' }}></span>
-                            <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ backgroundColor: themeColor, animationDelay: '300ms' }}></span>
-                          </div>
-                          <span className="text-[10px] text-slate-500 italic">{typeof previewStreaming === 'string' ? previewStreaming : '...'}</span>
-                        </div>
-                      )}
-                      <div ref={chatMessagesEndRef} />
-                    </div>
-
-                    {/* Input */}
-                    <div className="p-2.5 border-t border-slate-100 bg-white flex items-center gap-2">
-                      <input
-                        type="text"
-                        placeholder="Ask your assistant anything..."
-                        value={previewInput}
-                        onChange={(e) => setPreviewInput(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSendPreviewChat()}
-                        className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 outline-none transition-all focus:bg-white"
-                        style={{ borderColor: `${themeColor}44` }}
-                      />
-                      <button
-                        onClick={handleSendPreviewChat}
-                        disabled={!previewInput.trim() || previewStreaming}
-                        className="p-2 rounded-xl text-white disabled:opacity-40 transition-all hover:scale-105 active:scale-95 shadow-sm"
-                        style={{ backgroundColor: themeColor }}
-                      >
-                        <Send className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Floating Launcher Pill Button */}
-                <button
-                  onClick={() => setPreviewChatOpen(!previewChatOpen)}
-                  className="w-[52px] h-[52px] rounded-full flex items-center justify-center text-white text-xl shadow-xl hover:scale-105 transition-transform"
-                  style={{ backgroundColor: themeColor, boxShadow: `0 8px 20px -4px ${themeColor}88` }}
-                >
-                  💬
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 5. INTEGRATION MODAL */}
-      {showIntegrationModal && activeSite && (() => {
-        const activeIndexedPagesCount = discoveredPages.filter(p => p.status === 'loaded' || (selectedUrls && selectedUrls.has(p.url))).length;
-        const allowedPagesForPlan = getMaxPagesForPlan(tenantPlan);
-        const isOverPlanLimit = activeIndexedPagesCount > allowedPagesForPlan;
-
-        return (
-          <div className="fixed inset-0 z-[9999999] bg-black/80 flex items-center justify-center p-4 animate-in fade-in">
-            <div className="glass-card p-6 sm:p-8 rounded-3xl w-full max-w-2xl border border-dark-900/10 shadow-2xl relative max-h-[90vh] overflow-y-auto">
-              <button
-                onClick={() => setShowIntegrationModal(false)}
-                className="absolute top-4 right-4 text-gray-500 hover:text-dark-900 p-2 rounded-lg hover:bg-dark-900/5 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-
-              <h3 className="text-xl font-bold text-dark-900 mb-2 flex items-center gap-2">
-                <Code className="w-6 h-6 text-brand-600" /> Embed Widget on Your Website
-              </h3>
-              <p className="text-sm text-gray-500 mb-6">
-                Copy this code snippet and paste it right before the closing <code className="text-brand-300 font-mono text-xs bg-dark-800 px-1 py-0.5 rounded">&lt;/body&gt;</code> tag on any pages where you want the assistant to appear.
-              </p>
-
-              {/* PLAN LIMIT WARNING BANNER */}
-              {isOverPlanLimit && (
-                <div className="mb-6 bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 text-left space-y-3 animate-in fade-in">
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 rounded-xl bg-amber-500/20 text-amber-700 shrink-0 mt-0.5">
-                      <AlertTriangle className="w-5 h-5" />
-                    </div>
-                    <div className="flex-1 text-xs">
-                      <h4 className="font-bold text-dark-900 text-sm mb-1 flex items-center gap-2">
-                        Plan Limit Exceeded ({activeIndexedPagesCount} / {allowedPagesForPlan} pages)
-                      </h4>
-                      <p className="text-amber-800 leading-relaxed">
-                        Your website has <strong>{activeIndexedPagesCount} active pages</strong>, which exceeds your current <strong>{tenantPlan.toUpperCase()}</strong> plan limit of <strong>{allowedPagesForPlan} pages</strong>.
-                      </p>
-                      <p className="text-gray-600 mt-1">
-                        To deploy to your live website, either <strong>upgrade your plan</strong> or <strong>deactivate {activeIndexedPagesCount - allowedPagesForPlan} extra page(s)</strong> in your Knowledge Base table.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row items-center justify-end gap-2.5 pt-2 border-t border-amber-500/20">
-                    <button
-                      onClick={() => {
-                        setShowIntegrationModal(false);
-                        setShowAdvancedSettings(true);
-                        setTimeout(() => {
-                          const kbTable = document.getElementById('knowledge-base-section');
-                          if (kbTable) kbTable.scrollIntoView({ behavior: 'smooth' });
-                        }, 200);
-                      }}
-                      className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-semibold text-gray-600 hover:text-dark-900 bg-white border border-dark-900/10 hover:bg-surface-200 transition-all"
-                    >
-                      Manage & Deactivate Pages
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setShowIntegrationModal(false);
-                        if (onShowPricing) onShowPricing();
-                      }}
-                      className="w-full sm:w-auto px-5 py-2 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-amber-500 to-brand-600 hover:from-amber-400 hover:to-brand-500 shadow-md transition-all flex items-center justify-center gap-1.5"
-                    >
-                      <Sparkles className="w-3.5 h-3.5" /> Upgrade Plan →
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              <div className="relative group">
-                <pre className="bg-dark-900 border border-white/10 p-4 rounded-xl text-xs text-emerald-400 font-mono overflow-x-auto">
-                  {buildWidgetSnippet(activeSite.public_key)}
-                </pre>
-                <button
-                  onClick={() => copyWidgetScript(activeSite.public_key)}
-                  className="absolute top-3 right-3 bg-white/10 hover:bg-white/20 text-white p-2 rounded-lg transition-colors flex items-center gap-2 text-xs font-semibold backdrop-blur-md"
-                >
-                  {copiedScriptKey === activeSite.public_key ? <><Check className="w-4 h-4 text-emerald-400" /> Copied</> : <><Copy className="w-4 h-4" /> Copy Code</>}
-                </button>
-              </div>
-              
-              <div className="mt-6 flex justify-end">
-                <button
-                  onClick={() => setShowIntegrationModal(false)}
-                  className="bg-brand-600 hover:bg-brand-500 text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition-all shadow-lg"
-                >
-                  Done
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* 6. EDIT PAGE CONTENT MODAL */}
-      {editingPage && (
-        <div className="fixed inset-0 z-[9999999] bg-black/80 flex items-center justify-center p-4">
-          <div className="bg-white p-6 rounded-2xl w-full max-w-3xl border border-dark-900/10 shadow-2xl relative flex flex-col h-[80vh]">
-            <button
-              onClick={() => setEditingPage(null)}
-              className="absolute top-4 right-4 text-gray-500 hover:text-dark-900 p-2 rounded-lg hover:bg-dark-900/5 transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <h3 className="text-lg font-bold text-dark-900 mb-1">Edit Indexed Knowledge Content</h3>
-            <p className="text-xs text-gray-500 font-mono mb-4 truncate pr-10">{editingPage.url}</p>
-
-            <div className="flex-1 overflow-hidden flex flex-col min-h-0">
-              <textarea
-                value={editingPage.content}
-                onChange={(e) => setEditingPage({ ...editingPage, content: e.target.value })}
-                disabled={editingPage.saving || editingPage.content === 'Loading content...'}
-                style={{ backgroundColor: '#090d16', color: '#f3f4f6' }}
-                className="flex-1 w-full bg-dark-950 border border-white/10 rounded-xl p-4 text-sm text-gray-100 font-mono resize-none outline-none focus:border-brand-500 transition-colors"
-              />
-            </div>
-
-            <div className="mt-4 flex justify-end gap-3 pt-4 border-t border-dark-900/10">
-              <button
-                onClick={() => setEditingPage(null)}
-                className="px-5 py-2.5 rounded-xl text-sm text-gray-500 hover:text-dark-900 font-medium"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSavePageContent}
-                disabled={editingPage.saving || editingPage.content === 'Loading content...'}
-                className="bg-brand-600 hover:bg-brand-500 text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition-all shadow-sm flex items-center gap-2"
-              >
-                {editingPage.saving && <RefreshCw className="w-4 h-4 animate-spin" />}
-                Save Changes
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 7. NON-BLOCKING ADD WEBSITE MODAL */}
-      {showAddSiteModal && (
-        <div className="fixed inset-0 z-[9999999] bg-black/80 flex items-center justify-center p-4 animate-in fade-in">
-          <div className="glass-card p-8 rounded-3xl w-full max-w-lg border border-dark-900/10 shadow-2xl relative">
-            <button
-              onClick={() => setShowAddSiteModal(false)}
-              className="absolute top-4 right-4 text-gray-500 hover:text-dark-900 p-2 rounded-lg hover:bg-dark-900/5 transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <h3 className="text-xl font-bold text-dark-900 mb-2 flex items-center gap-2">
-              <Globe className="w-6 h-6 text-brand-600" /> Add a New Website
-            </h3>
-            <p className="text-sm text-gray-500 mb-6">
-              Connect another website to your account without interrupting your active assistant.
-            </p>
-
-            {newSiteError && (
-              <div className="mb-4 bg-red-500/10 border border-red-500/30 text-red-600 text-xs rounded-xl p-3">
-                ⚠️ {newSiteError}
-              </div>
             )}
 
-            <form onSubmit={handleAddSiteModalSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-2">Website URL / Domain</label>
-                <div className="relative">
-                  <Globe className="w-4 h-4 text-gray-500 absolute left-3.5 top-3 pointer-events-none" />
-                  <input
-                    type="text"
-                    required
-                    placeholder="https://second-company.com"
-                    value={newSiteUrlInput}
-                    onChange={(e) => setNewSiteUrlInput(e.target.value)}
-                    className="w-full bg-white border border-gray-300 text-dark-900 placeholder-gray-400 rounded-xl pl-10 pr-4 py-2.5 text-xs outline-none focus:border-brand-500 transition-colors"
-                  />
-                </div>
-              </div>
+            <GuidedRoadmap
+              loadedPagesCount={pipeline.discoveredPages.filter(p => p.status === 'loaded').length}
+              isCrawling={pipeline.isCrawling}
+              isGuest={isGuest}
+              onRequireLogin={onRequireLogin}
+              onOpenPreview={openPreviewModal}
+              onOpenIntegration={openIntegrationModal}
+            />
+          </SiteHeroCard>
 
-              <div className="flex items-center justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowAddSiteModal(false)}
-                  className="px-4 py-2 text-xs font-medium text-gray-500 hover:text-dark-900"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isAddingNewSite || !newSiteUrlInput.trim()}
-                  className="bg-brand-600 hover:bg-brand-500 text-white font-semibold px-5 py-2 rounded-xl text-xs flex items-center gap-2 transition-all shadow-md disabled:opacity-50"
-                >
-                  {isAddingNewSite ? (
-                    <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Adding & Learning...</>
-                  ) : (
-                    <>Add & Learn Website →</>
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
+          <AdvancedSettingsPanel
+            showAdvancedSettings={showAdvancedSettings}
+            onToggle={() => setShowAdvancedSettings((prev) => !prev)}
+            activeSite={activeSite}
+            selectedTenant={selectedTenant}
+            themeColor={themeColor}
+            onUpdateSiteSettings={onUpdateSiteSettings}
+            siteSummary={summary.siteSummary}
+            setSiteSummary={summary.setSiteSummary}
+            isLoadingSummary={summary.isLoadingSummary}
+            isRegeneratingSummary={summary.isRegeneratingSummary}
+            isSavingSummary={summary.isSavingSummary}
+            summarySuccessMsg={summary.summarySuccessMsg}
+            showSummaryEditor={summary.showSummaryEditor}
+            setShowSummaryEditor={summary.setShowSummaryEditor}
+            onRegenerateSummary={summary.handleRegenerateSummary}
+            onSaveSummary={summary.handleSaveSummary}
+            discoveredPages={pipeline.discoveredPages}
+            selectedUrls={pipeline.selectedUrls}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            onTogglePageActivation={pipeline.handleTogglePageActivation}
+            onEditPage={pipeline.handleEditPage}
+            onRequestDeleteSite={() => lifecycle.setShowDeleteConfirmModal(true)}
+          />
         </div>
       )}
 
-      {/* 8. DELETE WEBSITE CONFIRMATION MODAL */}
-      {showDeleteConfirmModal && activeSite && (
-        <div className="fixed inset-0 z-[9999999] bg-black/80 flex items-center justify-center p-4 animate-in fade-in">
-          <div className="glass-card p-8 rounded-3xl w-full max-w-md border border-red-500/30 shadow-2xl relative text-center">
-            <div className="w-14 h-14 rounded-2xl bg-red-500/10 text-red-600 border border-red-500/20 flex items-center justify-center mx-auto mb-4">
-              <AlertTriangle className="w-7 h-7" />
-            </div>
+      <LearningProgressModal
+        show={pipeline.showLearningModal}
+        learningStep={pipeline.learningStep}
+        learningDomain={pipeline.learningDomain}
+        learningProgress={pipeline.learningProgress}
+        crawlProgressMsg={pipeline.crawlProgressMsg}
+        onTestBot={() => {
+          pipeline.setShowLearningModal(false);
+          preview.setShowPreviewModal(true);
+        }}
+        onGoToDashboard={() => pipeline.setShowLearningModal(false)}
+      />
 
-            <h3 className="text-xl font-bold text-dark-900 mb-2">
-              Delete Website?
-            </h3>
-            <p className="text-sm text-gray-500 mb-6 leading-relaxed">
-              Are you sure you want to delete <strong className="text-dark-900">{activeSite.domain}</strong>? All indexed knowledge pages, business summaries, and the chatbot API key will be permanently removed.
-            </p>
+      <LivePreviewModal
+        show={preview.showPreviewModal}
+        activeSite={activeSite}
+        themeColor={themeColor}
+        previewContainerRef={preview.previewContainerRef}
+        autoScale={preview.autoScale}
+        previewChatOpen={preview.previewChatOpen}
+        setPreviewChatOpen={preview.setPreviewChatOpen}
+        previewMessages={preview.previewMessages}
+        previewStreaming={preview.previewStreaming}
+        previewInput={preview.previewInput}
+        setPreviewInput={preview.setPreviewInput}
+        onSendMessage={preview.handleSendPreviewChat}
+        chatMessagesEndRef={preview.chatMessagesEndRef}
+        onClose={() => {
+          preview.setShowPreviewModal(false);
+          if (isGuest) onRequireLogin();
+        }}
+      />
 
-            {deleteSiteError && (
-              <div className="mb-5 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-xs font-medium text-red-700 text-left flex items-start gap-2 animate-in fade-in">
-                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-                <span>{deleteSiteError}</span>
-              </div>
-            )}
+      <IntegrationModal
+        show={showIntegrationModal}
+        activeSite={activeSite}
+        tenantPlan={tenantPlan}
+        discoveredPages={pipeline.discoveredPages}
+        selectedUrls={pipeline.selectedUrls}
+        snippet={activeSite ? buildWidgetSnippet(activeSite.public_key) : ''}
+        copied={copiedScriptKey === activeSite?.public_key}
+        onCopy={() => copyWidgetScript(activeSite.public_key)}
+        onClose={() => setShowIntegrationModal(false)}
+        onManagePages={() => {
+          setShowIntegrationModal(false);
+          setShowAdvancedSettings(true);
+          setTimeout(() => {
+            const kbTable = document.getElementById('knowledge-base-section');
+            if (kbTable) kbTable.scrollIntoView({ behavior: 'smooth' });
+          }, 200);
+        }}
+        onShowPricing={onShowPricing}
+      />
 
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-              <button
-                type="button"
-                disabled={isDeletingSite}
-                onClick={() => {
-                  setShowDeleteConfirmModal(false);
-                  setDeleteSiteError('');
-                }}
-                className="w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-semibold text-gray-600 hover:text-dark-900 bg-white border border-dark-900/10 hover:bg-surface-200 transition-all"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={isDeletingSite}
-                onClick={handleConfirmDeleteSite}
-                className="w-full sm:w-auto bg-red-600 hover:bg-red-500 text-white font-semibold px-6 py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-all shadow-lg shadow-red-900/40 disabled:opacity-50"
-              >
-                {isDeletingSite ? (
-                  <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Deleting...</>
-                ) : deleteSiteError ? (
-                  <><RefreshCw className="w-3.5 h-3.5" /> Retry Delete</>
-                ) : (
-                  <><Trash2 className="w-3.5 h-3.5" /> Delete Permanently</>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <EditPageModal
+        editingPage={pipeline.editingPage}
+        onChangeContent={(content) => pipeline.setEditingPage({ ...pipeline.editingPage, content })}
+        onSave={pipeline.handleSavePageContent}
+        onClose={() => pipeline.setEditingPage(null)}
+      />
 
-      {/* 9. LARGE WEBSITE PAGE SELECTION REVIEW MODAL (Never a silent miss) */}
-      {showPageSelectionModal && (
-        <div className="fixed inset-0 z-[9999999] bg-black/85 flex items-center justify-center p-4 animate-in fade-in">
-          <div className="glass-card p-6 sm:p-8 rounded-3xl w-full max-w-3xl border border-amber-500/30 shadow-2xl relative flex flex-col max-h-[88vh]">
-            <div className="flex items-start justify-between gap-4 mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-700 flex items-center justify-center shrink-0 border border-amber-500/30">
-                  <AlertTriangle className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-dark-900">
-                    Large Website ({pendingCrawlPages.length} Pages Discovered)
-                  </h3>
-                  <p className="text-xs text-gray-500">
-                    Your current <strong>{tenantPlan.toUpperCase()}</strong> plan includes up to <strong>{getMaxPagesForPlan(tenantPlan)} pages</strong>. Select which pages to index or upgrade your plan.
-                  </p>
-                </div>
-              </div>
+      <AddSiteModal
+        show={lifecycle.showAddSiteModal}
+        newSiteUrlInput={lifecycle.newSiteUrlInput}
+        setNewSiteUrlInput={lifecycle.setNewSiteUrlInput}
+        isAddingNewSite={lifecycle.isAddingNewSite}
+        newSiteError={lifecycle.newSiteError}
+        onSubmit={lifecycle.handleAddSiteModalSubmit}
+        onClose={() => lifecycle.setShowAddSiteModal(false)}
+      />
 
-              <span className={`px-3 py-1 rounded-full text-xs font-bold shrink-0 ${
-                selectedUrls.size > getMaxPagesForPlan(tenantPlan)
-                  ? 'bg-red-500/20 text-red-700 border border-red-500/30'
-                  : 'bg-brand-500/20 text-brand-800 border border-brand-500/30'
-              }`}>
-                {selectedUrls.size} / {getMaxPagesForPlan(tenantPlan)} pages selected
-              </span>
-            </div>
+      <DeleteSiteModal
+        show={lifecycle.showDeleteConfirmModal}
+        activeSite={activeSite}
+        isDeletingSite={lifecycle.isDeletingSite}
+        deleteSiteError={lifecycle.deleteSiteError}
+        onCancel={() => {
+          lifecycle.setShowDeleteConfirmModal(false);
+          lifecycle.setDeleteSiteError('');
+        }}
+        onConfirm={lifecycle.handleConfirmDeleteSite}
+      />
 
-            {/* Quick Actions & Search */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pb-3 border-b border-dark-900/5">
-              <div className="relative w-full sm:w-72">
-                <Search className="w-3.5 h-3.5 text-gray-500 absolute left-3 top-2.5 pointer-events-none" />
-                <input
-                  type="text"
-                  placeholder="Filter pages by URL or title..."
-                  value={pageSelectionSearch}
-                  onChange={(e) => setPageSelectionSearch(e.target.value)}
-                  className="w-full bg-white border border-gray-300 text-dark-900 placeholder-gray-400 rounded-xl pl-8 pr-3 py-1.5 text-xs outline-none focus:border-brand-500 transition-colors"
-                />
-              </div>
+      <PageSelectionModal
+        show={pipeline.showPageSelectionModal}
+        pendingCrawlPages={pipeline.pendingCrawlPages}
+        selectedUrls={pipeline.selectedUrls}
+        setSelectedUrls={pipeline.setSelectedUrls}
+        pageSelectionSearch={pipeline.pageSelectionSearch}
+        setPageSelectionSearch={pipeline.setPageSelectionSearch}
+        tenantPlan={tenantPlan}
+        onConfirm={pipeline.handleConfirmSelectedPagesAndScan}
+        onClose={() => pipeline.setShowPageSelectionModal(false)}
+        onShowPricing={onShowPricing}
+      />
 
-              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const topN = pendingCrawlPages.slice(0, getMaxPagesForPlan(tenantPlan));
-                    setSelectedUrls(new Set(topN.map(p => p.url)));
-                  }}
-                  className="text-xs text-gray-600 hover:text-dark-900 bg-white hover:bg-surface-200 px-3 py-1.5 rounded-lg border border-dark-900/10 transition-colors"
-                >
-                  Select Top {getMaxPagesForPlan(tenantPlan)}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedUrls(new Set())}
-                  className="text-xs text-gray-500 hover:text-dark-900 bg-white hover:bg-surface-200 px-3 py-1.5 rounded-lg border border-dark-900/10 transition-colors"
-                >
-                  Clear All
-                </button>
-              </div>
-            </div>
+      <UpgradeRequiredModal
+        show={lifecycle.showUpgradeRequiredModal}
+        tenantPlan={tenantPlan}
+        maxSitesForPlan={maxSitesForPlan}
+        sitesCount={sites?.length ?? 0}
+        upgradeRequiredDomain={lifecycle.upgradeRequiredDomain}
+        activeSiteDomain={activeSite?.domain}
+        onShowPricing={onShowPricing}
+        onDeleteInstead={() => {
+          lifecycle.setShowUpgradeRequiredModal(false);
+          lifecycle.setShowDeleteConfirmModal(true);
+        }}
+        onClose={() => lifecycle.setShowUpgradeRequiredModal(false)}
+      />
 
-            {/* Scrollable Page Checklist */}
-            <div className="flex-1 overflow-y-auto min-h-0 my-3 divide-y divide-dark-900/5 rounded-xl border border-dark-900/5 bg-white">
-              {pendingCrawlPages
-                .filter(p => p.url.toLowerCase().includes(pageSelectionSearch.toLowerCase()) || (p.title && p.title.toLowerCase().includes(pageSelectionSearch.toLowerCase())))
-                .map((page, idx) => {
-                  const isChecked = selectedUrls.has(page.url);
-                  return (
-                    <div
-                      key={idx}
-                      onClick={() => {
-                        setSelectedUrls(prev => {
-                          const next = new Set(prev);
-                          if (next.has(page.url)) {
-                            next.delete(page.url);
-                          } else {
-                            if (next.size >= getMaxPagesForPlan(tenantPlan)) {
-                              alert(`Your plan allows up to ${getMaxPagesForPlan(tenantPlan)} pages. Please upgrade or uncheck another page.`);
-                              return next;
-                            }
-                            next.add(page.url);
-                          }
-                          return next;
-                        });
-                      }}
-                      className={`p-3 flex items-center justify-between gap-3 cursor-pointer hover:bg-dark-900/[0.03] transition-colors ${
-                        isChecked ? 'bg-brand-500/5' : ''
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => {}}
-                          className="w-4 h-4 rounded text-brand-600 bg-white border-gray-300 focus:ring-0 shrink-0"
-                        />
-                        <div className="min-w-0">
-                          <div className="text-xs font-semibold text-dark-900 truncate">{page.title || page.url}</div>
-                          <div className="text-[11px] text-gray-500 font-mono truncate">{page.url}</div>
-                        </div>
-                      </div>
-                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${
-                        isChecked ? 'bg-emerald-500/10 text-emerald-700 border border-emerald-500/20' : 'bg-gray-200 text-gray-600'
-                      }`}>
-                        {isChecked ? 'Selected' : 'Skipped'}
-                      </span>
-                    </div>
-                  );
-                })}
-            </div>
-
-            {/* Modal Footer Actions */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-dark-900/5">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowPageSelectionModal(false);
-                  if (onShowPricing) onShowPricing();
-                }}
-                className="w-full sm:w-auto text-xs text-amber-700 hover:text-amber-800 font-semibold flex items-center gap-1.5 px-3 py-2"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                Upgrade plan for unlimited pages →
-              </button>
-
-              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-                <button
-                  type="button"
-                  onClick={() => setShowPageSelectionModal(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-gray-500 hover:text-dark-900"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  disabled={selectedUrls.size === 0 || selectedUrls.size > getMaxPagesForPlan(tenantPlan)}
-                  onClick={handleConfirmSelectedPagesAndScan}
-                  className="bg-brand-600 hover:bg-brand-500 text-white font-semibold px-6 py-2 rounded-xl text-xs flex items-center gap-2 transition-all shadow-lg disabled:opacity-50"
-                >
-                  Confirm & Index Selected Pages ({selectedUrls.size}) →
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 10. PLAN LIMIT REACHED — UPGRADE FIRST MODAL
-          Adding a website at the limit is not an error the user made, it is a
-          plan decision: upgrading is the lead action, everything else is a way
-          out of the dialog. */}
-      {showUpgradeRequiredModal && (() => {
-        const nextPlan = tenantPlan === 'premium'
-          ? null
-          : tenantPlan === 'pro'
-          ? { name: 'Premium', sites: 10 }
-          : { name: 'Pro', sites: 2 };
-
-        return (
-          <div className="fixed inset-0 z-[9999999] bg-black/80 flex items-center justify-center p-4 animate-in fade-in">
-            <div className="glass-card p-8 rounded-3xl w-full max-w-md border border-brand-500/30 shadow-2xl relative text-center">
-              <button
-                onClick={() => setShowUpgradeRequiredModal(false)}
-                className="absolute top-4 right-4 text-gray-500 hover:text-dark-900 p-2 rounded-lg hover:bg-dark-900/5 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-
-              <div className="w-14 h-14 rounded-2xl bg-brand-500/10 text-brand-700 border border-brand-500/20 flex items-center justify-center mx-auto mb-4">
-                <Sparkles className="w-7 h-7" />
-              </div>
-
-              <h3 className="text-xl font-bold text-dark-900 mb-2">
-                Add {upgradeRequiredDomain || 'another website'} with an upgrade
-              </h3>
-              <p className="text-sm text-gray-500 mb-6 leading-relaxed">
-                Your <strong className="text-dark-900">{tenantPlan.toUpperCase()}</strong> plan covers <strong className="text-dark-900">{maxSitesForPlan} website{maxSitesForPlan > 1 ? 's' : ''}</strong>, and your workspace already has {sites?.length ?? 0}.
-                {nextPlan
-                  ? <> Upgrading to <strong className="text-dark-900">{nextPlan.name}</strong> raises that to <strong className="text-dark-900">{nextPlan.sites} websites</strong> — your current assistants keep running exactly as they are.</>
-                  : <> That is our largest plan; get in touch and we will work out what you need.</>}
-              </p>
-
-              <div className="flex flex-col gap-3">
-                {onShowPricing && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowUpgradeRequiredModal(false);
-                      onShowPricing();
-                    }}
-                    className="w-full bg-gradient-to-r from-brand-700 to-brand-500 hover:from-brand-600 hover:to-brand-400 text-white font-bold px-6 py-3 rounded-xl text-sm flex items-center justify-center gap-2 transition-all shadow-lg shadow-brand-900/30 hover:scale-[1.02] active:scale-95"
-                  >
-                    <Sparkles className="w-4 h-4" />
-                    {nextPlan ? `Upgrade to ${nextPlan.name}` : 'See plans'} →
-                  </button>
-                )}
-
-                {/* Secondary, deliberately quiet: deleting a website to make
-                    room is destructive and permanent, unlike upgrading. */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowUpgradeRequiredModal(false);
-                    setShowDeleteConfirmModal(true);
-                  }}
-                  className="w-full px-5 py-2 rounded-xl text-xs font-medium text-gray-500 hover:text-dark-900 transition-colors"
-                >
-                  Or delete {activeSite?.domain || 'an existing website'} to free a slot
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setShowUpgradeRequiredModal(false)}
-                  className="w-full px-5 py-1 text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors"
-                >
-                  Not now
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* 11. OVER_LIMIT_CHOOSE — MORE WEBSITES THAN THE PLAN COVERS
-          Reached after a downgrade (Stripe change, past_due). The user picks
-          which websites stay active; the others are parked, never deleted. */}
-      {showOverLimitModal && activeSites.length > 0 && (
-        <div className="fixed inset-0 z-[9999999] bg-black/85 flex items-center justify-center p-4 animate-in fade-in">
-          <div className="glass-card p-6 sm:p-8 rounded-3xl w-full max-w-2xl border border-amber-500/30 shadow-2xl relative flex flex-col max-h-[88vh]">
-            <div className="flex items-start justify-between gap-4 mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-700 flex items-center justify-center shrink-0 border border-amber-500/30">
-                  <AlertTriangle className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-dark-900">
-                    Choose which website{maxSitesForPlan > 1 ? 's' : ''} stay{maxSitesForPlan > 1 ? '' : 's'} active
-                  </h3>
-                  <p className="text-xs text-gray-500">
-                    Your <strong>{tenantPlan.toUpperCase()}</strong> plan covers <strong>{maxSitesForPlan} active website{maxSitesForPlan > 1 ? 's' : ''}</strong>, and you have <strong>{activeSites.length}</strong>.
-                  </p>
-                </div>
-              </div>
-
-              <span className={`px-3 py-1 rounded-full text-xs font-bold shrink-0 ${
-                overLimitKeepIds.size === 0
-                  ? 'bg-red-500/20 text-red-700 border border-red-500/30'
-                  : 'bg-brand-500/20 text-brand-800 border border-brand-500/30'
-              }`}>
-                {overLimitKeepIds.size} / {maxSitesForPlan} selected
-              </span>
-            </div>
-
-            <div className="bg-emerald-500/10 border border-emerald-500/25 rounded-2xl p-3.5 text-xs text-emerald-800 leading-relaxed flex items-start gap-2.5">
-              <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5 text-emerald-600" />
-              <span>
-                The websites you do not select are <strong className="text-dark-900">parked, not deleted</strong>. Their indexed pages, business summary, captured leads and API keys stay untouched — only their chat widget stops answering. Upgrade your plan and they come back online exactly as they were.
-              </span>
-            </div>
-
-            {overLimitError && (
-              <div className="mt-3 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-xs font-medium text-red-700 text-left flex items-start gap-2 animate-in fade-in">
-                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-                <span>{overLimitError}</span>
-              </div>
-            )}
-
-            {/* Scrollable Website Checklist */}
-            <div className="flex-1 overflow-y-auto min-h-0 my-3 divide-y divide-dark-900/5 rounded-xl border border-dark-900/5 bg-white">
-              {activeSites.map((s) => {
-                const isChecked = overLimitKeepIds.has(s.id);
-                const isFull = !isChecked && overLimitKeepIds.size >= maxSitesForPlan;
-                return (
-                  <div
-                    key={s.id}
-                    onClick={() => toggleOverLimitKeep(s.id)}
-                    title={isFull ? 'Unselect another website first' : ''}
-                    className={`p-3 flex items-center justify-between gap-3 transition-colors ${
-                      isFull ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-dark-900/[0.03]'
-                    } ${isChecked ? 'bg-brand-500/5' : ''}`}
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={() => {}}
-                        className="w-4 h-4 rounded text-brand-600 bg-white border-gray-300 focus:ring-0 shrink-0"
-                      />
-                      <div className="min-w-0">
-                        <div className="text-xs font-semibold text-dark-900 truncate">{s.domain}</div>
-                        <div className="text-[11px] text-gray-500 font-mono truncate">{s.public_key}</div>
-                      </div>
-                    </div>
-                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${
-                      isChecked
-                        ? 'bg-emerald-500/10 text-emerald-700 border border-emerald-500/20'
-                        : 'bg-amber-500/10 text-amber-700 border border-amber-500/20'
-                    }`}>
-                      {isChecked ? 'Stays active' : 'Will be parked'}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Modal Footer Actions */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-dark-900/5">
-              {onShowPricing ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowOverLimitModal(false);
-                    onShowPricing();
-                  }}
-                  className="w-full sm:w-auto text-xs text-amber-700 hover:text-amber-800 font-semibold flex items-center gap-1.5 px-3 py-2"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                  Upgrade instead and keep all {activeSites.length} online →
-                </button>
-              ) : <span />}
-
-              <button
-                type="button"
-                disabled={isParkingSites || overLimitKeepIds.size === 0 || overLimitKeepIds.size > maxSitesForPlan}
-                onClick={handleConfirmOverLimitSelection}
-                className="w-full sm:w-auto bg-brand-600 hover:bg-brand-500 text-white font-semibold px-6 py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isParkingSites ? (
-                  <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Saving...</>
-                ) : (
-                  <>Keep selected active & park {Math.max(activeSites.length - overLimitKeepIds.size, 0)} →</>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <OverLimitModal
+        show={lifecycle.showOverLimitModal}
+        activeSites={lifecycle.activeSites}
+        tenantPlan={tenantPlan}
+        maxSitesForPlan={maxSitesForPlan}
+        overLimitKeepIds={lifecycle.overLimitKeepIds}
+        overLimitError={lifecycle.overLimitError}
+        isParkingSites={lifecycle.isParkingSites}
+        onToggleKeep={lifecycle.toggleOverLimitKeep}
+        onConfirm={lifecycle.handleConfirmOverLimitSelection}
+        onClose={() => lifecycle.setShowOverLimitModal(false)}
+        onShowPricing={onShowPricing}
+      />
     </div>
   );
 }

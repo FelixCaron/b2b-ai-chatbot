@@ -138,7 +138,7 @@ src/
 │   │   └── navigation.js      the nav items, defined once for both headers
 │   └── …                      LoginModal, Pricing, LegalPages, PlanBadge, …
 ├── features/
-│   ├── dashboard/             see below
+│   ├── dashboard/             see §3 below
 │   └── leads/                 LeadsPage · RecentLeadsSection
 └── lib/
     ├── api/                   the contract client + grouped surface
@@ -168,11 +168,52 @@ the anonymous session can still prove it owns the guest tenant — so `App` pass
 
 ---
 
-## 3. The staff console — `apps/internal-admin/src`
+## 3. The dashboard — `apps/admin/src/features/dashboard`
+
+The dashboard was one 2,736-line component. It is now a composition root of
+~420 lines that wires four hooks and renders the sections:
+
+```
+features/dashboard/
+├── Dashboard.jsx              the composition root — same props as before
+├── lib/
+│   ├── plan-limits.js         plan → website/page limits, as data
+│   ├── page-url.js            URL normalisation (pure)
+│   ├── brand-theme.js         the theme-extraction call
+│   └── turnstile.js           the invisible captcha challenge
+├── hooks/
+│   ├── useSiteSummary.js      load · save · regenerate the site summary
+│   ├── useCrawlPipeline.js    discovery · scan · indexed pages · learning progress
+│   ├── usePreviewChat.js      the live-preview viewport and its SSE chat session
+│   └── useSiteLifecycle.js    add · delete · park · reactivate a website
+└── components/
+    ├── OnboardingHero.jsx     the URL-paste hero, before any site exists
+    ├── SiteTabs.jsx           the multi-site selector
+    ├── SiteHeroCard.jsx       the active site and its actions
+    ├── ParkedSiteBanner.jsx   why a parked widget stopped answering
+    ├── GuidedRoadmap.jsx      the three-step roadmap
+    ├── ChatPreview.jsx · IntegrationSnippet.jsx
+    ├── AdvancedSettings/      FeatureToggles · SiteSummaryCard ·
+    │                          KnowledgeBasePanel · DangerZone, composed by
+    │                          AdvancedSettingsPanel
+    └── modals/                LearningProgress · LivePreview · Integration ·
+                               EditPage · AddSite · DeleteSite · PageSelection ·
+                               UpgradeRequired · OverLimit
+```
+
+Sections and modals are presentational: explicit named props, no reaching
+around them for state. The state that genuinely travels together lives in the
+hooks; what is shared across sections stays in `Dashboard.jsx`.
+
+---
+
+## 4. The staff console — `apps/internal-admin/src`
 
 The same shape, smaller: `components/layout/{AppShell,Header,Footer}.jsx`,
 `lib/api/` built on the same `createApiClient`, and an `App.jsx` left holding
 the staff gate and the tab state.
+
+---
 
 ---
 

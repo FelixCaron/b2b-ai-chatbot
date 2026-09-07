@@ -1,0 +1,118 @@
+import React from 'react';
+import { Globe, Eye, RefreshCw, Code, Settings2 } from 'lucide-react';
+
+/** The active website's identity card and its action row. The parked banner
+ *  and the guided roadmap are rendered as children, inside the same card. */
+export default function SiteHeroCard({
+  activeSite,
+  themeColor,
+  isActive,
+  isCrawling,
+  isGuest,
+  onRequireLogin,
+  onOpenPreview,
+  onOpenIntegration,
+  onOpenSettings,
+  onRecrawl,
+  onOpenAddSiteModal,
+  children
+}) {
+  return (
+    <div className="bg-white/90 p-6 sm:p-8 rounded-2xl border border-dark-900/5 shadow-sm space-y-6">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-bold shadow-md" style={{ backgroundColor: themeColor }}>
+            <Globe className="w-7 h-7" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h2 className="text-2xl font-bold text-dark-900 tracking-tight">{activeSite.domain}</h2>
+              {isActive ? (
+                <span className="bg-emerald-500/15 text-emerald-700 text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5 border border-emerald-500/20">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  Assistant Active & Ready
+                </span>
+              ) : (
+                <span className="bg-amber-500/15 text-amber-700 text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5 border border-amber-500/20">
+                  <span className="w-2 h-2 rounded-full bg-amber-500/80"></span>
+                  Assistant Paused (Parked)
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-gray-500 mt-1 flex items-center gap-2">
+              Public Key: <span className="font-mono text-brand-700 bg-surface-200 px-2 py-0.5 rounded border border-dark-900/10">{activeSite.public_key}</span>
+            </p>
+          </div>
+        </div>
+
+        {/* Action Buttons — stacked & grouped on mobile so nothing wraps
+            raggedly or ends up too small to tap comfortably; unchanged
+            single-row layout from md (≥768px) upward. */}
+        <div className="flex flex-col gap-2.5 w-full md:w-auto md:flex-row md:flex-wrap md:items-center md:gap-3">
+          <button
+            disabled={isCrawling}
+            onClick={onOpenPreview}
+            className={`w-full md:w-auto text-white font-semibold px-6 py-3 rounded-xl text-sm flex items-center justify-center gap-2 shadow-lg transition-all ${
+              isCrawling
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed border border-dark-900/10 opacity-70'
+                : 'bg-gradient-to-r from-brand-700 to-brand-500 hover:from-brand-600 hover:to-brand-400 shadow-brand-900/30 hover:scale-[1.02] active:scale-98'
+            }`}
+          >
+            {isCrawling ? (
+              <>
+                <RefreshCw className="w-4 h-4 animate-spin text-brand-600" /> Indexing website...
+              </>
+            ) : (
+              <>
+                <Eye className="w-4 h-4" /> Test Live Assistant
+              </>
+            )}
+          </button>
+
+          <div className="grid grid-cols-2 gap-2.5 md:contents">
+            <button
+              onClick={() => {
+                if (isGuest) onRequireLogin();
+                else onOpenIntegration();
+              }}
+              className="bg-white hover:bg-surface-200 border border-dark-900/10 text-gray-700 hover:text-dark-900 px-3 sm:px-4 py-3 rounded-xl text-xs sm:text-sm font-medium flex items-center justify-center gap-2 transition-all shadow-sm"
+            >
+              <Code className="w-4 h-4 text-brand-600 shrink-0" /> <span className="truncate">Embed Widget</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={onOpenSettings}
+              className="bg-white hover:bg-surface-200 border border-dark-900/10 text-gray-600 hover:text-dark-900 px-3 sm:px-4 py-3 rounded-xl text-xs sm:text-sm font-medium flex items-center justify-center gap-2 transition-all shadow-sm"
+              title="Configure Bot & Settings"
+            >
+              <Settings2 className="w-4 h-4 text-brand-600 shrink-0" /> Settings
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2.5 md:contents">
+            <button
+              onClick={onRecrawl}
+              disabled={isCrawling}
+              className="bg-white hover:bg-surface-200 border border-dark-900/10 text-gray-500 hover:text-dark-900 px-3 py-3 rounded-xl text-xs sm:text-sm font-medium flex items-center justify-center gap-2 transition-all md:p-3"
+              title="Re-scan and re-learn website"
+            >
+              <RefreshCw className={`w-4 h-4 shrink-0 ${isCrawling ? 'animate-spin text-brand-600' : ''}`} />
+              <span className="md:hidden">Re-scan</span>
+            </button>
+
+            <button
+              onClick={onOpenAddSiteModal}
+              className="bg-white hover:bg-surface-200 border border-dark-900/10 text-gray-500 hover:text-dark-900 px-3 sm:px-3.5 py-3 rounded-xl text-xs font-medium transition-all whitespace-nowrap"
+              title="Add another website"
+            >
+              + Add Website
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {children}
+    </div>
+  );
+}
