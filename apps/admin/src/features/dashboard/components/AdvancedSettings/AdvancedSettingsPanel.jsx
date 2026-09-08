@@ -49,7 +49,8 @@ export default function AdvancedSettingsPanel({
   onAddManualPage,
   onEditPage,
   prefillAddUrl,
-  onRequestDeleteSite
+  onRequestDeleteSite,
+  onRequestResetSite
 }) {
   return (
     <div id="advanced-settings-section" className="bg-white/70 rounded-2xl border border-dark-900/5 overflow-hidden transition-all scroll-mt-20">
@@ -138,7 +139,9 @@ export default function AdvancedSettingsPanel({
 
           <DangerZone
             activeSite={activeSite}
+            isCrawling={isCrawling}
             onRequestDelete={onRequestDeleteSite}
+            onRequestReset={onRequestResetSite}
           />
         </div>
       )}

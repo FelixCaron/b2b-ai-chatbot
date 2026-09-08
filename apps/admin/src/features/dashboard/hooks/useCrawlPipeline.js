@@ -54,6 +54,7 @@ export default function useCrawlPipeline({
   tenantPlan,
   onTriggerScan,
   onDeleteDocumentUrls,
+  onDeleteLeadsForSite,
   onEnterDashboard,
   setSiteSummary,
   setIsRegeneratingSummary,
@@ -277,6 +278,40 @@ export default function useCrawlPipeline({
     await runSynchronousCrawlAndIndex(activeSite, rootUrl);
   };
 
+  /**
+   * Danger Zone "Reset Website": wipes everything the assistant learned
+   * from this specific site (indexed pages, business summary, this site's
+   * leads), then re-onboards it from scratch — same background crawl as
+   * initial onboarding and Rescan, just preceded by a harder cleanup.
+   *
+   * Deliberately does NOT touch the `sites` row itself (id, domain,
+   * public_key, theme, settings) — the whole point is that the install
+   * snippet a tenant already pasted keeps working — and does NOT touch
+   * `messages` (conversation history): that table is scoped by tenant_id
+   * only, with no site_id column, so there is no way to clear just this
+   * site's conversations without also wiping every other site's.
+   *
+   * Throws on a failed delete so the caller (Dashboard's confirm handler)
+   * can tell the user it didn't work, rather than silently re-crawling on
+   * top of data that was never actually cleared.
+   */
+  const handleResetSite = async () => {
+    if (!activeSite || isCrawling) return;
+
+    await Promise.all([
+      supabase.from('documents').delete().eq('site_id', activeSite.id).throwOnError(),
+      supabase.from('site_summaries').delete().eq('site_id', activeSite.id).throwOnError(),
+      onDeleteLeadsForSite ? onDeleteLeadsForSite(activeSite.id) : Promise.resolve()
+    ]);
+
+    setDiscoveredPages([]);
+    setSelectedUrls(new Set());
+    setSiteSummary('');
+
+    const rootUrl = rootUrlForDomain(activeSite.domain);
+    await runSynchronousCrawlAndIndex(activeSite, rootUrl);
+  };
+
   const handleTogglePageActivation = async (pageUrl) => {
     if (!activeSite) return;
     const targetPage = discoveredPages.find(p => p.url === pageUrl);
@@ -488,6 +523,7 @@ export default function useCrawlPipeline({
     runSynchronousCrawlAndIndex,
     handleConfirmSelectedPagesAndScan,
     handleRecrawlSite,
+    handleResetSite,
     handleTogglePageActivation,
     handleAddManualPage,
     fetchIndexedPages,

@@ -231,6 +231,18 @@ export function useWorkspace({ currentUser, authReady, setCurrentUser, onLandOnS
     await supabase.from('documents').delete().eq('site_id', siteId).in('url', urlsToDelete);
   };
 
+  /** Part of the Danger Zone "Reset Website" flow — leads live in this
+   *  hook's own state (fetched at the tenant level), so the site-scoped
+   *  documents/summary deletes in useCrawlPipeline's handleResetSite call
+   *  back through here to also clear this site's leads and keep the local
+   *  `leads` list in step. Throws on failure so the caller's error handling
+   *  (which also owns the documents/summary deletes) sees it. */
+  const deleteLeadsForSite = async (siteId) => {
+    const { error } = await supabase.from('leads').delete().eq('site_id', siteId);
+    if (error) throw error;
+    setLeads((prev) => prev.filter((lead) => lead.site_id !== siteId));
+  };
+
   /**
    * Delete an entire site and its documents/summaries. This goes through the
    * atomic server-side RPC (delete_site_cascade) so the deletion either fully
@@ -277,6 +289,7 @@ export function useWorkspace({ currentUser, authReady, setCurrentUser, onLandOnS
     addSite,
     updateSiteSettings,
     deleteDocumentUrls,
+    deleteLeadsForSite,
     deleteSite,
     triggerScan
   };

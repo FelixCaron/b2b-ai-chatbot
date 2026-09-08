@@ -22,6 +22,7 @@ import IntegrationModal from './components/modals/IntegrationModal';
 import EditPageModal from './components/modals/EditPageModal';
 import AddSiteModal from './components/modals/AddSiteModal';
 import DeleteSiteModal from './components/modals/DeleteSiteModal';
+import ResetSiteModal from './components/modals/ResetSiteModal';
 import PageSelectionModal from './components/modals/PageSelectionModal';
 import UpgradeRequiredModal from './components/modals/UpgradeRequiredModal';
 import OverLimitModal from './components/modals/OverLimitModal';
@@ -33,6 +34,7 @@ export default function Dashboard({
   onAddSite,
   onUpdateSiteSettings,
   onDeleteDocumentUrls,
+  onDeleteLeadsForSite,
   onTriggerScan,
   onDeleteSite,
   isGuest,
@@ -66,6 +68,7 @@ export default function Dashboard({
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
   const [showIntegrationModal, setShowIntegrationModal] = useState(false);
   const [showSubscriptionRequiredModal, setShowSubscriptionRequiredModal] = useState(false);
+  const [showResetSiteModal, setShowResetSiteModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedScriptKey, setCopiedScriptKey] = useState(null);
 
@@ -76,6 +79,7 @@ export default function Dashboard({
     tenantPlan,
     onTriggerScan,
     onDeleteDocumentUrls,
+    onDeleteLeadsForSite,
     onEnterDashboard: () => setStep('dashboard'),
     setSiteSummary: summary.setSiteSummary,
     setIsRegeneratingSummary: summary.setIsRegeneratingSummary,
@@ -383,6 +387,7 @@ export default function Dashboard({
             onEditPage={pipeline.handleEditPage}
             prefillAddUrl={pendingKnowledgeUrl || ''}
             onRequestDeleteSite={() => lifecycle.setShowDeleteConfirmModal(true)}
+            onRequestResetSite={() => setShowResetSiteModal(true)}
           />
         </div>
       )}
@@ -470,6 +475,22 @@ export default function Dashboard({
           lifecycle.setDeleteSiteError('');
         }}
         onConfirm={lifecycle.handleConfirmDeleteSite}
+      />
+
+      <ResetSiteModal
+        show={showResetSiteModal}
+        activeSite={activeSite}
+        onCancel={() => setShowResetSiteModal(false)}
+        onConfirm={() => {
+          // The reset (delete, then re-crawl) runs in the background from
+          // here on — same as onboarding — so this modal doesn't block on
+          // it; it just kicks the work off and gets out of the way.
+          setShowResetSiteModal(false);
+          pipeline.handleResetSite().catch((err) => {
+            console.error('[handleResetSite] Reset failed:', err);
+            lifecycle.setSiteNotice(`Could not reset ${activeSite?.domain || 'this website'} — please try again.`);
+          });
+        }}
       />
 
       <PageSelectionModal
