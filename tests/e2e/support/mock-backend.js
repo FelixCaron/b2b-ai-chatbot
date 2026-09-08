@@ -26,6 +26,11 @@ const MOCK_ANON_KEY = 'mock-anon-key-for-e2e-tests';
 // `/api/chat/theme` mocks above already do.
 const WIDGET_BUNDLE_PATH = fileURLToPath(new URL('../../../apps/admin/public/widget.iife.js', import.meta.url));
 
+/** A timestamp `h` hours in the past, ISO-8601 like Postgres returns. */
+function hoursAgo(h) {
+  return new Date(Date.now() - h * 60 * 60 * 1000).toISOString();
+}
+
 function uuid() {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;
@@ -115,22 +120,24 @@ export function defaultFixtures(user) {
           created_at: new Date().toISOString(),
         },
       ],
-      // Two visitor conversations, oldest first within each session. The
+      // Conversations, oldest first within each session. Timestamps are
+      // relative so they stay inside the dashboard's seven-day window
+      // whenever the suite happens to run. The
       // Conversations view rebuilds sessions out of these rows, so the shape
       // matters more than the volume: same tenant, two session_ids, both
       // roles present.
       messages: [
-        { id: uuid(), tenant_id: tenantId, session_id: 'sess_alpha', site_id: siteId, page_url: 'https://acme.example.com/shipping', role: 'user', content: 'Do you offer same-day delivery?', created_at: '2026-09-06T14:00:00.000Z' },
-        { id: uuid(), tenant_id: tenantId, session_id: 'sess_alpha', role: 'assistant', content: 'Yes — orders placed before 2pm ship the same day.', created_at: '2026-09-06T14:00:04.000Z', answer_status: 'answered' },
-        { id: uuid(), tenant_id: tenantId, session_id: 'sess_alpha', role: 'user', content: 'And on Saturdays?', created_at: '2026-09-06T14:01:00.000Z' },
-        { id: uuid(), tenant_id: tenantId, session_id: 'sess_alpha', role: 'assistant', content: 'Saturday orders go out on Monday morning.', created_at: '2026-09-06T14:01:05.000Z', answer_status: 'answered' },
-        { id: uuid(), tenant_id: tenantId, session_id: 'sess_beta', role: 'user', content: 'How much is an initial consultation?', created_at: '2026-09-07T09:30:00.000Z' },
-        { id: uuid(), tenant_id: tenantId, session_id: 'sess_beta', role: 'assistant', content: 'A first consultation is $90 and lasts an hour.', created_at: '2026-09-07T09:30:06.000Z', answer_status: 'answered' },
+        { id: uuid(), tenant_id: tenantId, session_id: 'sess_alpha', site_id: siteId, page_url: 'https://acme.example.com/shipping', role: 'user', content: 'Do you offer same-day delivery?', created_at: hoursAgo(50) },
+        { id: uuid(), tenant_id: tenantId, session_id: 'sess_alpha', role: 'assistant', content: 'Yes — orders placed before 2pm ship the same day.', created_at: hoursAgo(49.9), answer_status: 'answered' },
+        { id: uuid(), tenant_id: tenantId, session_id: 'sess_alpha', role: 'user', content: 'And on Saturdays?', created_at: hoursAgo(49.8) },
+        { id: uuid(), tenant_id: tenantId, session_id: 'sess_alpha', role: 'assistant', content: 'Saturday orders go out on Monday morning.', created_at: hoursAgo(49.7), answer_status: 'answered' },
+        { id: uuid(), tenant_id: tenantId, session_id: 'sess_beta', role: 'user', content: 'How much is an initial consultation?', created_at: hoursAgo(26) },
+        { id: uuid(), tenant_id: tenantId, session_id: 'sess_beta', role: 'assistant', content: 'A first consultation is $90 and lasts an hour.', created_at: hoursAgo(25.9), answer_status: 'answered' },
         // A question the site holds no content on: the loop searched, found
         // nothing, and said so. This is the row the "couldn't be answered"
         // filter exists for.
-        { id: uuid(), tenant_id: tenantId, session_id: 'sess_gamma', site_id: siteId, page_url: 'https://acme.example.com/', role: 'user', content: 'Do you accept insurance reimbursements?', created_at: '2026-09-07T16:05:00.000Z' },
-        { id: uuid(), tenant_id: tenantId, session_id: 'sess_gamma', role: 'assistant', content: "I couldn't find anything about that on the website.", created_at: '2026-09-07T16:05:07.000Z', answer_status: 'no_match' },
+        { id: uuid(), tenant_id: tenantId, session_id: 'sess_gamma', site_id: siteId, page_url: 'https://acme.example.com/', role: 'user', content: 'Do you accept insurance reimbursements?', created_at: hoursAgo(3) },
+        { id: uuid(), tenant_id: tenantId, session_id: 'sess_gamma', role: 'assistant', content: "I couldn't find anything about that on the website.", created_at: hoursAgo(2.9), answer_status: 'no_match' },
       ],
       usage: [
         { tenant_id: tenantId, messages_count: 42, leads_count: 1, updated_at: new Date().toISOString() },
@@ -167,8 +174,25 @@ function applyEqFilters(rows, searchParams) {
       const target = value.slice(3);
       result = result.filter((r) => String(r[key]) === target);
     } else if (value.startsWith('in.')) {
-      const list = value.slice(3).replace(/^\(|\)$/g, '').split(',');
+      // PostgREST quotes list members that need it — supabase-js's .in()
+      // sends in.("no_match","failed") — so the quotes come off before
+      // comparing, or nothing ever matches.
+      const list = value
+        .slice(3)
+        .replace(/^\(|\)$/g, '')
+        .split(',')
+        .map((entry) => entry.trim().replace(/^"(.*)"$/, '$1'));
       result = result.filter((r) => list.includes(String(r[key])));
+    } else if (value.startsWith('gte.') || value.startsWith('lte.')) {
+      // Range filters, added for the dashboard's "this week" window. Compared
+      // as strings, which is exactly right for the ISO-8601 timestamps this
+      // is used on and wrong for nothing the app currently filters this way.
+      const target = value.slice(4);
+      const gte = value.startsWith('gte.');
+      result = result.filter((r) => {
+        const cell = String(r[key] ?? '');
+        return gte ? cell >= target : cell <= target;
+      });
     } else if (value.startsWith('ilike.') || value.startsWith('like.')) {
       const pattern = value.split('.').slice(1).join('.').replace(/%/g, '').toLowerCase();
       result = result.filter((r) => String(r[key] ?? '').toLowerCase().includes(pattern));
@@ -262,7 +286,16 @@ export async function installMockBackend(page, overrides = {}) {
       const len = rows.length;
       return route.fulfill({
         status: 200,
-        headers: { 'content-range': `0-${Math.max(len - 1, 0)}/${len}` },
+        headers: {
+          'content-range': `0-${Math.max(len - 1, 0)}/${len}`,
+          // The mock answers on a different origin to the app, so Chromium
+          // hides every response header that isn't CORS-safelisted — and
+          // content-range isn't. Without this the header is fulfilled but
+          // unreadable, supabase-js finds no count, and every counted query
+          // silently comes back 0. Real Supabase exposes it for the same
+          // reason.
+          'access-control-expose-headers': 'content-range',
+        },
         body: '',
       });
     }

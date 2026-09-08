@@ -7,12 +7,14 @@ import { fetchBrandTheme } from './lib/brand-theme';
 import useSiteSummary from './hooks/useSiteSummary';
 import useCrawlPipeline from './hooks/useCrawlPipeline';
 import usePreview from './hooks/usePreview';
+import useAssistantHealth from './hooks/useAssistantHealth';
 import useSiteLifecycle from './hooks/useSiteLifecycle';
 import OnboardingHero from './components/OnboardingHero';
 import SiteTabs from './components/SiteTabs';
 import SiteHeroCard from './components/SiteHeroCard';
 import ParkedSiteBanner from './components/ParkedSiteBanner';
 import GuidedRoadmap from './components/GuidedRoadmap';
+import AssistantHealth from './components/AssistantHealth';
 import AdvancedSettingsPanel from './components/AdvancedSettings/AdvancedSettingsPanel';
 import LearningProgressModal from './components/modals/LearningProgressModal';
 import LivePreviewModal from './components/modals/LivePreviewModal';
@@ -35,6 +37,7 @@ export default function Dashboard({
   isGuest,
   onRequireLogin,
   onViewLeads,
+  onViewConversations,
   onShowPricing,
   leadsCount = 0
 }) {
@@ -73,6 +76,12 @@ export default function Dashboard({
   });
 
   const preview = usePreview();
+
+  const health = useAssistantHealth(selectedTenant?.id);
+
+  // Pages the assistant can actually answer from. Both the health panel and
+  // the roadmap card report this, so it is counted once.
+  const loadedPagesCount = pipeline.discoveredPages.filter((p) => p.status === 'loaded').length;
 
   const lifecycle = useSiteLifecycle({
     sites,
@@ -259,8 +268,22 @@ export default function Dashboard({
               />
             )}
 
+            {/* Deliberately not gated behind sign-in: these are the guest's
+                own numbers about their own draft assistant, and the header
+                nav already opens both pages for them. Signing in is what
+                installing the assistant requires, not looking at it. */}
+            <AssistantHealth
+              pagesCount={loadedPagesCount}
+              isCrawling={pipeline.isCrawling}
+              conversationsThisWeek={health.conversationsThisWeek}
+              leadsCount={leadsCount}
+              unansweredCount={health.unansweredCount}
+              onViewConversations={onViewConversations}
+              onViewLeads={onViewLeads}
+            />
+
             <GuidedRoadmap
-              loadedPagesCount={pipeline.discoveredPages.filter(p => p.status === 'loaded').length}
+              loadedPagesCount={loadedPagesCount}
               isCrawling={pipeline.isCrawling}
               isGuest={isGuest}
               onRequireLogin={onRequireLogin}

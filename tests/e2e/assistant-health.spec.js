@@ -1,0 +1,30 @@
+import { test, expect, trackConsoleErrors, clickGuestNavButton } from './support/test.js';
+
+// The dashboard's answer to "is this thing working?". The numbers come from
+// live queries rather than props, so these cover the read path as much as the
+// layout.
+test.describe('Assistant health', () => {
+  test('reports pages, conversations this week, leads and unanswered questions', async ({ page, mock }) => {
+    const consoleTracker = trackConsoleErrors(page);
+    await page.goto('/');
+    await expect(page.getByText('acme.example.com')).toBeVisible();
+
+    // Three fixture sessions, all inside the seven-day window.
+    await expect(page.getByText(/conversations this week/i)).toBeVisible();
+    await expect(page.getByRole('button', { name: /3\s*conversations this week/i })).toBeVisible();
+
+    // One lead in the fixture, and one answer the site had no content for.
+    await expect(page.getByRole('button', { name: /1\s*lead captured/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /1\s*question unanswered/i })).toBeVisible();
+
+    consoleTracker.assertNone();
+  });
+
+  test('the unanswered call to action opens Conversations', async ({ page, mock }) => {
+    await page.goto('/');
+    await expect(page.getByText('acme.example.com')).toBeVisible();
+
+    await page.getByRole('button', { name: /asked something your website doesn/i }).click();
+    await expect(page.getByRole('heading', { name: /^Conversations$/i })).toBeVisible();
+  });
+});

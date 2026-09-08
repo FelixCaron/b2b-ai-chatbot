@@ -156,6 +156,7 @@ export default function App() {
                 isGuest={isGuest}
                 onRequireLogin={() => setShowLoginModal(true)}
                 onViewLeads={() => navigate('leads')}
+                onViewConversations={() => navigate('conversations')}
                 onShowPricing={() => navigate('pricing')}
                 leadsCount={leads.length}
               />

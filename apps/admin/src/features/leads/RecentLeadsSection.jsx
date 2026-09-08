@@ -14,7 +14,7 @@ export default function RecentLeadsSection({ leads, onViewAll }) {
             <Users className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-dark-900">Recent Captured Leads</h2>
+            <h2 className="text-xl font-bold text-dark-900">Recent leads</h2>
             <p className="text-xs text-gray-500">{leads.length} prospect{leads.length > 1 ? 's' : ''} captured</p>
           </div>
         </div>
@@ -22,7 +22,7 @@ export default function RecentLeadsSection({ leads, onViewAll }) {
           onClick={onViewAll}
           className="text-xs text-brand-700 hover:text-brand-800 font-semibold"
         >
-          View All Leads →
+          View all leads →
         </button>
       </div>
       <LeadsTable leads={leads} />
