@@ -20,27 +20,40 @@ export default function SiteHeroCard({
   // worth checking once the assistant is built and not mid-crawl.
   const isLive = useWidgetLiveStatus(activeSite?.id, isActive && !isCrawling);
   // The site's own favicon, not a generic globe — works for any domain
-  // without asking anyone to upload a logo. Falls back to the globe icon
-  // if the favicon 404s outright (a fallback service returning its own
-  // placeholder image is indistinguishable from a real favicon, and is a
-  // fine result either way).
-  const [faviconFailed, setFaviconFailed] = useState(false);
-  useEffect(() => { setFaviconFailed(false); }, [activeSite?.domain]);
-  const faviconUrl = activeSite?.domain
-    ? `https://www.google.com/s2/favicons?sz=128&domain=${encodeURIComponent(activeSite.domain)}`
-    : null;
+  // without asking anyone to upload a logo. Tried in order of how likely
+  // each is to actually be right:
+  //   1. favicon_url — parsed straight out of the site's own HTML at
+  //      add-site time (api/chat/theme.js), the same source of truth a
+  //      browser tab uses. Most accurate when present.
+  //   2. The domain's own conventional /favicon.ico path.
+  //   3. A third-party favicon lookup service — a last resort: it has been
+  //      seen returning a generic/wrong icon instead of the site's actual
+  //      one, which is exactly why (1) exists.
+  // Falls through to the next candidate on a load error, and to the plain
+  // globe icon once every candidate has failed.
+  const faviconCandidates = activeSite?.domain
+    ? [
+        activeSite.favicon_url || null,
+        `https://${activeSite.domain}/favicon.ico`,
+        `https://www.google.com/s2/favicons?sz=128&domain=${encodeURIComponent(activeSite.domain)}`
+      ].filter(Boolean)
+    : [];
+  const [faviconIndex, setFaviconIndex] = useState(0);
+  useEffect(() => { setFaviconIndex(0); }, [activeSite?.id, activeSite?.favicon_url]);
+  const faviconUrl = faviconCandidates[faviconIndex] || null;
 
   return (
     <div className="bg-white/90 p-6 sm:p-8 rounded-2xl border border-dark-900/5 shadow-sm space-y-6">
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-bold shadow-md overflow-hidden" style={{ backgroundColor: themeColor }}>
-            {faviconUrl && !faviconFailed ? (
+            {faviconUrl ? (
               <img
+                key={faviconUrl}
                 src={faviconUrl}
                 alt=""
                 className="w-8 h-8 object-contain"
-                onError={() => setFaviconFailed(true)}
+                onError={() => setFaviconIndex((i) => i + 1)}
               />
             ) : (
               <Globe className="w-7 h-7" />

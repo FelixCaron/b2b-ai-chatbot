@@ -77,7 +77,10 @@ export const chatTheme = defineEndpoint({
     primary_color: f.hexColor(),
     theme_mode: f.oneOf(['light', 'dark']),
     background_color: f.hexColor(),
-    text_color: f.hexColor()
+    text_color: f.hexColor(),
+    // The site's own declared favicon, read out of its HTML — null when the
+    // page couldn't be fetched or declares none.
+    favicon_url: optional(f.url())
   },
   errors: {
     400: 'Missing or unusable url',

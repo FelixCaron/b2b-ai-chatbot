@@ -289,13 +289,15 @@ export default function useSiteLifecycle({
     try {
       const captchaToken = await executeTurnstileCaptcha();
       let brandColor = '#293f68';
+      let faviconUrl = null;
 
       try {
         const themeData = await fetchBrandTheme(formattedUrl, captchaToken);
         if (themeData?.primary_color) brandColor = themeData.primary_color;
+        if (themeData?.favicon_url) faviconUrl = themeData.favicon_url;
       } catch (e) {}
 
-      const newSiteObj = await onAddSite(currentDomain, brandColor);
+      const newSiteObj = await onAddSite(currentDomain, brandColor, faviconUrl);
 
       if (newSiteObj) {
         onSelectSite(newSiteObj.id);

@@ -127,7 +127,7 @@ export function useWorkspace({ currentUser, authReady, setCurrentUser, onLandOnS
     onLandOnSite?.();
   };
 
-  const addSite = async (domain, primaryColor = '#293f68') => {
+  const addSite = async (domain, primaryColor = '#293f68', faviconUrl = null) => {
     let user = currentUser;
     if (!user) {
       const { data: sessionData } = await supabase.auth.getSession();
@@ -174,16 +174,35 @@ export function useWorkspace({ currentUser, authReady, setCurrentUser, onLandOnS
     }
 
     // 1. Attempt insert
-    const { data: newSite, error: siteInsertErr } = await supabase
+    let { data: newSite, error: siteInsertErr } = await supabase
       .from('sites')
       .insert({
         tenant_id: tId,
         domain: domain,
         theme_primary_color: primaryColor,
+        favicon_url: faviconUrl,
         enable_lead_capture: false
       })
       .select()
       .single();
+
+    // A database that predates the favicon_url migration (42703) shouldn't
+    // block site creation on it — retry without the one optional column,
+    // same fallback shape api/chat/init.js and api/chat/index.js already
+    // use for their own optional columns.
+    if (siteInsertErr?.code === '42703') {
+      console.warn('[addSite] favicon_url column missing, retrying without it:', siteInsertErr.message);
+      ({ data: newSite, error: siteInsertErr } = await supabase
+        .from('sites')
+        .insert({
+          tenant_id: tId,
+          domain: domain,
+          theme_primary_color: primaryColor,
+          enable_lead_capture: false
+        })
+        .select()
+        .single());
+    }
 
     if (newSite) {
       setSites((prev) => [newSite, ...prev.filter((s) => s.id !== newSite.id)]);

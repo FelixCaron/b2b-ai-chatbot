@@ -8,6 +8,49 @@ export const config = {
   runtime: 'edge',
 };
 
+// Reads the site's own declared favicon out of its real HTML — the same
+// source of truth a browser tab uses — rather than guessing through a
+// third-party lookup service (Google's s2/favicons endpoint, used as the
+// dashboard's fallback, is known to sometimes hand back a generic/wrong
+// icon instead of the site's actual one). Works for any URL automatically:
+// nothing here is specific to a domain or requires the operator to upload
+// anything.
+function extractFaviconUrl(html, baseUrl) {
+  if (!html) return null;
+
+  const linkTagRegex = /<link\b[^>]*>/gi;
+  // rel="icon" (the modern, most accurate declaration) is preferred outright;
+  // "shortcut icon" / "apple-touch-icon" / etc. are only used if no plain
+  // "icon" link ever shows up.
+  let modernHref = null;
+  let fallbackHref = null;
+  let match;
+
+  while ((match = linkTagRegex.exec(html)) !== null) {
+    const tag = match[0];
+    const relMatch = tag.match(/\brel=["']([^"']+)["']/i);
+    const relValue = relMatch?.[1]?.toLowerCase().trim();
+    if (!relValue || !relValue.includes('icon')) continue;
+
+    const hrefMatch = tag.match(/\bhref=["']([^"']+)["']/i);
+    if (!hrefMatch || !hrefMatch[1]) continue;
+
+    if (relValue === 'icon' && !modernHref) {
+      modernHref = hrefMatch[1];
+    } else if (!fallbackHref) {
+      fallbackHref = hrefMatch[1];
+    }
+  }
+
+  const bestHref = modernHref || fallbackHref;
+  if (!bestHref) return null;
+  try {
+    return new URL(bestHref, baseUrl).toString();
+  } catch (e) {
+    return null;
+  }
+}
+
 export default edgeRoute(contracts.chat.theme, async (req, { data, json }) => {
   const { url, cf_turnstile_token } = data;
 
@@ -66,6 +109,9 @@ export default edgeRoute(contracts.chat.theme, async (req, { data, json }) => {
   let themeMode = 'light';
   let backgroundColor = '#ffffff';
   let textColor = '#0f172a';
+  // Absolute (or null, never a bare relative path) so the dashboard can use
+  // it directly as an <img src> with no further resolution.
+  const faviconUrl = extractFaviconUrl(htmlSnippet, successfulUrl);
 
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (apiKey && htmlSnippet) {
@@ -96,6 +142,7 @@ export default edgeRoute(contracts.chat.theme, async (req, { data, json }) => {
     primary_color: primaryColor,
     theme_mode: themeMode,
     background_color: backgroundColor,
-    text_color: textColor
+    text_color: textColor,
+    favicon_url: faviconUrl
   });
 });

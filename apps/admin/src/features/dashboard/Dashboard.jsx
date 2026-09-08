@@ -158,17 +158,19 @@ export default function Dashboard({
 
       let currentDomain = domainFromUrl(formattedUrl);
       let brandColor = '#293f68';
+      let faviconUrl = null;
 
       try {
         const themeData = await fetchBrandTheme(formattedUrl, captchaToken);
         if (themeData?.primary_color) brandColor = themeData.primary_color;
         if (themeData?.org_name) setOrgName(themeData.org_name);
+        if (themeData?.favicon_url) faviconUrl = themeData.favicon_url;
       } catch (themeErr) {
         console.warn('Theme extraction fallback:', themeErr);
       }
 
       setStatusMsg('Building your assistant...');
-      const siteObj = await onAddSite(currentDomain, brandColor);
+      const siteObj = await onAddSite(currentDomain, brandColor, faviconUrl);
 
       if (siteObj) {
         setLocalCreatedSite(siteObj);
