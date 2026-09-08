@@ -24,7 +24,7 @@
 // client.
 import { requireStaff } from '../lib/server-config.js';
 
-const VALID_PLANS = ['basic', 'pro', 'premium'];
+const VALID_PLANS = ['free', 'basic', 'pro', 'premium'];
 const VALID_STATUSES = ['free', 'active', 'trialing', 'past_due', 'canceled'];
 
 export default async function handler(req, res) {

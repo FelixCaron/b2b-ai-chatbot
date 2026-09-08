@@ -3,6 +3,7 @@ import { Search } from 'lucide-react';
 import { api } from '../lib/api';
 
 const PLAN_BADGE = {
+  free: 'bg-gray-200 text-gray-600',
   basic: 'bg-slate-700 text-slate-200',
   pro: 'bg-brand-700 text-brand-100',
   premium: 'bg-amber-600/80 text-amber-50',
@@ -68,8 +69,8 @@ export default function TenantsList({ onSelectTenant }) {
           <thead className="text-left text-gray-500 border-b border-dark-900/5">
             <tr>
               <th className="px-4 py-3 font-medium">Tenant</th>
-              <th className="px-4 py-3 font-medium">Plan</th>
-              <th className="px-4 py-3 font-medium">Status</th>
+              <th className="px-4 py-3 font-medium" title="Which tier's features and limits apply">Plan</th>
+              <th className="px-4 py-3 font-medium" title="Stripe's billing state for that plan">Status</th>
               <th className="px-4 py-3 font-medium">Sites</th>
               <th className="px-4 py-3 font-medium">Messages</th>
               <th className="px-4 py-3 font-medium">Leads</th>

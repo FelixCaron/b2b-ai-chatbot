@@ -46,9 +46,10 @@ REVOKE ALL ON FUNCTION public.list_staff_admins() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.list_staff_admins() TO service_role;
 
 -- Grants staff access to whoever already has a Supabase Auth account under
--- target_email. Raises (rather than silently no-op'ing) if no such account
--- exists yet — they need to sign in via magic link once first, same
--- requirement as the migration's own seed comment already documented.
+-- target_email. The API route (apps/internal-admin/api/staff/admins.js)
+-- creates that account on the spot via the Auth Admin API when none exists
+-- yet, so in practice this always finds one — the exception below is a
+-- safety net for a direct/manual call, not the expected path.
 -- Idempotent: granting someone who's already staff just returns their
 -- existing row instead of erroring.
 CREATE OR REPLACE FUNCTION public.grant_staff_admin(target_email TEXT, granted_by TEXT DEFAULT NULL)

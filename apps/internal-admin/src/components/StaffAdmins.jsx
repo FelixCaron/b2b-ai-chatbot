@@ -34,7 +34,13 @@ export default function StaffAdmins() {
     try {
       const res = await api.staff.addAdmin({ email: email.trim() });
       if (!res.ok) throw new Error(res.data?.error || 'Failed to grant staff access');
-      setFormMessage({ type: 'success', text: `Granted staff access to ${res.data.admin?.email || email}.` });
+      const who = res.data.admin?.email || email;
+      setFormMessage({
+        type: 'success',
+        text: res.data.created
+          ? `Created an account for ${who} and granted staff access. They'll get an email to set their password.`
+          : `Granted staff access to ${who}.`,
+      });
       setEmail('');
       await loadAdmins();
     } catch (err) {
@@ -49,9 +55,9 @@ export default function StaffAdmins() {
       <div className="glass-card rounded-2xl p-6 mb-6">
         <h2 className="text-sm font-semibold text-gray-600 mb-1">Grant staff access</h2>
         <p className="text-xs text-gray-500 mb-4">
-          They need to have signed in at least once (via magic link, on this console or the
-          admin app) before they can be granted access — this looks them up by their
-          existing Supabase Auth account, it doesn't create one.
+          If they already have an account (from signing in to this console or the admin app),
+          this just grants access. Otherwise it creates one for them and emails them a link to
+          set their password — no need to have them sign in first.
         </p>
         <form onSubmit={handleSubmit} className="flex gap-2">
           <input

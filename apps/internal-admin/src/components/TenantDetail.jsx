@@ -2,7 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { ArrowLeft, ExternalLink, Trash2 } from 'lucide-react';
 import { api } from '../lib/api';
 
-const PLANS = ['basic', 'pro', 'premium'];
+// 'free' has to be a selectable Plan (not just a Status) — it's the DEFAULT
+// every tenant starts on before they ever subscribe, so it's a real value of
+// this column, not merely the absence of one.
+const PLANS = ['free', 'basic', 'pro', 'premium'];
 const STATUSES = ['free', 'active', 'trialing', 'past_due', 'canceled'];
 
 export default function TenantDetail({ tenantId, onBack }) {
@@ -132,20 +135,26 @@ export default function TenantDetail({ tenantId, onBack }) {
 
             <div className="flex flex-wrap items-end gap-3 mt-6">
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Plan</label>
+                <label className="block text-xs text-gray-500 mb-1" title="Which tier's features and limits apply">
+                  Plan <span className="font-normal normal-case text-gray-400">(tier)</span>
+                </label>
                 <select
                   value={plan}
                   onChange={(e) => setPlan(e.target.value)}
+                  title="Which tier's features and limits apply"
                   className="bg-white border border-gray-300 text-dark-900 text-sm rounded-lg px-3 py-2 capitalize"
                 >
                   {PLANS.map((p) => <option key={p} value={p}>{p}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Status</label>
+                <label className="block text-xs text-gray-500 mb-1" title="Stripe's billing state for that plan">
+                  Status <span className="font-normal normal-case text-gray-400">(billing state)</span>
+                </label>
                 <select
                   value={planStatus}
                   onChange={(e) => setPlanStatus(e.target.value)}
+                  title="Stripe's billing state for that plan"
                   className="bg-white border border-gray-300 text-dark-900 text-sm rounded-lg px-3 py-2 capitalize"
                 >
                   {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -159,8 +168,10 @@ export default function TenantDetail({ tenantId, onBack }) {
                 {saving ? 'Saving…' : 'Save'}
               </button>
               <p className="text-[11px] text-gray-500 max-w-xs">
-                Manual override — writes the DB directly, does not touch Stripe. Use for
-                support fixes, not as a substitute for a real subscription change.
+                Plan is which tier applies (free/basic/pro/premium); Status is that tier's Stripe
+                billing state (e.g. a pro tenant can be active, past_due, or canceled). Manual
+                override — writes the DB directly, does not touch Stripe. Use for support fixes,
+                not as a substitute for a real subscription change.
               </p>
             </div>
             {saveMessage && (

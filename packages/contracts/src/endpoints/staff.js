@@ -36,14 +36,20 @@ export const staffGetTenant = defineEndpoint({
 
 export const staffUpdateTenantPlan = defineEndpoint({
   name: 'staff.updateTenantPlan',
-  summary: 'Support override of a tenant plan/status. Writes the database only — never Stripe.',
+  // `plan` is *which tier* the tenant is on (what features/limits apply);
+  // `plan_status` is the Stripe subscription lifecycle state of that tier
+  // (whether it's currently paid-and-active, lapsed, etc). A tenant that's
+  // never subscribed is plan 'free' / plan_status 'free' — both values stay
+  // in lockstep in that case, but diverge the moment they subscribe (e.g.
+  // plan 'pro' / plan_status 'past_due' after a failed card charge).
+  summary: 'Support override of a tenant plan (tier) and/or plan_status (billing state). Writes the database only — never Stripe.',
   method: 'PATCH',
   path: '/api/staff/tenants?id',
   auth: AUTH.STAFF,
   runtime: 'nodejs',
   request: {
     id: f.uuid(),
-    plan: optional(f.oneOf(['basic', 'pro', 'premium'])),
+    plan: optional(f.oneOf(['free', 'basic', 'pro', 'premium'])),
     plan_status: optional(f.oneOf(['free', 'active', 'trialing', 'past_due', 'canceled']))
   },
   response: {
@@ -100,7 +106,7 @@ export const staffListAdmins = defineEndpoint({
 
 export const staffAddAdmin = defineEndpoint({
   name: 'staff.addAdmin',
-  summary: 'Add an address to the staff allow-list.',
+  summary: 'Add an address to the staff allow-list, creating a Supabase Auth account for it first if none exists yet.',
   method: 'POST',
   path: '/api/staff/admins',
   auth: AUTH.STAFF,
@@ -109,7 +115,8 @@ export const staffAddAdmin = defineEndpoint({
     email: f.email()
   },
   response: {
-    admin: f.any()
+    admin: f.any(),
+    created: optional(f.boolean())
   }
 });
 
