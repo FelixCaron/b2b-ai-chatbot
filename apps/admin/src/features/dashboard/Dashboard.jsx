@@ -441,7 +441,12 @@ export default function Dashboard({
       <EditPageModal
         editingPage={pipeline.editingPage}
         onChangeContent={(content) => pipeline.setEditingPage({ ...pipeline.editingPage, content })}
-        onSave={pipeline.handleSavePageContent}
+        onSave={async () => {
+          const result = await pipeline.handleSavePageContent();
+          if (result?.ok) {
+            lifecycle.setSiteNotice('Page updated — your assistant now uses the new content.');
+          }
+        }}
         onClose={() => pipeline.setEditingPage(null)}
       />
 

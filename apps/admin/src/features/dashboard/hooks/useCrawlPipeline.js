@@ -435,7 +435,7 @@ export default function useCrawlPipeline({
   };
 
   const handleSavePageContent = async () => {
-    if (!editingPage) return;
+    if (!editingPage) return { ok: false };
     setEditingPage(prev => ({ ...prev, saving: true }));
     const res = await api.crawler.update({
       site_id: activeSite.id,
@@ -446,10 +446,17 @@ export default function useCrawlPipeline({
     if (!res.ok) {
       alert("Error saving page content.");
       setEditingPage(prev => ({ ...prev, saving: false }));
-      return;
+      return { ok: false, error: res.error };
     }
     setSelectedUrls(prev => new Set(prev).add(editingPage.url));
+    // The edit just replaced this page's indexed content outright — reflect
+    // that immediately instead of waiting on the next fetchIndexedPages(),
+    // so the row doesn't sit there looking like nothing happened.
+    setDiscoveredPages(prev => prev.map(p => (
+      p.url === editingPage.url ? { ...p, status: 'loaded', isEmpty: false, isProtected: false } : p
+    )));
     setEditingPage(null);
+    return { ok: true };
   };
 
   return {

@@ -13,72 +13,46 @@ const SERVICE_ROLE_KEY = process.env.SUPABASE_SECRET_KEY;
 
 const supabase = (VITE_SUPABASE_URL && SERVICE_ROLE_KEY) ? createClient(VITE_SUPABASE_URL, SERVICE_ROLE_KEY) : null;
 
-// Patterns that identify noise paragraphs (GDPR, cookie banners, nav menus)
-const NOISE_PATTERNS = [
-  /cookie/i,
-  /cookieyes/i,
-  /Duration\s+\d+/i,
-  /_ga[t_]/i,
-  /VISITOR_INFO/i,
-  /yt-remote/i,
-  /innertube/i,
-  /localStorage/i,
-  /sessionStorage/i,
-  /\bGTM-/i,
-  /Google Analytics/i,
-  /Google Tag Manager/i,
-  /Reject All/i,
-  /Accept All/i,
-  /Save My Preferences/i,
-  /Powered by.*Cookie/i,
-  /Privacy Policy/i,
-  /Terms of Service/i,
-];
+// A hand-edited page is deliberately NOT run through the scraper's usual
+// noise/word-count filters (see api/crawler/scan.js's own cleanAndChunk).
+// Those exist to strip cookie banners and nav junk out of raw scraped HTML;
+// run over text an operator already wrote on purpose, they silently drop
+// anything "too short" or link-heavy, which is exactly the kind of short
+// correction someone editing a page is most likely to make — the edit would
+// look like it "didn't save" because the save produced zero chunks. This
+// only ever splits by length, so whatever was typed is what gets stored,
+// verbatim.
+function chunkEditedContent(text, targetUrl = '', maxChunkLength = 800) {
+  const trimmed = (text || '').trim();
+  if (!trimmed) return [];
 
-const MIN_CONTENT_WORDS = 25;
-
-function cleanAndChunk(text, targetUrl = '', maxChunkLength = 800) {
-  const rawParagraphs = text.split(/\n{2,}|\n(?=#{1,3} )/);
-
-  const cleanParagraphs = rawParagraphs
-    .map(p => p.trim())
-    .filter(p => {
-      if (!p || p.length < 30) return false;
-      if (NOISE_PATTERNS.some(pattern => pattern.test(p))) return false;
-      const linkCount = (p.match(/\[.*?\]\(https?:\/\//g) || []).length;
-      const wordCount = p.split(/\s+/).filter(w => w.length > 2).length;
-      if (linkCount > 5 && wordCount < 40) return false;
-      if (wordCount < MIN_CONTENT_WORDS) return false;
-      return true;
-    });
-
-  const chunks = [];
-  let currentChunk = '';
-  let overlapPrefix = '';
-
-  for (const para of cleanParagraphs) {
-    if (!currentChunk) {
-      currentChunk = overlapPrefix ? `... ${overlapPrefix}\n\n${para}` : para;
-    } else if ((currentChunk + '\n\n' + para).length <= maxChunkLength) {
-      currentChunk += '\n\n' + para;
+  const paragraphs = trimmed.split(/\n{2,}/).map(p => p.trim()).filter(Boolean);
+  const merged = [];
+  let current = '';
+  for (const para of (paragraphs.length > 0 ? paragraphs : [trimmed])) {
+    if (!current) {
+      current = para;
+    } else if ((current + '\n\n' + para).length <= maxChunkLength) {
+      current += '\n\n' + para;
     } else {
-      if (currentChunk.split(/\s+/).length >= MIN_CONTENT_WORDS) {
-        chunks.push(currentChunk.trim());
-        const words = currentChunk.split(/\s+/);
-        overlapPrefix = words.slice(-20).join(' ');
-      }
-      currentChunk = overlapPrefix ? `... ${overlapPrefix}\n\n${para}` : para;
+      merged.push(current);
+      current = para;
     }
   }
-  if (currentChunk && currentChunk.split(/\s+/).length >= MIN_CONTENT_WORDS) {
-    chunks.push(currentChunk.trim());
-  }
+  if (current) merged.push(current);
 
-  const enrichedChunks = chunks.map(chunk => {
-    return targetUrl ? `[Source URL: ${targetUrl}]\n${chunk}` : chunk;
+  // A single paragraph longer than maxChunkLength (no blank-line breaks at
+  // all) still needs to be split, or it becomes one oversized chunk.
+  const sized = merged.flatMap((chunk) => {
+    if (chunk.length <= maxChunkLength) return [chunk];
+    const pieces = [];
+    for (let i = 0; i < chunk.length; i += maxChunkLength) {
+      pieces.push(chunk.slice(i, i + maxChunkLength));
+    }
+    return pieces;
   });
 
-  return enrichedChunks;
+  return sized.map((chunk) => (targetUrl ? `[Source URL: ${targetUrl}]\n${chunk}` : chunk));
 }
 
 
@@ -90,7 +64,7 @@ export default edgeRoute(contracts.crawler.update, async (req, { data, json }) =
   // written into somebody else's site row.
   await requireSiteOwnership(req, tenant_id, site_id);
 
-  const chunks = cleanAndChunk(content, url, 800);
+  const chunks = chunkEditedContent(content, url, 800);
 
   // Generate embeddings in batches of 20 to respect Jina API Free Tier limits
   const FALLBACK_EMBEDDING = Array(768).fill(0).map((_, i) => (i % 2 === 0 ? 0.05 : -0.05));
