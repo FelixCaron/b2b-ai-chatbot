@@ -1,7 +1,13 @@
 import React from 'react';
 import { Layers, Search, Lock, RefreshCw, Check } from 'lucide-react';
 
-/** 3. Knowledge Base / Indexed Pages Management */
+/** 3. The pages the assistant answers from.
+ *
+ *  Wording here is deliberately about the customer's website, not about our
+ *  retrieval stack: an owner decides whether a page should be included, and
+ *  has no reason to know that inclusion means chunks in a vector store. Every
+ *  status says what happened to their page rather than what state a row is in.
+ */
 export default function KnowledgeBasePanel({
   activeSite,
   discoveredPages,
@@ -16,9 +22,9 @@ export default function KnowledgeBasePanel({
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
           <h4 className="text-sm font-bold text-dark-900 flex items-center gap-2">
-            <Layers className="w-4 h-4 text-brand-600" /> Knowledge Base & Page Management
+            <Layers className="w-4 h-4 text-brand-600" /> Website content
           </h4>
-          <p className="text-xs text-gray-500">Select which discovered website URLs are indexed into the vector database.</p>
+          <p className="text-xs text-gray-500">Choose which pages of your website your assistant is allowed to answer from.</p>
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -39,10 +45,10 @@ export default function KnowledgeBasePanel({
         <table className="w-full text-left text-xs">
           <thead className="bg-surface-200 text-gray-500 uppercase tracking-wider border-b border-dark-900/5">
             <tr>
-              <th className="py-2.5 px-4 font-semibold w-12 text-center">Active</th>
+              <th className="py-2.5 px-4 font-semibold w-12 text-center">Include</th>
               <th className="py-2.5 px-4 font-semibold">Page Title</th>
-              <th className="py-2.5 px-4 font-semibold">URL Path</th>
-              <th className="py-2.5 px-4 font-semibold text-right">Status & Actions</th>
+              <th className="py-2.5 px-4 font-semibold">Address</th>
+              <th className="py-2.5 px-4 font-semibold text-right">Status</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-dark-900/5 text-gray-700">
@@ -81,36 +87,29 @@ export default function KnowledgeBasePanel({
                         Edit
                       </button>
 
-                      <button
-                        onClick={() => onTogglePageActivation(page.url)}
-                        className={`text-[10px] px-2 py-1 rounded font-semibold border transition-colors ${
-                          isIncluded
-                            ? 'bg-red-500/10 hover:bg-red-500/20 text-red-600 border-red-500/20'
-                            : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 border-emerald-500/20'
-                        }`}
-                      >
-                        {isIncluded ? 'Disable' : 'Enable'}
-                      </button>
+                      {/* The row's checkbox already toggles inclusion. A second
+                          control doing the identical thing, worded differently,
+                          only raised the question of how the two differed. */}
 
                       {currentStatus === 'protected' ? (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/10 text-rose-700 border border-rose-500/20">
-                          <Lock className="w-2.5 h-2.5" /> Auth Protected
+                          <Lock className="w-2.5 h-2.5" /> Couldn't open
                         </span>
                       ) : currentStatus === 'empty' ? (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-surface-200 text-gray-500 border border-gray-300">
-                          Empty (0 chunks)
+                          No readable text
                         </span>
                       ) : currentStatus === 'loading' ? (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-700 border border-amber-500/20">
-                          <RefreshCw className="w-2.5 h-2.5 animate-spin" /> Indexing...
+                          <RefreshCw className="w-2.5 h-2.5 animate-spin" /> Reading...
                         </span>
                       ) : currentStatus === 'loaded' ? (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-700 border border-emerald-500/20">
-                          <Check className="w-2.5 h-2.5" /> Indexed
+                          <Check className="w-2.5 h-2.5" /> Included
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-500/10 text-gray-600 border border-gray-500/20">
-                          Disabled
+                          Not used
                         </span>
                       )}
                     </td>

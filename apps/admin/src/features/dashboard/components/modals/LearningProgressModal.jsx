@@ -32,12 +32,12 @@ export default function LearningProgressModal({
 
         {/* Title & Description */}
         <h3 className="text-2xl font-bold text-dark-900 mb-2">
-          {learningStep === 4 ? "🎉 Your AI Assistant is Ready!" : `Teaching Your AI from ${learningDomain || 'Website'}`}
+          {learningStep === 4 ? "🎉 Your assistant is ready!" : `Learning ${learningDomain || 'your website'}`}
         </h3>
         <p className="text-sm text-gray-500 mb-8 max-w-md mx-auto">
           {learningStep === 4
-            ? `Our system successfully crawled, indexed, and synthesized your website content. You can now test it live!`
-            : `Our system is analyzing your website pages, extracting content & services, and training your custom 24/7 AI chatbot.`}
+            ? `We've read your website and your assistant is ready to answer questions about it.`
+            : `We're reading your pages and learning what your business does, so your assistant can answer visitors around the clock.`}
         </p>
 
         {/* Progress Bar */}
@@ -45,7 +45,7 @@ export default function LearningProgressModal({
           <div className="flex items-center justify-between text-xs font-semibold">
             <span className="text-gray-600 flex items-center gap-2">
               {learningStep < 4 && <RefreshCw className="w-3.5 h-3.5 animate-spin text-brand-600" />}
-              {crawlProgressMsg || "Processing website..."}
+              {crawlProgressMsg || "Reading your website..."}
             </span>
             <span className="text-brand-700 font-mono">{learningProgress}%</span>
           </div>
@@ -64,7 +64,7 @@ export default function LearningProgressModal({
               {learningStep >= 2 ? <Check className="w-3 h-3" /> : '1'}
             </div>
             <span className={learningStep >= 2 ? 'text-gray-600 font-medium' : 'text-dark-900 font-semibold'}>
-              Discovering all website pages & sitemap
+              Finding your pages
             </span>
           </div>
 
@@ -73,7 +73,7 @@ export default function LearningProgressModal({
               {learningStep >= 3 ? <Check className="w-3 h-3" /> : '2'}
             </div>
             <span className={learningStep >= 3 ? 'text-gray-600 font-medium' : learningStep === 2 ? 'text-dark-900 font-semibold' : 'text-gray-500'}>
-              Extracting text & building semantic vector index
+              Reading what each page says
             </span>
           </div>
 
@@ -82,7 +82,7 @@ export default function LearningProgressModal({
               {learningStep >= 4 ? <Check className="w-3 h-3" /> : '3'}
             </div>
             <span className={learningStep >= 4 ? 'text-gray-600 font-medium' : learningStep === 3 ? 'text-dark-900 font-semibold' : 'text-gray-500'}>
-              Synthesizing AI Business Summary
+              Learning what your business does
             </span>
           </div>
         </div>
@@ -94,7 +94,7 @@ export default function LearningProgressModal({
               onClick={onTestBot}
               className="flex-1 bg-gradient-to-r from-brand-700 to-brand-500 hover:from-brand-600 hover:to-brand-400 text-white font-bold py-3.5 px-6 rounded-xl text-sm flex items-center justify-center gap-2 shadow-lg shadow-brand-900/30 transition-all hover:scale-[1.02] active:scale-98"
             >
-              <Eye className="w-4 h-4" /> Test My Bot Now →
+              <Eye className="w-4 h-4" /> Test your assistant →
             </button>
             <button
               onClick={onGoToDashboard}
@@ -105,7 +105,7 @@ export default function LearningProgressModal({
           </div>
         ) : (
           <div className="text-xs text-gray-500">
-            Please keep this window open while we finish learning your site...
+            Please keep this window open while we finish reading your website...
           </div>
         )}
       </div>

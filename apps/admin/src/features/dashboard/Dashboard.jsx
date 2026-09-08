@@ -130,7 +130,7 @@ export default function Dashboard({
     }
 
     setIsAnalyzing(true);
-    setStatusMsg('Securing verification & analyzing brand theme...');
+    setStatusMsg('Analyzing your website...');
 
     try {
       // Invisible silent captcha challenge
@@ -147,7 +147,7 @@ export default function Dashboard({
         console.warn('Theme extraction fallback:', themeErr);
       }
 
-      setStatusMsg('Creating your AI Assistant...');
+      setStatusMsg('Building your assistant...');
       const siteObj = await onAddSite(currentDomain, brandColor);
 
       if (siteObj) {

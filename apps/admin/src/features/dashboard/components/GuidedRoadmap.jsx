@@ -51,9 +51,9 @@ export default function GuidedRoadmap({
         </div>
         <div className="flex-1">
           <div className="text-xs font-bold text-dark-900 flex items-center gap-1.5 group-hover:text-brand-700">
-            Test Your Bot Live <ArrowUpRight className="w-3.5 h-3.5 text-brand-600" />
+            Test your assistant <ArrowUpRight className="w-3.5 h-3.5 text-brand-600" />
           </div>
-          <div className="text-[11px] text-gray-500">Try live questions in sandbox preview</div>
+          <div className="text-[11px] text-gray-500">Ask it questions before your visitors do</div>
         </div>
       </div>
 
@@ -69,9 +69,9 @@ export default function GuidedRoadmap({
         </div>
         <div className="flex-1">
           <div className="text-xs font-bold text-dark-900 flex items-center gap-1.5 group-hover:text-brand-700">
-            Embed on Website <Code className="w-3.5 h-3.5 text-brand-600" />
+            Install on your website <Code className="w-3.5 h-3.5 text-brand-600" />
           </div>
-          <div className="text-[11px] text-gray-500">Copy 1-line script for your site</div>
+          <div className="text-[11px] text-gray-500">One line to paste, and you're live</div>
         </div>
       </div>
     </div>

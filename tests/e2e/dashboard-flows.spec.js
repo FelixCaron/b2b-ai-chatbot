@@ -30,18 +30,18 @@ test.describe('Dashboard — settings & embed flows', () => {
   });
 });
 
-// Guests clicking "Embed Widget" get redirected to sign in first (real,
+// Guests clicking "Install" get redirected to sign in first (real,
 // correct app behavior — see Dashboard.jsx's `isGuest ? onRequireLogin() :
 // ...`), so this flow needs an authenticated session to actually be reachable.
 test.describe('Dashboard — embed flow (authenticated)', () => {
   test.use({ authenticated: true });
 
-  test('Embed Widget modal shows a minimal snippet carrying only the site public key', async ({ page, mock, context }) => {
+  test('Install modal shows a minimal snippet carrying only the site public key', async ({ page, mock, context }) => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write']).catch(() => {});
     await page.goto('/');
 
-    await page.getByRole('button', { name: /Embed Widget/i }).first().click();
-    await expect(page.getByRole('heading', { name: /Embed Widget on Your Website/i })).toBeVisible();
+    await page.getByRole('button', { name: /^Install$/i }).first().click();
+    await expect(page.getByRole('heading', { name: /Add your assistant to your website/i })).toBeVisible();
 
     const snippet = page.locator('pre');
     await expect(snippet).toContainText('widget.iife.js');

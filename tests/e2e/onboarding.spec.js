@@ -7,7 +7,7 @@ test.use({ mockOverrides: { db: { sites: [], leads: [], documents: [], site_summ
 test.describe('Onboarding — website URL field', () => {
   test('renders the onboarding hero when the tenant has no sites', async ({ page, mock }) => {
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: /Deploy Your AI Assistant/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Turn your website into an AI assistant/i })).toBeVisible();
     await expect(page.getByPlaceholder(/your-company\.com/i)).toBeVisible();
   });
 
@@ -46,8 +46,8 @@ test.describe('Onboarding — website URL field', () => {
     await page.getByRole('button', { name: /Create My AI Assistant/i }).click();
 
     // Learning/progress modal should appear and eventually complete.
-    await expect(page.getByText(/Teaching Your AI from|Your AI Assistant is Ready/i)).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText(/Your AI Assistant is Ready/i)).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole('heading', { name: /Learning |Your assistant is ready/i })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { name: /Your assistant is ready/i })).toBeVisible({ timeout: 20_000 });
 
     // The new site should now exist in our mocked backend.
     const newSite = mock.db.sites.find((s) => s.domain === 'newclient.example.com');

@@ -49,7 +49,7 @@ export default function OverLimitModal({
         <div className="bg-emerald-500/10 border border-emerald-500/25 rounded-2xl p-3.5 text-xs text-emerald-800 leading-relaxed flex items-start gap-2.5">
           <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5 text-emerald-600" />
           <span>
-            The websites you do not select are <strong className="text-dark-900">parked, not deleted</strong>. Their indexed pages, business summary, captured leads and API keys stay untouched — only their chat widget stops answering. Upgrade your plan and they come back online exactly as they were.
+            The websites you do not select are <strong className="text-dark-900">parked, not deleted</strong>. Everything they learned, and every lead they captured, stays exactly where it is — they simply stop answering visitors. Upgrade your plan and they come back online exactly as they were.
           </span>
         </div>
 
@@ -83,7 +83,7 @@ export default function OverLimitModal({
                   />
                   <div className="min-w-0">
                     <div className="text-xs font-semibold text-dark-900 truncate">{s.domain}</div>
-                    <div className="text-[11px] text-gray-500 font-mono truncate">{s.public_key}</div>
+                    <div className="text-[11px] text-gray-500 truncate">{isChecked ? 'Stays online' : 'Parked'}</div>
                   </div>
                 </div>
                 <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${

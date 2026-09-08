@@ -20,10 +20,10 @@ export default function OnboardingHero({
         </div>
 
         <h2 className="text-2xl sm:text-3xl font-bold text-dark-900 tracking-tight leading-tight mb-2.5 sm:mb-3">
-          Deploy Your AI Assistant in 30 Seconds
+          Turn your website into an AI assistant
         </h2>
         <p className="text-sm sm:text-base text-gray-500 mb-6 sm:mb-10 max-w-lg mx-auto">
-          Enter your website address. Our system will automatically crawl your site, learn your business, and configure your custom AI assistant.
+          Enter your website address. We read your pages, learn what your business does, and build an assistant that can answer your visitors.
         </p>
 
         <form onSubmit={onSubmit} className="space-y-4">

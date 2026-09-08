@@ -23,7 +23,7 @@ export default function DeleteSiteModal({
           Delete Website?
         </h3>
         <p className="text-sm text-gray-500 mb-6 leading-relaxed">
-          Are you sure you want to delete <strong className="text-dark-900">{activeSite.domain}</strong>? All indexed knowledge pages, business summaries, and the chatbot API key will be permanently removed.
+          Are you sure you want to delete <strong className="text-dark-900">{activeSite.domain}</strong>? Everything your assistant learned from it, and the code installed on your website, stop working permanently.
         </p>
 
         {deleteSiteError && (

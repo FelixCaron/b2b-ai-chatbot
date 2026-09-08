@@ -25,7 +25,7 @@ for (const viewport of VIEWPORTS) {
       await assertNoHorizontalOverflow(page, 'dashboard');
 
       await clickGuestNavButton(page, /^Leads/i);
-      await expect(page.getByRole('heading', { name: /Captured Leads & Contacts/i })).toBeVisible();
+      await expect(page.getByRole('heading', { name: /^Leads$/i })).toBeVisible();
       await assertNoHorizontalOverflow(page, 'leads');
 
       await clickGuestNavButton(page, /^Plans/i);
@@ -42,7 +42,7 @@ for (const viewport of VIEWPORTS) {
       // Delete is no longer a quick-access dashboard action — it lives in the
       // Danger Zone behind "Show Settings", so it's checked separately below
       // once that section is expanded.
-      const buttonNames = [/Test Live Assistant/i, /Embed Widget/i, /Show Settings/i, /\+ Add Website/i];
+      const buttonNames = [/Test your assistant/i, /^Install$/i, /Show Settings/i, /\+ Add Website/i];
       for (const name of buttonNames) {
         const button = page.getByRole('button', { name }).first();
         await expect(button).toBeVisible();

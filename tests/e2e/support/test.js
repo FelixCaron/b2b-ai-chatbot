@@ -12,7 +12,7 @@ export const test = base.extend({
   mockOverrides: [{}, { option: true }],
   // `test.use({ authenticated: true })` seeds a real (non-anonymous) signed-in
   // session before the app loads, for flows gated behind `!isGuest`: the full
-  // <Header> (with its About tab), the Embed Widget modal, etc. The fixture
+  // <Header> (with its About tab), the Install modal, etc. The fixture
   // tenant is automatically owned by this seeded user so it still shows up.
   authenticated: [false, { option: true }],
   mock: async ({ page, mockOverrides, authenticated }, use) => {

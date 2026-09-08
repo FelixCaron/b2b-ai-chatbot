@@ -4,7 +4,7 @@
 // There is no live Supabase project to run the real magic-link login flow
 // against in these tests, so this is the only way to exercise the parts of
 // the UI gated behind `!isGuest` (the full <Header> with its About tab, the
-// Embed Widget modal, "Manage Subscription", etc.).
+// Install modal, "Manage Subscription", etc.).
 //
 // Key format (`sb-<project-ref>-auth-token`) and payload shape come straight
 // from @supabase/supabase-js's own GoTrueClient — see the storage key

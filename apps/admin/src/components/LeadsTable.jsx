@@ -47,9 +47,9 @@ export default function LeadsTable({ leads }) {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
         <div>
           <h2 className="text-lg font-bold text-dark-900 flex items-center gap-2">
-            <Users className="w-5 h-5 text-emerald-600" /> Captured Leads ({filteredLeads.length})
+            <Users className="w-5 h-5 text-emerald-600" /> Leads ({filteredLeads.length})
           </h2>
-          <p className="text-xs text-gray-500">Contact information automatically collected by your AI chatbot during visitor conversations.</p>
+          <p className="text-xs text-gray-500">Visitors who asked to be contacted, or left their details while chatting with your assistant.</p>
         </div>
 
         <div className="flex items-center gap-3 w-full sm:w-auto">

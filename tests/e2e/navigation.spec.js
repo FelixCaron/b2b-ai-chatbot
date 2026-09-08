@@ -14,7 +14,7 @@ test.describe('Header navigation', () => {
     await expect(page.getByText('acme.example.com')).toBeVisible();
 
     await clickGuestNavButton(page, /^Leads/i);
-    await expect(page.getByRole('heading', { name: /Captured Leads & Contacts/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /^Leads$/i })).toBeVisible();
     await expect(page.getByText('jane@example.com')).toBeVisible();
 
     await clickGuestNavButton(page, /^Plans/i);
@@ -48,14 +48,14 @@ test.describe('Header navigation (no site yet)', () => {
 
   test('the app-shell header is hidden on the root onboarding hero before any site exists', async ({ page, mock }) => {
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: /Deploy Your AI Assistant/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Turn your website into an AI assistant/i })).toBeVisible();
     await expect(page.getByRole('button', { name: /Sign In/i })).not.toBeVisible();
     await expect(page.getByRole('button', { name: /open menu/i })).not.toBeVisible();
   });
 
   test('About is still reachable from the footer even with the header hidden', async ({ page, mock }) => {
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: /Deploy Your AI Assistant/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Turn your website into an AI assistant/i })).toBeVisible();
     await page.getByRole('button', { name: /^About$/i }).click();
     await expect(page.getByRole('heading', { name: /Pioneering the Future of/i })).toBeVisible();
   });

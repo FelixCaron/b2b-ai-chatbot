@@ -10,7 +10,7 @@ export default function DangerZone({ activeSite, onRequestDelete }) {
           <AlertTriangle className="w-4 h-4 text-red-600" /> Danger Zone: Delete Website
         </h4>
         <p className="text-xs text-gray-500 mt-1">
-          Permanently remove <strong>{activeSite?.domain}</strong>, all indexed vector pages, custom business summaries, and revoke the public API key.
+          Permanently remove <strong>{activeSite?.domain}</strong>, everything your assistant learned from it, and the code installed on your website.
         </p>
       </div>
 

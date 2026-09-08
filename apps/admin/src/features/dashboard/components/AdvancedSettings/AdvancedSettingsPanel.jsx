@@ -47,9 +47,9 @@ export default function AdvancedSettingsPanel({
           </div>
           <div>
             <h3 className="text-base font-bold text-dark-900 flex items-center gap-2">
-              Advanced Settings & Knowledge Base
+              Customize your assistant
             </h3>
-            <p className="text-xs text-gray-500">Customize bot personality, widget colors, lead capture, business summary, and individual page URLs.</p>
+            <p className="text-xs text-gray-500">How it speaks, how it looks, what it collects, and which pages it answers from.</p>
           </div>
         </div>
 

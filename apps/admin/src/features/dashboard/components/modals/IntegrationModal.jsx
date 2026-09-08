@@ -33,7 +33,7 @@ export default function IntegrationModal({
         </button>
 
         <h3 className="text-xl font-bold text-dark-900 mb-2 flex items-center gap-2">
-          <Code className="w-6 h-6 text-brand-600" /> Embed Widget on Your Website
+          <Code className="w-6 h-6 text-brand-600" /> Add your assistant to your website
         </h3>
         <p className="text-sm text-gray-500 mb-6">
           Copy this code snippet and paste it right before the closing <code className="text-brand-300 font-mono text-xs bg-dark-800 px-1 py-0.5 rounded">&lt;/body&gt;</code> tag on any pages where you want the assistant to appear.
@@ -54,7 +54,7 @@ export default function IntegrationModal({
                   Your website has <strong>{activeIndexedPagesCount} active pages</strong>, which exceeds your current <strong>{tenantPlan.toUpperCase()}</strong> plan limit of <strong>{allowedPagesForPlan} pages</strong>.
                 </p>
                 <p className="text-gray-600 mt-1">
-                  To deploy to your live website, either <strong>upgrade your plan</strong> or <strong>deactivate {activeIndexedPagesCount - allowedPagesForPlan} extra page(s)</strong> in your Knowledge Base table.
+                  To deploy to your live website, either <strong>upgrade your plan</strong> or <strong>remove {activeIndexedPagesCount - allowedPagesForPlan} page(s)</strong> from your website content list.
                 </p>
               </div>
             </div>

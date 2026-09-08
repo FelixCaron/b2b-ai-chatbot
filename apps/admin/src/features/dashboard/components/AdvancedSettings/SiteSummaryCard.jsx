@@ -20,7 +20,7 @@ export default function SiteSummaryCard({
         <div>
           <div className="flex items-center gap-3 flex-wrap">
             <h4 className="text-sm font-bold text-dark-900 flex items-center gap-2">
-              <FileText className="w-4 h-4 text-emerald-600" /> AI Business Summary
+              <FileText className="w-4 h-4 text-emerald-600" /> What your assistant knows about you
             </h4>
             {(isLoadingSummary || isRegeneratingSummary) ? (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-700 border border-amber-500/20 animate-pulse">
@@ -33,7 +33,7 @@ export default function SiteSummaryCard({
             ) : null}
           </div>
           <p className="text-xs text-gray-500 mt-1">
-            High-level context injected into the system prompt to answer general business inquiries accurately.
+            Your assistant leans on this whenever a visitor asks something general that isn't answered by any single page.
           </p>
         </div>
 
@@ -60,7 +60,7 @@ export default function SiteSummaryCard({
             disabled={isLoadingSummary || isRegeneratingSummary}
             value={
               (isLoadingSummary || isRegeneratingSummary)
-                ? "Analyzing your business overview with our AI model... Please wait a few moments."
+                ? "Working out what your business does... this takes a few moments."
                 : siteSummary
             }
             onChange={(e) => setSiteSummary(e.target.value)}

@@ -42,7 +42,7 @@ test.describe('Delete website flow', () => {
     // Modal closes, backend reflects the deletion, and with zero sites left
     // the UI falls back to the onboarding hero.
     await expect(page.getByRole('heading', { name: /Delete Website\?/i })).not.toBeVisible();
-    await expect(page.getByRole('heading', { name: /Deploy Your AI Assistant/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Turn your website into an AI assistant/i })).toBeVisible();
     expect(mock.db.sites.some((s) => s.domain === 'acme.example.com')).toBe(false);
     // Cascade-deleted children too.
     expect(mock.db.documents.length).toBe(0);

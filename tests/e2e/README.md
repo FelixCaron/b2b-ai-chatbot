@@ -39,7 +39,7 @@ chromium` once and `npm run test:e2e` with no extra env vars.
   fresh instance via the `mock` fixture.
 - `support/auth-session.js` — seeds a signed-in (non-anonymous) Supabase
   session into `localStorage` before the app boots, for flows gated behind
-  `!isGuest` (the full `<Header>` with its About tab, Embed Widget, etc.).
+  `!isGuest` (the full `<Header>` with its About tab, the Install modal, etc.).
   Use `test.use({ authenticated: true })` in a `describe` block.
 - `support/test.js` — the extended `test`/`expect` every spec imports from.
   `test.use({ mockOverrides: { db: { sites: [] } } })` starts a spec from a

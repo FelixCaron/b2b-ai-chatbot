@@ -39,8 +39,12 @@ export default function SiteHeroCard({
                 </span>
               )}
             </div>
-            <p className="text-xs text-gray-500 mt-1 flex items-center gap-2">
-              Public Key: <span className="font-mono text-brand-700 bg-surface-200 px-2 py-0.5 rounded border border-dark-900/10">{activeSite.public_key}</span>
+            {/* The public key used to be printed here. It is an
+                implementation detail an owner can neither act on nor change;
+                the one place it is genuinely needed is the install snippet,
+                which carries it already. */}
+            <p className="text-xs text-gray-500 mt-1">
+              {isActive ? 'Connected to your website' : 'Paused — your assistant is not answering visitors'}
             </p>
           </div>
         </div>
@@ -60,11 +64,11 @@ export default function SiteHeroCard({
           >
             {isCrawling ? (
               <>
-                <RefreshCw className="w-4 h-4 animate-spin text-brand-600" /> Indexing website...
+                <RefreshCw className="w-4 h-4 animate-spin text-brand-600" /> Reading your website...
               </>
             ) : (
               <>
-                <Eye className="w-4 h-4" /> Test Live Assistant
+                <Eye className="w-4 h-4" /> Test your assistant
               </>
             )}
           </button>
@@ -77,14 +81,14 @@ export default function SiteHeroCard({
               }}
               className="bg-white hover:bg-surface-200 border border-dark-900/10 text-gray-700 hover:text-dark-900 px-3 sm:px-4 py-3 rounded-xl text-xs sm:text-sm font-medium flex items-center justify-center gap-2 transition-all shadow-sm"
             >
-              <Code className="w-4 h-4 text-brand-600 shrink-0" /> <span className="truncate">Embed Widget</span>
+              <Code className="w-4 h-4 text-brand-600 shrink-0" /> <span className="truncate">Install</span>
             </button>
 
             <button
               type="button"
               onClick={onOpenSettings}
               className="bg-white hover:bg-surface-200 border border-dark-900/10 text-gray-600 hover:text-dark-900 px-3 sm:px-4 py-3 rounded-xl text-xs sm:text-sm font-medium flex items-center justify-center gap-2 transition-all shadow-sm"
-              title="Configure Bot & Settings"
+              title="Customize your assistant"
             >
               <Settings2 className="w-4 h-4 text-brand-600 shrink-0" /> Settings
             </button>

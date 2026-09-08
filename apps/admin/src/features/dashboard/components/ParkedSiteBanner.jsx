@@ -26,7 +26,7 @@ export default function ParkedSiteBanner({
             Your <strong>{tenantPlan.toUpperCase()}</strong> plan covers <strong>{maxSitesForPlan} active website(s)</strong>, and you currently have <strong>{activeSitesCount}</strong> active.
           </p>
           <p className="text-gray-600 mt-1">
-            Nothing was deleted: every indexed page, lead and API key for <strong className="text-dark-900">{activeSite.domain}</strong> is still here, exactly as you left it. Upgrade your plan and it comes straight back online.
+            Nothing was deleted: everything your assistant learned, and every lead it captured, for <strong className="text-dark-900">{activeSite.domain}</strong> is still here, exactly as you left it. Upgrade your plan and it comes straight back online.
           </p>
         </div>
       </div>

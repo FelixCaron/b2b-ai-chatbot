@@ -12,8 +12,8 @@ export default function LeadsPage({ leads, onBack }) {
             <Users className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-dark-900">Captured Leads & Contacts</h2>
-            <p className="text-xs text-gray-500">Prospects and inquiries collected automatically by your AI assistants</p>
+            <h2 className="text-xl font-bold text-dark-900">Leads</h2>
+            <p className="text-xs text-gray-500">Visitors who asked to be contacted while chatting with your assistant</p>
           </div>
         </div>
         <button

@@ -20,7 +20,7 @@ export default function EditPageModal({
           <X className="w-5 h-5" />
         </button>
 
-        <h3 className="text-lg font-bold text-dark-900 mb-1">Edit Indexed Knowledge Content</h3>
+        <h3 className="text-lg font-bold text-dark-900 mb-1">Edit what this page tells your assistant</h3>
         <p className="text-xs text-gray-500 font-mono mb-4 truncate pr-10">{editingPage.url}</p>
 
         <div className="flex-1 overflow-hidden flex flex-col min-h-0">
