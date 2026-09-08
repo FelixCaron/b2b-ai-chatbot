@@ -1,5 +1,6 @@
 import React from 'react';
-import { CheckCircle2, Bot, RefreshCw, Check, Eye } from 'lucide-react';
+import { CheckCircle2, RefreshCw, Check, Eye } from 'lucide-react';
+import LogoMark from '../../../components/LogoMark';
 
 /** 3. DEDICATED LEARNING PROGRESS MODAL (POPUP WITH PROGRESS BAR) */
 export default function LearningProgressModal({
@@ -16,16 +17,21 @@ export default function LearningProgressModal({
   return (
     <div className="fixed inset-0 z-[999999] bg-dark-900/55 backdrop-blur-md flex items-center justify-center p-4">
       <div className="bg-white p-8 sm:p-10 rounded-3xl w-full max-w-lg border border-dark-900/10 shadow-2xl relative text-center overflow-hidden animate-in fade-in zoom-in-95 duration-300">
-        {/* Background Glow */}
-        <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-64 h-64 rounded-full bg-brand-500/20 blur-[90px] pointer-events-none" />
+        {/* Soft brand-tinted backdrop — a crisp radial fade instead of a
+            heavy blurred blob, which read as an unfinished grey smear on
+            the white card. */}
+        <div
+          className="absolute inset-x-0 -top-16 h-56 pointer-events-none"
+          style={{ background: 'radial-gradient(60% 100% at 50% 0%, rgba(41,63,104,0.08), rgba(41,63,104,0) 70%)' }}
+        />
 
-        {/* AI Avatar / Radar */}
+        {/* Brand Avatar */}
         <div className="relative mx-auto mb-6 flex justify-center">
-          <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-brand-700 to-brand-400 flex items-center justify-center text-white shadow-2xl shadow-brand-500/30 border border-dark-900/10">
+          <div className="w-20 h-20 rounded-3xl bg-white flex items-center justify-center shadow-xl border border-dark-900/10">
             {learningStep === 4 ? (
-              <CheckCircle2 className="w-10 h-10 text-emerald-300" />
+              <CheckCircle2 className="w-10 h-10 text-emerald-500" />
             ) : (
-              <Bot className="w-10 h-10 text-white animate-pulse" />
+              <LogoMark className="w-10 h-10 text-brand-900 animate-pulse" />
             )}
           </div>
         </div>
