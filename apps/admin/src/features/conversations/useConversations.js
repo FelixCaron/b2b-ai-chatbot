@@ -38,7 +38,7 @@ export default function useConversations(tenantId) {
 
     const { data, error: queryError } = await supabase
       .from('messages')
-      .select('id, session_id, role, content, created_at')
+      .select('id, session_id, role, content, created_at, answer_status')
       .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false })
       .limit(MESSAGE_LIMIT);
@@ -83,9 +83,19 @@ export function groupIntoConversations(rows) {
   return Array.from(bySession.entries())
     .map(([sessionId, messages]) => {
       const firstQuestion = messages.find((m) => m.role === 'user');
+      // 'no_match' means the site had nothing on the subject; 'failed' means
+      // the assistant couldn't produce an answer at all. Both are worth an
+      // owner's attention, for the same reason and with the same fix —
+      // content. Messages written before answer_status existed are null, and
+      // are not retroactively accused of anything.
+      const unanswered = messages.filter(
+        (m) => m.answer_status === 'no_match' || m.answer_status === 'failed'
+      );
       return {
         sessionId,
         messages,
+        unansweredCount: unanswered.length,
+        needsAttention: unanswered.length > 0,
         // What the visitor opened with is the only useful label we have; a
         // session id tells the owner nothing.
         title: firstQuestion?.content?.trim() || 'No question asked',

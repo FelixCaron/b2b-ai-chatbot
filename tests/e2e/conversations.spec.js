@@ -36,6 +36,27 @@ test.describe('Conversations', () => {
     await expect(page.getByText('Saturday orders go out on Monday morning.')).toBeVisible();
   });
 
+  test('flags the conversations the assistant could not answer, and filters to them', async ({ page, mock }) => {
+    await page.goto('/');
+    await expect(page.getByText('acme.example.com')).toBeVisible();
+    await clickGuestNavButton(page, /^Conversations/i);
+
+    // One of the three fixture conversations has an answer the site had no
+    // content for, so it is the only one carrying the badge.
+    const insurance = page.getByRole('button', { name: /Do you accept insurance reimbursements/i });
+    await expect(insurance).toBeVisible();
+    await expect(insurance.getByText(/Unanswered/i)).toBeVisible();
+
+    // Narrowing to it hides the two that were answered fine.
+    await page.getByRole('button', { name: /couldn't be answered/i }).click();
+    await expect(insurance).toBeVisible();
+    await expect(page.getByRole('button', { name: /Do you offer same-day delivery/i })).toHaveCount(0);
+
+    // And the transcript says why, in terms the owner can act on.
+    await insurance.click();
+    await expect(page.getByText(/Nothing on your website covered this/i)).toBeVisible();
+  });
+
   test('search filters conversations by what was actually said', async ({ page, mock }) => {
     await page.goto('/');
     await expect(page.getByText('acme.example.com')).toBeVisible();

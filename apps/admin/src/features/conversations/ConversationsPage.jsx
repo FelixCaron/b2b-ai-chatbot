@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { MessageSquare, Search, RefreshCw, User, Sparkles, ChevronLeft } from 'lucide-react';
+import { MessageSquare, Search, RefreshCw, User, Sparkles, ChevronLeft, AlertCircle } from 'lucide-react';
 import useConversations from './useConversations';
 
 /**
@@ -21,14 +21,21 @@ export default function ConversationsPage({ tenantId, onBack }) {
   // transcript with no way back to the list — so the transcript takes over
   // the screen only once they've actually opened one.
   const [openedByUser, setOpenedByUser] = useState(false);
+  const [onlyNeedsAttention, setOnlyNeedsAttention] = useState(false);
+
+  const needsAttentionCount = useMemo(
+    () => conversations.filter((c) => c.needsAttention).length,
+    [conversations]
+  );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return conversations;
-    return conversations.filter((c) =>
-      c.messages.some((m) => m.content?.toLowerCase().includes(q))
-    );
-  }, [conversations, query]);
+    return conversations.filter((c) => {
+      if (onlyNeedsAttention && !c.needsAttention) return false;
+      if (!q) return true;
+      return c.messages.some((m) => m.content?.toLowerCase().includes(q));
+    });
+  }, [conversations, query, onlyNeedsAttention]);
 
   // Land on the most recent conversation so the page opens on something to
   // read rather than an empty right-hand pane.
@@ -55,7 +62,11 @@ export default function ConversationsPage({ tenantId, onBack }) {
           </div>
           <div className="min-w-0">
             <h2 className="text-xl font-bold text-dark-900">Conversations</h2>
-            <p className="text-xs text-gray-500 truncate">What your visitors asked, and how your assistant answered</p>
+            <p className="text-xs text-gray-500 truncate">
+              {needsAttentionCount > 0
+                ? `${needsAttentionCount} of these your assistant couldn't answer`
+                : 'What your visitors asked, and how your assistant answered'}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -96,7 +107,7 @@ export default function ConversationsPage({ tenantId, onBack }) {
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)] gap-4">
           {/* Conversation list */}
           <div className={`glass-card rounded-2xl overflow-hidden ${openedByUser ? 'hidden lg:block' : ''}`}>
-            <div className="p-3 border-b border-dark-900/5">
+            <div className="p-3 border-b border-dark-900/5 space-y-2">
               <div className="relative">
                 <Search className="w-3.5 h-3.5 text-gray-500 absolute left-3 top-2.5 pointer-events-none" />
                 <input
@@ -107,11 +118,31 @@ export default function ConversationsPage({ tenantId, onBack }) {
                   className="w-full bg-white border border-gray-300 rounded-xl pl-8 pr-3 py-1.5 text-xs text-dark-900 outline-none focus:border-brand-500"
                 />
               </div>
+
+              {needsAttentionCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setOnlyNeedsAttention((v) => !v)}
+                  aria-pressed={onlyNeedsAttention}
+                  className={`w-full text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border flex items-center justify-center gap-1.5 transition-colors ${
+                    onlyNeedsAttention
+                      ? 'bg-amber-500/15 text-amber-800 border-amber-500/30'
+                      : 'bg-surface-200 text-gray-600 border-dark-900/10 hover:bg-surface-300'
+                  }`}
+                >
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  {needsAttentionCount} couldn't be answered
+                </button>
+              )}
             </div>
 
             <div className="max-h-[60vh] lg:max-h-[70vh] overflow-y-auto divide-y divide-dark-900/5">
               {filtered.length === 0 && (
-                <p className="p-6 text-xs text-gray-500 text-center">Nothing matches "{query}".</p>
+                <p className="p-6 text-xs text-gray-500 text-center">
+                  {onlyNeedsAttention && !query.trim()
+                    ? 'Every conversation here was answered.'
+                    : `Nothing matches "${query}".`}
+                </p>
               )}
               {filtered.map((c) => (
                 <button
@@ -126,6 +157,11 @@ export default function ConversationsPage({ tenantId, onBack }) {
                     <span>{formatWhen(c.lastAt)}</span>
                     <span aria-hidden="true">·</span>
                     <span>{c.visitorMessageCount} {c.visitorMessageCount === 1 ? 'question' : 'questions'}</span>
+                    {c.needsAttention && (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-800 border border-amber-500/25 font-semibold">
+                        <AlertCircle className="w-2.5 h-2.5" /> Unanswered
+                      </span>
+                    )}
                   </div>
                 </button>
               ))}
@@ -171,14 +207,21 @@ export default function ConversationsPage({ tenantId, onBack }) {
                       >
                         {m.role === 'user' ? <User className="w-3 h-3" /> : <Sparkles className="w-3 h-3" />}
                       </div>
-                      <div
-                        className={`max-w-[85%] p-3 rounded-2xl text-xs leading-relaxed whitespace-pre-wrap break-words border ${
-                          m.role === 'user'
-                            ? 'bg-white text-dark-900 border-dark-900/10 rounded-tl-none'
-                            : 'bg-brand-500/[0.07] text-gray-700 border-brand-500/15 rounded-tr-none'
-                        }`}
-                      >
-                        {m.content}
+                      <div className="max-w-[85%]">
+                        <div
+                          className={`p-3 rounded-2xl text-xs leading-relaxed whitespace-pre-wrap break-words border ${
+                            m.role === 'user'
+                              ? 'bg-white text-dark-900 border-dark-900/10 rounded-tl-none'
+                              : 'bg-brand-500/[0.07] text-gray-700 border-brand-500/15 rounded-tr-none'
+                          }`}
+                        >
+                          {m.content}
+                        </div>
+                        {answerNote(m) && (
+                          <div className="text-[10.5px] text-amber-800 mt-1 flex items-center gap-1 justify-end">
+                            <AlertCircle className="w-3 h-3 shrink-0" /> {answerNote(m)}
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -194,6 +237,17 @@ export default function ConversationsPage({ tenantId, onBack }) {
       )}
     </main>
   );
+}
+
+/**
+ * Why an answer fell short, in the owner's terms. 'no_match' is the useful
+ * one: it's not that the assistant malfunctioned, it's that the website has
+ * nothing on the subject — which is something they can fix.
+ */
+function answerNote(message) {
+  if (message.answer_status === 'no_match') return "Nothing on your website covered this";
+  if (message.answer_status === 'failed') return "Your assistant couldn't answer this";
+  return null;
 }
 
 /** Short, human date — today's conversations shouldn't read like log lines. */

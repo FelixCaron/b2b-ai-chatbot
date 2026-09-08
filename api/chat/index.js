@@ -353,6 +353,14 @@ ${supportInstruction}`;
           let finalReply = '';
           let loopCount = 0;
 
+          // Evidence for the message's answer_status (migration
+          // 20260908010000). Derived from what the loop actually did — no
+          // second model call grading the first, so this costs nothing and
+          // can't disagree with itself.
+          let searchCount = 0;
+          let searchesWithResults = 0;
+          let modelErrored = false;
+
           while (loopCount < MAX_TURNS) {
             loopCount++;
 
@@ -371,6 +379,7 @@ ${supportInstruction}`;
 
             if (responseData.error) {
               finalReply = responseData.error;
+              modelErrored = true;
               break;
             }
 
@@ -432,6 +441,9 @@ ${supportInstruction}`;
 
                   console.log(`[chat] Loop #${loopCount} search "${toolQuery}" via ${searchMethod}: ${docs.length} docs`);
 
+                  searchCount++;
+                  if (docs.length > 0) searchesWithResults++;
+
                   // Stream tool badge to user interface in real-time
                   const sources = Array.from(new Set(docs.map((d) => d.url)));
                   controller.enqueue(
@@ -485,12 +497,26 @@ ${supportInstruction}`;
             } else {
               // No tool calls requested: LLM provided final response!
               finalReply = llmMessage?.content || "⚠️ I can't answer right now.";
+              if (!llmMessage?.content) modelErrored = true;
               break;
             }
           }
 
-          if (!finalReply && loopCount >= MAX_TURNS) {
+          const ranOutOfTurns = !finalReply && loopCount >= MAX_TURNS;
+          if (ranOutOfTurns) {
             finalReply = "Sorry, I searched our information but couldn't find what was needed.";
+          }
+
+          // A reply the visitor can't use is 'failed'. A reply produced with
+          // nothing behind it — every search came back empty — is 'no_match':
+          // the assistant said something, but this site holds no content on
+          // the subject, which is the gap the owner can actually close. A
+          // question that needed no search at all (a greeting) is answered.
+          let answerStatus = 'answered';
+          if (modelErrored || ranOutOfTurns) {
+            answerStatus = 'failed';
+          } else if (searchCount > 0 && searchesWithResults === 0) {
+            answerStatus = 'no_match';
           }
 
           // Stream out assistant response in smooth visual chunks
@@ -508,7 +534,8 @@ ${supportInstruction}`;
             tenant_id: tenantId,
             session_id,
             role: 'assistant',
-            content: finalReply
+            content: finalReply,
+            answer_status: answerStatus
           });
 
           await supabase.rpc('increment_usage', { target_tenant_id: tenantId });
