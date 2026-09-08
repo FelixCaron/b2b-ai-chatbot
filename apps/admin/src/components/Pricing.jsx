@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check, Zap, Shield, Sparkles, ArrowRight, Loader2, ExternalLink } from 'lucide-react';
+import { Check, Zap, Shield, Sparkles, ArrowRight, Loader2 } from 'lucide-react';
 import api from '../lib/api';
 
 // The website counts advertised here are the ones actually enforced: the
@@ -67,10 +67,10 @@ export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'basic',
   const [error, setError] = useState(null);
 
   const handleSelectPlan = async (planId) => {
-    // Premium used to be a sales-assisted "Contact Us" tier (a mailto: link
-    // to a placeholder address) rather than real Stripe checkout. It's now
-    // self-serve like Basic/Pro, using STRIPE_PRICE_ID_PREMIUM below.
-    if (planId === 'free' || !tenantId) {
+    // Every plan is self-serve Stripe checkout (Premium included, via
+    // STRIPE_PRICE_ID_PREMIUM). Without a tenant there is nothing to bill
+    // yet, so hand the choice back to the caller to sort out sign-in first.
+    if (!tenantId) {
       onSelectPlan?.(planId);
       return;
     }
@@ -145,14 +145,10 @@ export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'basic',
               <p className="text-sm text-gray-500 mb-6 min-h-[40px]">{plan.description}</p>
 
               <div className="mb-8">
-                {plan.price === 'Custom' || plan.price === 'Sur mesure' ? (
-                  <span className="text-3xl font-bold text-dark-900">Custom</span>
-                ) : (
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-4xl font-bold text-dark-900">${plan.price}</span>
-                    <span className="text-gray-500 font-medium">{plan.currency || 'CAD'}/month</span>
-                  </div>
-                )}
+                <div className="flex items-baseline gap-1">
+                  <span className="text-4xl font-bold text-dark-900">${plan.price}</span>
+                  <span className="text-gray-500 font-medium">{plan.currency || 'CAD'}/month</span>
+                </div>
               </div>
 
               <ul className="space-y-4 mb-8 flex-1">
@@ -181,10 +177,6 @@ export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'basic',
                 ) : isCurrent ? (
                   <>
                     <Check className="w-4 h-4" /> Active Plan
-                  </>
-                ) : plan.price === 'Custom' || plan.price === 'Sur mesure' ? (
-                  <>
-                    Contact Us <ExternalLink className="w-4 h-4" />
                   </>
                 ) : (
                   <>

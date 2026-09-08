@@ -13,18 +13,33 @@ export default function LeadsTable({ leads }) {
     );
   });
 
+  // RFC 4180 quoting. Joining raw values with commas broke the export for any
+  // lead whose name carried a comma, a quote or a newline (the row silently
+  // gained a column), and the old `encodeURI` + `data:` URI truncated the file
+  // at the first `#`. A Blob has neither problem and has no length ceiling.
+  const csvCell = (value) => {
+    const text = value == null ? '' : String(value);
+    return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  };
+
   const exportToCSV = () => {
     if (leads.length === 0) return;
     const headers = ["ID", "Name", "Email", "Phone", "Created Date"];
     const rows = leads.map(l => [l.id, l.name || '', l.email || '', l.phone || '', l.created_at]);
-    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
-    const encodedUri = encodeURI(csvContent);
+    const csvContent = [headers, ...rows]
+      .map(row => row.map(csvCell).join(","))
+      .join("\r\n");
+
+    // The BOM keeps Excel from mangling accented names on open.
+    const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
+    link.setAttribute("href", url);
     link.setAttribute("download", `leads_export_${Date.now()}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   return (

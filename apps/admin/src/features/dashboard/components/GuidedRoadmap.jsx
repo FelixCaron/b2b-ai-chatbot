@@ -10,6 +10,12 @@ export default function GuidedRoadmap({
   onOpenPreview,
   onOpenIntegration
 }) {
+  // The step-1 card used to render `loadedPagesCount || 1`, so a site with
+  // nothing indexed still claimed "1 page indexed in memory" under a green
+  // checkmark. Zero pages is a real state (crawl still running, or every page
+  // failed) and the card has to be able to say so.
+  const hasContent = loadedPagesCount > 0;
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-dark-900/5">
       <div className="bg-surface-100 p-4 rounded-xl border border-dark-900/5 flex items-center gap-3.5">
@@ -18,9 +24,21 @@ export default function GuidedRoadmap({
         </div>
         <div>
           <div className="text-xs font-bold text-dark-900 flex items-center gap-1.5">
-            AI Knowledge Learned <Check className="w-3.5 h-3.5 text-emerald-600" />
+            {hasContent ? (
+              <>Website content ready <Check className="w-3.5 h-3.5 text-emerald-600" /></>
+            ) : isCrawling ? (
+              'Reading your website'
+            ) : (
+              'No content yet'
+            )}
           </div>
-          <div className="text-[11px] text-gray-500">{loadedPagesCount || 1} pages indexed in memory</div>
+          <div className="text-[11px] text-gray-500">
+            {hasContent
+              ? `${loadedPagesCount} ${loadedPagesCount === 1 ? 'page' : 'pages'} available to your assistant`
+              : isCrawling
+              ? "We're preparing your content"
+              : 'Nothing is available to your assistant yet'}
+          </div>
         </div>
       </div>
 

@@ -100,7 +100,7 @@ export default function FeatureToggles({
           <div className="absolute inset-0 bg-dark-950/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center p-4 text-center">
             <Lock className="w-6 h-6 text-brand-400 mb-2" />
             <h4 className="text-sm font-bold text-white">Pro Feature</h4>
-            <p className="text-xs text-gray-400 mb-3 max-w-[250px]">Upgrade to the Pro Appointment plan to unlock calendar integrations and support email forwarding.</p>
+            <p className="text-xs text-gray-400 mb-3 max-w-[250px]">Upgrade to Pro or Premium to unlock calendar integrations and support email forwarding.</p>
           </div>
         )}
 
