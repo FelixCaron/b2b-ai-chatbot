@@ -138,7 +138,7 @@ export default function App() {
       case 'terms':
         return <TermsOfService />;
       case 'conversations':
-        return <ConversationsPage tenantId={selectedTenant?.id} onBack={() => navigate('dashboard')} />;
+        return <ConversationsPage tenantId={selectedTenant?.id} sites={sites} onBack={() => navigate('dashboard')} />;
       case 'leads':
         return <LeadsPage leads={leads} onBack={() => navigate('dashboard')} />;
       default:

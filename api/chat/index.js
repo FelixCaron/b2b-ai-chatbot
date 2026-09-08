@@ -25,6 +25,34 @@ function normalizedHostname(value) {
   }
 }
 
+/**
+ * The page a message was sent from, or null.
+ *
+ * page_url arrives from the visitor's browser, so it is a claim, not a fact:
+ * anyone who can call this endpoint can put anything in it. Two rules make it
+ * safe to store and safe to show an owner later —
+ *
+ *   1. Keep it only when its hostname is the site's own. A URL pointing
+ *      somewhere else is either a misconfigured embed or someone trying to
+ *      get an arbitrary link rendered in another tenant's dashboard.
+ *   2. Keep origin and path only. Query strings and fragments carry things
+ *      that have no business in our database (tokens, addresses, form
+ *      state), and none of it helps identify a page.
+ */
+function pageUrlForSite(rawPageUrl, siteDomain) {
+  if (!rawPageUrl || typeof rawPageUrl !== 'string') return null;
+  try {
+    const url = new URL(rawPageUrl);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
+    const host = url.hostname.toLowerCase().replace(/^www\./, '');
+    const site = (siteDomain || '').toLowerCase().replace(/^www\./, '');
+    if (!site || (host !== site && !host.endsWith(`.${site}`))) return null;
+    return `${url.origin}${url.pathname}`.slice(0, 2048);
+  } catch {
+    return null;
+  }
+}
+
 function requestOrigin(req) {
   const rawOrigin = req.headers.get('origin') || req.headers.get('referer');
   if (!rawOrigin) return null;
@@ -36,7 +64,7 @@ function requestOrigin(req) {
 }
 
 export default edgeRoute(contracts.chat.send, async (req, { data, json }) => {
-  const { message, tenant_public_key, session_id } = data;
+  const { message, tenant_public_key, session_id, page_url } = data;
 
   // The only try/catch left: the wrapper already shapes a throw into the 500
   // response, this just makes sure an unexpected failure raises a bug alert
@@ -161,12 +189,19 @@ export default edgeRoute(contracts.chat.send, async (req, { data, json }) => {
     }
     const isLeadCaptureEnabled = site.enable_lead_capture || false;
 
+    // Null whenever the widget is old enough not to send it, or the value
+    // doesn't belong to this site — including the admin's own preview, which
+    // runs on our origin rather than the customer's.
+    const originPageUrl = pageUrlForSite(page_url, siteDomainClean);
+
     // Save user message
     await supabase.from('messages').insert({
       tenant_id: tenantId,
       session_id,
       role: 'user',
-      content: message
+      content: message,
+      site_id: site.id,
+      page_url: originPageUrl
     });
 
     // Fetch site summary from site_summaries if available, with fallback to documents table (#site-summary)
@@ -535,7 +570,9 @@ ${supportInstruction}`;
             session_id,
             role: 'assistant',
             content: finalReply,
-            answer_status: answerStatus
+            answer_status: answerStatus,
+            site_id: site.id,
+            page_url: originPageUrl
           });
 
           await supabase.rpc('increment_usage', { target_tenant_id: tenantId });

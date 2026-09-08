@@ -1,5 +1,24 @@
 import { fetchEventSource } from '@microsoft/fetch-event-source';
 
+/**
+ * The page the visitor is on, as origin + path only.
+ *
+ * Query strings and fragments are dropped here rather than server-side: they
+ * routinely carry things that are none of our business (session tokens in a
+ * redirect, an email address in a tracking parameter, a form's state), and
+ * the point of this value is only to identify which page prompted the
+ * question. The server strips them again — this is defence in depth, not a
+ * trust boundary.
+ */
+function currentPageUrl() {
+  try {
+    const url = new URL(window.location.href);
+    return `${url.origin}${url.pathname}`;
+  } catch (e) {
+    return undefined;
+  }
+}
+
 // SSE Chat Stream Manager
 export class ChatManager {
   // `authToken` is only ever set by the admin's own preview (preview.html
@@ -53,7 +72,8 @@ export class ChatManager {
         body: JSON.stringify({
           message: userMessage,
           tenant_public_key: this.tenantPublicKey,
-          session_id: this.sessionId
+          session_id: this.sessionId,
+          page_url: currentPageUrl()
         }),
         async onopen(response) {
           // Every error path in api/chat/index.js (rate limit, paused site,

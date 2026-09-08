@@ -120,7 +120,7 @@ export function defaultFixtures(user) {
       // matters more than the volume: same tenant, two session_ids, both
       // roles present.
       messages: [
-        { id: uuid(), tenant_id: tenantId, session_id: 'sess_alpha', role: 'user', content: 'Do you offer same-day delivery?', created_at: '2026-09-06T14:00:00.000Z' },
+        { id: uuid(), tenant_id: tenantId, session_id: 'sess_alpha', site_id: siteId, page_url: 'https://acme.example.com/shipping', role: 'user', content: 'Do you offer same-day delivery?', created_at: '2026-09-06T14:00:00.000Z' },
         { id: uuid(), tenant_id: tenantId, session_id: 'sess_alpha', role: 'assistant', content: 'Yes — orders placed before 2pm ship the same day.', created_at: '2026-09-06T14:00:04.000Z', answer_status: 'answered' },
         { id: uuid(), tenant_id: tenantId, session_id: 'sess_alpha', role: 'user', content: 'And on Saturdays?', created_at: '2026-09-06T14:01:00.000Z' },
         { id: uuid(), tenant_id: tenantId, session_id: 'sess_alpha', role: 'assistant', content: 'Saturday orders go out on Monday morning.', created_at: '2026-09-06T14:01:05.000Z', answer_status: 'answered' },
@@ -129,7 +129,7 @@ export function defaultFixtures(user) {
         // A question the site holds no content on: the loop searched, found
         // nothing, and said so. This is the row the "couldn't be answered"
         // filter exists for.
-        { id: uuid(), tenant_id: tenantId, session_id: 'sess_gamma', role: 'user', content: 'Do you accept insurance reimbursements?', created_at: '2026-09-07T16:05:00.000Z' },
+        { id: uuid(), tenant_id: tenantId, session_id: 'sess_gamma', site_id: siteId, page_url: 'https://acme.example.com/', role: 'user', content: 'Do you accept insurance reimbursements?', created_at: '2026-09-07T16:05:00.000Z' },
         { id: uuid(), tenant_id: tenantId, session_id: 'sess_gamma', role: 'assistant', content: "I couldn't find anything about that on the website.", created_at: '2026-09-07T16:05:07.000Z', answer_status: 'no_match' },
       ],
       usage: [

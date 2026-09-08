@@ -57,6 +57,17 @@ test.describe('Conversations', () => {
     await expect(page.getByText(/Nothing on your website covered this/i)).toBeVisible();
   });
 
+  test('says which page a conversation started on', async ({ page, mock }) => {
+    await page.goto('/');
+    await expect(page.getByText('acme.example.com')).toBeVisible();
+    await clickGuestNavButton(page, /^Conversations/i);
+
+    // The delivery question was asked from /shipping; the insurance one from
+    // the site root, which reads as "Home page" rather than a bare slash.
+    await expect(page.getByRole('button', { name: /Do you offer same-day delivery/i })).toContainText('/shipping');
+    await expect(page.getByRole('button', { name: /Do you accept insurance reimbursements/i })).toContainText('Home page');
+  });
+
   test('search filters conversations by what was actually said', async ({ page, mock }) => {
     await page.goto('/');
     await expect(page.getByText('acme.example.com')).toBeVisible();

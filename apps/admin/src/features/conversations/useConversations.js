@@ -11,11 +11,11 @@ const MESSAGE_LIMIT = 1000;
 /**
  * The tenant's chat history, grouped into conversations.
  *
- * `messages` carries tenant_id, session_id, role, content and created_at —
- * no site_id (see migration 20260905030000, which notes the omission is
- * deliberate) — so a conversation belongs to the tenant, not to one of its
- * sites. That matches how the assistant actually answers: every site under a
- * tenant shares the same knowledge.
+ * A conversation is still scoped to the tenant rather than to a site — that
+ * matches how the assistant answers, since every site under a tenant shares
+ * the same knowledge — but each message now records which site and which page
+ * it came from (migration 20260908020000), so the list can say where a
+ * question was asked.
  *
  * Reads go straight through RLS on the publishable key, exactly like leads:
  * the "Tenant owner access" policy on public.messages already restricts a
@@ -38,7 +38,7 @@ export default function useConversations(tenantId) {
 
     const { data, error: queryError } = await supabase
       .from('messages')
-      .select('id, session_id, role, content, created_at, answer_status')
+      .select('id, session_id, role, content, created_at, answer_status, site_id, page_url')
       .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false })
       .limit(MESSAGE_LIMIT);
@@ -91,9 +91,15 @@ export function groupIntoConversations(rows) {
       const unanswered = messages.filter(
         (m) => m.answer_status === 'no_match' || m.answer_status === 'failed'
       );
+      // Where the conversation happened. A visitor can wander between pages
+      // mid-session, so this is where they started — the page that prompted
+      // the first question is the one worth showing.
+      const firstLocated = messages.find((m) => m.page_url) || null;
       return {
         sessionId,
         messages,
+        siteId: messages.find((m) => m.site_id)?.site_id || null,
+        pageUrl: firstLocated?.page_url || null,
         unansweredCount: unanswered.length,
         needsAttention: unanswered.length > 0,
         // What the visitor opened with is the only useful label we have; a

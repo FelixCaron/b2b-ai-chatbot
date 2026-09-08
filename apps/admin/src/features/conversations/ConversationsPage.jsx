@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { MessageSquare, Search, RefreshCw, User, Sparkles, ChevronLeft, AlertCircle } from 'lucide-react';
+import { MessageSquare, Search, RefreshCw, User, Sparkles, ChevronLeft, AlertCircle, FileText } from 'lucide-react';
 import useConversations from './useConversations';
 
 /**
@@ -11,7 +11,7 @@ import useConversations from './useConversations';
  * Every one of those exchanges was already being written to `messages` — it
  * just had nowhere to be read.
  */
-export default function ConversationsPage({ tenantId, onBack }) {
+export default function ConversationsPage({ tenantId, sites = [], onBack }) {
   const { conversations, isLoading, error, truncated, reload } = useConversations(tenantId);
   const [selectedId, setSelectedId] = useState(null);
   const [query, setQuery] = useState('');
@@ -52,6 +52,11 @@ export default function ConversationsPage({ tenantId, onBack }) {
   }, [filtered, selectedId]);
 
   const selected = filtered.find((c) => c.sessionId === selectedId) || null;
+
+  // Only worth naming the website when the tenant has more than one; with a
+  // single site it's the same word on every row.
+  const showSiteName = sites.length > 1;
+  const domainForSite = (siteId) => sites.find((site) => site.id === siteId)?.domain || null;
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-8 space-y-6">
@@ -163,6 +168,15 @@ export default function ConversationsPage({ tenantId, onBack }) {
                       </span>
                     )}
                   </div>
+                  {(c.pageUrl || (showSiteName && domainForSite(c.siteId))) && (
+                    <div className="text-[11px] text-gray-400 mt-1 flex items-center gap-1 min-w-0">
+                      <FileText className="w-2.5 h-2.5 shrink-0" />
+                      <span className="truncate">
+                        {showSiteName && domainForSite(c.siteId) ? `${domainForSite(c.siteId)} ` : ''}
+                        {describePage(c.pageUrl)}
+                      </span>
+                    </div>
+                  )}
                 </button>
               ))}
             </div>
@@ -188,8 +202,25 @@ export default function ConversationsPage({ tenantId, onBack }) {
                   </button>
                   <div className="min-w-0">
                     <div className="text-sm font-bold text-dark-900 line-clamp-1">{selected.title}</div>
-                    <div className="text-[11px] text-gray-500 mt-0.5">
-                      {formatWhen(selected.startedAt)} · {selected.messages.length} messages
+                    <div className="text-[11px] text-gray-500 mt-0.5 flex items-center gap-1.5 flex-wrap">
+                      <span>{formatWhen(selected.startedAt)}</span>
+                      <span aria-hidden="true">·</span>
+                      <span>{selected.messages.length} messages</span>
+                      {selected.pageUrl && (
+                        <>
+                          <span aria-hidden="true">·</span>
+                          <a
+                            href={selected.pageUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-brand-700 hover:underline inline-flex items-center gap-1 min-w-0"
+                            title={selected.pageUrl}
+                          >
+                            <FileText className="w-3 h-3 shrink-0" />
+                            <span className="truncate">{describePage(selected.pageUrl)}</span>
+                          </a>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -237,6 +268,21 @@ export default function ConversationsPage({ tenantId, onBack }) {
       )}
     </main>
   );
+}
+
+/**
+ * The page a conversation started on, as an owner would refer to it: the path,
+ * or "your home page" for the root. The domain is redundant on most rows —
+ * it's their own website — so it's only added when they have more than one.
+ */
+function describePage(pageUrl) {
+  if (!pageUrl) return 'Page not recorded';
+  try {
+    const { pathname } = new URL(pageUrl);
+    return pathname === '/' || pathname === '' ? 'Home page' : pathname;
+  } catch {
+    return 'Page not recorded';
+  }
 }
 
 /**

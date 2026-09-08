@@ -14,7 +14,11 @@ export const chatSend = defineEndpoint({
   request: {
     message: f.string({ min: 1, max: 4000 }),
     tenant_public_key: f.uuid(),
-    session_id: f.string({ min: 1, max: 128 })
+    session_id: f.string({ min: 1, max: 128 }),
+    // Where the widget was loaded. Optional — older embeds don't send it, and
+    // it is never trusted as given: api/chat/index.js keeps it only when its
+    // hostname is the site's own, and strips query string and fragment first.
+    page_url: optional(f.string({ max: 2048 }))
   },
   // Streamed, so there is no single JSON body to describe. The frames are:
   //   data: {"content":"…"}          incremental tokens
