@@ -11,6 +11,7 @@ import AboutPage from './components/AboutPage';
 import { PrivacyPolicy, TermsOfService } from './components/LegalPages';
 import OsteopathyLanding from './components/OsteopathyLanding';
 import Dashboard from './features/dashboard/Dashboard';
+import ConversationsPage from './features/conversations/ConversationsPage';
 import LeadsPage from './features/leads/LeadsPage';
 import RecentLeadsSection from './features/leads/RecentLeadsSection';
 import {
@@ -136,6 +137,8 @@ export default function App() {
         return <PrivacyPolicy />;
       case 'terms':
         return <TermsOfService />;
+      case 'conversations':
+        return <ConversationsPage tenantId={selectedTenant?.id} onBack={() => navigate('dashboard')} />;
       case 'leads':
         return <LeadsPage leads={leads} onBack={() => navigate('dashboard')} />;
       default:

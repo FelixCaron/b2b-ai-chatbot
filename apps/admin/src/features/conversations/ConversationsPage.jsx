@@ -1,0 +1,218 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { MessageSquare, Search, RefreshCw, User, Sparkles, ChevronLeft } from 'lucide-react';
+import useConversations from './useConversations';
+
+/**
+ * What visitors actually asked the assistant.
+ *
+ * The dashboard could show an owner how many pages were read and how many
+ * leads came in, but not the one thing that tells them whether any of it is
+ * working: the questions people are asking and the answers they got back.
+ * Every one of those exchanges was already being written to `messages` — it
+ * just had nowhere to be read.
+ */
+export default function ConversationsPage({ tenantId, onBack }) {
+  const { conversations, isLoading, error, truncated, reload } = useConversations(tenantId);
+  const [selectedId, setSelectedId] = useState(null);
+  const [query, setQuery] = useState('');
+  // Below lg the list and the transcript share the screen, so only one can be
+  // on it. Auto-selecting the newest conversation is right for the two-pane
+  // desktop layout, but on a phone it would drop the owner straight into a
+  // transcript with no way back to the list — so the transcript takes over
+  // the screen only once they've actually opened one.
+  const [openedByUser, setOpenedByUser] = useState(false);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return conversations;
+    return conversations.filter((c) =>
+      c.messages.some((m) => m.content?.toLowerCase().includes(q))
+    );
+  }, [conversations, query]);
+
+  // Land on the most recent conversation so the page opens on something to
+  // read rather than an empty right-hand pane.
+  useEffect(() => {
+    if (!filtered.length) {
+      setSelectedId(null);
+      setOpenedByUser(false);
+      return;
+    }
+    if (!filtered.some((c) => c.sessionId === selectedId)) {
+      setSelectedId(filtered[0].sessionId);
+      setOpenedByUser(false);
+    }
+  }, [filtered, selectedId]);
+
+  const selected = filtered.find((c) => c.sessionId === selectedId) || null;
+
+  return (
+    <main className="max-w-7xl mx-auto px-4 sm:px-8 space-y-6">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-10 h-10 rounded-xl bg-brand-500/10 flex items-center justify-center text-brand-700 border border-brand-500/20 shrink-0">
+            <MessageSquare className="w-5 h-5" />
+          </div>
+          <div className="min-w-0">
+            <h2 className="text-xl font-bold text-dark-900">Conversations</h2>
+            <p className="text-xs text-gray-500 truncate">What your visitors asked, and how your assistant answered</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={reload}
+            disabled={isLoading}
+            className="text-xs text-gray-500 hover:text-dark-900 bg-surface-200 hover:bg-surface-300 px-3 py-1.5 rounded-lg border border-dark-900/10 flex items-center gap-1.5 disabled:opacity-60"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} /> Refresh
+          </button>
+          <button
+            onClick={onBack}
+            className="text-xs text-gray-500 hover:text-dark-900 bg-surface-200 hover:bg-surface-300 px-3 py-1.5 rounded-lg border border-dark-900/10"
+          >
+            ← <span className="hidden sm:inline">Back to Dashboard</span><span className="sm:hidden">Back</span>
+          </button>
+        </div>
+      </div>
+
+      {error && (
+        <div className="glass-card p-4 rounded-2xl text-sm text-red-700 bg-red-50 border border-red-200">
+          {error}
+        </div>
+      )}
+
+      {!error && !isLoading && conversations.length === 0 && (
+        <div className="glass-card p-10 rounded-2xl text-center">
+          <MessageSquare className="w-8 h-8 text-gray-300 mx-auto mb-3" />
+          <h3 className="text-sm font-bold text-dark-900 mb-1">No conversations yet</h3>
+          <p className="text-xs text-gray-500 max-w-sm mx-auto">
+            Once your assistant is installed and a visitor asks it something, the
+            whole exchange shows up here.
+          </p>
+        </div>
+      )}
+
+      {conversations.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)] gap-4">
+          {/* Conversation list */}
+          <div className={`glass-card rounded-2xl overflow-hidden ${openedByUser ? 'hidden lg:block' : ''}`}>
+            <div className="p-3 border-b border-dark-900/5">
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 text-gray-500 absolute left-3 top-2.5 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search what was said..."
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  className="w-full bg-white border border-gray-300 rounded-xl pl-8 pr-3 py-1.5 text-xs text-dark-900 outline-none focus:border-brand-500"
+                />
+              </div>
+            </div>
+
+            <div className="max-h-[60vh] lg:max-h-[70vh] overflow-y-auto divide-y divide-dark-900/5">
+              {filtered.length === 0 && (
+                <p className="p-6 text-xs text-gray-500 text-center">Nothing matches "{query}".</p>
+              )}
+              {filtered.map((c) => (
+                <button
+                  key={c.sessionId}
+                  onClick={() => { setSelectedId(c.sessionId); setOpenedByUser(true); }}
+                  className={`w-full text-left p-3.5 transition-colors hover:bg-dark-900/[0.03] ${
+                    c.sessionId === selectedId ? 'bg-brand-500/5 border-l-2 border-l-brand-500' : 'border-l-2 border-l-transparent'
+                  }`}
+                >
+                  <div className="text-xs font-semibold text-dark-900 line-clamp-2">{c.title}</div>
+                  <div className="text-[11px] text-gray-500 mt-1 flex items-center gap-2 flex-wrap">
+                    <span>{formatWhen(c.lastAt)}</span>
+                    <span aria-hidden="true">·</span>
+                    <span>{c.visitorMessageCount} {c.visitorMessageCount === 1 ? 'question' : 'questions'}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            {truncated && (
+              <p className="p-3 text-[11px] text-gray-500 border-t border-dark-900/5">
+                Showing your most recent conversations. Older ones aren't listed here.
+              </p>
+            )}
+          </div>
+
+          {/* Transcript */}
+          <div className={`glass-card rounded-2xl overflow-hidden ${openedByUser ? '' : 'hidden lg:block'}`}>
+            {selected ? (
+              <>
+                <div className="p-4 border-b border-dark-900/5 flex items-start gap-3">
+                  <button
+                    onClick={() => setOpenedByUser(false)}
+                    className="lg:hidden text-gray-500 hover:text-dark-900 p-1 -ml-1 shrink-0"
+                    aria-label="Back to all conversations"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <div className="min-w-0">
+                    <div className="text-sm font-bold text-dark-900 line-clamp-1">{selected.title}</div>
+                    <div className="text-[11px] text-gray-500 mt-0.5">
+                      {formatWhen(selected.startedAt)} · {selected.messages.length} messages
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 space-y-3 max-h-[60vh] lg:max-h-[70vh] overflow-y-auto bg-surface-100/60">
+                  {selected.messages.map((m) => (
+                    <div key={m.id} className={`flex gap-2.5 ${m.role === 'user' ? '' : 'flex-row-reverse'}`}>
+                      <div
+                        className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 border ${
+                          m.role === 'user'
+                            ? 'bg-surface-200 text-gray-600 border-dark-900/10'
+                            : 'bg-brand-500/10 text-brand-700 border-brand-500/20'
+                        }`}
+                        title={m.role === 'user' ? 'Visitor' : 'Your assistant'}
+                      >
+                        {m.role === 'user' ? <User className="w-3 h-3" /> : <Sparkles className="w-3 h-3" />}
+                      </div>
+                      <div
+                        className={`max-w-[85%] p-3 rounded-2xl text-xs leading-relaxed whitespace-pre-wrap break-words border ${
+                          m.role === 'user'
+                            ? 'bg-white text-dark-900 border-dark-900/10 rounded-tl-none'
+                            : 'bg-brand-500/[0.07] text-gray-700 border-brand-500/15 rounded-tr-none'
+                        }`}
+                      >
+                        {m.content}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="p-10 text-center text-xs text-gray-500">
+                Pick a conversation to read it.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </main>
+  );
+}
+
+/** Short, human date — today's conversations shouldn't read like log lines. */
+function formatWhen(timestamp) {
+  if (!timestamp) return 'Unknown time';
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return 'Unknown time';
+
+  const now = new Date();
+  const sameDay = date.toDateString() === now.toDateString();
+  if (sameDay) {
+    return `Today, ${date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`;
+  }
+
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (date.toDateString() === yesterday.toDateString()) {
+    return `Yesterday, ${date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`;
+  }
+
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}

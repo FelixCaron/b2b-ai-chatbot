@@ -9,6 +9,7 @@
 
 export const VIEW_PATHS = {
   dashboard: '/',
+  conversations: '/conversations',
   leads: '/leads',
   pricing: '/pricing',
   about: '/about',

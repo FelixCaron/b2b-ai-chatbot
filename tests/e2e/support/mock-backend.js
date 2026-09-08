@@ -115,6 +115,18 @@ export function defaultFixtures(user) {
           created_at: new Date().toISOString(),
         },
       ],
+      // Two visitor conversations, oldest first within each session. The
+      // Conversations view rebuilds sessions out of these rows, so the shape
+      // matters more than the volume: same tenant, two session_ids, both
+      // roles present.
+      messages: [
+        { id: uuid(), tenant_id: tenantId, session_id: 'sess_alpha', role: 'user', content: 'Do you offer same-day delivery?', created_at: '2026-09-06T14:00:00.000Z' },
+        { id: uuid(), tenant_id: tenantId, session_id: 'sess_alpha', role: 'assistant', content: 'Yes — orders placed before 2pm ship the same day.', created_at: '2026-09-06T14:00:04.000Z' },
+        { id: uuid(), tenant_id: tenantId, session_id: 'sess_alpha', role: 'user', content: 'And on Saturdays?', created_at: '2026-09-06T14:01:00.000Z' },
+        { id: uuid(), tenant_id: tenantId, session_id: 'sess_alpha', role: 'assistant', content: 'Saturday orders go out on Monday morning.', created_at: '2026-09-06T14:01:05.000Z' },
+        { id: uuid(), tenant_id: tenantId, session_id: 'sess_beta', role: 'user', content: 'How much is an initial consultation?', created_at: '2026-09-07T09:30:00.000Z' },
+        { id: uuid(), tenant_id: tenantId, session_id: 'sess_beta', role: 'assistant', content: 'A first consultation is $90 and lasts an hour.', created_at: '2026-09-07T09:30:06.000Z' },
+      ],
       usage: [
         { tenant_id: tenantId, messages_count: 42, leads_count: 1, updated_at: new Date().toISOString() },
       ],
