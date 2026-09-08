@@ -28,6 +28,17 @@ export function getMaxPagesForPlan(plan) {
   return PLAN_PAGE_LIMITS[plan] ?? DEFAULT_PAGE_LIMIT;
 }
 
+/** Whether a tenant has an actually-paid-for, currently-active subscription
+ *  — the one gate that matters for anything that touches a real, live
+ *  website (installing the widget chief among them). A tenant's `plan`
+ *  column is always basic/pro/premium regardless of billing state; what
+ *  decides "active" is Stripe's own status on `plan_status`. Shared here so
+ *  every place that needs this answer (the header's "Manage Subscription"
+ *  vs. "Upgrade" switch, the Install gate) agrees on the same definition. */
+export function hasActivePlan(tenant) {
+  return tenant?.plan_status === 'active';
+}
+
 /** The plan the upgrade prompt offers next, and the website count it buys.
  *  `null` on the largest plan — there is nothing left to sell. */
 export function getNextPlanUpgrade(plan) {

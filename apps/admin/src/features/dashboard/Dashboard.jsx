@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Sparkles, X } from 'lucide-react';
-import { getMaxSitesForPlan } from './lib/plan-limits';
+import { getMaxSitesForPlan, hasActivePlan } from './lib/plan-limits';
 import { domainFromUrl, hasProtocol } from './lib/page-url';
 import { executeTurnstileCaptcha } from './lib/turnstile';
 import { fetchBrandTheme } from './lib/brand-theme';
@@ -25,6 +25,7 @@ import DeleteSiteModal from './components/modals/DeleteSiteModal';
 import PageSelectionModal from './components/modals/PageSelectionModal';
 import UpgradeRequiredModal from './components/modals/UpgradeRequiredModal';
 import OverLimitModal from './components/modals/OverLimitModal';
+import SubscriptionRequiredModal from './components/modals/SubscriptionRequiredModal';
 
 export default function Dashboard({
   selectedTenant,
@@ -64,6 +65,7 @@ export default function Dashboard({
   // View state shared by several sections
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
   const [showIntegrationModal, setShowIntegrationModal] = useState(false);
+  const [showSubscriptionRequiredModal, setShowSubscriptionRequiredModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedScriptKey, setCopiedScriptKey] = useState(null);
 
@@ -201,7 +203,17 @@ export default function Dashboard({
 
   const themeColor = activeSite?.theme_primary_color || '#293f68';
 
-  const openIntegrationModal = () => setShowIntegrationModal(true);
+  // Installing puts the assistant on a real, live website — the one action
+  // that actually requires a paid, active plan. Building and testing it
+  // stays open to everyone (guest included), so this gate sits only here,
+  // not behind the rest of the dashboard.
+  const openIntegrationModal = () => {
+    if (!hasActivePlan(selectedTenant)) {
+      setShowSubscriptionRequiredModal(true);
+      return;
+    }
+    setShowIntegrationModal(true);
+  };
   const openPreviewModal = () => preview.setShowPreviewModal(true);
   const openAdvancedSettings = () => {
     setShowAdvancedSettings(true);
@@ -417,6 +429,13 @@ export default function Dashboard({
           }, 200);
         }}
         onShowPricing={onShowPricing}
+      />
+
+      <SubscriptionRequiredModal
+        show={showSubscriptionRequiredModal}
+        activeSiteDomain={activeSite?.domain}
+        onShowPricing={onShowPricing}
+        onClose={() => setShowSubscriptionRequiredModal(false)}
       />
 
       <EditPageModal
