@@ -197,6 +197,7 @@ export default function App() {
         <LoginModal
           onLogin={auth.login}
           onClose={!isGuest ? () => setShowLoginModal(false) : undefined}
+          onNotNow={() => setShowLoginModal(false)}
           isGuestConversion={isGuest}
           message={auth.authMessage}
         />

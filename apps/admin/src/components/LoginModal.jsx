@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ArrowRight, ShieldCheck, X } from 'lucide-react';
 import LogoMark from './LogoMark';
 
-export default function LoginModal({ onLogin, onClose, isGuestConversion = false, message = '' }) {
+export default function LoginModal({ onLogin, onClose, onNotNow, isGuestConversion = false, message = '' }) {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -66,6 +66,20 @@ export default function LoginModal({ onLogin, onClose, isGuestConversion = false
             )}
           </button>
         </form>
+
+        {/* Quiet opt-out for the congratulations screen — the assistant they
+            just built keeps working as a guest draft; installing it on their
+            live website is what actually requires an account (see the
+            isGuest gates on Dashboard's Install button). */}
+        {isGuestConversion && onNotNow && (
+          <button
+            type="button"
+            onClick={onNotNow}
+            className="relative w-full mt-3 text-center text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors"
+          >
+            Not now — keep working as a guest
+          </button>
+        )}
 
         {message && <p className="relative mt-4 text-center text-sm text-emerald-700">{message}</p>}
 
