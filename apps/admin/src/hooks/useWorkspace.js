@@ -217,10 +217,13 @@ export function useWorkspace({ currentUser, authReady, setCurrentUser, onLandOnS
   };
 
   const updateSiteSettings = async (siteId, updates) => {
-    const { data: updated } = await supabase.from('sites').update(updates).eq('id', siteId).select().single();
+    const { data: updated, error } = await supabase.from('sites').update(updates).eq('id', siteId).select().single();
     if (updated) {
       setSites((prev) => prev.map((s) => (s.id === siteId ? updated : s)));
+      return { ok: true, data: updated };
     }
+    console.error('[updateSiteSettings] Error:', error);
+    return { ok: false, error: error?.message || 'Could not save that change.' };
   };
 
   const deleteDocumentUrls = async (siteId, urlsToDelete) => {

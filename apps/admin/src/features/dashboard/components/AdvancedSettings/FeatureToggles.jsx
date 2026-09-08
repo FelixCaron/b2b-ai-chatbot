@@ -1,5 +1,5 @@
-import React from 'react';
-import { ShieldCheck, ToggleLeft, ToggleRight, Settings2, Sparkles, Lock, RefreshCw } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { ShieldCheck, ToggleLeft, ToggleRight, Settings2, Sparkles, Lock, RefreshCw, Save, Check } from 'lucide-react';
 
 /** 1. Feature Toggles Grid */
 export default function FeatureToggles({
@@ -10,6 +10,42 @@ export default function FeatureToggles({
   onRecrawl,
   isCrawling
 }) {
+  const isPro = selectedTenant?.plan === 'pro' || selectedTenant?.plan === 'premium';
+
+  // Pro Integrations (Support Email / Calendar Link) — buffered locally
+  // instead of writing to Supabase on every keystroke. That per-keystroke
+  // round trip was the "big delay" typing into these fields, and there was
+  // no way to tell whether anything had actually been saved. Now: type
+  // freely, an explicit Save button, and a real confirmation (or error).
+  const [supportEmail, setSupportEmail] = useState(activeSite.support_email || '');
+  const [calendarLink, setCalendarLink] = useState(activeSite.calendar_link || '');
+  const [isSavingIntegrations, setIsSavingIntegrations] = useState(false);
+  const [integrationsMsg, setIntegrationsMsg] = useState({ text: '', isError: false });
+
+  useEffect(() => {
+    setSupportEmail(activeSite.support_email || '');
+    setCalendarLink(activeSite.calendar_link || '');
+    setIntegrationsMsg({ text: '', isError: false });
+  }, [activeSite.id]);
+
+  const integrationsDirty =
+    supportEmail !== (activeSite.support_email || '') || calendarLink !== (activeSite.calendar_link || '');
+
+  const handleSaveIntegrations = async () => {
+    setIsSavingIntegrations(true);
+    setIntegrationsMsg({ text: '', isError: false });
+    const result = await onUpdateSiteSettings(activeSite.id, {
+      support_email: supportEmail,
+      calendar_link: calendarLink
+    });
+    setIsSavingIntegrations(false);
+    if (result?.ok === false) {
+      setIntegrationsMsg({ text: result.error || 'Could not save — please try again.', isError: true });
+      return;
+    }
+    setIntegrationsMsg({ text: 'Saved.', isError: false });
+  };
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {/* Rescan Website — was a top-level dashboard button; it's a
@@ -34,8 +70,17 @@ export default function FeatureToggles({
         </button>
       </div>
 
-      {/* Lead Capture Toggle */}
-      <div className="bg-surface-100 p-5 rounded-xl border border-dark-900/5 flex items-center justify-between">
+      {/* Lead Capture Toggle — Pro/Premium only, same lock treatment as the
+          Pro Integrations card below. */}
+      <div className="bg-surface-100 p-5 rounded-xl border border-dark-900/5 flex items-center justify-between relative overflow-hidden">
+        {!isPro && (
+          <div className="absolute inset-0 bg-dark-950/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center p-4 text-center">
+            <Lock className="w-6 h-6 text-brand-400 mb-2" />
+            <h4 className="text-sm font-bold text-white">Pro Feature</h4>
+            <p className="text-xs text-gray-400 max-w-[250px]">Upgrade to Pro or Premium to capture visitor emails and contact info as leads.</p>
+          </div>
+        )}
+
         <div>
           <h4 className="text-sm font-bold text-dark-900 flex items-center gap-2 mb-1">
             <ShieldCheck className="w-4 h-4 text-brand-600" /> Lead Capture & Email Collection
@@ -47,8 +92,9 @@ export default function FeatureToggles({
 
         <button
           type="button"
+          disabled={!isPro}
           onClick={() => onUpdateSiteSettings(activeSite.id, { enable_lead_capture: !activeSite.enable_lead_capture })}
-          className="p-1 cursor-pointer transition-transform hover:scale-105"
+          className="p-1 cursor-pointer transition-transform hover:scale-105 disabled:cursor-not-allowed"
           role="switch"
           aria-checked={!!activeSite.enable_lead_capture}
           aria-label="Toggle lead capture & email collection"
@@ -95,7 +141,13 @@ export default function FeatureToggles({
           className="bg-white border border-gray-300 text-dark-900 text-xs rounded-lg px-3 py-2 outline-none"
         >
           <option value="support">Information & Support</option>
-          <option value="lead">Lead Generation & Sales</option>
+          {/* Lead generation as a conversation focus is only useful paired
+              with the Lead Capture toggle above, which is itself Pro-only —
+              so the option here follows the same gate rather than offering
+              a mode a Basic tenant couldn't actually collect anything from. */}
+          <option value="lead" disabled={!isPro}>
+            Lead Generation & Sales{isPro ? '' : ' (Pro)'}
+          </option>
         </select>
       </div>
 
@@ -120,7 +172,7 @@ export default function FeatureToggles({
 
       {/* PRO Integrations: Support Email & Calendar Link */}
       <div className="bg-surface-100 p-5 rounded-xl border border-brand-500/20 flex flex-col gap-4 relative overflow-hidden">
-        {selectedTenant?.plan !== 'pro' && selectedTenant?.plan !== 'premium' && (
+        {!isPro && (
           <div className="absolute inset-0 bg-dark-950/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center p-4 text-center">
             <Lock className="w-6 h-6 text-brand-400 mb-2" />
             <h4 className="text-sm font-bold text-white">Pro Feature</h4>
@@ -139,8 +191,8 @@ export default function FeatureToggles({
             <input
               type="email"
               placeholder="support@yourcompany.com"
-              value={activeSite.support_email || ''}
-              onChange={(e) => onUpdateSiteSettings(activeSite.id, { support_email: e.target.value })}
+              value={supportEmail}
+              onChange={(e) => setSupportEmail(e.target.value)}
               className="w-full bg-white border border-gray-300 text-dark-900 text-sm rounded-lg px-4 py-2.5 outline-none focus:border-brand-500/50"
             />
             <p className="text-[10px] text-gray-500 mt-1">Where the assistant sends support requests.</p>
@@ -151,12 +203,31 @@ export default function FeatureToggles({
             <input
               type="url"
               placeholder="https://calendly.com/your-name"
-              value={activeSite.calendar_link || ''}
-              onChange={(e) => onUpdateSiteSettings(activeSite.id, { calendar_link: e.target.value })}
+              value={calendarLink}
+              onChange={(e) => setCalendarLink(e.target.value)}
               className="w-full bg-white border border-gray-300 text-dark-900 text-sm rounded-lg px-4 py-2.5 outline-none focus:border-brand-500/50"
             />
             <p className="text-[10px] text-gray-500 mt-1">Calendly, Cal.com, or Google Calendar link.</p>
           </div>
+        </div>
+
+        <div className="flex items-center justify-between gap-3">
+          {integrationsMsg.text ? (
+            <span className={`text-xs font-medium flex items-center gap-1.5 ${integrationsMsg.isError ? 'text-rose-600' : 'text-emerald-700'}`}>
+              {!integrationsMsg.isError && <Check className="w-3.5 h-3.5" />}
+              {integrationsMsg.text}
+            </span>
+          ) : <span />}
+
+          <button
+            type="button"
+            disabled={!integrationsDirty || isSavingIntegrations}
+            onClick={handleSaveIntegrations}
+            className="shrink-0 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSavingIntegrations ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+            {isSavingIntegrations ? 'Saving...' : 'Save'}
+          </button>
         </div>
       </div>
     </div>
