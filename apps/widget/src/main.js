@@ -40,7 +40,11 @@ import { parseMarkdown } from "./markdown.js";
     // keep the fallback above
   }
 
-  const chatManager = new ChatManager(apiEndpoint, tenantPublicKey);
+  // Set only by the admin's preview page, which runs the widget on an origin
+  // that isn't the customer's registered domain and so has to prove ownership.
+  const previewAuthToken = scriptTag?.getAttribute("data-auth-token") || null;
+
+  const chatManager = new ChatManager(apiEndpoint, tenantPublicKey, previewAuthToken);
 
   // Build Container
   const host = document.createElement("div");

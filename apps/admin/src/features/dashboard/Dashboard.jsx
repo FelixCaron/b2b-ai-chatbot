@@ -6,7 +6,7 @@ import { executeTurnstileCaptcha } from './lib/turnstile';
 import { fetchBrandTheme } from './lib/brand-theme';
 import useSiteSummary from './hooks/useSiteSummary';
 import useCrawlPipeline from './hooks/useCrawlPipeline';
-import usePreviewChat from './hooks/usePreviewChat';
+import usePreview from './hooks/usePreview';
 import useSiteLifecycle from './hooks/useSiteLifecycle';
 import OnboardingHero from './components/OnboardingHero';
 import SiteTabs from './components/SiteTabs';
@@ -72,7 +72,7 @@ export default function Dashboard({
     refreshSiteSummary: summary.fetchSiteSummary
   });
 
-  const preview = usePreviewChat(activeSite);
+  const preview = usePreview();
 
   const lifecycle = useSiteLifecycle({
     sites,
@@ -314,16 +314,6 @@ export default function Dashboard({
         show={preview.showPreviewModal}
         activeSite={activeSite}
         themeColor={themeColor}
-        previewContainerRef={preview.previewContainerRef}
-        autoScale={preview.autoScale}
-        previewChatOpen={preview.previewChatOpen}
-        setPreviewChatOpen={preview.setPreviewChatOpen}
-        previewMessages={preview.previewMessages}
-        previewStreaming={preview.previewStreaming}
-        previewInput={preview.previewInput}
-        setPreviewInput={preview.setPreviewInput}
-        onSendMessage={preview.handleSendPreviewChat}
-        chatMessagesEndRef={preview.chatMessagesEndRef}
         onClose={() => {
           preview.setShowPreviewModal(false);
           if (isGuest) onRequireLogin();

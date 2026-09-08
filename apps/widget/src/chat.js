@@ -2,9 +2,16 @@ import { fetchEventSource } from '@microsoft/fetch-event-source';
 
 // SSE Chat Stream Manager
 export class ChatManager {
-  constructor(endpoint, tenantPublicKey) {
+  // `authToken` is only ever set by the admin's own preview (preview.html
+  // hands it over after the dashboard posts it in). api/chat/index.js only
+  // authorizes a request whose origin is the customer's registered domain,
+  // unless it carries the tenant owner's bearer token — and the preview runs
+  // on the admin's origin, not the customer's. On a real customer site this
+  // stays null and the widget sends exactly what it always sent.
+  constructor(endpoint, tenantPublicKey, authToken = null) {
     this.endpoint = endpoint;
     this.tenantPublicKey = tenantPublicKey;
+    this.authToken = authToken || null;
     this.sessionId = this.getOrCreateSessionId();
   }
 
@@ -41,6 +48,7 @@ export class ChatManager {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'text/event-stream',
+          ...(this.authToken ? { Authorization: `Bearer ${this.authToken}` } : {}),
         },
         body: JSON.stringify({
           message: userMessage,

@@ -1,27 +1,73 @@
-import React from 'react';
-import { Globe, ExternalLink, X, Send } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import React, { useEffect, useRef, useState } from 'react';
+import { Globe, ExternalLink, X } from 'lucide-react';
 import api from '../../../../lib/api';
-import { rootUrlForDomain } from '../../lib/page-url';
+import { supabase } from '../../../../lib/supabase';
 
-/** 4. FULL-SCREEN LIVE SITE PREVIEW WITH FUNCTIONAL CHATBOT */
-export default function LivePreviewModal({
-  show,
-  activeSite,
-  themeColor,
-  previewContainerRef,
-  autoScale,
-  previewChatOpen,
-  setPreviewChatOpen,
-  previewMessages,
-  previewStreaming,
-  previewInput,
-  setPreviewInput,
-  onSendMessage,
-  chatMessagesEndRef,
-  onClose
-}) {
+/**
+ * Full-screen preview of the customer's site with their assistant on it.
+ *
+ * This used to render a second, hand-built chat UI inside the dashboard —
+ * its own header, message list, markdown renderer, input, typing indicator
+ * and launcher — talking to /api/chat directly. That meant two chat
+ * implementations to keep in step, and an owner could test one thing here
+ * while their visitors saw another. It also surfaced the agent's internals
+ * ("🛠️ Tool Call: search_knowledge_base", "✓ Saved in Supabase database"),
+ * which is a debugging view, not a customer's view of their own product.
+ *
+ * Now this is a shell around public/preview.html, which injects the real
+ * widget bundle. One implementation, so the preview cannot drift from
+ * production. The only thing this component still has to do is hand the page
+ * the owner's access token, because api/chat/index.js refuses a request from
+ * any origin but the customer's registered domain unless it carries one.
+ */
+export default function LivePreviewModal({ show, activeSite, themeColor, onClose }) {
+  const frameRef = useRef(null);
+  const [previewSrc, setPreviewSrc] = useState(null);
+
+  // Build the URL only while open, so closing the modal tears the iframe down
+  // (and with it the widget's live session) instead of leaving it running.
+  useEffect(() => {
+    if (!show || !activeSite) {
+      setPreviewSrc(null);
+      return;
+    }
+    const params = new URLSearchParams({
+      domain: activeSite.domain,
+      tenant_key: activeSite.public_key,
+      theme_color: themeColor || '',
+      api_url: api.chat.endpointUrl()
+    });
+    setPreviewSrc(`${window.location.origin}/preview.html?${params.toString()}`);
+  }, [show, activeSite?.id, activeSite?.public_key, activeSite?.domain, themeColor]);
+
+  // preview.html announces itself when it's ready for the token; we answer
+  // with the current session's access token, pinned to our own origin so it
+  // can never reach the customer site rendered inside the nested iframe.
+  useEffect(() => {
+    if (!show) return;
+
+    const onMessage = async (event) => {
+      if (event.origin !== window.location.origin) return;
+      if (event.data?.type !== 'dorafi:preview-ready') return;
+      if (event.source !== frameRef.current?.contentWindow) return;
+
+      let token = null;
+      try {
+        const { data } = await supabase.auth.getSession();
+        token = data?.session?.access_token || null;
+      } catch (err) {
+        console.warn('[LivePreviewModal] could not read session for preview:', err);
+      }
+      event.source.postMessage(
+        { type: 'dorafi:preview-auth', token },
+        window.location.origin
+      );
+    };
+
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, [show]);
+
   if (!show || !activeSite) return null;
 
   return (
@@ -42,14 +88,14 @@ export default function LivePreviewModal({
 
         <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           <a
-            href={`${window.location.origin}/preview.html?domain=${encodeURIComponent(activeSite.domain)}&tenant_key=${encodeURIComponent(activeSite.public_key)}&theme_color=${encodeURIComponent(themeColor)}&api_url=${encodeURIComponent(api.chat.endpointUrl())}`}
+            href={`https://${activeSite.domain}`}
             target="_blank"
             rel="noopener noreferrer"
             className="bg-surface-200 hover:bg-surface-300 text-dark-700 text-xs font-semibold px-2.5 sm:px-3.5 py-1.5 rounded-xl flex items-center gap-2 transition-all border border-dark-900/10 shadow-sm"
-            title="Open site preview with chatbot"
+            title="Open the live site in a new tab"
           >
             <ExternalLink className="w-3.5 h-3.5 text-brand-600" />
-            <span className="hidden sm:inline">Open in new tab</span>
+            <span className="hidden sm:inline">Open live site</span>
           </a>
         </div>
 
@@ -61,198 +107,16 @@ export default function LivePreviewModal({
         </button>
       </div>
 
-      {/* Main Viewport */}
-      <div ref={previewContainerRef} className="flex-1 bg-white flex items-center justify-center relative overflow-hidden">
-        <div className="w-full h-full relative overflow-auto">
+      {/* The site, with the real widget on top of it */}
+      <div className="flex-1 bg-white relative overflow-hidden">
+        {previewSrc && (
           <iframe
-            src={rootUrlForDomain(activeSite.domain)}
-            className="border-0 bg-white block"
-            style={{
-              width: `${100 / autoScale}%`,
-              height: `${100 / autoScale}%`,
-              transform: `scale(${autoScale})`,
-              transformOrigin: 'top left',
-              transition: 'transform 0.15s ease, width 0.15s ease, height 0.15s ease'
-            }}
-            title="Website Preview"
+            ref={frameRef}
+            src={previewSrc}
+            className="w-full h-full border-0 bg-white block"
+            title={`Assistant preview for ${activeSite.domain}`}
           />
-
-          {/* LIVE FUNCTIONAL CHATBOT WIDGET OVERLAY */}
-          <div className="absolute bottom-3 right-3 sm:bottom-6 sm:right-6 z-[100000] flex flex-col items-end max-w-[calc(100vw-24px)]">
-            {/* Chat Panel Modal */}
-            {previewChatOpen && (
-              <div 
-                className="w-[calc(100vw-32px)] sm:w-[360px] h-[70vh] sm:h-[500px] max-h-[540px] bg-white text-slate-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden mb-3 animate-in fade-in slide-in-from-bottom-4 border border-slate-200/80"
-                style={{
-                  boxShadow: `0 18px 40px -10px rgba(0, 0, 0, 0.12), 0 0 18px -4px ${themeColor}20`
-                }}
-              >
-                {/* Header */}
-                <div 
-                  className="p-3.5 border-b border-slate-100 flex items-center justify-between bg-white"
-                  style={{
-                    background: `linear-gradient(135deg, ${themeColor}10 0%, #ffffff 100%)`
-                  }}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div
-                      className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold text-xs shadow-sm"
-                      style={{ backgroundColor: themeColor }}
-                    >
-                      AI
-                    </div>
-                    <div>
-                      <div className="text-[13px] font-bold text-slate-900 leading-tight">Virtual Assistant</div>
-                      <div className="text-[10.5px] font-medium flex items-center gap-1 leading-tight mt-0.5" style={{ color: themeColor }}>
-                        <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: themeColor }}></span>
-                        Live on {activeSite.domain}
-                      </div>
-                    </div>
-                  </div>
-                  <button onClick={() => setPreviewChatOpen(false)} className="text-slate-400 hover:text-slate-700 transition-colors p-1">
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-
-                {/* Messages Feed */}
-                <div className="flex-1 p-3.5 overflow-y-auto space-y-3 text-xs bg-slate-50/70">
-                  {previewMessages.map((m, idx) => {
-                    if (m.role === 'tool') {
-                      return (
-                        <div 
-                          key={idx} 
-                          className="mr-auto my-1.5 p-2.5 rounded-xl font-mono text-[11px] space-y-1 shadow-sm animate-in fade-in border"
-                          style={{
-                            backgroundColor: `${themeColor}10`,
-                            borderColor: `${themeColor}25`,
-                            color: themeColor
-                          }}
-                        >
-                          <div className="flex items-center gap-1.5 font-bold">
-                            <span>🛠️  Tool Call:</span>
-                            <span className="px-1.5 py-0.5 rounded text-white" style={{ backgroundColor: `${themeColor}99` }}>{m.tool_call.name}</span>
-                          </div>
-                          {m.tool_call.name === 'search_knowledge_base' && (
-                            <div className="space-y-1">
-                              <div>🔍  Search keywords: "{m.tool_call.keywords || m.tool_call.query}"</div>
-                              <div className="text-[10px] text-slate-500 mb-1">📄 {m.tool_call.matched_chunks} chunks matched ({m.tool_call.sources?.length || 0} sources)</div>
-                              {m.tool_call.sources && m.tool_call.sources.length > 0 && (
-                                <div className="mt-1 flex flex-col gap-1">
-                                  {m.tool_call.sources.map((src, i) => (
-                                    <a key={i} href={src} target="_blank" rel="noopener noreferrer" className="text-[9px] truncate max-w-[200px] flex items-center gap-1 px-1.5 py-0.5 rounded border" style={{ color: themeColor, backgroundColor: `${themeColor}10`, borderColor: `${themeColor}25` }}>
-                                      🔗 {src.replace(`https://${activeSite.domain}`, '') || '/'}
-                                    </a>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                          {m.tool_call.name === 'capture_lead' && (
-                            <div className="space-y-0.5">
-                              <div>👤 Lead captured: {m.tool_call.lead?.name || m.tool_call.lead?.email || m.tool_call.lead?.phone || 'Visitor'}</div>
-                              <div className="text-[10px] text-emerald-600 font-semibold">✓ Saved in Supabase database</div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    }
-
-                    return (
-                      <div
-                        key={idx}
-                        className={`max-w-[85%] p-3 rounded-2xl leading-relaxed ${
-                          m.role === 'user'
-                            ? 'ml-auto text-white rounded-br-none shadow-sm'
-                            : 'mr-auto bg-white text-slate-700 border border-slate-200/80 rounded-bl-none shadow-sm prose prose-sm max-w-none'
-                        }`}
-                        style={m.role === 'user' ? {
-                          backgroundColor: themeColor,
-                          boxShadow: `0 4px 12px -2px ${themeColor}40`
-                        } : {}}
-                      >
-                        {m.role === 'user' ? m.text : (
-                          <ReactMarkdown
-                            remarkPlugins={[remarkGfm]}
-                            components={{
-                              a: ({ node, ...props }) => (
-                                <a {...props} target="_blank" rel="noopener noreferrer" className="underline font-semibold transition-colors" style={{ color: themeColor }} />
-                              ),
-                              strong: ({ node, ...props }) => (
-                                <strong {...props} className="font-bold text-slate-900" />
-                              ),
-                              ul: ({ node, ...props }) => (
-                                <ul {...props} className="list-disc pl-4 my-1.5 space-y-1" />
-                              ),
-                              ol: ({ node, ...props }) => (
-                                <ol {...props} className="list-decimal pl-4 my-1.5 space-y-1" />
-                              ),
-                              li: ({ node, ...props }) => (
-                                <li {...props} className="text-slate-700 leading-relaxed" />
-                              ),
-                              code: ({ node, inline, ...props }) => (
-                                inline
-                                  ? <code {...props} className="bg-slate-100 text-[11px] px-1.5 py-0.5 rounded font-mono" style={{ color: themeColor }} />
-                                  : <code {...props} className="block bg-slate-900 text-slate-100 p-2 rounded text-[11px] font-mono overflow-x-auto my-1.5 border border-slate-800" />
-                              ),
-                              p: ({ node, ...props }) => (
-                                <p {...props} className="mb-2 last:mb-0 leading-relaxed" />
-                              )
-                            }}
-                          >
-                            {m.text}
-                          </ReactMarkdown>
-                        )}
-                      </div>
-                    );
-                  })}
-
-                  {/* Typing indicator dots when AI is thinking */}
-                  {previewStreaming && (
-                    <div className="mr-auto bg-white text-slate-500 border border-slate-200/80 rounded-xl rounded-bl-none p-2.5 max-w-[200px] flex items-center gap-2 shadow-sm">
-                      <div className="flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ backgroundColor: themeColor, animationDelay: '0ms' }}></span>
-                        <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ backgroundColor: themeColor, animationDelay: '150ms' }}></span>
-                        <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ backgroundColor: themeColor, animationDelay: '300ms' }}></span>
-                      </div>
-                      <span className="text-[10px] text-slate-500 italic">{typeof previewStreaming === 'string' ? previewStreaming : '...'}</span>
-                    </div>
-                  )}
-                  <div ref={chatMessagesEndRef} />
-                </div>
-
-                {/* Input */}
-                <div className="p-2.5 border-t border-slate-100 bg-white flex items-center gap-2">
-                  <input
-                    type="text"
-                    placeholder="Ask your assistant anything..."
-                    value={previewInput}
-                    onChange={(e) => setPreviewInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && onSendMessage()}
-                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 outline-none transition-all focus:bg-white"
-                    style={{ borderColor: `${themeColor}44` }}
-                  />
-                  <button
-                    onClick={onSendMessage}
-                    disabled={!previewInput.trim() || previewStreaming}
-                    className="p-2 rounded-xl text-white disabled:opacity-40 transition-all hover:scale-105 active:scale-95 shadow-sm"
-                    style={{ backgroundColor: themeColor }}
-                  >
-                    <Send className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Floating Launcher Pill Button */}
-            <button
-              onClick={() => setPreviewChatOpen(!previewChatOpen)}
-              className="w-[52px] h-[52px] rounded-full flex items-center justify-center text-white text-xl shadow-xl hover:scale-105 transition-transform"
-              style={{ backgroundColor: themeColor, boxShadow: `0 8px 20px -4px ${themeColor}88` }}
-            >
-              💬
-            </button>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );

@@ -161,6 +161,11 @@
     #b2b-chatbot-injection-target > div {
       pointer-events: auto;
     }
+
+    /* Embedded in the dashboard's preview modal, which draws its own header.
+       Standalone (opened directly) the bar stays. */
+    body.embedded #top-bar { display: none; }
+    body.embedded #frame-container { height: 100%; }
   </style>
 </head>
 <body>
@@ -189,7 +194,7 @@
   <div id="frame-container">
     <div id="frame-wrapper">
       <div id="loading-overlay">
-        <div class="spinner"></div> Checking site security...
+        <div class="spinner"></div> Loading your website...
       </div>
       <iframe id="preview-iframe" src="" allow="clipboard-read; clipboard-write; microphone"></iframe>
       
@@ -232,50 +237,18 @@
       loading.style.opacity = '1';
       iframe.style.opacity = '0';
 
-      try {
-        // Check if the site allows iframing
-        const res = await fetch(`${window.location.origin}/api/preview-proxy?url=${encodeURIComponent(rawTargetUrl)}`);
-        const data = await res.json();
-
-        if (data.canFrame) {
-          // Site allows iframes! Load it natively.
-          wrapper.style.backgroundImage = 'none';
-          iframe.src = rawTargetUrl;
-          iframe.onload = () => {
-            iframe.style.opacity = '1';
-            loading.style.opacity = '0';
-            setTimeout(() => loading.style.display = 'none', 300);
-          };
-        } else {
-          // Site blocks iframes. Use screenshot fallback API (thum.io is free and fast)
-          console.log("Site blocks iframes. Using screenshot fallback.");
-          iframe.style.display = 'none';
-          const screenshotUrl = `https://image.thum.io/get/width/1200/crop/800/${rawTargetUrl}`;
-          
-          // Preload image
-          const img = new Image();
-          img.onload = () => {
-            wrapper.style.backgroundImage = `url('${screenshotUrl}')`;
-            loading.style.opacity = '0';
-            setTimeout(() => loading.style.display = 'none', 300);
-          };
-          img.onerror = () => {
-            // If even screenshot fails, just show white background
-            wrapper.style.background = '#f8fafc';
-            loading.style.opacity = '0';
-            setTimeout(() => loading.style.display = 'none', 300);
-          };
-          img.src = screenshotUrl;
-        }
-      } catch (e) {
-        // Fallback to iframe if check fails
-        iframe.src = rawTargetUrl;
-        iframe.onload = () => {
-          iframe.style.opacity = '1';
-          loading.style.opacity = '0';
-          setTimeout(() => loading.style.display = 'none', 300);
-        };
-      }
+      // This used to ask /api/preview-proxy whether the site allowed framing,
+      // and fall back to a thum.io screenshot when it didn't. That endpoint
+      // has never existed in this repo, so the fetch always landed on the
+      // SPA's HTML rewrite, `res.json()` always threw, and every preview took
+      // the catch branch below. The screenshot path was unreachable; what
+      // remains is the branch that was actually running all along.
+      iframe.src = rawTargetUrl;
+      iframe.onload = () => {
+        iframe.style.opacity = '1';
+        loading.style.opacity = '0';
+        setTimeout(() => loading.style.display = 'none', 300);
+      };
     }
 
     function reloadFrame() {
@@ -309,17 +282,51 @@
     autoScaleFrame();
     loadPreview();
 
-    // Inject Chatbot Widget Overlay into the wrapper page
-    (function(){
+    // Inject the real Dorafi widget — the same bundle a customer pastes onto
+    // their own site. There is deliberately no second chat implementation
+    // here: whatever the owner sees in this preview is byte-for-byte what
+    // their visitors get.
+    //
+    // One wrinkle: api/chat/index.js locks a site to its own registered
+    // domain, and this page runs on the admin's origin. A request from here
+    // is only authorized if it carries the tenant owner's bearer token, so
+    // when the dashboard embeds this page it posts that token in and we hand
+    // it to the widget. Opened standalone there is no token and no parent to
+    // ask, so the assistant would 403 — hence the modal is the only entry
+    // point, and this page says so plainly rather than looking broken.
+    const embedded = window.parent !== window;
+    if (embedded) document.body.classList.add('embedded');
+
+    function injectWidget(authToken) {
       const s = document.createElement('script');
       s.src = `${window.location.origin.replace(/\/$/, '')}/widget.iife.js`;
       s.defer = true;
       if (tenantKey) s.setAttribute('data-tenant-key', tenantKey);
       if (apiUrl) s.setAttribute('data-api-url', apiUrl);
       if (themeColor) s.setAttribute('data-theme-color', themeColor);
+      if (authToken) s.setAttribute('data-auth-token', authToken);
       s.setAttribute('data-auto-open', 'true');
       document.body.appendChild(s);
-    })();
+    }
+
+    if (embedded) {
+      // Same-origin handshake with the dashboard. Both sides pin the origin;
+      // an access token must never be readable by the customer site rendered
+      // in the nested iframe.
+      let injected = false;
+      window.addEventListener('message', (event) => {
+        if (event.origin !== window.location.origin) return;
+        if (event.data?.type !== 'dorafi:preview-auth' || injected) return;
+        injected = true;
+        injectWidget(event.data.token || null);
+      });
+      window.parent.postMessage({ type: 'dorafi:preview-ready' }, window.location.origin);
+      // If the dashboard never answers, still show the widget rather than
+      // nothing — it will report the 403 through its own error path.
+      setTimeout(() => { if (!injected) { injected = true; injectWidget(null); } }, 4000);
+    } else {
+      injectWidget(null);
+    }
   </script>
 </body>
 </html>
