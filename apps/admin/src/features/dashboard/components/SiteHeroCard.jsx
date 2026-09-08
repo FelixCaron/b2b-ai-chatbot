@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Globe, Eye, RefreshCw, Code, Settings2 } from 'lucide-react';
+import useWidgetLiveStatus from '../hooks/useWidgetLiveStatus';
 
 /** The active website's identity card and its action row. The parked banner
  *  and the guided roadmap are rendered as children, inside the same card. */
@@ -15,6 +16,9 @@ export default function SiteHeroCard({
   onOpenSettings,
   children
 }) {
+  // Whether the widget has actually loaded on the live site recently — only
+  // worth checking once the assistant is built and not mid-crawl.
+  const isLive = useWidgetLiveStatus(activeSite?.id, isActive && !isCrawling);
   // The site's own favicon, not a generic globe — works for any domain
   // without asking anyone to upload a logo. Falls back to the globe icon
   // if the favicon 404s outright (a fallback service returning its own
@@ -45,15 +49,25 @@ export default function SiteHeroCard({
           <div>
             <div className="flex items-center gap-2.5 flex-wrap">
               <h2 className="text-2xl font-bold text-dark-900 tracking-tight">{activeSite.domain}</h2>
-              {isActive ? (
-                <span className="bg-emerald-500/15 text-emerald-700 text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5 border border-emerald-500/20">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                  Assistant Active & Ready
+              {isCrawling ? (
+                <span className="bg-brand-500/15 text-brand-700 text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5 border border-brand-500/20">
+                  <RefreshCw className="w-3 h-3 animate-spin" />
+                  Learning...
                 </span>
-              ) : (
+              ) : !isActive ? (
                 <span className="bg-amber-500/15 text-amber-700 text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5 border border-amber-500/20">
                   <span className="w-2 h-2 rounded-full bg-amber-500/80"></span>
                   Assistant Paused
+                </span>
+              ) : isLive ? (
+                <span className="bg-emerald-500/15 text-emerald-700 text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5 border border-emerald-500/20">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  Live on your website
+                </span>
+              ) : (
+                <span className="bg-gray-500/10 text-gray-600 text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5 border border-gray-500/20">
+                  <span className="w-2 h-2 rounded-full bg-gray-400"></span>
+                  Not installed yet
                 </span>
               )}
             </div>
@@ -62,7 +76,13 @@ export default function SiteHeroCard({
                 the one place it is genuinely needed is the install snippet,
                 which carries it already. */}
             <p className="text-xs text-gray-500 mt-1">
-              {isActive ? 'Connected to your website' : 'Paused — your assistant is not answering visitors'}
+              {isCrawling
+                ? 'Reading your website and learning what your business does...'
+                : !isActive
+                ? 'Paused — your assistant is not answering visitors'
+                : isLive
+                ? 'Installed and answering visitors on your website'
+                : 'Built and ready — paste the install code below to put it on your website'}
             </p>
           </div>
         </div>
@@ -82,7 +102,7 @@ export default function SiteHeroCard({
           >
             {isCrawling ? (
               <>
-                <RefreshCw className="w-4 h-4 animate-spin text-brand-600" /> Reading your website...
+                <RefreshCw className="w-4 h-4 animate-spin text-brand-600" /> Learning your website...
               </>
             ) : (
               <>

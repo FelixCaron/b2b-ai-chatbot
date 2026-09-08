@@ -84,7 +84,11 @@ export default function useCrawlPipeline({
   const executeBatchScan = async (siteObj, targetUrl, pagesToScan) => {
     setIsCrawling(true);
     onEnterDashboard();
-    setShowLearningModal(true);
+    // Learning happens in the background from here — the dashboard itself
+    // (the "Test your assistant" button and the site status pill, both
+    // driven off isCrawling) carries the in-progress state now, not a
+    // blocking full-screen modal. The modal comes back only for the
+    // completion celebration, at the bottom of this function.
     setLearningProgress(20);
     setLearningStep(2);
     setLearningDomain(siteObj.domain || stripProtocol(targetUrl));
@@ -193,13 +197,15 @@ export default function useCrawlPipeline({
         : `✓ Scan finished! ${loadedCount} page(s) indexed.`
     );
     setIsCrawling(false);
+    // The one moment this modal still appears: a real "done" to land on,
+    // not a progress bar to sit and watch.
+    setShowLearningModal(true);
   };
 
   // Synchronous crawl and index pipeline
   const runSynchronousCrawlAndIndex = async (siteObj, targetUrl) => {
     setIsCrawling(true);
     onEnterDashboard();
-    setShowLearningModal(true);
     setLearningProgress(5);
     setLearningStep(1);
     setLearningDomain(siteObj.domain || stripProtocol(targetUrl));
