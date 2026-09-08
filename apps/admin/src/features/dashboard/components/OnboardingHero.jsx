@@ -48,7 +48,7 @@ export default function OnboardingHero({
           >
             {isAnalyzing ? (
               <span className="flex items-center gap-2">
-                <RefreshCw className="w-4 h-4 animate-spin" /> Analyzing your website...
+                <RefreshCw className="w-4 h-4 animate-spin" /> Setting up your assistant...
               </span>
             ) : (
               <>Create My AI Assistant <ArrowRight className="w-4 h-4" /></>
@@ -56,6 +56,10 @@ export default function OnboardingHero({
           </button>
         </form>
 
+        {/* One spinner, one message: the button above shows a generic
+            "working" state, so this line only ever names the specific step
+            underway (e.g. "Analyzing your website...") — never the same
+            words twice. */}
         {statusMsg && (
           <div className="mt-6 flex items-center justify-center gap-3 text-sm text-brand-700 font-medium bg-brand-500/10 p-3 rounded-xl border border-brand-500/20">
             {isAnalyzing && <RefreshCw className="w-4 h-4 animate-spin" />}
