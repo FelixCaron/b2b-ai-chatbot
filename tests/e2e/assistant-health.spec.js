@@ -4,12 +4,29 @@ import { test, expect, trackConsoleErrors, clickGuestNavButton } from './support
 // live queries rather than props, so these cover the read path as much as the
 // layout.
 test.describe('Assistant health', () => {
+  test.describe('before anyone has used the assistant', () => {
+    // No messages at all: the numbers would all be zero and would tell the
+    // owner nothing, so the dashboard shows the setup steps instead.
+    test.use({ mockOverrides: { db: { messages: [] } } });
+
+    test('shows the setup roadmap instead of statistics', async ({ page, mock }) => {
+      await page.goto('/');
+      await expect(page.getByText('acme.example.com')).toBeVisible();
+
+      await expect(page.getByText(/Install on your website/i)).toBeVisible();
+      await expect(page.getByText(/conversations this week/i)).toHaveCount(0);
+    });
+  });
+
   test('reports pages, conversations this week, leads and unanswered questions', async ({ page, mock }) => {
     const consoleTracker = trackConsoleErrors(page);
     await page.goto('/');
     await expect(page.getByText('acme.example.com')).toBeVisible();
 
-    // Three fixture sessions, all inside the seven-day window.
+    // Three fixture sessions, all inside the seven-day window. The roadmap
+    // steps it replaces are gone.
+    await expect(page.getByText(/Ask it questions before your visitors do/i)).toHaveCount(0);
+
     await expect(page.getByText(/conversations this week/i)).toBeVisible();
     await expect(page.getByRole('button', { name: /3\s*conversations this week/i })).toBeVisible();
 

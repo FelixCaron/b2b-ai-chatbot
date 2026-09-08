@@ -268,28 +268,46 @@ export default function Dashboard({
               />
             )}
 
-            {/* Deliberately not gated behind sign-in: these are the guest's
-                own numbers about their own draft assistant, and the header
-                nav already opens both pages for them. Signing in is what
-                installing the assistant requires, not looking at it. */}
-            <AssistantHealth
-              pagesCount={loadedPagesCount}
-              isCrawling={pipeline.isCrawling}
-              conversationsThisWeek={health.conversationsThisWeek}
-              leadsCount={leadsCount}
-              unansweredCount={health.unansweredCount}
-              onViewConversations={onViewConversations}
-              onViewLeads={onViewLeads}
-            />
-
-            <GuidedRoadmap
-              loadedPagesCount={loadedPagesCount}
-              isCrawling={pipeline.isCrawling}
-              isGuest={isGuest}
-              onRequireLogin={onRequireLogin}
-              onOpenPreview={openPreviewModal}
-              onOpenIntegration={openIntegrationModal}
-            />
+            {/* One panel or the other, never both.
+                
+                The roadmap's three cards had come to duplicate everything
+                around them: "pages available to your assistant" is the health
+                panel's first number, and its other two steps are the hero's
+                own Test and Install buttons, sitting directly above it. But
+                the roadmap is genuinely the right thing to show someone who
+                has just finished onboarding, when every statistic is zero and
+                what they need is the next instruction.
+                
+                So the dashboard answers a different question depending on
+                where the owner is: before anyone has ever talked to the
+                assistant it says what to do next, and afterwards it says how
+                it's going. All-time rather than recent, so a quiet week
+                doesn't demote an established site back to the setup guide.
+                
+                Neither is gated behind sign-in: these are the guest's own
+                numbers about their own draft assistant, and the header nav
+                already opens both pages for them. Signing in is what
+                installing requires, not looking. */}
+            {health.hasEverBeenUsed ? (
+              <AssistantHealth
+                pagesCount={loadedPagesCount}
+                isCrawling={pipeline.isCrawling}
+                conversationsThisWeek={health.conversationsThisWeek}
+                leadsCount={leadsCount}
+                unansweredCount={health.unansweredCount}
+                onViewConversations={onViewConversations}
+                onViewLeads={onViewLeads}
+              />
+            ) : (
+              <GuidedRoadmap
+                loadedPagesCount={loadedPagesCount}
+                isCrawling={pipeline.isCrawling}
+                isGuest={isGuest}
+                onRequireLogin={onRequireLogin}
+                onOpenPreview={openPreviewModal}
+                onOpenIntegration={openIntegrationModal}
+              />
+            )}
           </SiteHeroCard>
 
           <AdvancedSettingsPanel

@@ -23,12 +23,16 @@ const SESSION_SCAN_LIMIT = 2000;
  * their own tenants.
  */
 export default function useAssistantHealth(tenantId) {
-  const [health, setHealth] = useState({ conversationsThisWeek: 0, unansweredCount: 0 });
+  const [health, setHealth] = useState({
+    conversationsThisWeek: 0,
+    unansweredCount: 0,
+    hasEverBeenUsed: false
+  });
   const [isLoading, setIsLoading] = useState(false);
 
   const load = useCallback(async () => {
     if (!tenantId || !supabase) {
-      setHealth({ conversationsThisWeek: 0, unansweredCount: 0 });
+      setHealth({ conversationsThisWeek: 0, unansweredCount: 0, hasEverBeenUsed: false });
       return;
     }
 
@@ -56,14 +60,31 @@ export default function useAssistantHealth(tenantId) {
       .eq('tenant_id', tenantId)
       .in('answer_status', ['no_match', 'failed']);
 
-    const [sessions, unanswered] = await Promise.all([sessionsQuery, unansweredQuery]);
+    // Has anyone ever talked to this assistant? All-time, and separate from
+    // the weekly figure, because it decides which dashboard the owner gets:
+    // an assistant nobody has used yet needs instructions, not statistics,
+    // and an established site that happened to have a quiet week should not
+    // be sent back to the setup guide.
+    const everUsedQuery = supabase
+      .from('messages')
+      .select('id', { count: 'exact', head: true })
+      .eq('tenant_id', tenantId)
+      .eq('role', 'user');
+
+    const [sessions, unanswered, everUsed] = await Promise.all([
+      sessionsQuery,
+      unansweredQuery,
+      everUsedQuery
+    ]);
 
     if (sessions.error) console.warn('[useAssistantHealth] sessions:', sessions.error.message);
     if (unanswered.error) console.warn('[useAssistantHealth] unanswered:', unanswered.error.message);
+    if (everUsed.error) console.warn('[useAssistantHealth] everUsed:', everUsed.error.message);
 
     setHealth({
       conversationsThisWeek: new Set((sessions.data || []).map((row) => row.session_id)).size,
-      unansweredCount: unanswered.count || 0
+      unansweredCount: unanswered.count || 0,
+      hasEverBeenUsed: (everUsed.count || 0) > 0
     });
     setIsLoading(false);
   }, [tenantId]);
