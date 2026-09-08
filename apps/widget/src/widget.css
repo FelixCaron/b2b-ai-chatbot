@@ -107,6 +107,23 @@
   font-size: 14px;
   color: #ffffff;
   box-shadow: 0 3px 10px var(--b2b-theme-shadow, rgba(99, 102, 241, 0.25));
+  overflow: hidden;
+}
+
+/* The host site's own favicon, set by main.js. A small white tile behind it
+   keeps transparent-background favicons legible against the brand color. */
+.b2b-avatar-img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  border-radius: 6px;
+  background: #ffffff;
+  padding: 3px;
+}
+
+.b2b-avatar svg {
+  width: 18px;
+  height: 18px;
 }
 
 .b2b-status-title {

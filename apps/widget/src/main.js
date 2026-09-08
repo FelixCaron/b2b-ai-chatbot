@@ -78,11 +78,77 @@ import { parseMarkdown } from "./markdown.js";
   }
   applyThemeColor(themeColor);
 
+  // Dark-vs-light overrides for the panel's own surfaces (everything the
+  // theme color doesn't already touch). Works for any host page — no
+  // per-site configuration — by reading the page's actual computed
+  // background rather than guessing from a domain or a stored setting.
+  const DARK_SCHEME_VARS = {
+    "--b2b-bg": "#111827",
+    "--b2b-text": "#f1f5f9",
+    "--b2b-text-muted": "#94a3b8",
+    "--b2b-border": "rgba(255, 255, 255, 0.1)",
+    "--b2b-header-bg": "linear-gradient(135deg, rgba(255, 255, 255, 0.06) 0%, #111827 100%)",
+    "--b2b-messages-bg": "#0b1220",
+    "--b2b-assistant-bg": "#1e293b",
+    "--b2b-assistant-text": "#e2e8f0",
+    "--b2b-footer-bg": "#111827",
+    "--b2b-input-bg": "#1e293b",
+    "--b2b-input-border": "#334155",
+    "--b2b-input-text": "#f1f5f9"
+  };
+
+  function applyColorScheme(isDark) {
+    if (isDark) {
+      Object.entries(DARK_SCHEME_VARS).forEach(([prop, value]) => container.style.setProperty(prop, value));
+    } else {
+      // No overrides — widget.css's own light-theme defaults apply.
+      Object.keys(DARK_SCHEME_VARS).forEach((prop) => container.style.removeProperty(prop));
+    }
+  }
+
+  // Reads the host page's *actual* rendered background (walking up past
+  // transparent ancestors) rather than trusting a class name or a media
+  // query alone — a page can be light with the OS in dark mode, or vice
+  // versa, and the widget should match what a visitor is actually looking
+  // at. `prefers-color-scheme` is only the fallback for when the page's own
+  // background can't be read (e.g. it's set via a background image).
+  function detectHostIsDark() {
+    try {
+      let el = document.body || document.documentElement;
+      let bg = el ? getComputedStyle(el).backgroundColor : "";
+      while (el && (!bg || bg === "rgba(0, 0, 0, 0)" || bg === "transparent")) {
+        el = el.parentElement;
+        bg = el ? getComputedStyle(el).backgroundColor : "";
+      }
+      const match = bg && bg.match(/rgba?\(([^)]+)\)/);
+      if (match) {
+        const [r, g, b] = match[1].split(",").map((n) => parseFloat(n.trim()));
+        if ([r, g, b].every((n) => !Number.isNaN(n))) {
+          const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+          return luminance < 0.45;
+        }
+      }
+    } catch (e) {
+      // fall through to the media-query fallback below
+    }
+    try {
+      return Boolean(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  applyColorScheme(detectHostIsDark());
+
+  // Generic assistant icon shown until (or instead of) the host's own
+  // favicon loads — never the literal text "AI".
+  const FALLBACK_AVATAR_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
+
   container.innerHTML = `
     <div class="b2b-chat-panel" id="b2b-panel">
       <div class="b2b-chat-header">
         <div class="b2b-chat-header-info">
-          <div class="b2b-avatar">AI</div>
+          <div class="b2b-avatar" id="b2b-avatar"><img class="b2b-avatar-img" id="b2b-avatar-img" alt="" /></div>
           <div>
             <div class="b2b-status-title" id="b2b-status-title">Virtual Assistant</div>
             <div class="b2b-status-sub"><span class="b2b-status-dot"></span><span id="b2b-status-online">Online</span></div>
@@ -125,6 +191,36 @@ import { parseMarkdown } from "./markdown.js";
   const statusOnlineEl = shadowRoot.getElementById("b2b-status-online");
   const welcomeMsgEl = shadowRoot.getElementById("b2b-welcome-msg");
   const brandingEl = shadowRoot.getElementById("b2b-branding");
+  const avatarEl = shadowRoot.getElementById("b2b-avatar");
+  const avatarImgEl = shadowRoot.getElementById("b2b-avatar-img");
+
+  // Brand the launcher/header with the host site's own favicon instead of a
+  // generic "AI" badge — works for any domain, nothing to configure. The
+  // widget script executes directly in the host page (not an iframe), so
+  // its own <link rel="icon"> is readable; falls back to the conventional
+  // /favicon.ico path, and to a generic assistant icon if neither loads.
+  function resolveHostFaviconUrl() {
+    try {
+      const link = document.querySelector("link[rel~='icon']") || document.querySelector("link[rel='shortcut icon']");
+      if (link && link.href) return link.href;
+    } catch (e) {}
+    try {
+      return `${window.location.origin}/favicon.ico`;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  const hostFaviconUrl = resolveHostFaviconUrl();
+  if (hostFaviconUrl && avatarImgEl) {
+    avatarImgEl.referrerPolicy = "no-referrer";
+    avatarImgEl.onerror = () => {
+      avatarEl.innerHTML = FALLBACK_AVATAR_SVG;
+    };
+    avatarImgEl.src = hostFaviconUrl;
+  } else if (avatarEl) {
+    avatarEl.innerHTML = FALLBACK_AVATAR_SVG;
+  }
 
   // Fetch the site's own greeting/labels (pregenerated once at scan time,
   // see api/lib/llm.js's generateWelcomeExperience — this is a fast DB read,
