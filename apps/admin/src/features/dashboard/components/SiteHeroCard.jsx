@@ -14,7 +14,6 @@ export default function SiteHeroCard({
   onOpenIntegration,
   onOpenSettings,
   onRecrawl,
-  onOpenAddSiteModal,
   children
 }) {
   return (
@@ -94,25 +93,15 @@ export default function SiteHeroCard({
             </button>
           </div>
 
-          <div className="grid grid-cols-2 gap-2.5 md:contents">
-            <button
-              onClick={onRecrawl}
-              disabled={isCrawling}
-              className="bg-white hover:bg-surface-200 border border-dark-900/10 text-gray-500 hover:text-dark-900 px-3 py-3 rounded-xl text-xs sm:text-sm font-medium flex items-center justify-center gap-2 transition-all md:p-3"
-              title="Update assistant: re-reads your website and refreshes what it knows"
-            >
-              <RefreshCw className={`w-4 h-4 shrink-0 ${isCrawling ? 'animate-spin text-brand-600' : ''}`} />
-              <span className="md:hidden">Update knowledge</span>
-            </button>
-
-            <button
-              onClick={onOpenAddSiteModal}
-              className="bg-white hover:bg-surface-200 border border-dark-900/10 text-gray-500 hover:text-dark-900 px-3 sm:px-3.5 py-3 rounded-xl text-xs font-medium transition-all whitespace-nowrap"
-              title="Add another website"
-            >
-              + Add Website
-            </button>
-          </div>
+          <button
+            onClick={onRecrawl}
+            disabled={isCrawling}
+            className="w-full md:w-auto bg-white hover:bg-surface-200 border border-dark-900/10 text-gray-500 hover:text-dark-900 px-3 py-3 rounded-xl text-xs sm:text-sm font-medium flex items-center justify-center gap-2 transition-all"
+            title="Update assistant: re-reads your website and refreshes what it knows"
+          >
+            <RefreshCw className={`w-4 h-4 shrink-0 ${isCrawling ? 'animate-spin text-brand-600' : ''}`} />
+            <span className="md:hidden">Update knowledge</span>
+          </button>
         </div>
       </div>
 

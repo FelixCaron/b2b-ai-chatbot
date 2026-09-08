@@ -1,8 +1,11 @@
 import React from 'react';
 
-/** Multi-Site Selector Tabs (if more than 1 site exists).
-    Parked sites stay in the list, visibly inactive: hiding them would
-    leave the user wondering why a widget stopped answering. */
+/** Website switcher — every site the workspace has, plus the one place to
+ *  add another. Always shown once there's at least one site (not just once
+ *  there are several): it's the one "Add Website" affordance now that the
+ *  per-site action row no longer duplicates it.
+ *  Parked sites stay in the list, visibly inactive: hiding them would
+ *  leave the user wondering why a widget stopped answering. */
 export default function SiteTabs({
   sites,
   activeSite,
@@ -10,7 +13,7 @@ export default function SiteTabs({
   onSelectSite,
   onOpenAddSiteModal
 }) {
-  if (!sites || sites.length <= 1) return null;
+  if (!sites || sites.length === 0) return null;
 
   return (
     <div className="flex items-center gap-2 overflow-x-auto pb-1">

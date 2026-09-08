@@ -274,7 +274,6 @@ export default function Dashboard({
             onOpenIntegration={openIntegrationModal}
             onOpenSettings={openAdvancedSettings}
             onRecrawl={pipeline.handleRecrawlSite}
-            onOpenAddSiteModal={lifecycle.handleOpenAddSiteModal}
           >
             {!lifecycle.isSiteActive(activeSite) && (
               <ParkedSiteBanner
