@@ -1,5 +1,5 @@
-import React from 'react';
-import { Layers, Search, Lock, RefreshCw, Check } from 'lucide-react';
+import React, { useState } from 'react';
+import { Layers, Search, Lock, RefreshCw, Check, Plus } from 'lucide-react';
 
 /** 3. The pages the assistant answers from.
  *
@@ -15,8 +15,27 @@ export default function KnowledgeBasePanel({
   searchQuery,
   setSearchQuery,
   onTogglePageActivation,
+  onAddManualPage,
   onEditPage
 }) {
+  const [addUrl, setAddUrl] = useState('');
+  const [addError, setAddError] = useState('');
+  const [isAdding, setIsAdding] = useState(false);
+
+  const handleAddSubmit = async (e) => {
+    e.preventDefault();
+    if (!addUrl.trim() || isAdding) return;
+    setIsAdding(true);
+    setAddError('');
+    const result = await onAddManualPage(addUrl);
+    setIsAdding(false);
+    if (result?.ok) {
+      setAddUrl('');
+    } else {
+      setAddError(result?.error || 'Could not add that page.');
+    }
+  };
+
   return (
     <div id="knowledge-base-section" className="bg-surface-100 p-5 sm:p-6 rounded-xl border border-dark-900/5 space-y-4 scroll-mt-24">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
@@ -40,6 +59,30 @@ export default function KnowledgeBasePanel({
           </div>
         </div>
       </div>
+
+      {/* Pages that were never linked anywhere the crawler could find them —
+          a pricing page reached only through a button, not an <a> — but
+          real, and worth the assistant knowing about. */}
+      <form onSubmit={handleAddSubmit} className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+        <div className="relative flex-1 w-full">
+          <Plus className="w-3.5 h-3.5 text-gray-500 absolute left-3 top-2.5 pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Add a page the crawler missed, e.g. yoursite.com/pricing"
+            value={addUrl}
+            onChange={(e) => { setAddUrl(e.target.value); setAddError(''); }}
+            className="w-full bg-white border border-gray-300 rounded-xl pl-8 pr-3 py-1.5 text-xs text-dark-900 outline-none focus:border-brand-500"
+          />
+        </div>
+        <button
+          type="submit"
+          disabled={!addUrl.trim() || isAdding}
+          className="text-xs font-semibold bg-brand-600 hover:bg-brand-500 text-white px-3.5 py-1.5 rounded-xl transition-colors disabled:opacity-40 shrink-0 w-full sm:w-auto"
+        >
+          {isAdding ? 'Adding…' : 'Add page'}
+        </button>
+      </form>
+      {addError && <p className="text-xs text-rose-600">{addError}</p>}
 
       <div className="overflow-x-auto rounded-xl border border-dark-900/5 bg-white shadow-inner">
         <table className="w-full text-left text-xs">

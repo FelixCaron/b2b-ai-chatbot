@@ -28,6 +28,7 @@ export default function AdvancedSettingsPanel({
   searchQuery,
   setSearchQuery,
   onTogglePageActivation,
+  onAddManualPage,
   onEditPage,
   onRequestDeleteSite
 }) {
@@ -91,6 +92,7 @@ export default function AdvancedSettingsPanel({
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
             onTogglePageActivation={onTogglePageActivation}
+            onAddManualPage={onAddManualPage}
             onEditPage={onEditPage}
           />
 

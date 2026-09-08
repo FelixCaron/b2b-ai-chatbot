@@ -332,6 +332,7 @@ export default function Dashboard({
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
             onTogglePageActivation={pipeline.handleTogglePageActivation}
+            onAddManualPage={pipeline.handleAddManualPage}
             onEditPage={pipeline.handleEditPage}
             onRequestDeleteSite={() => lifecycle.setShowDeleteConfirmModal(true)}
           />

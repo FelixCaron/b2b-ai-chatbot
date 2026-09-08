@@ -238,6 +238,79 @@ export default function useCrawlPipeline({
     }
   };
 
+  // A page the crawler's own discovery never surfaces — not linked from
+  // anywhere the homepage crawl can see (a pricing page behind a button
+  // instead of a link is the common case) — but real, and one the owner
+  // knows about and wants the assistant to answer from. Scans it the same
+  // way discovery-found pages are scanned; the difference is just where the
+  // URL came from.
+  const handleAddManualPage = async (rawUrl) => {
+    if (!activeSite) return { ok: false, error: 'No active site selected.' };
+    const trimmed = (rawUrl || '').trim();
+    if (!trimmed) return { ok: false, error: 'Enter a page URL.' };
+
+    const normalized = normalizePageUrl(trimmed);
+    try {
+      new URL(normalized);
+    } catch (e) {
+      return { ok: false, error: "That doesn't look like a valid URL." };
+    }
+
+    if (discoveredPages.some((p) => p.url === normalized)) {
+      return { ok: false, error: 'That page is already in the list below.' };
+    }
+
+    let title;
+    try {
+      title = titleForPageUrl(normalized);
+    } catch (e) {
+      title = normalized;
+    }
+
+    setDiscoveredPages((prev) => [...prev, { url: normalized, title, status: 'loading' }]);
+    setSelectedUrls((prev) => new Set(prev).add(normalized));
+
+    const scanRes = await onTriggerScan(activeSite.id, normalized, activeSite.tenant_id)
+      .catch((err) => ({ success: false, error: err?.message }));
+
+    if (!scanRes?.success) {
+      // Couldn't read it at all (unreachable, blocked, malformed) — drop the
+      // row rather than leave a permanently "Reading..." ghost behind.
+      setDiscoveredPages((prev) => prev.filter((p) => p.url !== normalized));
+      setSelectedUrls((prev) => {
+        const next = new Set(prev);
+        next.delete(normalized);
+        return next;
+      });
+      return { ok: false, error: scanRes?.error || scanRes?.data?.error || 'Could not read that page.' };
+    }
+
+    const isProtected = Boolean(scanRes.data?.is_protected);
+    const isEmpty = !isProtected && Boolean(scanRes.data?.is_empty || !scanRes.data?.chunks_count);
+
+    if (isProtected) {
+      setSelectedUrls((prev) => {
+        const next = new Set(prev);
+        next.delete(normalized);
+        return next;
+      });
+      setDiscoveredPages((prev) => prev.map((p) => (p.url === normalized ? { ...p, status: 'protected' } : p)));
+    } else if (isEmpty) {
+      setSelectedUrls((prev) => {
+        const next = new Set(prev);
+        next.delete(normalized);
+        return next;
+      });
+      setDiscoveredPages((prev) => prev.map((p) => (p.url === normalized ? { ...p, status: 'empty' } : p)));
+    } else {
+      setDiscoveredPages((prev) =>
+        prev.map((p) => (p.url === normalized ? { ...p, status: 'loaded', chunksCount: scanRes.data?.chunks_count } : p))
+      );
+    }
+
+    return { ok: true };
+  };
+
   // Auto-fetch indexed pages when site changes
   const fetchIndexedPages = async () => {
     if (!activeSite?.id || isCrawling) return;
@@ -333,6 +406,7 @@ export default function useCrawlPipeline({
     handleConfirmSelectedPagesAndScan,
     handleRecrawlSite,
     handleTogglePageActivation,
+    handleAddManualPage,
     fetchIndexedPages,
     handleEditPage,
     handleSavePageContent

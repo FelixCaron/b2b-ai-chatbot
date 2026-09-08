@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Static file in apps/admin/public/ — Vite copies it straight into dist/, so
+  Vercel serves it as a real asset ahead of the SPA catch-all rewrite in
+  apps/admin/vercel.json ("/(.*)" -> "/index.html"). Without this, GET
+  /sitemap.xml on this domain returns that rewrite's index.html with HTTP
+  200 instead of a 404 or real XML — indistinguishable, to any crawler
+  (search engine or our own api/crawler/crawl.js), from "no sitemap here".
+
+  Lists only the real public marketing views from src/app/routes.js —
+  /conversations, /leads and /payment-success are behind login and have
+  nothing for an outside crawler (or a search engine) to index.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://dorafi.logafi.com/</loc></url>
+  <url><loc>https://dorafi.logafi.com/pricing</loc></url>
+  <url><loc>https://dorafi.logafi.com/about</loc></url>
+  <url><loc>https://dorafi.logafi.com/solutions/osteopathes</loc></url>
+  <url><loc>https://dorafi.logafi.com/privacy</loc></url>
+  <url><loc>https://dorafi.logafi.com/terms</loc></url>
+</urlset>
