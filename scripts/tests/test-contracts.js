@@ -55,9 +55,8 @@ for (const endpoint of Object.values(endpoints)) {
 // (`api.staff.deleteTenant(...)`, not `endpoints['staff.deleteTenant']`).
 // That grouping is a hand-written object per family in index.js (its own
 // family/name split, not always the same as the endpoint's dotted registry
-// name — 'cron.cleanup' surfaces as `contracts.ops.cleanup`), so
-// registering an endpoint and forgetting to add it there leaves it
-// unreachable through `contracts` while `endpoints` still has it — a gap
+// name), so registering an endpoint and forgetting to add it there leaves
+// it unreachable through `contracts` while `endpoints` still has it — a gap
 // the handler-exists check above can't see (it walks `endpoints`, not
 // `contracts`), and one that only surfaces at runtime as "Cannot read
 // properties of undefined (reading 'safeParseRequest')" the first time

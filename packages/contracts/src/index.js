@@ -46,8 +46,7 @@ export const contracts = Object.freeze({
   chat: Object.freeze({
     send: endpoints['chat.send'],
     init: endpoints['chat.init'],
-    theme: endpoints['chat.theme'],
-    proxy: endpoints['chat.proxy']
+    theme: endpoints['chat.theme']
   }),
   crawler: Object.freeze({
     discover: endpoints['crawler.discover'],
@@ -63,9 +62,6 @@ export const contracts = Object.freeze({
     checkout: endpoints['billing.checkout'],
     portal: endpoints['billing.portal'],
     webhook: endpoints['billing.webhook']
-  }),
-  ops: Object.freeze({
-    cleanup: endpoints['cron.cleanup']
   }),
   staff: Object.freeze({
     listTenants: endpoints['staff.listTenants'],

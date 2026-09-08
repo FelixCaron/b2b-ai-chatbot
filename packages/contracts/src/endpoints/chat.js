@@ -85,21 +85,15 @@ export const chatTheme = defineEndpoint({
   }
 });
 
-/** GET /api/chat/proxy — same-origin fetch of a public page, for the preview iframe. */
-export const chatProxy = defineEndpoint({
-  name: 'chat.proxy',
-  summary: 'Same-origin proxy used by the live preview to load a customer page in an iframe.',
-  method: 'GET',
-  path: '/api/chat/proxy',
-  auth: AUTH.PUBLIC,
-  runtime: 'nodejs',
-  request: {
-    url: f.url()
-  },
-  response: {},
-  errors: {
-    400: 'Missing url query parameter'
-  }
-});
+// chat.proxy (GET /api/chat/proxy, an iframe same-origin proxy for the old
+// live-preview implementation) was removed 2026-09-08: LivePreviewModal.jsx
+// was rewritten to render the real widget bundle via public/preview.html
+// instead of proxying a customer page into an iframe, and nothing has called
+// this endpoint since (grepped the whole frontend — zero references). It was
+// the safest of the two functions cut to fit under Vercel Hobby's 12-
+// Serverless-Function-per-deployment cap (see api/cron/cleanup.js's own note
+// for the other one, and TODO.md for the plan to restore/replace both). This
+// one doesn't need restoring — it's genuinely dead — but if a real preview-
+// in-iframe need resurfaces, its last working version is in git history.
 
-export default [chatSend, chatInit, chatTheme, chatProxy];
+export default [chatSend, chatInit, chatTheme];
