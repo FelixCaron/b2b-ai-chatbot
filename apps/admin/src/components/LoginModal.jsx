@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowRight, Mail, ShieldCheck, X } from 'lucide-react';
+import { ArrowRight, Mail, X } from 'lucide-react';
 import LogoMark from './LogoMark';
 
 export default function LoginModal({
@@ -140,10 +140,6 @@ export default function LoginModal({
             Not now — keep working as a guest
           </button>
         )}
-
-        <div className="relative mt-8 pt-6 border-t border-dark-900/10 flex items-center justify-center gap-2 text-xs text-gray-500">
-          <ShieldCheck className="w-4 h-4 text-emerald-500/70" /> {isGuestConversion ? "Secure account creation" : "Secure sign in"}
-        </div>
       </div>
     </div>
   );

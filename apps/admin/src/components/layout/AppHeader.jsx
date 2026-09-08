@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShieldCheck, LogOut, Settings, Loader2, Menu, X } from 'lucide-react';
+import { LogOut, Settings, Loader2, Menu, X } from 'lucide-react';
 import PlanBadge from '../PlanBadge';
 import LogoMark from '../LogoMark';
 import { navItemsWithBadges } from './navigation';
@@ -58,12 +58,7 @@ export default function AppHeader({
             <div className="w-9 h-9 sm:w-10 sm:h-10 text-brand-900 shrink-0 group-hover:scale-105 transition-transform flex items-center justify-center">
               <LogoMark className="w-full h-full" />
             </div>
-            <div>
-              <h1 className="text-base sm:text-lg font-bold text-dark-900 tracking-tight lowercase">dorafi</h1>
-              <p className="text-[10px] sm:text-xs text-gray-500 flex items-center gap-1">
-                <ShieldCheck className="w-3 h-3 text-emerald-500" /> Secure Workspace
-              </p>
-            </div>
+            <h1 className="text-base sm:text-lg font-bold text-dark-900 tracking-tight lowercase">dorafi</h1>
           </div>
 
           {/* Navigation Tabs — inline pills from sm: up, a sandwich menu below that */}
