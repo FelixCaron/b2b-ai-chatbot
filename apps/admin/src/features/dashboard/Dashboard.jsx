@@ -230,6 +230,11 @@ export default function Dashboard({
           isAnalyzing={isAnalyzing}
           statusMsg={statusMsg}
           onSubmit={handleAnalyzeSite}
+          // An authenticated user with zero sites still gets the full header
+          // (see Header.jsx) — only a guest needs this narrower way back into
+          // an existing account.
+          showSignIn={isGuest}
+          onSignIn={onRequireLogin}
         />
       ) : (
         /* 2. MAIN DASHBOARD CLIENT VIEW */

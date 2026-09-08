@@ -46,11 +46,14 @@ test.describe('Header navigation (no site yet)', () => {
   // hero instead of an existing site's dashboard.
   test.use({ mockOverrides: { db: { sites: [], leads: [], documents: [], site_summaries: [] } } });
 
-  test('the app-shell header is hidden on the root onboarding hero before any site exists', async ({ page, mock }) => {
+  test('the app-shell header (nav, hamburger menu) is hidden on the root onboarding hero before any site exists, but a way back into an existing account remains', async ({ page, mock }) => {
     await page.goto('/');
     await expect(page.getByRole('heading', { name: /Turn your website into an AI assistant/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Sign In/i })).not.toBeVisible();
     await expect(page.getByRole('button', { name: /open menu/i })).not.toBeVisible();
+    // No app-shell nav here — but a guest still needs a path back into an
+    // existing account, so OnboardingHero itself offers a narrow "Sign in"
+    // link distinct from the full header's own Sign In button.
+    await expect(page.getByRole('button', { name: /Sign in/i })).toBeVisible();
   });
 
   test('About is still reachable from the footer even with the header hidden', async ({ page, mock }) => {

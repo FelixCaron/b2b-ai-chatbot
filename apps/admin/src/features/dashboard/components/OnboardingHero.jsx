@@ -7,7 +7,9 @@ export default function OnboardingHero({
   setSiteUrl,
   isAnalyzing,
   statusMsg,
-  onSubmit
+  onSubmit,
+  showSignIn = false,
+  onSignIn
 }) {
   return (
     <div className="relative max-w-2xl mx-auto mt-6 sm:mt-12">
@@ -59,6 +61,19 @@ export default function OnboardingHero({
             {isAnalyzing && <RefreshCw className="w-4 h-4 animate-spin" />}
             {statusMsg}
           </div>
+        )}
+
+        {showSignIn && (
+          <p className="mt-6 text-xs text-gray-500">
+            Already have an account?{' '}
+            <button
+              type="button"
+              onClick={onSignIn}
+              className="font-semibold text-brand-700 hover:text-brand-800 hover:underline"
+            >
+              Sign in
+            </button>
+          </p>
         )}
       </div>
     </div>
