@@ -5,17 +5,20 @@ import { AlertTriangle, RotateCcw, Trash2 } from 'lucide-react';
 export default function DangerZone({ activeSite, isCrawling, onRequestDelete, onRequestReset }) {
   return (
     <div className="space-y-3">
-      {/* Reset — wipes what the assistant learned and re-onboards from
-          scratch, but keeps the site itself (its id, install snippet, and
-          settings) intact. Less drastic than Delete, so it gets its own row
-          rather than sitting inside the same red block. */}
+      {/* Reset — a full re-onboarding: wipes what the assistant learned AND
+          every customization (settings, favicon, widget color), then
+          re-detects and re-scans from scratch. Keeps the site's install
+          snippet working (its id/domain/public_key never change) and this
+          site's leads and conversation history. Less drastic than Delete,
+          so it gets its own row rather than sitting inside the same red
+          block. */}
       <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h4 className="text-sm font-bold text-amber-700 flex items-center gap-2">
             <RotateCcw className="w-4 h-4 text-amber-700" /> Reset Website
           </h4>
           <p className="text-xs text-gray-500 mt-1">
-            Clears everything <strong>{activeSite?.domain}</strong>'s assistant has learned (indexed pages, business summary) and this website's leads, then re-scans it from scratch. Your install code, settings, and conversation history stay put.
+            Clears everything <strong>{activeSite?.domain}</strong>'s assistant has learned (indexed pages, business summary) and every customized setting (tone, goal, lead capture, integrations, widget color, favicon), then re-detects and re-scans it from scratch. Your install code, leads, and conversation history stay put.
           </p>
         </div>
 

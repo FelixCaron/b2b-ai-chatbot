@@ -172,7 +172,6 @@ export default function App() {
                 onAddSite={workspace.addSite}
                 onUpdateSiteSettings={workspace.updateSiteSettings}
                 onDeleteDocumentUrls={workspace.deleteDocumentUrls}
-                onDeleteLeadsForSite={workspace.deleteLeadsForSite}
                 onTriggerScan={workspace.triggerScan}
                 onDeleteSite={workspace.deleteSite}
                 isGuest={isGuest}

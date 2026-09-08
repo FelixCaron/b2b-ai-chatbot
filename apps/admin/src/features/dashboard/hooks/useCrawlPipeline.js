@@ -3,6 +3,8 @@ import { supabase } from '../../../lib/supabase';
 import api from '../../../lib/api';
 import { getMaxPagesForPlan } from '../lib/plan-limits';
 import { normalizePageUrl, rootUrlForDomain, stripProtocol, titleForPageUrl } from '../lib/page-url';
+import { executeTurnstileCaptcha } from '../lib/turnstile';
+import { fetchBrandTheme } from '../lib/brand-theme';
 
 /**
  * A page's real outcome, from the scan call's own envelope — never guessed
@@ -54,7 +56,7 @@ export default function useCrawlPipeline({
   tenantPlan,
   onTriggerScan,
   onDeleteDocumentUrls,
-  onDeleteLeadsForSite,
+  onUpdateSiteSettings,
   onEnterDashboard,
   setSiteSummary,
   setIsRegeneratingSummary,
@@ -278,18 +280,36 @@ export default function useCrawlPipeline({
     await runSynchronousCrawlAndIndex(activeSite, rootUrl);
   };
 
+  // Everything a full reset puts back to a blank slate: every setting the
+  // owner customized, plus the brand color and favicon (best-effort
+  // re-detected from the live site right after, same as a fresh "Add
+  // Website" — see handleResetSite). Same defaults used throughout the rest
+  // of the dashboard (e.g. Dashboard.jsx's own '#293f68' fallback, and
+  // FeatureToggles' 'professionnel'/'support' selects).
+  const RESET_DEFAULT_SETTINGS = {
+    bot_goal: 'support',
+    bot_tone: 'professionnel',
+    enable_lead_capture: false,
+    support_email: null,
+    calendar_link: null,
+    theme_primary_color: '#293f68',
+    favicon_url: null
+  };
+
   /**
-   * Danger Zone "Reset Website": wipes everything the assistant learned
-   * from this specific site (indexed pages, business summary, this site's
-   * leads), then re-onboards it from scratch — same background crawl as
-   * initial onboarding and Rescan, just preceded by a harder cleanup.
+   * Danger Zone "Reset Website": a full re-onboarding. Wipes everything the
+   * assistant learned (indexed pages, business summary), every customized
+   * setting (goal, tone, lead capture, integrations), and the widget's
+   * brand color/favicon back to a blank slate, then re-detects and
+   * re-crawls from scratch — same background crawl as initial onboarding
+   * and Rescan, just preceded by a harder cleanup.
    *
-   * Deliberately does NOT touch the `sites` row itself (id, domain,
-   * public_key, theme, settings) — the whole point is that the install
-   * snippet a tenant already pasted keeps working — and does NOT touch
-   * `messages` (conversation history): that table is scoped by tenant_id
-   * only, with no site_id column, so there is no way to clear just this
-   * site's conversations without also wiping every other site's.
+   * Deliberately keeps: the `sites` row's identity (id, tenant_id, domain,
+   * public_key) — the whole point is that the install snippet a tenant
+   * already pasted keeps working; this site's leads; and `messages`
+   * (conversation history) — that table is scoped by tenant_id only, with
+   * no site_id column, so there is no way to clear just this site's
+   * conversations without also wiping every other site's.
    *
    * Throws on a failed delete so the caller (Dashboard's confirm handler)
    * can tell the user it didn't work, rather than silently re-crawling on
@@ -298,17 +318,39 @@ export default function useCrawlPipeline({
   const handleResetSite = async () => {
     if (!activeSite || isCrawling) return;
 
-    await Promise.all([
+    const [, , settingsResult] = await Promise.all([
       supabase.from('documents').delete().eq('site_id', activeSite.id).throwOnError(),
       supabase.from('site_summaries').delete().eq('site_id', activeSite.id).throwOnError(),
-      onDeleteLeadsForSite ? onDeleteLeadsForSite(activeSite.id) : Promise.resolve()
+      onUpdateSiteSettings(activeSite.id, RESET_DEFAULT_SETTINGS)
     ]);
+    // updateSiteSettings resolves with {ok, error} rather than throwing —
+    // surface a failed settings reset the same way as the two deletes above.
+    if (settingsResult?.ok === false) {
+      throw new Error(settingsResult.error || "Could not reset this website's settings.");
+    }
+
+    const rootUrl = rootUrlForDomain(activeSite.domain);
+
+    // Best-effort: re-detect the live site's brand color and favicon, same
+    // as a fresh "Add Website". A failure here just leaves the defaults
+    // above standing rather than aborting an otherwise-successful reset.
+    try {
+      const captchaToken = await executeTurnstileCaptcha();
+      const themeData = await fetchBrandTheme(rootUrl, captchaToken);
+      const redetected = {};
+      if (themeData?.primary_color) redetected.theme_primary_color = themeData.primary_color;
+      if (themeData?.favicon_url) redetected.favicon_url = themeData.favicon_url;
+      if (Object.keys(redetected).length > 0) {
+        await onUpdateSiteSettings(activeSite.id, redetected);
+      }
+    } catch (themeErr) {
+      console.warn('[handleResetSite] Theme re-detection warning:', themeErr);
+    }
 
     setDiscoveredPages([]);
     setSelectedUrls(new Set());
     setSiteSummary('');
 
-    const rootUrl = rootUrlForDomain(activeSite.domain);
     await runSynchronousCrawlAndIndex(activeSite, rootUrl);
   };
 

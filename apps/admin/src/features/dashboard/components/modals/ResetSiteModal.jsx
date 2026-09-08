@@ -24,7 +24,7 @@ export default function ResetSiteModal({ show, activeSite, onCancel, onConfirm }
 
         <h3 className="text-xl font-bold text-dark-900 mb-2">Reset {activeSite.domain}?</h3>
         <p className="text-sm text-gray-500 mb-6 leading-relaxed">
-          This clears everything your assistant has learned from this website — every indexed page, its business summary, and this website's leads — and starts a fresh scan right away. Your install code, settings, and conversation history are not affected.
+          This clears everything your assistant has learned from this website — every indexed page and its business summary — and every customization: tone, goal, lead capture, integrations, widget color, and favicon. It then re-detects your brand and starts a fresh scan right away. Your install code, leads, and conversation history are not affected.
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
