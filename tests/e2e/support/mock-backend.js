@@ -18,11 +18,11 @@ const MOCK_ANON_KEY = 'mock-anon-key-for-e2e-tests';
 
 // apps/admin/index.html unconditionally embeds Dorafi's own production
 // widget snippet (dogfooding — see 43be108) pointed at a real, absolute
-// admin-felix-fe3e.vercel.app URL rather than a same-origin path, so every
-// page load in these tests fires two real, unmocked cross-origin requests
-// regardless of which spec is running. Routed host-agnostically (`**/...`,
-// no domain hardcoded) so this also covers the widget being embedded
-// against any other absolute host later, exactly like the `/api/chat` and
+// dorafi.logafi.com URL rather than a same-origin path, so every page load
+// in these tests fires two real, unmocked cross-origin requests regardless
+// of which spec is running. Routed host-agnostically (`**/...`, no domain
+// hardcoded) so this also covers the widget being embedded against any
+// other absolute host later, exactly like the `/api/chat` and
 // `/api/chat/theme` mocks above already do.
 const WIDGET_BUNDLE_PATH = fileURLToPath(new URL('../../../apps/admin/public/widget.iife.js', import.meta.url));
 
