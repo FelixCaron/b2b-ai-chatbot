@@ -69,6 +69,22 @@ export const staffDeleteSite = defineEndpoint({
   }
 });
 
+export const staffDeleteTenant = defineEndpoint({
+  name: 'staff.deleteTenant',
+  summary: 'Cascade-delete a tenant (and everything under it) from the staff console.',
+  method: 'DELETE',
+  path: '/api/staff/tenants?id',
+  auth: AUTH.STAFF,
+  runtime: 'nodejs',
+  request: {
+    id: f.uuid()
+  },
+  response: {
+    tenant_id: f.uuid(),
+    name: f.string()
+  }
+});
+
 export const staffListAdmins = defineEndpoint({
   name: 'staff.listAdmins',
   summary: 'The staff allow-list.',
@@ -102,6 +118,7 @@ export default [
   staffGetTenant,
   staffUpdateTenantPlan,
   staffDeleteSite,
+  staffDeleteTenant,
   staffListAdmins,
   staffAddAdmin
 ];

@@ -14,6 +14,7 @@ export default function TenantDetail({ tenantId, onBack }) {
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState(null);
   const [deletingSiteId, setDeletingSiteId] = useState(null);
+  const [deletingTenant, setDeletingTenant] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -64,6 +65,28 @@ export default function TenantDetail({ tenantId, onBack }) {
     }
   };
 
+  const handleDeleteTenant = async () => {
+    const name = data.tenant.name;
+    const typed = window.prompt(
+      `This permanently deletes "${name}" — all its sites, documents, messages, leads, and usage history. ` +
+      `This cannot be undone.\n\nType the tenant name to confirm:`
+    );
+    if (typed !== name) {
+      if (typed !== null) alert('Name did not match — tenant was not deleted.');
+      return;
+    }
+    setDeletingTenant(true);
+    try {
+      const res = await api.staff.deleteTenant({ id: tenantId });
+      if (!res.ok) throw new Error(res.data?.error || 'Failed to delete tenant');
+      onBack();
+    } catch (err) {
+      alert(`Failed to delete tenant: ${err.message}`);
+    } finally {
+      setDeletingTenant(false);
+    }
+  };
+
   const dirty = data && (plan !== data.tenant.plan || planStatus !== data.tenant.plan_status);
 
   return (
@@ -85,16 +108,26 @@ export default function TenantDetail({ tenantId, onBack }) {
                   created {new Date(data.tenant.created_at).toLocaleDateString()}
                 </p>
               </div>
-              {data.tenant.stripe_customer_id && (
-                <a
-                  href={`https://dashboard.stripe.com/customers/${data.tenant.stripe_customer_id}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center gap-1.5 text-xs text-brand-700 hover:text-brand-800 border border-dark-900/10 rounded-lg px-3 py-2"
+              <div className="flex items-center gap-2">
+                {data.tenant.stripe_customer_id && (
+                  <a
+                    href={`https://dashboard.stripe.com/customers/${data.tenant.stripe_customer_id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-1.5 text-xs text-brand-700 hover:text-brand-800 border border-dark-900/10 rounded-lg px-3 py-2"
+                  >
+                    Open in Stripe <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                )}
+                <button
+                  onClick={handleDeleteTenant}
+                  disabled={deletingTenant}
+                  title="Delete this tenant and everything under it"
+                  className="flex items-center gap-1.5 text-xs text-rose-600 hover:text-rose-700 border border-rose-600/20 hover:bg-rose-50 disabled:opacity-40 rounded-lg px-3 py-2"
                 >
-                  Open in Stripe <ExternalLink className="w-3.5 h-3.5" />
-                </a>
-              )}
+                  <Trash2 className="w-3.5 h-3.5" /> {deletingTenant ? 'Deleting…' : 'Delete tenant'}
+                </button>
+              </div>
             </div>
 
             <div className="flex flex-wrap items-end gap-3 mt-6">

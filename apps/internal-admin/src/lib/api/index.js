@@ -20,6 +20,7 @@ export const staff = {
   getTenant: (payload) => callEndpoint(contracts.staff.getTenant, payload),
   updateTenantPlan: (payload) => callEndpoint(contracts.staff.updateTenantPlan, payload),
   deleteSite: (payload) => callEndpoint(contracts.staff.deleteSite, payload),
+  deleteTenant: (payload) => callEndpoint(contracts.staff.deleteTenant, payload),
   listAdmins: () => callEndpoint(contracts.staff.listAdmins),
   addAdmin: (payload) => callEndpoint(contracts.staff.addAdmin, payload)
 };

@@ -5,6 +5,11 @@
 //   (support actions: granting a plan for a demo/VIP, fixing a Stripe sync
 //   glitch). Writes the DB directly, does NOT touch Stripe — an accepted
 //   trade-off for a support override, not a Stripe management tool.
+// DELETE /api/staff/tenants?id=<uuid> — cascade-delete a tenant (e.g. a
+//   spam/test signup, or a GDPR deletion request) and everything under it.
+//   Relies on the child tables' ON DELETE CASCADE FKs rather than a bespoke
+//   RPC (contrast api/staff/sites.js's delete_site_cascade) — there's no
+//   per-row bookkeeping to return, just the tenants row itself to remove.
 //
 // The id is a query param, not a path segment (no api/staff/tenants/[id].js)
 // — confirmed live 2026-09-05 that this Vercel project's zero-config api/
@@ -32,6 +37,38 @@ export default async function handler(req, res) {
   }
 
   const tenantId = req.query?.id;
+
+  if (req.method === 'DELETE') {
+    if (!tenantId) {
+      return res.status(400).json({ error: '?id= is required for DELETE' });
+    }
+    try {
+      const { data: tenant, error: tenantError } = await supabase
+        .from('tenants')
+        .select('id, name')
+        .eq('id', tenantId)
+        .maybeSingle();
+      if (tenantError) throw tenantError;
+      if (!tenant) return res.status(404).json({ error: 'Tenant not found' });
+
+      // No RPC needed here (unlike delete_site_cascade) — every child table's
+      // tenant_id FK is already ON DELETE CASCADE (see the consolidated
+      // schema migration), so one delete on `tenants` removes its sites,
+      // documents, messages, leads, usage_counters, scan_jobs, and site
+      // summaries in the same transaction. owner_user_id is ON DELETE
+      // RESTRICT the other way round (deleting the auth user while a tenant
+      // still references it is blocked) — it does not stop this delete.
+      const { error: deleteError } = await supabase.from('tenants').delete().eq('id', tenantId);
+      if (deleteError) throw deleteError;
+
+      console.log(`[staff/tenants] ${user.email} deleted tenant ${tenant.name} (${tenantId})`);
+
+      return res.status(200).json({ tenant_id: tenant.id, name: tenant.name });
+    } catch (err) {
+      console.error('[staff/tenants] DELETE error:', err);
+      return res.status(500).json({ error: err.message });
+    }
+  }
 
   if (req.method === 'PATCH') {
     if (!tenantId) {
