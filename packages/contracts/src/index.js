@@ -72,6 +72,7 @@ export const contracts = Object.freeze({
     getTenant: endpoints['staff.getTenant'],
     updateTenantPlan: endpoints['staff.updateTenantPlan'],
     deleteSite: endpoints['staff.deleteSite'],
+    deleteTenant: endpoints['staff.deleteTenant'],
     listAdmins: endpoints['staff.listAdmins'],
     addAdmin: endpoints['staff.addAdmin']
   })
