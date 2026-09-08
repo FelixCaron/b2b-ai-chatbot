@@ -230,13 +230,6 @@ export default function Dashboard({
           isAnalyzing={isAnalyzing}
           statusMsg={statusMsg}
           onSubmit={handleAnalyzeSite}
-          // The header (and its Sign In button) is deliberately hidden on
-          // this screen — but only for a guest: an already-authenticated
-          // user with zero sites still gets the full header. A guest
-          // landing here otherwise has literally no way back into an
-          // existing account short of knowing to hunt for one.
-          showSignIn={isGuest}
-          onSignIn={onRequireLogin}
         />
       ) : (
         /* 2. MAIN DASHBOARD CLIENT VIEW */
