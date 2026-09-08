@@ -137,7 +137,13 @@ export default function App() {
       case 'about':
         return <AboutPage />;
       case 'osteopathes':
-        return <OsteopathyLanding onNavigate={navigate} />;
+        return (
+          <OsteopathyLanding
+            onNavigate={navigate}
+            showSignIn={!isAuthenticated}
+            onSignIn={() => setShowLoginModal(true)}
+          />
+        );
       case 'privacy':
         return <PrivacyPolicy />;
       case 'terms':

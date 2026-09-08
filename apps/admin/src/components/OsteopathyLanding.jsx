@@ -150,7 +150,7 @@ const STEPS = [
   },
 ];
 
-export default function OsteopathyLanding({ onNavigate }) {
+export default function OsteopathyLanding({ onNavigate, showSignIn = false, onSignIn }) {
   useEffect(() => {
     const prevTitle = document.title;
     document.title = 'Assistant IA pour ostéopathes et cliniques manuelles';
@@ -178,6 +178,22 @@ export default function OsteopathyLanding({ onNavigate }) {
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {/* The app-shell header is deliberately hidden on this page (see
+          components/layout/Header.jsx) — it's a landing page, not the app.
+          But that left a visitor who already has an account with no way
+          back into it short of guessing a URL. One link, not a header. */}
+      {showSignIn && (
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-4 flex justify-end">
+          <button
+            type="button"
+            onClick={onSignIn}
+            className="text-xs font-semibold text-gray-500 hover:text-dark-900 transition-colors"
+          >
+            Already have an account? Sign in
+          </button>
+        </div>
+      )}
+
       {/* Hero */}
       <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-10 sm:pt-16 pb-12 sm:pb-20 grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
         <div>
