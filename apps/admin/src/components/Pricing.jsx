@@ -55,7 +55,6 @@ const PLANS = [
       'Premium LLM model',
       'Unlimited messages',
       'Dedicated onboarding & priority support',
-      'Advanced integrations (CRM, SSO)',
     ],
     icon: <Shield className="w-6 h-6 text-brand-700" />,
     color: 'brand',

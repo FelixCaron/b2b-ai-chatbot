@@ -35,7 +35,7 @@ export default function SiteHeroCard({
               ) : (
                 <span className="bg-amber-500/15 text-amber-700 text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5 border border-amber-500/20">
                   <span className="w-2 h-2 rounded-full bg-amber-500/80"></span>
-                  Assistant Paused (Parked)
+                  Assistant Paused
                 </span>
               )}
             </div>
@@ -99,10 +99,10 @@ export default function SiteHeroCard({
               onClick={onRecrawl}
               disabled={isCrawling}
               className="bg-white hover:bg-surface-200 border border-dark-900/10 text-gray-500 hover:text-dark-900 px-3 py-3 rounded-xl text-xs sm:text-sm font-medium flex items-center justify-center gap-2 transition-all md:p-3"
-              title="Re-scan and re-learn website"
+              title="Update assistant: re-reads your website and refreshes what it knows"
             >
               <RefreshCw className={`w-4 h-4 shrink-0 ${isCrawling ? 'animate-spin text-brand-600' : ''}`} />
-              <span className="md:hidden">Re-scan</span>
+              <span className="md:hidden">Update knowledge</span>
             </button>
 
             <button

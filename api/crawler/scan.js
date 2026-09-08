@@ -250,11 +250,24 @@ export default edgeRoute(contracts.crawler.scan, async (req, { data, json }) => 
   const chunks = cleanAndChunk(pageText, targetUrl, 800);
 
 
-  // Generate embeddings in batches of 20 to respect Jina API Free Tier limits
-  const FALLBACK_EMBEDDING = Array(768).fill(0).map((_, i) => (i % 2 === 0 ? 0.05 : -0.05));
+  // Generate embeddings in batches of 20 to respect Jina API Free Tier limits.
+  //
+  // A chunk whose embedding generation fails is stored with embedding = NULL,
+  // never a made-up vector. A fabricated constant vector used to be inserted
+  // here instead: it made the chunk look successfully indexed while its
+  // "meaning" in vector space was pure noise, unrelated to its actual content
+  // — match_documents_hybrid (see the consolidated schema migration) would
+  // then rank it by a meaningless distance and could surface it, or bury a
+  // genuinely relevant chunk, for reasons that had nothing to do with the
+  // query. NULL degrades gracefully instead: Postgres sorts NULL distances
+  // last in the semantic branch, so the chunk simply falls out of semantic
+  // ranking, while the FTS branch (generated straight from `content`, not
+  // from the embedding) still finds it by keyword. Nothing is silently lost;
+  // it just isn't silently pretended to be something it isn't.
   const allEmbeddings = [];
   const jinaKey = process.env.JINA_API_KEY;
   const BATCH_SIZE = 20;
+  let embeddingFailures = 0;
 
   if (jinaKey && chunks.length > 0) {
     for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
@@ -262,21 +275,27 @@ export default edgeRoute(contracts.crawler.scan, async (req, { data, json }) => 
       try {
         const batchResult = await generateEmbedding(batch, 'retrieval.passage', jinaKey);
         if (Array.isArray(batchResult)) {
-          allEmbeddings.push(...batchResult);
+          allEmbeddings.push(...batchResult.map((v) => v ?? null));
+          embeddingFailures += batchResult.filter((v) => !v).length;
         } else if (batchResult) {
           allEmbeddings.push(batchResult);
         } else {
-          allEmbeddings.push(...Array(batch.length).fill(FALLBACK_EMBEDDING));
+          allEmbeddings.push(...Array(batch.length).fill(null));
+          embeddingFailures += batch.length;
         }
       } catch (embErr) {
         console.warn(`[start-scan] Embedding batch starting at ${i} failed:`, embErr.message);
-        allEmbeddings.push(...Array(batch.length).fill(FALLBACK_EMBEDDING));
+        allEmbeddings.push(...Array(batch.length).fill(null));
+        embeddingFailures += batch.length;
       }
       // Small delay between batches to respect free tier rate limit
       if (i + BATCH_SIZE < chunks.length) {
         await new Promise(r => setTimeout(r, 200));
       }
     }
+  } else if (chunks.length > 0) {
+    // No Jina key configured at all: every chunk is FTS-only until one is set.
+    embeddingFailures = chunks.length;
   }
 
   // Remove old chunks for this URL to avoid duplication
@@ -287,13 +306,25 @@ export default edgeRoute(contracts.crawler.scan, async (req, { data, json }) => 
     site_id,
     url: targetUrl,
     content: chunk,
-    embedding: allEmbeddings[i] ?? FALLBACK_EMBEDDING
+    embedding: allEmbeddings[i] ?? null
   }));
 
   if (records.length > 0) {
     const { error: insertErr } = await supabase.from('documents').insert(records);
     if (insertErr) throw insertErr;
   }
+
+  // Truthful outcome: a page can be fully indexed, partially degraded (some
+  // chunks are keyword-only), or entirely degraded (no semantic search at
+  // all for this page) — three different states that "success" used to
+  // flatten into one.
+  const embeddingDegraded = records.length > 0 && embeddingFailures > 0;
+  const embeddingFullyDegraded = records.length > 0 && embeddingFailures >= records.length;
+  const resultMessage = embeddingFullyDegraded
+    ? 'Page indexed, but semantic search could not be generated for it — it is only reachable by keyword search until the next scan.'
+    : embeddingDegraded
+      ? `Page indexed. ${embeddingFailures} of ${records.length} chunk(s) are keyword-search only (semantic embedding failed for them).`
+      : 'Page scanned and indexed via Jina Reader successfully!';
 
   // Auto-generate site summary if it's the root/homepage or if no summary exists for this site yet
   const parsedTarget = new URL(targetUrl);
@@ -352,6 +383,11 @@ export default edgeRoute(contracts.crawler.scan, async (req, { data, json }) => 
   }
 
 
-  return json({ success: true, message: 'Page scanned and indexed via Jina Reader successfully!', chunks_count: records.length });
+  return json({
+    success: true,
+    message: resultMessage,
+    chunks_count: records.length,
+    embedding_degraded: embeddingDegraded
+  });
 });
 

@@ -2,7 +2,7 @@ import { contracts } from '@b2b-ai-chatbot/contracts';
 import { createClient } from '@supabase/supabase-js';
 import { edgeRoute } from '../lib/http.js';
 import { generateEmbedding } from '../lib/llm.js';
-import { sendLeadEmail, sendBugAlertEmail } from '../lib/email.js';
+import { sendLeadEmail, sendBugAlertEmail, sendSupportTicketEmail } from '../lib/email.js';
 
 export const config = {
   runtime: 'edge',
@@ -506,21 +506,30 @@ ${supportInstruction}`;
                 } else if (toolCall.function.name === 'send_support_email') {
                   const toolArgs = JSON.parse(toolCall.function.arguments || '{}');
                   console.log(`[chat] Loop #${loopCount} send_support_email:`, toolArgs);
-                  
+
+                  // Actually attempt delivery — a tool result telling the model
+                  // "sent" when nothing was sent (no RESEND_API_KEY, Resend
+                  // rejected it, etc.) used to make the assistant promise the
+                  // visitor a reply that would never come, with no trace of
+                  // the failure anywhere the tenant would see it.
+                  const delivered = await sendSupportTicketEmail(toolArgs, site);
+
                   // Stream tool badge to UI
                   controller.enqueue(
                     encoder.encode(
                       `data: ${JSON.stringify({
                         tool_call: {
                           name: 'send_support_email',
-                          recipient: site.support_email
+                          recipient: site.support_email,
+                          delivered
                         }
                       })}\n\n`
                     )
                   );
 
-                  // Mock email sending. In production, use Resend/Nodemailer here.
-                  const emailResponse = `Email successfully sent to the support team (${site.support_email}). The customer should expect a reply shortly.`;
+                  const emailResponse = delivered
+                    ? `Email successfully sent to the support team (${site.support_email}). The customer should expect a reply shortly.`
+                    : `The support email could not be sent right now. Apologize to the visitor, do not claim the message went through, and offer another way to reach the company (contact form, phone, etc.) if you have one.`;
 
                   currentHistory.push({
                     role: 'tool',

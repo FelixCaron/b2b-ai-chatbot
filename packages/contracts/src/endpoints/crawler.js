@@ -49,7 +49,12 @@ export const crawlerScan = defineEndpoint({
     // A page can be indexed as "seen but empty" or "seen but login-walled" —
     // both are successes with zero chunks, and the UI reports them apart.
     is_empty: optional(f.boolean()),
-    is_protected: optional(f.boolean())
+    is_protected: optional(f.boolean()),
+    // True when one or more indexed chunks have no embedding (Jina embedding
+    // failed or wasn't configured) — they were stored anyway so keyword (FTS)
+    // search still finds them, but they never entered semantic ranking. Never
+    // a fabricated vector standing in for a real one; see api/crawler/scan.js.
+    embedding_degraded: optional(f.boolean())
   },
   errors: {
     400: 'Missing required fields: site_id, url, tenant_id',

@@ -32,6 +32,42 @@ export async function sendBugAlertEmail(error, context) {
   }
 }
 
+/**
+ * Forwards a visitor's support request to the tenant's configured support
+ * inbox. Returns whether the email actually left the building — callers must
+ * not tell the visitor (or the model) it was "sent" without checking this,
+ * the way the chat loop briefly did.
+ */
+export async function sendSupportTicketEmail(ticket, siteData) {
+  if (!resend) {
+    console.warn('RESEND_API_KEY is not configured. Support ticket not sent.');
+    return false;
+  }
+
+  const recipient = siteData?.support_email;
+  if (!recipient) return false;
+
+  try {
+    await resend.emails.send({
+      from: `Dorafi <${systemEmail}>`,
+      to: recipient,
+      subject: `🎫 New support request via your assistant (${siteData?.domain || 'your site'})`,
+      html: `
+        <h2>A visitor asked your assistant for help</h2>
+        <p><strong>Site:</strong> ${siteData?.domain || 'N/A'}</p>
+        <p><strong>Name:</strong> ${ticket?.name || 'Not provided'}</p>
+        <p><strong>Email:</strong> ${ticket?.email || 'Not provided'}</p>
+        <p><strong>Message:</strong></p>
+        <p>${ticket?.message || 'Not provided'}</p>
+      `
+    });
+    return true;
+  } catch (err) {
+    console.error('Failed to send support ticket email', err);
+    return false;
+  }
+}
+
 export async function sendLeadEmail(leadData, siteData) {
   if (!resend) {
     console.warn('RESEND_API_KEY is not configured. Lead email not sent.');

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Layers, Search, Lock, RefreshCw, Check, Plus } from 'lucide-react';
+import { Layers, Search, Lock, RefreshCw, Check, Plus, AlertTriangle } from 'lucide-react';
 
 /** 3. The pages the assistant answers from.
  *
@@ -41,7 +41,7 @@ export default function KnowledgeBasePanel({
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
           <h4 className="text-sm font-bold text-dark-900 flex items-center gap-2">
-            <Layers className="w-4 h-4 text-brand-600" /> Website content
+            <Layers className="w-4 h-4 text-brand-600" /> Website knowledge
           </h4>
           <p className="text-xs text-gray-500">Choose which pages of your website your assistant is allowed to answer from.</p>
         </div>
@@ -142,17 +142,31 @@ export default function KnowledgeBasePanel({
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-surface-200 text-gray-500 border border-gray-300">
                           No readable text
                         </span>
+                      ) : currentStatus === 'failed' ? (
+                        <span
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-500/10 text-orange-700 border border-orange-500/20"
+                          title={page.errorMessage || "We couldn't reach this page to scan it — this is different from an empty page."}
+                        >
+                          <AlertTriangle className="w-2.5 h-2.5" /> Couldn't scan — retry
+                        </span>
                       ) : currentStatus === 'loading' ? (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-700 border border-amber-500/20">
                           <RefreshCw className="w-2.5 h-2.5 animate-spin" /> Reading...
                         </span>
                       ) : currentStatus === 'loaded' ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-700 border border-emerald-500/20">
-                          <Check className="w-2.5 h-2.5" /> Included
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                            page.embeddingDegraded
+                              ? 'bg-amber-500/10 text-amber-700 border-amber-500/20'
+                              : 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20'
+                          }`}
+                          title={page.embeddingDegraded ? 'Included, but only reachable by keyword search — semantic search could not be generated for part of this page.' : undefined}
+                        >
+                          <Check className="w-2.5 h-2.5" /> {page.embeddingDegraded ? 'Included (limited search)' : 'Included'}
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-500/10 text-gray-600 border border-gray-500/20">
-                          Not used
+                          Excluded
                         </span>
                       )}
                     </td>
