@@ -28,8 +28,7 @@ export default function EditPageModal({
             value={editingPage.content}
             onChange={(e) => onChangeContent(e.target.value)}
             disabled={editingPage.saving || editingPage.content === 'Loading content...'}
-            style={{ backgroundColor: '#090d16', color: '#f3f4f6' }}
-            className="flex-1 w-full bg-dark-950 border border-white/10 rounded-xl p-4 text-sm text-gray-100 font-mono resize-none outline-none focus:border-brand-500 transition-colors"
+            className="flex-1 w-full bg-surface-100 border border-gray-300 text-dark-900 rounded-xl p-4 text-sm font-mono resize-none outline-none focus:border-brand-500 transition-colors disabled:opacity-60"
           />
         </div>
 
