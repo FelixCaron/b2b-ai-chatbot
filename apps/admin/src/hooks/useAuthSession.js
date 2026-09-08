@@ -25,7 +25,12 @@ function isUnknownUserOtpError(error) {
 export function useAuthSession({ onBeforeConvertGuest } = {}) {
   const [currentUser, setCurrentUser] = useState(null);
   const [authReady, setAuthReady] = useState(false);
+  // Success ("check your email") and failure ("could not send that link")
+  // are kept apart on purpose — they used to share one string rendered in
+  // green regardless of which one it was, so a real error read as if it had
+  // worked.
   const [authMessage, setAuthMessage] = useState('');
+  const [authError, setAuthError] = useState('');
   const [loading, setLoading] = useState(false);
 
   // Read through a ref so the effect below can stay mounted once, without
@@ -57,6 +62,7 @@ export function useAuthSession({ onBeforeConvertGuest } = {}) {
   const login = async (email) => {
     setLoading(true);
     setAuthMessage('');
+    setAuthError('');
     try {
       if (currentUser?.is_anonymous) {
         // Probe first. A guest typing an address that already has an account
@@ -98,10 +104,17 @@ export function useAuthSession({ onBeforeConvertGuest } = {}) {
       }
     } catch (e) {
       console.warn('[useAuthSession] login error:', e);
-      setAuthMessage(e.message || 'Could not start sign-in.');
+      setAuthError(e.message || 'Could not start sign-in.');
     } finally {
       setLoading(false);
     }
+  };
+
+  /** Clears whatever the last login() attempt left behind, so the modal can
+   *  go back to a blank form (a fresh attempt, or a different address). */
+  const clearAuthStatus = () => {
+    setAuthMessage('');
+    setAuthError('');
   };
 
   /** Sign out into a fresh anonymous session. The caller clears the workspace
@@ -118,6 +131,8 @@ export function useAuthSession({ onBeforeConvertGuest } = {}) {
     authReady,
     loading,
     authMessage,
+    authError,
+    clearAuthStatus,
     sessionEmail: currentUser?.email || null,
     isGuest: Boolean(currentUser?.is_anonymous),
     login,

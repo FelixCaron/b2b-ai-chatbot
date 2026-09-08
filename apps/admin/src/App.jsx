@@ -196,10 +196,13 @@ export default function App() {
       {showLoginModal && (
         <LoginModal
           onLogin={auth.login}
-          onClose={!isGuest ? () => setShowLoginModal(false) : undefined}
-          onNotNow={() => setShowLoginModal(false)}
+          loading={auth.loading}
+          onClose={!isGuest ? () => { setShowLoginModal(false); auth.clearAuthStatus(); } : undefined}
+          onNotNow={() => { setShowLoginModal(false); auth.clearAuthStatus(); }}
           isGuestConversion={isGuest}
           message={auth.authMessage}
+          error={auth.authError}
+          onUseDifferentEmail={auth.clearAuthStatus}
         />
       )}
 
