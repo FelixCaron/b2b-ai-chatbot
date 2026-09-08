@@ -273,7 +273,6 @@ export default function Dashboard({
             onOpenPreview={openPreviewModal}
             onOpenIntegration={openIntegrationModal}
             onOpenSettings={openAdvancedSettings}
-            onRecrawl={pipeline.handleRecrawlSite}
           >
             {!lifecycle.isSiteActive(activeSite) && (
               <ParkedSiteBanner
@@ -336,6 +335,8 @@ export default function Dashboard({
             selectedTenant={selectedTenant}
             themeColor={themeColor}
             onUpdateSiteSettings={onUpdateSiteSettings}
+            onRecrawl={pipeline.handleRecrawlSite}
+            isCrawling={pipeline.isCrawling}
             siteSummary={summary.siteSummary}
             setSiteSummary={summary.setSiteSummary}
             isLoadingSummary={summary.isLoadingSummary}

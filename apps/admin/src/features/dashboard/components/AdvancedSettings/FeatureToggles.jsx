@@ -1,15 +1,39 @@
 import React from 'react';
-import { ShieldCheck, ToggleLeft, ToggleRight, Settings2, Sparkles, Lock } from 'lucide-react';
+import { ShieldCheck, ToggleLeft, ToggleRight, Settings2, Sparkles, Lock, RefreshCw } from 'lucide-react';
 
 /** 1. Feature Toggles Grid */
 export default function FeatureToggles({
   activeSite,
   selectedTenant,
   themeColor,
-  onUpdateSiteSettings
+  onUpdateSiteSettings,
+  onRecrawl,
+  isCrawling
 }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Rescan Website — was a top-level dashboard button; it's a
+          maintenance action on this site's knowledge, so it lives with the
+          rest of the settings that shape it. */}
+      <div className="bg-surface-100 p-5 rounded-xl border border-dark-900/5 flex items-center justify-between gap-4">
+        <div>
+          <h4 className="text-sm font-bold text-dark-900 flex items-center gap-2 mb-1">
+            <RefreshCw className="w-4 h-4 text-brand-600" /> Update Website Knowledge
+          </h4>
+          <p className="text-xs text-gray-500">Re-reads your website from scratch and refreshes what your assistant knows.</p>
+        </div>
+
+        <button
+          type="button"
+          onClick={onRecrawl}
+          disabled={isCrawling}
+          className="shrink-0 bg-white hover:bg-surface-200 disabled:opacity-60 disabled:cursor-not-allowed border border-dark-900/10 text-gray-700 hover:text-dark-900 px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all shadow-sm"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${isCrawling ? 'animate-spin text-brand-600' : ''}`} />
+          {isCrawling ? 'Rescanning…' : 'Rescan'}
+        </button>
+      </div>
+
       {/* Lead Capture Toggle */}
       <div className="bg-surface-100 p-5 rounded-xl border border-dark-900/5 flex items-center justify-between">
         <div>

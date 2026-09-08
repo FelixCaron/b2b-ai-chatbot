@@ -13,7 +13,6 @@ export default function SiteHeroCard({
   onOpenPreview,
   onOpenIntegration,
   onOpenSettings,
-  onRecrawl,
   children
 }) {
   return (
@@ -92,16 +91,6 @@ export default function SiteHeroCard({
               <Settings2 className="w-4 h-4 text-brand-600 shrink-0" /> Settings
             </button>
           </div>
-
-          <button
-            onClick={onRecrawl}
-            disabled={isCrawling}
-            className="w-full md:w-auto bg-white hover:bg-surface-200 border border-dark-900/10 text-gray-500 hover:text-dark-900 px-3 py-3 rounded-xl text-xs sm:text-sm font-medium flex items-center justify-center gap-2 transition-all"
-            title="Update assistant: re-reads your website and refreshes what it knows"
-          >
-            <RefreshCw className={`w-4 h-4 shrink-0 ${isCrawling ? 'animate-spin text-brand-600' : ''}`} />
-            <span className="md:hidden">Update knowledge</span>
-          </button>
         </div>
       </div>
 

@@ -14,6 +14,8 @@ export default function AdvancedSettingsPanel({
   selectedTenant,
   themeColor,
   onUpdateSiteSettings,
+  onRecrawl,
+  isCrawling,
   siteSummary,
   setSiteSummary,
   isLoadingSummary,
@@ -87,6 +89,8 @@ export default function AdvancedSettingsPanel({
             selectedTenant={selectedTenant}
             themeColor={themeColor}
             onUpdateSiteSettings={onUpdateSiteSettings}
+            onRecrawl={onRecrawl}
+            isCrawling={isCrawling}
           />
 
           <SiteSummaryCard
