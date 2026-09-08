@@ -185,9 +185,15 @@ export default edgeRoute(contracts.crawler.scan, async (req, { data, json }) => 
 
   let pageText = '';
 
-  // 1. Primary: Jina Reader API with 3.5s timeout
+  // 1. Primary: Jina Reader API — its headless-browser render is what lets
+  // client-rendered pages (React/Vue/etc. SPAs, no server-side rendering)
+  // yield real content at all instead of falling to the near-empty
+  // <div id="root"> the direct-HTML fallback below would see. 3.5s cut this
+  // off before a cache-miss render finished on ordinary pages (observed:
+  // ~3.6s render vs. a cached ~0.5s one), silently dropping to that mostly
+  // content-less fallback — 8s gives a cold render room to finish.
   const jinaController = new AbortController();
-  const jinaTimer = setTimeout(() => jinaController.abort(), 3500);
+  const jinaTimer = setTimeout(() => jinaController.abort(), 8000);
 
   try {
     const jinaRes = await fetch(`https://r.jina.ai/${targetUrl}`, {

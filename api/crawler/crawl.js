@@ -27,6 +27,21 @@ function normalizePageUrl(rawUrl) {
   }
 }
 
+// A same-origin catch-all rewrite (the default Vite/CRA/Vue SPA config on
+// Vercel/Netlify: "serve index.html for any unmatched path") answers
+// /sitemap.xml with HTTP 200 and the app's own HTML shell instead of a 404
+// or real XML. Treated as "found a sitemap" that response yields zero <loc>
+// matches today, so it's harmless, but it's also not a sitemap — checking
+// the shape before trusting it avoids silently "succeeding" at nothing.
+function looksLikeXmlSitemap(text) {
+  const head = text.slice(0, 300).toLowerCase();
+  return head.includes('<?xml') || head.includes('<urlset') || head.includes('<sitemapindex');
+}
+
+// Markdown link syntax, e.g. "[Pricing](https://site.com/pricing)" —
+// excludes image embeds ("![alt](src)") via the negative lookbehind on "!".
+const MARKDOWN_LINK_REGEX = /(?<!!)\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
+
 function isValidPageUrl(urlStr, cleanHost) {
   try {
     const u = new URL(urlStr);
@@ -98,7 +113,46 @@ export default edgeRoute(contracts.crawler.discover, async (req, { data, json })
     }
   };
 
-  // 1. Discover via sitemaps & direct HTML extraction in parallel
+  // Renders the homepage through a headless browser (the same Jina Reader
+  // proxy api/crawler/scan.js uses for content) and reads its nav/footer
+  // links out of the resulting Markdown. Raw-HTML link extraction below
+  // only sees what the server actually sent — on a client-rendered SPA
+  // (React/Vue/etc. with a router, no server-side rendering) that's just an
+  // empty <div id="root"> and a <script> tag, so it discovers nothing past
+  // the homepage itself. A post-render fetch is the general fix: it works
+  // the same way for a server-rendered site (nothing new to find, harmless)
+  // and a client-rendered one (the only way to see its real nav at all) —
+  // no per-site special-casing.
+  async function discoverViaRenderedPage(pageUrl, timeoutMs = 6000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(`https://r.jina.ai/${pageUrl}`, {
+        signal: controller.signal,
+        headers: {
+          'Accept': 'text/plain',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+      });
+      if (!res.ok) return [];
+      const markdown = await res.text();
+      const found = [];
+      let match;
+      MARKDOWN_LINK_REGEX.lastIndex = 0;
+      while ((match = MARKDOWN_LINK_REGEX.exec(markdown)) !== null) {
+        try {
+          found.push(new URL(match[1], pageUrl).href.split('#')[0]);
+        } catch (_e) {}
+      }
+      return found;
+    } catch (_e) {
+      return [];
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  // 1. Discover via sitemaps, direct HTML extraction, and a rendered pass in parallel
   const sitemapCandidates = [
     `https://${cleanHost}/sitemap.xml`,
     `https://${cleanHost}/sitemap_index.xml`,
@@ -107,16 +161,22 @@ export default edgeRoute(contracts.crawler.discover, async (req, { data, json })
 
   const subSitemapUrls = new Set();
 
-  // Fetch sitemaps and direct HTML simultaneously
-  const [sitemapResults, htmlRes] = await Promise.all([
+  // Fetch sitemaps, direct HTML and the rendered homepage simultaneously
+  const [sitemapResults, htmlRes, renderedLinks] = await Promise.all([
     Promise.allSettled(sitemapCandidates.map(url => fetchWithTimeout(url, 2500))),
-    fetchWithTimeout(initialParsed.href, 3000)
+    fetchWithTimeout(initialParsed.href, 3000),
+    discoverViaRenderedPage(initialParsed.href)
   ]);
+
+  for (const link of renderedLinks) {
+    if (isValidPageUrl(link, cleanHost)) discoveredUrls.add(link);
+  }
 
   for (const result of sitemapResults) {
     if (result.status === 'fulfilled' && result.value && result.value.ok) {
       try {
         const xml = await result.value.text();
+        if (!looksLikeXmlSitemap(xml)) continue;
         const locMatches = xml.match(/<loc>([^<]+)<\/loc>/gi) || [];
         for (const m of locMatches) {
           const loc = m.replace(/<\/?loc>/gi, '').trim();
@@ -139,6 +199,7 @@ export default edgeRoute(contracts.crawler.discover, async (req, { data, json })
       if (res && res.ok) {
         try {
           const xml = await res.text();
+          if (!looksLikeXmlSitemap(xml)) return;
           const locMatches = xml.match(/<loc>([^<]+)<\/loc>/gi) || [];
           for (const m of locMatches) {
             const loc = m.replace(/<\/?loc>/gi, '').trim();
