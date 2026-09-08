@@ -1,6 +1,6 @@
 import React from 'react';
 import { CheckCircle2, RefreshCw, Check, Eye } from 'lucide-react';
-import LogoMark from '../../../components/LogoMark';
+import LogoMark from '../../../../components/LogoMark';
 
 /** 3. DEDICATED LEARNING PROGRESS MODAL (POPUP WITH PROGRESS BAR) */
 export default function LearningProgressModal({
