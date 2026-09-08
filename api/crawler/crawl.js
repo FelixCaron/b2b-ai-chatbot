@@ -113,17 +113,14 @@ export default edgeRoute(contracts.crawler.discover, async (req, { data, json })
     }
   };
 
-  // Renders the homepage through a headless browser (the same Jina Reader
-  // proxy api/crawler/scan.js uses for content) and reads its nav/footer
-  // links out of the resulting Markdown. Raw-HTML link extraction below
-  // only sees what the server actually sent — on a client-rendered SPA
-  // (React/Vue/etc. with a router, no server-side rendering) that's just an
-  // empty <div id="root"> and a <script> tag, so it discovers nothing past
-  // the homepage itself. A post-render fetch is the general fix: it works
-  // the same way for a server-rendered site (nothing new to find, harmless)
-  // and a client-rendered one (the only way to see its real nav at all) —
-  // no per-site special-casing.
-  async function discoverViaRenderedPage(pageUrl, timeoutMs = 6000) {
+  // Renders a page through a headless browser (the same Jina Reader proxy
+  // api/crawler/scan.js uses for content) instead of trusting whatever the
+  // server sent as raw HTML. On a client-rendered SPA (React/Vue/etc. with
+  // a router, no server-side rendering) that raw HTML is just an empty
+  // <div id="root"> and a <script> tag — the render is the only way to see
+  // the page's real content or links at all. No-op for a server-rendered
+  // page (nothing new to find there); the fix for a client-rendered one.
+  async function renderPage(pageUrl, timeoutMs = 6000) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
@@ -134,22 +131,34 @@ export default edgeRoute(contracts.crawler.discover, async (req, { data, json })
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         }
       });
-      if (!res.ok) return [];
-      const markdown = await res.text();
-      const found = [];
-      let match;
-      MARKDOWN_LINK_REGEX.lastIndex = 0;
-      while ((match = MARKDOWN_LINK_REGEX.exec(markdown)) !== null) {
-        try {
-          found.push(new URL(match[1], pageUrl).href.split('#')[0]);
-        } catch (_e) {}
-      }
-      return found;
+      return res.ok ? await res.text() : null;
     } catch (_e) {
-      return [];
+      return null;
     } finally {
       clearTimeout(timer);
     }
+  }
+
+  function linksFromRenderedMarkdown(markdown, pageUrl) {
+    const found = [];
+    let match;
+    MARKDOWN_LINK_REGEX.lastIndex = 0;
+    while ((match = MARKDOWN_LINK_REGEX.exec(markdown)) !== null) {
+      try {
+        found.push(new URL(match[1], pageUrl).href.split('#')[0]);
+      } catch (_e) {}
+    }
+    return found;
+  }
+
+  // The part of a Jina Reader response that actually varies by page — the
+  // rest ("Title:", "URL Source:", a cache-freshness "Warning:") is
+  // boilerplate that would make two different pages look different even
+  // when their content is identical.
+  function renderedBody(markdown) {
+    const marker = 'Markdown Content:';
+    const idx = markdown.indexOf(marker);
+    return (idx >= 0 ? markdown.slice(idx + marker.length) : markdown).replace(/\s+/g, ' ').trim();
   }
 
   // 1. Discover via sitemaps, direct HTML extraction, and a rendered pass in parallel
@@ -162,14 +171,16 @@ export default edgeRoute(contracts.crawler.discover, async (req, { data, json })
   const subSitemapUrls = new Set();
 
   // Fetch sitemaps, direct HTML and the rendered homepage simultaneously
-  const [sitemapResults, htmlRes, renderedLinks] = await Promise.all([
+  const [sitemapResults, htmlRes, renderedHome] = await Promise.all([
     Promise.allSettled(sitemapCandidates.map(url => fetchWithTimeout(url, 2500))),
     fetchWithTimeout(initialParsed.href, 3000),
-    discoverViaRenderedPage(initialParsed.href)
+    renderPage(initialParsed.href)
   ]);
 
-  for (const link of renderedLinks) {
-    if (isValidPageUrl(link, cleanHost)) discoveredUrls.add(link);
+  if (renderedHome) {
+    for (const link of linksFromRenderedMarkdown(renderedHome, initialParsed.href)) {
+      if (isValidPageUrl(link, cleanHost)) discoveredUrls.add(link);
+    }
   }
 
   for (const result of sitemapResults) {
@@ -239,6 +250,37 @@ export default edgeRoute(contracts.crawler.discover, async (req, { data, json })
       normalizedSet.add(norm);
     }
   });
+
+  // Sitemap, raw HTML, and rendered-homepage links all come up with nothing
+  // beyond the homepage on a site whose other pages are real but simply
+  // never linked from a plain <a> anywhere the homepage render can see —
+  // a "Plans"/"Upgrade" pricing CTA wired to a client-side router via
+  // onClick rather than an <a href>, common on SPA dashboards (this
+  // project's own admin app among them), is exactly that shape. Pricing is
+  // also the single page a support chatbot most needs, so a site that
+  // stalls at "homepage only" is worth a second, more direct pass: probe a
+  // short list of slugs that are near-universal on a SaaS/marketing site,
+  // and keep whichever ones render as an actual distinct page rather than
+  // a catch-all rewrite's same fallback shell (verified by content, not
+  // status code — that fallback answers 200 for any path at all, sitemap
+  // included, on a site like this).
+  if (normalizedSet.size <= 1 && renderedHome) {
+    const homeBody = renderedBody(renderedHome);
+    const COMMON_PAGE_SLUGS = ['pricing', 'plans', 'about', 'about-us', 'contact', 'faq', 'features'];
+    const probed = await Promise.all(
+      COMMON_PAGE_SLUGS.map(async (slug) => {
+        const candidateUrl = new URL(`/${slug}`, initialParsed.href).href;
+        const markdown = await renderPage(candidateUrl, 4000);
+        if (!markdown) return null;
+        const body = renderedBody(markdown);
+        return (body && body.length > 20 && body !== homeBody) ? candidateUrl : null;
+      })
+    );
+    for (const found of probed) {
+      const norm = found && normalizePageUrl(found);
+      if (norm && isValidPageUrl(norm, cleanHost)) normalizedSet.add(norm);
+    }
+  }
 
   const pages = Array.from(normalizedSet).map((pageUrl) => {
     const u = new URL(pageUrl);
