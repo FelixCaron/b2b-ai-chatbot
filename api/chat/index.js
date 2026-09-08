@@ -131,6 +131,19 @@ export default edgeRoute(contracts.chat.send, async (req, { data, json }) => {
     }
 
     const tenantId = site.tenant_id;
+
+    // Pro/Premium-gated features, enforced here rather than trusted from the
+    // `sites` row alone: a client could write enable_lead_capture/bot_goal/
+    // support_email/calendar_link directly (bypassing the dashboard's own
+    // gating), and a site whose plan was downgraded after these were set
+    // keeps the old column values until something next updates that row (see
+    // the sites_enforce_pro_features DB trigger, which clamps writes but
+    // can't retroactively fix a value nothing has re-saved yet). The
+    // tenant's *current* plan is what decides whether the behavior actually
+    // runs, checked fresh on every request.
+    const tenantPlan = (Array.isArray(site.tenants) ? site.tenants[0]?.plan : site.tenants?.plan) || 'basic';
+    const hasProPlan = tenantPlan === 'pro' || tenantPlan === 'premium';
+
     // Strict Domain Locking: verify request origin strictly matches client's registered domain
     const origin = requestOrigin(req);
     const siteDomainClean = normalizedHostname(site.domain);
@@ -169,7 +182,7 @@ export default edgeRoute(contracts.chat.send, async (req, { data, json }) => {
     if (!isOriginAuthorized) {
       return json({ error: 'Origin not authorized for this site.' }, 403);
     }
-    const isLeadCaptureEnabled = site.enable_lead_capture || false;
+    const isLeadCaptureEnabled = hasProPlan && (site.enable_lead_capture || false);
 
     // Null whenever the widget is old enough not to send it, or the value
     // doesn't belong to this site — including the admin's own preview, which
@@ -248,11 +261,15 @@ export default edgeRoute(contracts.chat.send, async (req, { data, json }) => {
 
     // Build system prompt
     const toneString = site.bot_tone === 'amical' ? "Tone: Warm, friendly, informal when natural, very approachable." : "Tone: Professional, courteous, formal, precise.";
-    const goalString = site.bot_goal === 'lead' ? "Primary Objective: Convert the visitor into a lead. Strongly encourage them to leave an email or phone number." : "Primary Objective: Inform and support the visitor. Answer thoroughly and clearly.";
+    // Lead-gen as a conversation objective is Pro/Premium, same as lead
+    // capture itself (see hasProPlan above) — a Basic tenant's bot_goal
+    // value doesn't get to steer the conversation toward something the
+    // account can't actually collect.
+    const goalString = (hasProPlan && site.bot_goal === 'lead')
+      ? "Primary Objective: Convert the visitor into a lead. Strongly encourage them to leave an email or phone number."
+      : "Primary Objective: Inform and support the visitor. Answer thoroughly and clearly.";
 
     // Integrations Context
-    const tenantPlan = (Array.isArray(site.tenants) ? site.tenants[0]?.plan : site.tenants?.plan) || 'basic';
-    const hasProPlan = tenantPlan === 'pro' || tenantPlan === 'premium';
     const calendarInstruction = (hasProPlan && site.calendar_link)
       ? `5. APPOINTMENTS: If the user wants to book a meeting, ALWAYS provide this booking link: [Book a meeting](${site.calendar_link}).`
       : "";
