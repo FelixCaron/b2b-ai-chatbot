@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Globe, Eye, RefreshCw, Code, Settings2 } from 'lucide-react';
 
 /** The active website's identity card and its action row. The parked banner
@@ -15,12 +15,32 @@ export default function SiteHeroCard({
   onOpenSettings,
   children
 }) {
+  // The site's own favicon, not a generic globe — works for any domain
+  // without asking anyone to upload a logo. Falls back to the globe icon
+  // if the favicon 404s outright (a fallback service returning its own
+  // placeholder image is indistinguishable from a real favicon, and is a
+  // fine result either way).
+  const [faviconFailed, setFaviconFailed] = useState(false);
+  useEffect(() => { setFaviconFailed(false); }, [activeSite?.domain]);
+  const faviconUrl = activeSite?.domain
+    ? `https://www.google.com/s2/favicons?sz=128&domain=${encodeURIComponent(activeSite.domain)}`
+    : null;
+
   return (
     <div className="bg-white/90 p-6 sm:p-8 rounded-2xl border border-dark-900/5 shadow-sm space-y-6">
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-bold shadow-md" style={{ backgroundColor: themeColor }}>
-            <Globe className="w-7 h-7" />
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-bold shadow-md overflow-hidden" style={{ backgroundColor: themeColor }}>
+            {faviconUrl && !faviconFailed ? (
+              <img
+                src={faviconUrl}
+                alt=""
+                className="w-8 h-8 object-contain"
+                onError={() => setFaviconFailed(true)}
+              />
+            ) : (
+              <Globe className="w-7 h-7" />
+            )}
           </div>
           <div>
             <div className="flex items-center gap-2.5 flex-wrap">
