@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { MessageSquare, Search, RefreshCw, User, Sparkles, ChevronLeft, AlertCircle, FileText } from 'lucide-react';
+import { MessageSquare, Search, RefreshCw, User, Sparkles, ChevronLeft, AlertCircle, FileText, Wrench } from 'lucide-react';
 import useConversations from './useConversations';
 
 /**
@@ -11,7 +11,7 @@ import useConversations from './useConversations';
  * Every one of those exchanges was already being written to `messages` — it
  * just had nowhere to be read.
  */
-export default function ConversationsPage({ tenantId, sites = [], onBack }) {
+export default function ConversationsPage({ tenantId, sites = [], onBack, onImproveKnowledge }) {
   const { conversations, isLoading, error, truncated, reload } = useConversations(tenantId);
   const [selectedId, setSelectedId] = useState(null);
   const [query, setQuery] = useState('');
@@ -249,8 +249,20 @@ export default function ConversationsPage({ tenantId, sites = [], onBack }) {
                           {m.content}
                         </div>
                         {answerNote(m) && (
-                          <div className="text-[10.5px] text-amber-800 mt-1 flex items-center gap-1 justify-end">
-                            <AlertCircle className="w-3 h-3 shrink-0" /> {answerNote(m)}
+                          <div className="mt-1 flex flex-col items-end gap-1">
+                            <div className="text-[10.5px] text-amber-800 flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3 shrink-0" /> {answerNote(m)}
+                            </div>
+                            {onImproveKnowledge && (
+                              <button
+                                type="button"
+                                onClick={() => onImproveKnowledge(selected.pageUrl || '')}
+                                className="text-[10.5px] font-semibold text-brand-700 bg-brand-500/10 hover:bg-brand-500/20 border border-brand-500/20 px-2 py-1 rounded-lg flex items-center gap-1 transition-colors"
+                                title={selected.pageUrl ? `Add or fix "${selected.pageUrl}" in your assistant's knowledge` : "Review what your assistant knows"}
+                              >
+                                <Wrench className="w-3 h-3" /> Fix this in Knowledge
+                              </button>
+                            )}
                           </div>
                         )}
                       </div>

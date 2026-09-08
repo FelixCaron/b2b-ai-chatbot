@@ -2,6 +2,7 @@ import React from 'react';
 import { Settings2, ChevronUp, ChevronDown } from 'lucide-react';
 import FeatureToggles from './FeatureToggles';
 import SiteSummaryCard from './SiteSummaryCard';
+import WelcomeExperienceCard from './WelcomeExperienceCard';
 import KnowledgeBasePanel from './KnowledgeBasePanel';
 import DangerZone from './DangerZone';
 
@@ -23,6 +24,21 @@ export default function AdvancedSettingsPanel({
   setShowSummaryEditor,
   onRegenerateSummary,
   onSaveSummary,
+  welcomeMessage,
+  setWelcomeMessage,
+  uiStatusTitle,
+  setUiStatusTitle,
+  uiStatusOnline,
+  setUiStatusOnline,
+  uiInputPlaceholder,
+  setUiInputPlaceholder,
+  welcomeLanguage,
+  hasWelcomeExperience,
+  isSavingWelcome,
+  welcomeSuccessMsg,
+  showWelcomeEditor,
+  setShowWelcomeEditor,
+  onSaveWelcomeExperience,
   discoveredPages,
   selectedUrls,
   searchQuery,
@@ -30,6 +46,7 @@ export default function AdvancedSettingsPanel({
   onTogglePageActivation,
   onAddManualPage,
   onEditPage,
+  prefillAddUrl,
   onRequestDeleteSite
 }) {
   return (
@@ -85,6 +102,24 @@ export default function AdvancedSettingsPanel({
             onSave={onSaveSummary}
           />
 
+          <WelcomeExperienceCard
+            welcomeMessage={welcomeMessage}
+            setWelcomeMessage={setWelcomeMessage}
+            uiStatusTitle={uiStatusTitle}
+            setUiStatusTitle={setUiStatusTitle}
+            uiStatusOnline={uiStatusOnline}
+            setUiStatusOnline={setUiStatusOnline}
+            uiInputPlaceholder={uiInputPlaceholder}
+            setUiInputPlaceholder={setUiInputPlaceholder}
+            welcomeLanguage={welcomeLanguage}
+            hasWelcomeExperience={hasWelcomeExperience}
+            isSavingWelcome={isSavingWelcome}
+            welcomeSuccessMsg={welcomeSuccessMsg}
+            showWelcomeEditor={showWelcomeEditor}
+            setShowWelcomeEditor={setShowWelcomeEditor}
+            onSave={onSaveWelcomeExperience}
+          />
+
           <KnowledgeBasePanel
             activeSite={activeSite}
             discoveredPages={discoveredPages}
@@ -94,6 +129,7 @@ export default function AdvancedSettingsPanel({
             onTogglePageActivation={onTogglePageActivation}
             onAddManualPage={onAddManualPage}
             onEditPage={onEditPage}
+            prefillAddUrl={prefillAddUrl}
           />
 
           <DangerZone

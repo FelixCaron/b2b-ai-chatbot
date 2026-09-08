@@ -1,6 +1,7 @@
-import React from 'react';
-import { X, Code, AlertTriangle, Sparkles, Check, Copy } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { X, Code, AlertTriangle, Sparkles, Check, Copy, RefreshCw } from 'lucide-react';
 import { getMaxPagesForPlan } from '../../lib/plan-limits';
+import { supabase } from '../../../../lib/supabase';
 
 /** 5. INTEGRATION MODAL */
 export default function IntegrationModal({
@@ -16,6 +17,52 @@ export default function IntegrationModal({
   onManagePages,
   onShowPricing
 }) {
+  // Real signal, not a self-report: the widget itself calls api/chat/init on
+  // load from the visitor's browser, and that route stamps
+  // sites.widget_last_seen_at when the request's Origin is the site's own
+  // domain (see api/chat/init.js). Polling for a change since the modal
+  // opened is the same thing a "Checking installation..." spinner promises,
+  // done for real instead of asking the tenant to just confirm they pasted
+  // the snippet.
+  const [installDetected, setInstallDetected] = useState(false);
+  const openedAtRef = useRef(null);
+
+  useEffect(() => {
+    if (!show || !activeSite?.id) {
+      setInstallDetected(false);
+      openedAtRef.current = null;
+      return;
+    }
+
+    openedAtRef.current = Date.now();
+    setInstallDetected(false);
+
+    let cancelled = false;
+    const checkOnce = async () => {
+      const { data } = await supabase
+        .from('sites')
+        .select('widget_last_seen_at')
+        .eq('id', activeSite.id)
+        .maybeSingle();
+      if (cancelled || !data?.widget_last_seen_at) return;
+      const seenAt = new Date(data.widget_last_seen_at).getTime();
+      // Any sighting within the last 10 minutes counts — not just ones after
+      // the modal opened, since a tenant who pasted the snippet and loaded
+      // their site just before opening this modal shouldn't be told "not
+      // installed" over a few seconds of timing.
+      if (Date.now() - seenAt < 10 * 60 * 1000) {
+        setInstallDetected(true);
+      }
+    };
+
+    checkOnce();
+    const interval = setInterval(checkOnce, 4000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [show, activeSite?.id]);
+
   if (!show || !activeSite) return null;
 
   const activeIndexedPagesCount = discoveredPages.filter(p => p.status === 'loaded' || (selectedUrls && selectedUrls.has(p.url))).length;
@@ -92,7 +139,17 @@ export default function IntegrationModal({
           </button>
         </div>
         
-        <div className="mt-6 flex justify-end">
+        <div className="mt-6 flex items-center justify-between gap-3">
+          {installDetected ? (
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-lg">
+              <Check className="w-3.5 h-3.5" /> Installation detected
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500">
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Checking installation...
+            </span>
+          )}
+
           <button
             onClick={onClose}
             className="bg-brand-600 hover:bg-brand-500 text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition-all shadow-lg"

@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { edgeRoute } from '../lib/http.js';
 import { generateEmbedding } from '../lib/llm.js';
 import { sendLeadEmail, sendBugAlertEmail, sendSupportTicketEmail } from '../lib/email.js';
+import { normalizedHostname, requestOrigin } from '../lib/site-origin.js';
 
 export const config = {
   runtime: 'edge',
@@ -15,15 +16,6 @@ const supabase = (VITE_SUPABASE_URL && SERVICE_ROLE_KEY) ? createClient(VITE_SUP
 
 // Simple memory cache for basic Edge Rate Limiting (per isolate)
 const rateLimitMap = new Map();
-
-function normalizedHostname(value) {
-  try {
-    const candidate = /^https?:\/\//i.test(value) ? value : `https://${value}`;
-    return new URL(candidate).hostname.toLowerCase().replace(/^www\./, '');
-  } catch {
-    return '';
-  }
-}
 
 /**
  * The page a message was sent from, or null.
@@ -48,16 +40,6 @@ function pageUrlForSite(rawPageUrl, siteDomain) {
     const site = (siteDomain || '').toLowerCase().replace(/^www\./, '');
     if (!site || (host !== site && !host.endsWith(`.${site}`))) return null;
     return `${url.origin}${url.pathname}`.slice(0, 2048);
-  } catch {
-    return null;
-  }
-}
-
-function requestOrigin(req) {
-  const rawOrigin = req.headers.get('origin') || req.headers.get('referer');
-  if (!rawOrigin) return null;
-  try {
-    return new URL(rawOrigin).origin;
   } catch {
     return null;
   }

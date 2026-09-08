@@ -11,6 +11,7 @@
 import { contracts } from '@b2b-ai-chatbot/contracts';
 import { createClient } from '@supabase/supabase-js';
 import { edgeRoute } from '../lib/http.js';
+import { isOwnDomainOrigin, requestOrigin } from '../lib/site-origin.js';
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
 const SECRET_KEY = process.env.SUPABASE_SECRET_KEY;
@@ -50,7 +51,7 @@ export default edgeRoute(contracts.chat.init, async (req, { data, json }) => {
   try {
     let { data: site, error: siteError } = await supabase
       .from('sites')
-      .select('id, tenant_id, is_active, theme_primary_color, tenants(plan)')
+      .select('id, tenant_id, domain, is_active, theme_primary_color, widget_last_seen_at, tenants(plan)')
       .eq('public_key', tenantPublicKey)
       .maybeSingle();
 
@@ -69,6 +70,26 @@ export default edgeRoute(contracts.chat.init, async (req, { data, json }) => {
 
     if (!site) {
       return json(FALLBACK);
+    }
+
+    // Install detection: a widget init call whose Origin is the site's own
+    // domain is live proof the embed snippet is actually on the site — the
+    // one honest signal the "Install" modal can check instead of asking the
+    // tenant to just confirm they pasted it. The admin's own preview runs on
+    // our origin, not the tenant's, so it never falsely marks a site
+    // installed. Throttled to once per 5 minutes so a busy site doesn't turn
+    // every page load into a write, and awaited (not fire-and-forget) since
+    // an Edge function can be torn down right after its response is sent.
+    const originHeader = requestOrigin(req);
+    if (isOwnDomainOrigin(originHeader, site.domain)) {
+      const lastSeenMs = site.widget_last_seen_at ? new Date(site.widget_last_seen_at).getTime() : 0;
+      if (Date.now() - lastSeenMs > 5 * 60 * 1000) {
+        try {
+          await supabase.from('sites').update({ widget_last_seen_at: new Date().toISOString() }).eq('id', site.id);
+        } catch (e) {
+          console.warn('[chat/init] widget_last_seen_at update warning:', e.message);
+        }
+      }
     }
 
     // "Powered by" badge is a growth lever: shown on Basic (default), hidden

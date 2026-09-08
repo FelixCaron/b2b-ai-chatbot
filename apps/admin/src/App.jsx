@@ -39,6 +39,11 @@ export default function App() {
   }
 
   const [showLoginModal, setShowLoginModal] = useState(false);
+  // Set by ConversationsPage's "Fix this in Knowledge" action on an
+  // unanswered question — '' just opens the Knowledge panel, a URL also
+  // pre-fills the "Add a page" field with it. Consumed (reset to null) by
+  // Dashboard once it's acted on it.
+  const [pendingKnowledgeUrl, setPendingKnowledgeUrl] = useState(null);
 
   const { currentView, navigate } = useRouter();
   useCopilotNavigation(navigate);
@@ -138,7 +143,17 @@ export default function App() {
       case 'terms':
         return <TermsOfService />;
       case 'conversations':
-        return <ConversationsPage tenantId={selectedTenant?.id} sites={sites} onBack={() => navigate('dashboard')} />;
+        return (
+          <ConversationsPage
+            tenantId={selectedTenant?.id}
+            sites={sites}
+            onBack={() => navigate('dashboard')}
+            onImproveKnowledge={(pageUrl) => {
+              setPendingKnowledgeUrl(pageUrl || '');
+              navigate('dashboard');
+            }}
+          />
+        );
       case 'leads':
         return <LeadsPage leads={leads} onBack={() => navigate('dashboard')} />;
       default:
@@ -159,6 +174,8 @@ export default function App() {
                 onViewConversations={() => navigate('conversations')}
                 onShowPricing={() => navigate('pricing')}
                 leadsCount={leads.length}
+                pendingKnowledgeUrl={pendingKnowledgeUrl}
+                onPendingKnowledgeUrlConsumed={() => setPendingKnowledgeUrl(null)}
               />
             </section>
 

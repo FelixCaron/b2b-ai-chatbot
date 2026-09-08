@@ -1,9 +1,10 @@
 import { contracts } from '@b2b-ai-chatbot/contracts';
 import { createClient } from '@supabase/supabase-js';
 import { edgeRoute } from '../lib/http.js';
-import { generateEmbedding, generateWebsiteSummary, generateWelcomeExperience } from '../lib/llm.js';
+import { generateEmbedding } from '../lib/llm.js';
 import { assertSafeExternalUrl } from '../lib/url-security.js';
 import { requireSiteOwnership } from '../lib/server-config.js';
+import { persistSiteSummary } from '../lib/site-summary.js';
 
 export const config = {
   runtime: 'edge',
@@ -338,43 +339,15 @@ export default edgeRoute(contracts.crawler.scan, async (req, { data, json }) => 
 
   if ((isHomepage || !existingSummary) && pageText && pageText.length >= 100) {
     try {
-      const [summaryText, welcomeExperience] = await Promise.all([
-        generateWebsiteSummary({
-          content: pageText,
-          targetUrl: targetUrl,
-          apiKey: process.env.OPENROUTER_API_KEY
-        }),
-        generateWelcomeExperience({
-          content: pageText,
-          targetUrl: targetUrl,
-          apiKey: process.env.OPENROUTER_API_KEY
-        }),
-      ]);
-
+      const summaryText = await persistSiteSummary({
+        supabase,
+        tenantId: tenant_id,
+        siteId: site_id,
+        targetUrl,
+        content: pageText,
+        apiKey: process.env.OPENROUTER_API_KEY
+      });
       if (summaryText) {
-        const { error: sumErr } = await supabase.from('site_summaries').upsert({
-          tenant_id,
-          site_id,
-          summary: summaryText,
-          language: welcomeExperience.language,
-          welcome_message: welcomeExperience.welcome_message,
-          ui_status_title: welcomeExperience.ui_status_title,
-          ui_status_online: welcomeExperience.ui_status_online,
-          ui_input_placeholder: welcomeExperience.ui_input_placeholder,
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'tenant_id,site_id' });
-
-        if (sumErr) {
-          // Fallback to documents table if site_summaries table doesn't exist yet
-          const summaryUrl = `${targetUrl}#site-summary`;
-          await supabase.from('documents').delete().eq('site_id', site_id).eq('url', summaryUrl);
-          await supabase.from('documents').insert({
-            tenant_id,
-            site_id,
-            url: summaryUrl,
-            content: `[SITE_SUMMARY]\n${summaryText}`
-          });
-        }
         console.log(`[start-scan] Website summary auto-generated for site ${site_id}`);
       }
     } catch (sumErr) {
