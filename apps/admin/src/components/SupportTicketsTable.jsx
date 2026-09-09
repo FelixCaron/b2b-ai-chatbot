@@ -60,11 +60,11 @@ export default function SupportTicketsTable({ tickets }) {
                 </div>
                 {ticket.delivered ? (
                   <span className="shrink-0 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide bg-emerald-500/15 text-emerald-700 px-2 py-1 rounded-full">
-                    <CheckCircle2 className="w-3 h-3" /> Delivered
+                    <CheckCircle2 className="w-3 h-3" /> Emailed to you
                   </span>
                 ) : (
-                  <span className="shrink-0 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide bg-red-500/15 text-red-700 px-2 py-1 rounded-full">
-                    <AlertTriangle className="w-3 h-3" /> Not delivered
+                  <span className="shrink-0 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide bg-amber-500/15 text-amber-800 px-2 py-1 rounded-full">
+                    <AlertTriangle className="w-3 h-3" /> Email failed
                   </span>
                 )}
               </div>
@@ -85,9 +85,14 @@ export default function SupportTicketsTable({ tickets }) {
                 </p>
               </div>
 
+              {/* Whose problem this is matters: the send failed on our side,
+                  so the customer gets the request and a way to act on it —
+                  not a troubleshooting checklist for infrastructure they
+                  don't own. The failure itself alerts us (api/lib/email.js). */}
               {!ticket.delivered && (
-                <p className="text-[11px] text-red-700 mt-3">
-                  This never reached your support inbox — reply to the visitor directly using the email above, and check your Resend setup (API key + verified sending domain) so future requests go through.
+                <p className="text-[11px] text-amber-800 mt-3">
+                  We couldn't get this into your inbox, so it's kept here instead — you can reply to the visitor
+                  directly at the address above. Our team has been notified.
                 </p>
               )}
             </div>

@@ -3,6 +3,7 @@ import { supabase } from '../../../lib/supabase';
 import api from '../../../lib/api';
 import { getMaxPagesForPlan } from '../lib/plan-limits';
 import { normalizePageUrl, rootUrlForDomain, stripProtocol, titleForPageUrl } from '../lib/page-url';
+import { isAdditionalInfoUrl, stripSourcePrefix } from '../../../lib/knowledge-notes';
 import { executeTurnstileCaptcha } from '../lib/turnstile';
 import { fetchBrandTheme } from '../lib/brand-theme';
 
@@ -481,7 +482,13 @@ export default function useCrawlPipeline({
         const uniqueUrls = new Set();
         const pages = [];
         data.forEach(d => {
-          if (d.url && !d.url.includes('#site-summary')) {
+          // Neither the generated summary nor the owner's hand-written notes
+          // are crawled pages, and both would be *misreported* as one here:
+          // normalizePageUrl drops the fragment, so '.../#additional-info'
+          // would fold into the home page row — and toggling that row off and
+          // on would re-scan the real home page over the notes, silently
+          // destroying them. Both have their own editors in Settings.
+          if (d.url && !d.url.includes('#site-summary') && !isAdditionalInfoUrl(d.url)) {
             const normUrl = normalizePageUrl(d.url);
             if (normUrl && !uniqueUrls.has(normUrl)) {
               uniqueUrls.add(normUrl);
@@ -510,7 +517,11 @@ export default function useCrawlPipeline({
     try {
       const { data, error } = await supabase.from('documents').select('content').eq('site_id', activeSite.id).eq('url', pageUrl);
       if (error) throw error;
-      const fullContent = data ? data.map(d => d.content).join('\n\n') : '';
+      // Each stored chunk carries a '[Source URL: ...]' line that the indexer
+      // added, not the operator. Handing it back to the editor meant the next
+      // save re-prefixed the prefix, so it stacked a line deeper on every
+      // edit — and the operator was left deleting our bookkeeping by hand.
+      const fullContent = data ? data.map(d => stripSourcePrefix(d.content)).join('\n\n') : '';
       setEditingPage({ url: pageUrl, content: fullContent, saving: false });
     } catch (err) {
       setEditingPage({ url: pageUrl, content: 'Error loading page content.', saving: false });

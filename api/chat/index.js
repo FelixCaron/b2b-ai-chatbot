@@ -563,20 +563,20 @@ ${supportInstruction}`;
                   const toolArgs = JSON.parse(toolCall.function.arguments || '{}');
                   console.log(`[chat] Loop #${loopCount} send_support_email:`, toolArgs);
 
-                  // Actually attempt delivery — a tool result telling the model
-                  // "sent" when nothing was sent (no RESEND_API_KEY, Resend
-                  // rejected it, etc.) used to make the assistant promise the
-                  // visitor a reply that would never come, with no trace of
-                  // the failure anywhere the tenant would see it.
-                  const delivered = await sendSupportTicketEmail(toolArgs, site);
+                  // Attempt delivery, and believe the answer. sendSupportTicketEmail
+                  // reports `{ delivered, error }` from Resend's own response
+                  // rather than from "the call didn't throw" — the SDK never
+                  // throws on a rejected send, so the old boolean was `true`
+                  // for every failure and the assistant promised visitors a
+                  // reply that was never coming.
+                  const { delivered, error: deliveryError } = await sendSupportTicketEmail(toolArgs, site);
 
-                  // Persist the ticket regardless of delivery outcome. The
-                  // email itself is the only place this used to live — a
-                  // failed send (unverified Resend domain, missing API key,
-                  // Resend rejecting it) left no trace the tenant could ever
-                  // see. `delivered` records which of those happened, so
-                  // "did the bot even try" and "did the email actually go
-                  // out" are answerable from the dashboard instead of guessed.
+                  // The ticket is saved either way, and this is what makes a
+                  // failed email survivable rather than lost: the request is
+                  // in the tenant's dashboard even when our mail provider
+                  // rejected it. `delivery_error` carries Resend's own reason
+                  // so a failure is diagnosable after the fact instead of
+                  // living only in an Edge log nobody reads.
                   const { error: ticketError } = await supabase.from('support_tickets').insert({
                     tenant_id: tenantId,
                     site_id: site.id,
@@ -584,7 +584,8 @@ ${supportInstruction}`;
                     name: toolArgs.name || null,
                     email: toolArgs.email || null,
                     message: toolArgs.message || null,
-                    delivered
+                    delivered,
+                    delivery_error: delivered ? null : (deliveryError || 'Unknown delivery failure')
                   });
                   if (ticketError) console.error('[chat] support_tickets insert failed:', ticketError.message);
 
@@ -601,9 +602,19 @@ ${supportInstruction}`;
                     )
                   );
 
+                  // Three genuinely different outcomes, and the visitor
+                  // deserves to be told the right one. A failed *email* is
+                  // not a lost request: the ticket is in the company's
+                  // dashboard, so the honest answer is "received", not an
+                  // apology that sends the visitor away — an outage in our
+                  // mail provider shouldn't cost the customer the lead. Only
+                  // a request we failed to record at all warrants that.
+                  const ticketRecorded = !ticketError;
                   const emailResponse = delivered
                     ? `Email successfully sent to the support team (${site.support_email}). The customer should expect a reply shortly.`
-                    : `The support email could not be sent right now. Apologize to the visitor, do not claim the message went through, and offer another way to reach the company (contact form, phone, etc.) if you have one.`;
+                    : ticketRecorded
+                      ? `The request has been recorded for the support team and is waiting for them in their dashboard. Confirm to the visitor that their request has been received and that someone will get back to them — do not mention any technical detail, and do not promise a specific delay.`
+                      : `The request could not be recorded. Apologize to the visitor, do not claim the message went through, and offer another way to reach the company (contact form, phone, etc.) if you have one.`;
 
                   currentHistory.push({
                     role: 'tool',

@@ -31,6 +31,16 @@ CREATE TABLE IF NOT EXISTS public.support_tickets (
     created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Why it wasn't delivered, in Resend's own words ('validation_error / 403 /
+-- The domain is not verified', ...). The Resend SDK never throws on a
+-- rejected send — it resolves with an error object that the code used to
+-- discard — so without this column a failure is a boolean with no cause, and
+-- diagnosing one means guessing between a missing key, an unverified sending
+-- domain and a rejected recipient. Separate statement so a database that
+-- already created the table above still gets the column.
+ALTER TABLE public.support_tickets
+    ADD COLUMN IF NOT EXISTS delivery_error TEXT;
+
 CREATE INDEX IF NOT EXISTS idx_support_tickets_tenant_id ON public.support_tickets(tenant_id);
 
 ALTER TABLE public.support_tickets ENABLE ROW LEVEL SECURITY;

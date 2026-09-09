@@ -14,7 +14,7 @@
     "dev": "npm run dev --workspaces --if-present",
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",
-    "test": "node scripts/tests/test-contracts.js && node scripts/tests/test-schemas.js && node scripts/tests/test-api-imports.cjs",
+    "test": "node scripts/tests/test-contracts.js && node scripts/tests/test-schemas.js && node scripts/tests/test-api-imports.cjs && node scripts/tests/test-email-delivery.js",
     "test:secrets": "node scripts/ops/check-no-secrets.cjs",
     "test:api": "node scripts/tests/test-api-imports.cjs",
     "test:pipeline": "node scripts/tests/test-pipeline.js",

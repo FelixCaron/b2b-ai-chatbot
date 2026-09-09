@@ -2,6 +2,7 @@ import React from 'react';
 import { Settings2, ChevronUp, ChevronDown } from 'lucide-react';
 import FeatureToggles from './FeatureToggles';
 import SiteSummaryCard from './SiteSummaryCard';
+import AdditionalInfoCard from './AdditionalInfoCard';
 import WelcomeExperienceCard from './WelcomeExperienceCard';
 import KnowledgeBasePanel from './KnowledgeBasePanel';
 import DangerZone from './DangerZone';
@@ -106,6 +107,8 @@ export default function AdvancedSettingsPanel({
             onRegenerate={onRegenerateSummary}
             onSave={onSaveSummary}
           />
+
+          <AdditionalInfoCard activeSite={activeSite} />
 
           <WelcomeExperienceCard
             welcomeMessage={welcomeMessage}
