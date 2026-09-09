@@ -8,6 +8,20 @@ const DEFAULT_OPENROUTER_MODEL = 'openai/gpt-5.6-luna';
 const JINA_EMBEDDINGS_URL = 'https://api.jina.ai/v1/embeddings';
 const JINA_EMBEDDINGS_MODEL = 'jina-embeddings-v3';
 
+// Statuses worth retrying: the free tier's per-minute rate limit (429) and
+// momentary upstream hiccups (5xx). A full site reset or recrawl scans up to
+// 10 pages concurrently (see useCrawlPipeline's executeBatchScan), each
+// making its own embedding batch calls — that easily bursts past Jina's
+// free-tier RPM limit even though the total volume is well within what the
+// tier allows over a few seconds. Anything else (bad auth, malformed
+// request) is a 4xx that no amount of waiting fixes, so it fails fast.
+const RETRYABLE_EMBEDDING_STATUS = new Set([429, 500, 502, 503, 504]);
+const MAX_EMBEDDING_ATTEMPTS = 4;
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 /**
  * MODE DE TEST DELAFONTAINE : 
  * Désactivé par défaut (Mode Production actif).
@@ -50,36 +64,50 @@ export async function generateEmbedding(input, task = 'retrieval.passage', apiKe
   const isArray = Array.isArray(input);
   const inputs = isArray ? input : [input];
 
-  try {
-    const res = await fetch(JINA_EMBEDDINGS_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${jinaKey}`
-      },
-      body: JSON.stringify({
-        model: JINA_EMBEDDINGS_MODEL,
-        task,
-        dimensions: 768,
-        input: inputs
-      })
-    });
+  for (let attempt = 1; attempt <= MAX_EMBEDDING_ATTEMPTS; attempt++) {
+    const isLastAttempt = attempt === MAX_EMBEDDING_ATTEMPTS;
+    try {
+      const res = await fetch(JINA_EMBEDDINGS_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${jinaKey}`
+        },
+        body: JSON.stringify({
+          model: JINA_EMBEDDINGS_MODEL,
+          task,
+          dimensions: 768,
+          input: inputs
+        })
+      });
 
-    if (!res.ok) {
-      const err = await res.text();
-      console.error(`[Embedding] Jina API error ${res.status}:`, err);
+      if (!res.ok) {
+        const err = await res.text();
+        if (RETRYABLE_EMBEDDING_STATUS.has(res.status) && !isLastAttempt) {
+          console.warn(`[Embedding] Jina API ${res.status} (attempt ${attempt}/${MAX_EMBEDDING_ATTEMPTS}), retrying:`, err);
+          await sleep(500 * 2 ** (attempt - 1) + Math.random() * 250);
+          continue;
+        }
+        console.error(`[Embedding] Jina API error ${res.status}:`, err);
+        return null;
+      }
+
+      const data = await res.json();
+      const embeddings = data.data?.map(d => d.embedding) || [];
+
+      if (embeddings.length === 0) return null;
+      return isArray ? embeddings : embeddings[0];
+    } catch (err) {
+      if (!isLastAttempt) {
+        console.warn(`[Embedding] Jina fetch error (attempt ${attempt}/${MAX_EMBEDDING_ATTEMPTS}), retrying:`, err.message);
+        await sleep(500 * 2 ** (attempt - 1) + Math.random() * 250);
+        continue;
+      }
+      console.error('[Embedding] Jina fetch error:', err.message);
       return null;
     }
-
-    const data = await res.json();
-    const embeddings = data.data?.map(d => d.embedding) || [];
-
-    if (embeddings.length === 0) return null;
-    return isArray ? embeddings : embeddings[0];
-  } catch (err) {
-    console.error('[Embedding] Jina fetch error:', err.message);
-    return null;
   }
+  return null;
 }
 
 export async function generateChatResponse({ systemPrompt, messagesHistory, apiKey, tools = null, model = DEFAULT_OPENROUTER_MODEL }) {
