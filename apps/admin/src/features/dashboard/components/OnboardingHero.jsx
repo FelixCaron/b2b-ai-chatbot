@@ -1,6 +1,7 @@
 import React from 'react';
 import { Globe, RefreshCw, ArrowRight } from 'lucide-react';
 import LogoMark from '../../../components/LogoMark';
+import { useT } from '../../../i18n/LanguageContext';
 
 export default function OnboardingHero({
   siteUrl,
@@ -11,6 +12,7 @@ export default function OnboardingHero({
   showSignIn = false,
   onSignIn
 }) {
+  const { t } = useT();
   return (
     <div className="relative max-w-2xl mx-auto mt-6 sm:mt-12">
       <div className="relative bg-white/70 backdrop-blur-sm p-6 sm:p-10 rounded-2xl border border-dark-900/10 text-center shadow-lg overflow-hidden">
@@ -22,10 +24,10 @@ export default function OnboardingHero({
         </div>
 
         <h2 className="text-2xl sm:text-3xl font-bold text-dark-900 tracking-tight leading-tight mb-2.5 sm:mb-3">
-          Turn your website into an AI assistant
+          {t('Turn your website into an AI assistant')}
         </h2>
         <p className="text-sm sm:text-base text-gray-500 mb-6 sm:mb-10 max-w-lg mx-auto">
-          Enter your website address. We read your pages, learn what your business does, and build an assistant that can answer your visitors.
+          {t('Enter your website address. We read your pages, learn what your business does, and build an assistant that can answer your visitors.')}
         </p>
 
         <form onSubmit={onSubmit} className="space-y-4">
@@ -33,7 +35,7 @@ export default function OnboardingHero({
             <Globe className="w-5 h-5 text-gray-500 absolute left-4 top-3.5 pointer-events-none" />
             <input
               type="text"
-              placeholder="your-company.com"
+              placeholder={t('your-company.com')}
               value={siteUrl}
               onChange={(e) => setSiteUrl(e.target.value)}
               className="w-full bg-surface-100 border border-gray-300 text-dark-900 rounded-2xl pl-12 pr-4 py-3.5 text-sm outline-none focus:border-brand-500 transition-colors shadow-inner"
@@ -48,10 +50,10 @@ export default function OnboardingHero({
           >
             {isAnalyzing ? (
               <span className="flex items-center gap-2">
-                <RefreshCw className="w-4 h-4 animate-spin" /> Setting up your assistant...
+                <RefreshCw className="w-4 h-4 animate-spin" /> {t('Setting up your assistant...')}
               </span>
             ) : (
-              <>Create My AI Assistant <ArrowRight className="w-4 h-4" /></>
+              <>{t('Create My AI Assistant')} <ArrowRight className="w-4 h-4" /></>
             )}
           </button>
         </form>
@@ -69,13 +71,13 @@ export default function OnboardingHero({
 
         {showSignIn && (
           <p className="mt-6 text-xs text-gray-500">
-            Already have an account?{' '}
+            {t('Already have an account?')}{' '}
             <button
               type="button"
               onClick={onSignIn}
               className="font-semibold text-brand-700 hover:text-brand-800 hover:underline"
             >
-              Sign in
+              {t('Sign in')}
             </button>
           </p>
         )}

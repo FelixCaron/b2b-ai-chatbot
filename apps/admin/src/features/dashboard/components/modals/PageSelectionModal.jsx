@@ -3,6 +3,7 @@ import { AlertTriangle, Search, Sparkles } from 'lucide-react';
 import { MAX_DISCOVERABLE_PAGES } from '@b2b-ai-chatbot/contracts';
 import { getMaxPagesForPlan, getNextPlanUpgrade } from '../../lib/plan-limits';
 import { GENERAL_EMAIL } from '../../../../components/LegalPages';
+import { useT } from '../../../../i18n/LanguageContext';
 
 // Every row is rendered at exactly this height (see the `style={{ height }}`
 // on each row below) so the windowing math here can be arithmetic instead of
@@ -24,6 +25,7 @@ const OVERSCAN = 10;
  * limited.
  */
 function VirtualizedPageList({ pages, selectedUrls, onTogglePage }) {
+  const { t } = useT();
   const containerRef = useRef(null);
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(0);
@@ -67,7 +69,7 @@ function VirtualizedPageList({ pages, selectedUrls, onTogglePage }) {
       className="flex-1 overflow-y-auto min-h-0 my-3 rounded-xl border border-dark-900/5 bg-white"
     >
       {total === 0 ? (
-        <div className="p-6 text-center text-xs text-gray-500">No pages match your search.</div>
+        <div className="p-6 text-center text-xs text-gray-500">{t('No pages match your search.')}</div>
       ) : (
         <>
           <div style={{ height: topSpacerHeight }} />
@@ -98,7 +100,7 @@ function VirtualizedPageList({ pages, selectedUrls, onTogglePage }) {
                   <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${
                     isChecked ? 'bg-emerald-500/10 text-emerald-700 border border-emerald-500/20' : 'bg-gray-200 text-gray-600'
                   }`}>
-                    {isChecked ? 'Selected' : 'Skipped'}
+                    {isChecked ? t('Selected') : t('Skipped')}
                   </span>
                 </div>
               );
@@ -124,6 +126,7 @@ export default function PageSelectionModal({
   onConfirm,
   onClose
 }) {
+  const { t } = useT();
   const filteredPages = useMemo(() => {
     const q = pageSelectionSearch.trim().toLowerCase();
     if (!q) return pendingCrawlPages;
@@ -150,7 +153,7 @@ export default function PageSelectionModal({
         next.delete(pageUrl);
       } else {
         if (next.size >= getMaxPagesForPlan(tenantPlan)) {
-          alert(`Your plan allows up to ${getMaxPagesForPlan(tenantPlan)} pages. Please upgrade or uncheck another page.`);
+          alert(t('Your plan allows up to {n} pages. Please upgrade or uncheck another page.', { n: getMaxPagesForPlan(tenantPlan) }));
           return next;
         }
         next.add(pageUrl);
@@ -171,10 +174,10 @@ export default function PageSelectionModal({
             </div>
             <div>
               <h3 className="text-lg font-bold text-dark-900">
-                Large Website ({pendingCrawlPages.length} Pages Discovered)
+                {t('Large Website ({n} Pages Discovered)', { n: pendingCrawlPages.length })}
               </h3>
               <p className="text-xs text-gray-500">
-                Your current <strong>{tenantPlan.toUpperCase()}</strong> plan includes up to <strong>{getMaxPagesForPlan(tenantPlan)} pages</strong> — we've pre-selected the first {getMaxPagesForPlan(tenantPlan)} below. Confirm as-is, search to swap in specific pages instead,{needsCustomPlan ? ' or contact us for a custom plan' : ' or upgrade your plan'}.
+                {t('Your current')} <strong>{tenantPlan.toUpperCase()}</strong> {t('plan includes up to')} <strong>{t('{n} pages', { n: getMaxPagesForPlan(tenantPlan) })}</strong> {t("— we've pre-selected the first {n} below. Confirm as-is, search to swap in specific pages instead,", { n: getMaxPagesForPlan(tenantPlan) })}{needsCustomPlan ? t(' or contact us for a custom plan') : t(' or upgrade your plan')}.
               </p>
             </div>
           </div>
@@ -184,7 +187,7 @@ export default function PageSelectionModal({
               ? 'bg-red-500/20 text-red-700 border border-red-500/30'
               : 'bg-brand-500/20 text-brand-800 border border-brand-500/30'
           }`}>
-            {selectedUrls.size} / {getMaxPagesForPlan(tenantPlan)} pages selected
+            {t('{n} / {max} pages selected', { n: selectedUrls.size, max: getMaxPagesForPlan(tenantPlan) })}
           </span>
         </div>
 
@@ -194,7 +197,7 @@ export default function PageSelectionModal({
             <Search className="w-3.5 h-3.5 text-gray-500 absolute left-3 top-2.5 pointer-events-none" />
             <input
               type="text"
-              placeholder="Filter pages by URL or title..."
+              placeholder={t('Filter pages by URL or title...')}
               value={pageSelectionSearch}
               onChange={(e) => setPageSelectionSearch(e.target.value)}
               className="w-full bg-white border border-gray-300 text-dark-900 placeholder-gray-400 rounded-xl pl-8 pr-3 py-1.5 text-xs outline-none focus:border-brand-500 transition-colors"
@@ -210,25 +213,25 @@ export default function PageSelectionModal({
               }}
               className="text-xs text-gray-600 hover:text-dark-900 bg-white hover:bg-surface-200 px-3 py-1.5 rounded-lg border border-dark-900/10 transition-colors"
             >
-              Select Top {getMaxPagesForPlan(tenantPlan)}
+              {t('Select Top {n}', { n: getMaxPagesForPlan(tenantPlan) })}
             </button>
             <button
               type="button"
               onClick={() => setSelectedUrls(new Set())}
               className="text-xs text-gray-500 hover:text-dark-900 bg-white hover:bg-surface-200 px-3 py-1.5 rounded-lg border border-dark-900/10 transition-colors"
             >
-              Clear All
+              {t('Clear All')}
             </button>
           </div>
         </div>
 
         {discoveryTruncated && (
           <p className="text-[11px] text-amber-700 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 mt-3">
-            This site has more than {MAX_DISCOVERABLE_PAGES.toLocaleString()} pages — bigger than any of our plans are sized for, so we only scanned the first {MAX_DISCOVERABLE_PAGES.toLocaleString()}.{' '}
+            {t('This site has more than {n} pages — bigger than any of our plans are sized for, so we only scanned the first {n}.', { n: MAX_DISCOVERABLE_PAGES.toLocaleString() })}{' '}
             <a href={customPlanMailto} className="font-semibold underline hover:text-amber-800">
-              Contact us
+              {t('Contact us')}
             </a>{' '}
-            for a custom plan sized to your site.
+            {t('for a custom plan sized to your site.')}
           </p>
         )}
 
@@ -245,7 +248,7 @@ export default function PageSelectionModal({
               className="w-full sm:w-auto text-xs text-amber-700 hover:text-amber-800 font-semibold flex items-center gap-1.5 px-3 py-2"
             >
               <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-              Contact us for a custom plan →
+              {t('Contact us for a custom plan →')}
             </a>
           )}
 
@@ -255,7 +258,7 @@ export default function PageSelectionModal({
               onClick={onClose}
               className="px-4 py-2 rounded-xl text-xs font-semibold text-gray-500 hover:text-dark-900"
             >
-              Cancel
+              {t('Cancel')}
             </button>
             <button
               type="button"
@@ -263,7 +266,7 @@ export default function PageSelectionModal({
               onClick={onConfirm}
               className="bg-brand-600 hover:bg-brand-500 text-white font-semibold px-6 py-2 rounded-xl text-xs flex items-center gap-2 transition-all shadow-lg disabled:opacity-50"
             >
-              Confirm & Index Selected Pages ({selectedUrls.size}) →
+              {t('Confirm & Index Selected Pages ({n}) →', { n: selectedUrls.size })}
             </button>
           </div>
         </div>

@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { Users, Search, Download, Calendar, Mail, Phone, User } from 'lucide-react';
+import { useT } from '../i18n/LanguageContext';
 
 export default function LeadsTable({ leads }) {
+  const { t } = useT();
   const [searchQuery, setSearchQuery] = useState('');
 
   const filteredLeads = leads.filter((lead) => {
@@ -24,7 +26,7 @@ export default function LeadsTable({ leads }) {
 
   const exportToCSV = () => {
     if (leads.length === 0) return;
-    const headers = ["ID", "Name", "Email", "Phone", "Created Date"];
+    const headers = [t("ID"), t("Name"), t("Email"), t("Phone"), t("Created Date")];
     const rows = leads.map(l => [l.id, l.name || '', l.email || '', l.phone || '', l.created_at]);
     const csvContent = [headers, ...rows]
       .map(row => row.map(csvCell).join(","))
@@ -47,9 +49,9 @@ export default function LeadsTable({ leads }) {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
         <div>
           <h2 className="text-lg font-bold text-dark-900 flex items-center gap-2">
-            <Users className="w-5 h-5 text-emerald-600" /> Leads ({filteredLeads.length})
+            <Users className="w-5 h-5 text-emerald-600" /> {t('Leads ({n})', { n: filteredLeads.length })}
           </h2>
-          <p className="text-xs text-gray-500">Visitors who asked to be contacted, or left their details while chatting with your assistant.</p>
+          <p className="text-xs text-gray-500">{t('Visitors who asked to be contacted, or left their details while chatting with your assistant.')}</p>
         </div>
 
         <div className="flex items-center gap-3 w-full sm:w-auto">
@@ -58,7 +60,7 @@ export default function LeadsTable({ leads }) {
             <Search className="w-4 h-4 text-gray-500 absolute left-3 top-3 pointer-events-none" />
             <input
               type="text"
-              placeholder="Search by name, email, or phone..."
+              placeholder={t('Search by name, email, or phone...')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-white border border-gray-300 rounded-xl pl-9 pr-4 py-2 text-sm text-dark-900 placeholder-gray-500 outline-none focus:border-brand-500"
@@ -71,7 +73,7 @@ export default function LeadsTable({ leads }) {
             disabled={leads.length === 0}
             className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-semibold px-4 py-2.5 rounded-xl flex items-center gap-2 transition-all shadow-md"
           >
-            <Download className="w-4 h-4" /> Export CSV
+            <Download className="w-4 h-4" /> {t('Export CSV')}
           </button>
         </div>
       </div>
@@ -80,7 +82,7 @@ export default function LeadsTable({ leads }) {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredLeads.length === 0 ? (
           <div className="col-span-full py-12 text-center text-gray-500 text-sm border border-dashed border-dark-900/10 rounded-2xl">
-            No leads captured yet. Enable lead capture in your AI settings.
+            {t('No leads captured yet. Enable lead capture in your AI settings.')}
           </div>
         ) : (
           filteredLeads.map((lead) => (
@@ -91,7 +93,7 @@ export default function LeadsTable({ leads }) {
                     <User className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-dark-900">{lead.name || 'Unknown Name'}</h3>
+                    <h3 className="text-sm font-bold text-dark-900">{lead.name || t('Unknown Name')}</h3>
                     <p className="text-xs text-gray-500 flex items-center gap-1">
                       <Calendar className="w-3 h-3" /> {new Date(lead.created_at).toLocaleDateString('en-US')}
                     </p>
@@ -105,7 +107,7 @@ export default function LeadsTable({ leads }) {
                   {lead.email ? (
                     <a href={`mailto:${lead.email}`} className="text-brand-700 hover:text-brand-800 truncate">{lead.email}</a>
                   ) : (
-                    <span className="text-gray-600 italic">Not provided</span>
+                    <span className="text-gray-600 italic">{t('Not provided')}</span>
                   )}
                 </div>
                 <div className="flex items-center gap-2 text-sm">
@@ -113,15 +115,15 @@ export default function LeadsTable({ leads }) {
                   {lead.phone ? (
                     <a href={`tel:${lead.phone}`} className="text-emerald-700 hover:text-emerald-800 truncate">{lead.phone}</a>
                   ) : (
-                    <span className="text-gray-600 italic">Not provided</span>
+                    <span className="text-gray-600 italic">{t('Not provided')}</span>
                   )}
                 </div>
               </div>
 
               <div className="mt-auto bg-surface-200 p-3 rounded-xl border border-dark-900/5">
-                <h4 className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Inquiry Summary</h4>
+                <h4 className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">{t('Inquiry Summary')}</h4>
                 <p className="text-xs text-gray-600 line-clamp-3">
-                  {lead.summary || <span className="text-gray-600 italic">No summary generated by AI.</span>}
+                  {lead.summary || <span className="text-gray-600 italic">{t('No summary generated by AI.')}</span>}
                 </p>
               </div>
             </div>

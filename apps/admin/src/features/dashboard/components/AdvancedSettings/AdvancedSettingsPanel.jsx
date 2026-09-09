@@ -6,6 +6,7 @@ import AdditionalInfoCard from './AdditionalInfoCard';
 import WelcomeExperienceCard from './WelcomeExperienceCard';
 import KnowledgeBasePanel from './KnowledgeBasePanel';
 import DangerZone from './DangerZone';
+import { useT } from '../../../../i18n/LanguageContext';
 
 /** Collapsible Section for Non-Essential / Advanced Settings */
 export default function AdvancedSettingsPanel({
@@ -52,6 +53,7 @@ export default function AdvancedSettingsPanel({
   onRequestDeleteSite,
   onRequestResetSite
 }) {
+  const { t } = useT();
   return (
     <div id="advanced-settings-section" className="bg-white/70 rounded-2xl border border-dark-900/5 overflow-hidden transition-all scroll-mt-20">
       <button
@@ -68,17 +70,17 @@ export default function AdvancedSettingsPanel({
           </div>
           <div>
             <h3 className="text-base font-bold text-dark-900 flex items-center gap-2">
-              Customize your assistant
+              {t('Customize your assistant')}
             </h3>
-            <p className="text-xs text-gray-500">How it speaks, how it looks, what it collects, and which pages it answers from.</p>
+            <p className="text-xs text-gray-500">{t('How it speaks, how it looks, what it collects, and which pages it answers from.')}</p>
           </div>
         </div>
 
         <div className="flex items-center gap-2 text-xs font-semibold text-brand-700 bg-brand-500/10 px-3.5 py-1.5 rounded-lg border border-brand-500/20">
           {showAdvancedSettings ? (
-            <>Hide Settings <ChevronUp className="w-4 h-4" /></>
+            <>{t('Hide Settings')} <ChevronUp className="w-4 h-4" /></>
           ) : (
-            <>Show Settings <ChevronDown className="w-4 h-4" /></>
+            <>{t('Show Settings')} <ChevronDown className="w-4 h-4" /></>
           )}
         </div>
       </button>

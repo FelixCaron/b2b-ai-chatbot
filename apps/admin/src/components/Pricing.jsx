@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Check, Zap, Shield, Sparkles, ArrowRight, Loader2 } from 'lucide-react';
 import { PLANS } from '@b2b-ai-chatbot/contracts';
 import api from '../lib/api';
+import { useT } from '../i18n/LanguageContext';
 
 // Plan copy, prices, and limits live in one place — packages/contracts/src/
 // plans.js — and this file only adds the presentational bits (icon, color)
@@ -15,6 +16,7 @@ const PLAN_PRESENTATION = {
 };
 
 export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'basic', onNavigate }) {
+  const { t } = useT();
   const [loadingPlanId, setLoadingPlanId] = useState(null);
   const [error, setError] = useState(null);
 
@@ -39,7 +41,7 @@ export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'basic',
     }
 
     console.error('[Pricing] Checkout error:', result.error);
-    setError(result.error || 'Error creating checkout session');
+    setError(result.error || t('Error creating checkout session'));
     setLoadingPlanId(null);
   };
 
@@ -48,9 +50,9 @@ export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'basic',
   return (
     <div className="py-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="text-center max-w-3xl mx-auto mb-16">
-        <h1 className="text-3xl font-bold text-dark-900 mb-4">Turn Website Visitors Into Customers</h1>
+        <h1 className="text-3xl font-bold text-dark-900 mb-4">{t('Turn Website Visitors Into Customers')}</h1>
         <p className="text-gray-500 text-lg">
-          A virtual employee on your site that answers, qualifies, and converts visitors — 24/7.
+          {t('A virtual employee on your site that answers, qualifies, and converts visitors — 24/7.')}
         </p>
       </div>
 
@@ -79,12 +81,12 @@ export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'basic',
             >
               {plan.popular && (
                 <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-emerald-500 text-white text-xs font-bold px-4 py-1.5 rounded-full uppercase tracking-wider shadow-lg">
-                  Most Popular
+                  {t('Most Popular')}
                 </div>
               )}
               {isCurrent && (
                 <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-brand-600 text-white text-xs font-bold px-4 py-1.5 rounded-full uppercase tracking-wider shadow-lg flex items-center gap-1">
-                  <Check className="w-3 h-3" /> Your Current Plan
+                  <Check className="w-3 h-3" /> {t('Your Current Plan')}
                 </div>
               )}
 
@@ -95,22 +97,22 @@ export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'basic',
               </div>
 
               <h3 className="text-xl font-bold text-dark-900 mb-1">{plan.displayName}</h3>
-              <p className={`text-xs font-bold uppercase tracking-wider mb-3 text-${color}-600`}>{plan.tagline}</p>
-              <p className="text-sm text-gray-500 mb-6 min-h-[40px]">{plan.description}</p>
+              <p className={`text-xs font-bold uppercase tracking-wider mb-3 text-${color}-600`}>{t(plan.tagline)}</p>
+              <p className="text-sm text-gray-500 mb-6 min-h-[40px]">{t(plan.description)}</p>
 
               <div className="mb-2">
                 <div className="flex items-baseline gap-1">
                   <span className="text-4xl font-bold text-dark-900">${plan.priceCad}</span>
-                  <span className="text-gray-500 font-medium">CAD/month</span>
+                  <span className="text-gray-500 font-medium">{t('CAD/month')}</span>
                 </div>
               </div>
-              <p className="text-xs text-gray-500 mb-6">14-day free trial · No credit card required</p>
+              <p className="text-xs text-gray-500 mb-6">{t('14-day free trial · No credit card required')}</p>
 
               <ul className="space-y-4 mb-8 flex-1">
                 {plan.features.map((feature, i) => (
                   <li key={i} className="flex items-start gap-3 text-sm text-gray-600">
                     <Check className={`w-5 h-5 shrink-0 text-${color}-600`} />
-                    <span>{feature}</span>
+                    <span>{t(feature)}</span>
                   </li>
                 ))}
               </ul>
@@ -131,11 +133,11 @@ export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'basic',
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : isCurrent ? (
                   <>
-                    <Check className="w-4 h-4" /> Active Plan
+                    <Check className="w-4 h-4" /> {t('Active Plan')}
                   </>
                 ) : (
                   <>
-                    Start Free Trial <ArrowRight className="w-4 h-4" />
+                    {t('Start Free Trial')} <ArrowRight className="w-4 h-4" />
                   </>
                 )}
               </button>
@@ -145,15 +147,15 @@ export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'basic',
       </div>
 
       <p className="text-center text-sm text-gray-500 mt-10">
-        Need multiple locations, higher volumes, or a CRM integration?{' '}
+        {t('Need multiple locations, higher volumes, or a CRM integration?')}{' '}
         <button onClick={() => onNavigate?.('about')} className="underline hover:text-gray-700 font-medium">
-          Contact us
+          {t('Contact us')}
         </button>{' '}
-        about Enterprise.
+        {t('about Enterprise.')}
       </p>
 
       <p className="text-center text-xs text-gray-600 mt-6">
-        Secure payments powered by{' '}
+        {t('Secure payments powered by')}{' '}
         <a
           href="https://stripe.com"
           target="_blank"
@@ -162,16 +164,16 @@ export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'basic',
         >
           Stripe
         </a>
-        . Cancel anytime.
+        {t('. Cancel anytime.')}
       </p>
       <p className="text-center text-[11px] text-gray-600 mt-2">
-        By subscribing, you agree to our{' '}
+        {t('By subscribing, you agree to our')}{' '}
         <button onClick={() => onNavigate?.('terms')} className="underline hover:text-gray-700">
-          Terms of Service
+          {t('Terms of Service')}
         </button>{' '}
-        and{' '}
+        {t('and')}{' '}
         <button onClick={() => onNavigate?.('privacy')} className="underline hover:text-gray-700">
-          Privacy Policy
+          {t('Privacy Policy')}
         </button>
         .
       </p>

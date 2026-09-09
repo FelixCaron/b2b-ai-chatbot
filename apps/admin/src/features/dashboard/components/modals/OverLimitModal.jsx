@@ -1,6 +1,7 @@
 import React from 'react';
 import { AlertTriangle, ShieldCheck, RefreshCw, Sparkles } from 'lucide-react';
 import { getPlanDisplayName } from '../../lib/plan-limits';
+import { useT } from '../../../../i18n/LanguageContext';
 
 /** 11. OVER_LIMIT_CHOOSE — MORE WEBSITES THAN THE PLAN COVERS
     Reached after a downgrade (Stripe change, past_due). The user picks
@@ -18,6 +19,7 @@ export default function OverLimitModal({
   onClose,
   onShowPricing
 }) {
+  const { t } = useT();
   if (!show || activeSites.length === 0) return null;
 
   return (
@@ -30,10 +32,10 @@ export default function OverLimitModal({
             </div>
             <div>
               <h3 className="text-lg font-bold text-dark-900">
-                Choose which website{maxSitesForPlan > 1 ? 's' : ''} stay{maxSitesForPlan > 1 ? '' : 's'} active
+                {maxSitesForPlan > 1 ? t('Choose which websites stay active') : t('Choose which website stays active')}
               </h3>
               <p className="text-xs text-gray-500">
-                Your <strong>{getPlanDisplayName(tenantPlan)}</strong> plan covers <strong>{maxSitesForPlan} active website{maxSitesForPlan > 1 ? 's' : ''}</strong>, and you have <strong>{activeSites.length}</strong>.
+                {t('Your')} <strong>{getPlanDisplayName(tenantPlan)}</strong> {t('plan covers')} <strong>{maxSitesForPlan > 1 ? t('{n} active websites', { n: maxSitesForPlan }) : t('{n} active website', { n: maxSitesForPlan })}</strong>{t(', and you have')} <strong>{activeSites.length}</strong>.
               </p>
             </div>
           </div>
@@ -50,7 +52,7 @@ export default function OverLimitModal({
         <div className="bg-emerald-500/10 border border-emerald-500/25 rounded-2xl p-3.5 text-xs text-emerald-800 leading-relaxed flex items-start gap-2.5">
           <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5 text-emerald-600" />
           <span>
-            The websites you do not select are <strong className="text-dark-900">parked, not deleted</strong>. Everything they learned, and every lead they captured, stays exactly where it is — they simply stop answering visitors. Upgrade your plan and they come back online exactly as they were.
+            {t('The websites you do not select are')} <strong className="text-dark-900">{t('parked, not deleted')}</strong>{t('. Everything they learned, and every lead they captured, stays exactly where it is — they simply stop answering visitors. Upgrade your plan and they come back online exactly as they were.')}
           </span>
         </div>
 
@@ -70,7 +72,7 @@ export default function OverLimitModal({
               <div
                 key={s.id}
                 onClick={() => onToggleKeep(s.id)}
-                title={isFull ? 'Unselect another website first' : ''}
+                title={isFull ? t('Unselect another website first') : ''}
                 className={`p-3 flex items-center justify-between gap-3 transition-colors ${
                   isFull ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-dark-900/[0.03]'
                 } ${isChecked ? 'bg-brand-500/5' : ''}`}
@@ -84,7 +86,7 @@ export default function OverLimitModal({
                   />
                   <div className="min-w-0">
                     <div className="text-xs font-semibold text-dark-900 truncate">{s.domain}</div>
-                    <div className="text-[11px] text-gray-500 truncate">{isChecked ? 'Stays online' : 'Parked'}</div>
+                    <div className="text-[11px] text-gray-500 truncate">{isChecked ? t('Stays online') : t('Parked')}</div>
                   </div>
                 </div>
                 <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${
@@ -92,7 +94,7 @@ export default function OverLimitModal({
                     ? 'bg-emerald-500/10 text-emerald-700 border border-emerald-500/20'
                     : 'bg-amber-500/10 text-amber-700 border border-amber-500/20'
                 }`}>
-                  {isChecked ? 'Stays active' : 'Will be parked'}
+                  {isChecked ? t('Stays active') : t('Will be parked')}
                 </span>
               </div>
             );
@@ -111,7 +113,7 @@ export default function OverLimitModal({
               className="w-full sm:w-auto text-xs text-amber-700 hover:text-amber-800 font-semibold flex items-center gap-1.5 px-3 py-2"
             >
               <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-              Upgrade instead and keep all {activeSites.length} online →
+              {t('Upgrade instead and keep all {n} online →', { n: activeSites.length })}
             </button>
           ) : <span />}
 
@@ -122,9 +124,9 @@ export default function OverLimitModal({
             className="w-full sm:w-auto bg-brand-600 hover:bg-brand-500 text-white font-semibold px-6 py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isParkingSites ? (
-              <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Saving...</>
+              <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> {t('Saving...')}</>
             ) : (
-              <>Keep selected active & park {Math.max(activeSites.length - overLimitKeepIds.size, 0)} →</>
+              <>{t('Keep selected active & park {n} →', { n: Math.max(activeSites.length - overLimitKeepIds.size, 0) })}</>
             )}
           </button>
         </div>

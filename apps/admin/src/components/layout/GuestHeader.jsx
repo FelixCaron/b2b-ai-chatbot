@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Menu, X } from 'lucide-react';
 import LogoMark from '../LogoMark';
 import { navItemsWithBadges } from './navigation';
+import { useT } from '../../i18n/LanguageContext';
 
 /**
  * The lightweight header a guest (anonymous session) gets: the same four tabs
@@ -12,6 +13,7 @@ import { navItemsWithBadges } from './navigation';
  * itself after each selection.
  */
 export default function GuestHeader({ currentView = 'dashboard', onNavigate, onSignIn, leadsCount = 0 }) {
+  const { t } = useT();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navItems = navItemsWithBadges({ leadsCount });
 
@@ -20,7 +22,7 @@ export default function GuestHeader({ currentView = 'dashboard', onNavigate, onS
     setMobileMenuOpen(false);
   };
 
-  const labelFor = (item) => (item.badge ? `${item.label} (${item.badgeValue})` : item.label);
+  const labelFor = (item) => (item.badge ? `${t(item.label)} (${item.badgeValue})` : t(item.label));
 
   return (
     <header className="glass-card sticky top-0 z-50 px-4 sm:px-8 py-3 sm:py-4 mb-6 sm:mb-8">
@@ -57,14 +59,14 @@ export default function GuestHeader({ currentView = 'dashboard', onNavigate, onS
           onClick={onSignIn}
           className="hidden sm:inline-flex text-xs sm:text-sm font-medium bg-brand-600 hover:bg-brand-700 text-white px-3.5 py-1.5 rounded-lg transition-colors"
         >
-          Sign In
+          {t('Sign In')}
         </button>
 
         {/* Mobile menu toggle */}
         <button
           onClick={() => setMobileMenuOpen((open) => !open)}
           className="sm:hidden w-9 h-9 rounded-lg bg-surface-200 hover:bg-surface-300 border border-dark-900/10 flex items-center justify-center text-gray-600 transition-colors"
-          aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+          aria-label={mobileMenuOpen ? t('Close menu') : t('Open menu')}
           aria-expanded={mobileMenuOpen}
         >
           {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
@@ -89,7 +91,7 @@ export default function GuestHeader({ currentView = 'dashboard', onNavigate, onS
             onClick={() => { onSignIn?.(); setMobileMenuOpen(false); }}
             className="text-left px-3.5 py-2.5 rounded-lg text-sm font-semibold text-white bg-brand-600 hover:bg-brand-700 mt-1 transition-colors"
           >
-            Sign In
+            {t('Sign In')}
           </button>
         </div>
       )}

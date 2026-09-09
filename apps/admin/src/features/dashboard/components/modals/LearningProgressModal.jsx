@@ -1,6 +1,7 @@
 import React from 'react';
 import { CheckCircle2, RefreshCw, Check, Eye } from 'lucide-react';
 import LogoMark from '../../../../components/LogoMark';
+import { useT } from '../../../../i18n/LanguageContext';
 
 /** 3. DEDICATED LEARNING PROGRESS MODAL (POPUP WITH PROGRESS BAR) */
 export default function LearningProgressModal({
@@ -12,6 +13,7 @@ export default function LearningProgressModal({
   onTestBot,
   onGoToDashboard
 }) {
+  const { t } = useT();
   if (!show) return null;
 
   return (
@@ -38,12 +40,12 @@ export default function LearningProgressModal({
 
         {/* Title & Description */}
         <h3 className="text-2xl font-bold text-dark-900 mb-2">
-          {learningStep === 4 ? "🎉 Your assistant is ready!" : `Learning ${learningDomain || 'your website'}`}
+          {learningStep === 4 ? t('🎉 Your assistant is ready!') : t('Learning {domain}', { domain: learningDomain || t('your website') })}
         </h3>
         <p className="text-sm text-gray-500 mb-8 max-w-md mx-auto">
           {learningStep === 4
-            ? `We've read your website and your assistant is ready to answer questions about it.`
-            : `We're reading your pages and learning what your business does, so your assistant can answer visitors around the clock.`}
+            ? t("We've read your website and your assistant is ready to answer questions about it.")
+            : t("We're reading your pages and learning what your business does, so your assistant can answer visitors around the clock.")}
         </p>
 
         {/* Progress Bar */}
@@ -51,7 +53,7 @@ export default function LearningProgressModal({
           <div className="flex items-center justify-between text-xs font-semibold">
             <span className="text-gray-600 flex items-center gap-2">
               {learningStep < 4 && <RefreshCw className="w-3.5 h-3.5 animate-spin text-brand-600" />}
-              {crawlProgressMsg || "Reading your website..."}
+              {crawlProgressMsg || t("Reading your website...")}
             </span>
             <span className="text-brand-700 font-mono">{learningProgress}%</span>
           </div>
@@ -70,7 +72,7 @@ export default function LearningProgressModal({
               {learningStep >= 2 ? <Check className="w-3 h-3" /> : '1'}
             </div>
             <span className={learningStep >= 2 ? 'text-gray-600 font-medium' : 'text-dark-900 font-semibold'}>
-              Finding your pages
+              {t('Finding your pages')}
             </span>
           </div>
 
@@ -79,7 +81,7 @@ export default function LearningProgressModal({
               {learningStep >= 3 ? <Check className="w-3 h-3" /> : '2'}
             </div>
             <span className={learningStep >= 3 ? 'text-gray-600 font-medium' : learningStep === 2 ? 'text-dark-900 font-semibold' : 'text-gray-500'}>
-              Reading what each page says
+              {t('Reading what each page says')}
             </span>
           </div>
 
@@ -88,7 +90,7 @@ export default function LearningProgressModal({
               {learningStep >= 4 ? <Check className="w-3 h-3" /> : '3'}
             </div>
             <span className={learningStep >= 4 ? 'text-gray-600 font-medium' : learningStep === 3 ? 'text-dark-900 font-semibold' : 'text-gray-500'}>
-              Learning what your business does
+              {t('Learning what your business does')}
             </span>
           </div>
         </div>
@@ -100,18 +102,18 @@ export default function LearningProgressModal({
               onClick={onTestBot}
               className="flex-1 bg-gradient-to-r from-brand-700 to-brand-500 hover:from-brand-600 hover:to-brand-400 text-white font-bold py-3.5 px-6 rounded-xl text-sm flex items-center justify-center gap-2 shadow-lg shadow-brand-900/30 transition-all hover:scale-[1.02] active:scale-98"
             >
-              <Eye className="w-4 h-4" /> Test your assistant →
+              <Eye className="w-4 h-4" /> {t('Test your assistant →')}
             </button>
             <button
               onClick={onGoToDashboard}
               className="bg-white hover:bg-surface-200 border border-dark-900/10 text-gray-600 hover:text-dark-900 font-semibold py-3.5 px-5 rounded-xl text-sm transition-all"
             >
-              Go to Dashboard
+              {t('Go to Dashboard')}
             </button>
           </div>
         ) : (
           <div className="text-xs text-gray-500">
-            Please keep this window open while we finish reading your website...
+            {t('Please keep this window open while we finish reading your website...')}
           </div>
         )}
       </div>

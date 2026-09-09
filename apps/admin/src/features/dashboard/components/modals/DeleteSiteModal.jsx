@@ -1,5 +1,6 @@
 import React from 'react';
 import { AlertTriangle, RefreshCw, Trash2 } from 'lucide-react';
+import { useT } from '../../../../i18n/LanguageContext';
 
 /** 8. DELETE WEBSITE CONFIRMATION MODAL */
 export default function DeleteSiteModal({
@@ -10,6 +11,7 @@ export default function DeleteSiteModal({
   onCancel,
   onConfirm
 }) {
+  const { t } = useT();
   if (!show || !activeSite) return null;
 
   return (
@@ -20,10 +22,10 @@ export default function DeleteSiteModal({
         </div>
 
         <h3 className="text-xl font-bold text-dark-900 mb-2">
-          Delete Website?
+          {t('Delete Website?')}
         </h3>
         <p className="text-sm text-gray-500 mb-6 leading-relaxed">
-          Are you sure you want to delete <strong className="text-dark-900">{activeSite.domain}</strong>? Everything your assistant learned from it, and the code installed on your website, stop working permanently.
+          {t('Are you sure you want to delete')} <strong className="text-dark-900">{activeSite.domain}</strong>{t('? Everything your assistant learned from it, and the code installed on your website, stop working permanently.')}
         </p>
 
         {deleteSiteError && (
@@ -40,7 +42,7 @@ export default function DeleteSiteModal({
             onClick={onCancel}
             className="w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-semibold text-gray-600 hover:text-dark-900 bg-white border border-dark-900/10 hover:bg-surface-200 transition-all"
           >
-            Cancel
+            {t('Cancel')}
           </button>
           <button
             type="button"
@@ -49,11 +51,11 @@ export default function DeleteSiteModal({
             className="w-full sm:w-auto bg-red-600 hover:bg-red-500 text-white font-semibold px-6 py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-all shadow-lg shadow-red-900/40 disabled:opacity-50"
           >
             {isDeletingSite ? (
-              <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Deleting...</>
+              <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> {t('Deleting...')}</>
             ) : deleteSiteError ? (
-              <><RefreshCw className="w-3.5 h-3.5" /> Retry Delete</>
+              <><RefreshCw className="w-3.5 h-3.5" /> {t('Retry Delete')}</>
             ) : (
-              <><Trash2 className="w-3.5 h-3.5" /> Delete Permanently</>
+              <><Trash2 className="w-3.5 h-3.5" /> {t('Delete Permanently')}</>
             )}
           </button>
         </div>

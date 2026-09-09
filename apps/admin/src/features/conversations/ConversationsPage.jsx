@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { MessageSquare, Search, RefreshCw, User, Sparkles, ChevronLeft, AlertCircle, FileText } from 'lucide-react';
 import useConversations from './useConversations';
+import { useT } from '../../i18n/LanguageContext';
 
 /**
  * What visitors actually asked the assistant.
@@ -12,6 +13,7 @@ import useConversations from './useConversations';
  * just had nowhere to be read.
  */
 export default function ConversationsPage({ tenantId, sites = [], onBack }) {
+  const { t } = useT();
   const { conversations, isLoading, error, truncated, reload } = useConversations(tenantId);
   const [selectedId, setSelectedId] = useState(null);
   const [query, setQuery] = useState('');
@@ -66,11 +68,11 @@ export default function ConversationsPage({ tenantId, sites = [], onBack }) {
             <MessageSquare className="w-5 h-5" />
           </div>
           <div className="min-w-0">
-            <h2 className="text-xl font-bold text-dark-900">Conversations</h2>
+            <h2 className="text-xl font-bold text-dark-900">{t('Conversations')}</h2>
             <p className="text-xs text-gray-500 truncate">
               {needsAttentionCount > 0
-                ? `${needsAttentionCount} of these your assistant couldn't answer`
-                : 'What your visitors asked, and how your assistant answered'}
+                ? t("{n} of these your assistant couldn't answer", { n: needsAttentionCount })
+                : t('What your visitors asked, and how your assistant answered')}
             </p>
           </div>
         </div>
@@ -80,30 +82,29 @@ export default function ConversationsPage({ tenantId, sites = [], onBack }) {
             disabled={isLoading}
             className="text-xs text-gray-500 hover:text-dark-900 bg-surface-200 hover:bg-surface-300 px-3 py-1.5 rounded-lg border border-dark-900/10 flex items-center gap-1.5 disabled:opacity-60"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} /> Refresh
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} /> {t('Refresh')}
           </button>
           <button
             onClick={onBack}
             className="text-xs text-gray-500 hover:text-dark-900 bg-surface-200 hover:bg-surface-300 px-3 py-1.5 rounded-lg border border-dark-900/10"
           >
-            ← <span className="hidden sm:inline">Back to Dashboard</span><span className="sm:hidden">Back</span>
+            ← <span className="hidden sm:inline">{t('Back to Dashboard')}</span><span className="sm:hidden">{t('Back')}</span>
           </button>
         </div>
       </div>
 
       {error && (
         <div className="glass-card p-4 rounded-2xl text-sm text-red-700 bg-red-50 border border-red-200">
-          {error}
+          {t(error)}
         </div>
       )}
 
       {!error && !isLoading && conversations.length === 0 && (
         <div className="glass-card p-10 rounded-2xl text-center">
           <MessageSquare className="w-8 h-8 text-gray-300 mx-auto mb-3" />
-          <h3 className="text-sm font-bold text-dark-900 mb-1">No conversations yet</h3>
+          <h3 className="text-sm font-bold text-dark-900 mb-1">{t('No conversations yet')}</h3>
           <p className="text-xs text-gray-500 max-w-sm mx-auto">
-            Once your assistant is installed and a visitor asks it something, the
-            whole exchange shows up here.
+            {t('Once your assistant is installed and a visitor asks it something, the whole exchange shows up here.')}
           </p>
         </div>
       )}
@@ -117,7 +118,7 @@ export default function ConversationsPage({ tenantId, sites = [], onBack }) {
                 <Search className="w-3.5 h-3.5 text-gray-500 absolute left-3 top-2.5 pointer-events-none" />
                 <input
                   type="text"
-                  placeholder="Search what was said..."
+                  placeholder={t('Search what was said...')}
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   className="w-full bg-white border border-gray-300 rounded-xl pl-8 pr-3 py-1.5 text-xs text-dark-900 outline-none focus:border-brand-500"
@@ -136,7 +137,7 @@ export default function ConversationsPage({ tenantId, sites = [], onBack }) {
                   }`}
                 >
                   <AlertCircle className="w-3.5 h-3.5" />
-                  {needsAttentionCount} couldn't be answered
+                  {t("{n} couldn't be answered", { n: needsAttentionCount })}
                 </button>
               )}
             </div>
@@ -145,8 +146,8 @@ export default function ConversationsPage({ tenantId, sites = [], onBack }) {
               {filtered.length === 0 && (
                 <p className="p-6 text-xs text-gray-500 text-center">
                   {onlyNeedsAttention && !query.trim()
-                    ? 'Every conversation here was answered.'
-                    : `Nothing matches "${query}".`}
+                    ? t('Every conversation here was answered.')
+                    : t('Nothing matches "{query}".', { query })}
                 </p>
               )}
               {filtered.map((c) => (
@@ -159,12 +160,12 @@ export default function ConversationsPage({ tenantId, sites = [], onBack }) {
                 >
                   <div className="text-xs font-semibold text-dark-900 line-clamp-2">{c.title}</div>
                   <div className="text-[11px] text-gray-500 mt-1 flex items-center gap-2 flex-wrap">
-                    <span>{formatWhen(c.lastAt)}</span>
+                    <span>{formatWhen(c.lastAt, t)}</span>
                     <span aria-hidden="true">·</span>
-                    <span>{c.visitorMessageCount} {c.visitorMessageCount === 1 ? 'question' : 'questions'}</span>
+                    <span>{c.visitorMessageCount} {t(c.visitorMessageCount === 1 ? 'question' : 'questions')}</span>
                     {c.needsAttention && (
                       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-800 border border-amber-500/25 font-semibold">
-                        <AlertCircle className="w-2.5 h-2.5" /> Unanswered
+                        <AlertCircle className="w-2.5 h-2.5" /> {t('Unanswered')}
                       </span>
                     )}
                   </div>
@@ -173,7 +174,7 @@ export default function ConversationsPage({ tenantId, sites = [], onBack }) {
                       <FileText className="w-2.5 h-2.5 shrink-0" />
                       <span className="truncate">
                         {showSiteName && domainForSite(c.siteId) ? `${domainForSite(c.siteId)} ` : ''}
-                        {describePage(c.pageUrl)}
+                        {describePage(c.pageUrl, t)}
                       </span>
                     </div>
                   )}
@@ -183,7 +184,7 @@ export default function ConversationsPage({ tenantId, sites = [], onBack }) {
 
             {truncated && (
               <p className="p-3 text-[11px] text-gray-500 border-t border-dark-900/5">
-                Showing your most recent conversations. Older ones aren't listed here.
+                {t("Showing your most recent conversations. Older ones aren't listed here.")}
               </p>
             )}
           </div>
@@ -196,16 +197,16 @@ export default function ConversationsPage({ tenantId, sites = [], onBack }) {
                   <button
                     onClick={() => setOpenedByUser(false)}
                     className="lg:hidden text-gray-500 hover:text-dark-900 p-1 -ml-1 shrink-0"
-                    aria-label="Back to all conversations"
+                    aria-label={t('Back to all conversations')}
                   >
                     <ChevronLeft className="w-4 h-4" />
                   </button>
                   <div className="min-w-0">
                     <div className="text-sm font-bold text-dark-900 line-clamp-1">{selected.title}</div>
                     <div className="text-[11px] text-gray-500 mt-0.5 flex items-center gap-1.5 flex-wrap">
-                      <span>{formatWhen(selected.startedAt)}</span>
+                      <span>{formatWhen(selected.startedAt, t)}</span>
                       <span aria-hidden="true">·</span>
-                      <span>{selected.messages.length} messages</span>
+                      <span>{t('{n} messages', { n: selected.messages.length })}</span>
                       {selected.pageUrl && (
                         <>
                           <span aria-hidden="true">·</span>
@@ -217,7 +218,7 @@ export default function ConversationsPage({ tenantId, sites = [], onBack }) {
                             title={selected.pageUrl}
                           >
                             <FileText className="w-3 h-3 shrink-0" />
-                            <span className="truncate">{describePage(selected.pageUrl)}</span>
+                            <span className="truncate">{describePage(selected.pageUrl, t)}</span>
                           </a>
                         </>
                       )}
@@ -234,7 +235,7 @@ export default function ConversationsPage({ tenantId, sites = [], onBack }) {
                             ? 'bg-surface-200 text-gray-600 border-dark-900/10'
                             : 'bg-brand-500/10 text-brand-700 border-brand-500/20'
                         }`}
-                        title={m.role === 'user' ? 'Visitor' : 'Your assistant'}
+                        title={m.role === 'user' ? t('Visitor') : t('Your assistant')}
                       >
                         {m.role === 'user' ? <User className="w-3 h-3" /> : <Sparkles className="w-3 h-3" />}
                       </div>
@@ -248,9 +249,9 @@ export default function ConversationsPage({ tenantId, sites = [], onBack }) {
                         >
                           {m.content}
                         </div>
-                        {answerNote(m) && (
+                        {answerNote(m, t) && (
                           <div className="mt-1 text-[10.5px] text-amber-800 flex items-center gap-1 justify-end">
-                            <AlertCircle className="w-3 h-3 shrink-0" /> {answerNote(m)}
+                            <AlertCircle className="w-3 h-3 shrink-0" /> {answerNote(m, t)}
                           </div>
                         )}
                       </div>
@@ -260,7 +261,7 @@ export default function ConversationsPage({ tenantId, sites = [], onBack }) {
               </>
             ) : (
               <div className="p-10 text-center text-xs text-gray-500">
-                Pick a conversation to read it.
+                {t('Pick a conversation to read it.')}
               </div>
             )}
           </div>
@@ -275,13 +276,13 @@ export default function ConversationsPage({ tenantId, sites = [], onBack }) {
  * or "your home page" for the root. The domain is redundant on most rows —
  * it's their own website — so it's only added when they have more than one.
  */
-function describePage(pageUrl) {
-  if (!pageUrl) return 'Page not recorded';
+function describePage(pageUrl, t) {
+  if (!pageUrl) return t('Page not recorded');
   try {
     const { pathname } = new URL(pageUrl);
-    return pathname === '/' || pathname === '' ? 'Home page' : pathname;
+    return pathname === '/' || pathname === '' ? t('Home page') : pathname;
   } catch {
-    return 'Page not recorded';
+    return t('Page not recorded');
   }
 }
 
@@ -290,31 +291,31 @@ function describePage(pageUrl) {
  * one: it's not that the assistant malfunctioned, it's that the website has
  * nothing on the subject — which is something they can fix.
  */
-function answerNote(message) {
+function answerNote(message, t) {
   // missing_info is the assistant's own account of the gap (via the
   // flag_unanswered_question tool) — more useful to an owner than the
   // generic line, so prefer it whenever it's there.
-  if (message.answer_status === 'no_match') return message.missing_info || "Nothing on your website covered this";
-  if (message.answer_status === 'failed') return "Your assistant couldn't answer this";
+  if (message.answer_status === 'no_match') return message.missing_info || t("Nothing on your website covered this");
+  if (message.answer_status === 'failed') return t("Your assistant couldn't answer this");
   return null;
 }
 
 /** Short, human date — today's conversations shouldn't read like log lines. */
-function formatWhen(timestamp) {
-  if (!timestamp) return 'Unknown time';
+function formatWhen(timestamp, t) {
+  if (!timestamp) return t('Unknown time');
   const date = new Date(timestamp);
-  if (Number.isNaN(date.getTime())) return 'Unknown time';
+  if (Number.isNaN(date.getTime())) return t('Unknown time');
 
   const now = new Date();
   const sameDay = date.toDateString() === now.toDateString();
   if (sameDay) {
-    return `Today, ${date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`;
+    return t('Today, {time}', { time: date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) });
   }
 
   const yesterday = new Date(now);
   yesterday.setDate(now.getDate() - 1);
   if (date.toDateString() === yesterday.toDateString()) {
-    return `Yesterday, ${date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`;
+    return t('Yesterday, {time}', { time: date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) });
   }
 
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });

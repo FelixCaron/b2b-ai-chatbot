@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Globe, Eye, RefreshCw, Code, Settings2 } from 'lucide-react';
 import useWidgetLiveStatus from '../hooks/useWidgetLiveStatus';
+import { useT } from '../../../i18n/LanguageContext';
 
 /** The active website's identity card and its action row. The parked banner
  *  and the guided roadmap are rendered as children, inside the same card. */
@@ -16,6 +17,7 @@ export default function SiteHeroCard({
   onOpenSettings,
   children
 }) {
+  const { t } = useT();
   // Whether the widget has actually loaded on the live site recently — only
   // worth checking once the assistant is built and not mid-crawl.
   const isLive = useWidgetLiveStatus(activeSite?.id, isActive && !isCrawling);
@@ -65,22 +67,22 @@ export default function SiteHeroCard({
               {isCrawling ? (
                 <span className="bg-brand-500/15 text-brand-700 text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5 border border-brand-500/20">
                   <RefreshCw className="w-3 h-3 animate-spin" />
-                  Learning...
+                  {t('Learning...')}
                 </span>
               ) : !isActive ? (
                 <span className="bg-amber-500/15 text-amber-700 text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5 border border-amber-500/20">
                   <span className="w-2 h-2 rounded-full bg-amber-500/80"></span>
-                  Assistant Paused
+                  {t('Assistant Paused')}
                 </span>
               ) : isLive ? (
                 <span className="bg-emerald-500/15 text-emerald-700 text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5 border border-emerald-500/20">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                  Live on your website
+                  {t('Live on your website')}
                 </span>
               ) : (
                 <span className="bg-gray-500/10 text-gray-600 text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5 border border-gray-500/20">
                   <span className="w-2 h-2 rounded-full bg-gray-400"></span>
-                  Not installed yet
+                  {t('Not installed yet')}
                 </span>
               )}
             </div>
@@ -90,12 +92,12 @@ export default function SiteHeroCard({
                 which carries it already. */}
             <p className="text-xs text-gray-500 mt-1">
               {isCrawling
-                ? 'Reading your website and learning what your business does...'
+                ? t('Reading your website and learning what your business does...')
                 : !isActive
-                ? 'Paused — your assistant is not answering visitors'
+                ? t('Paused — your assistant is not answering visitors')
                 : isLive
-                ? 'Installed and answering visitors on your website'
-                : 'Built and ready — paste the install code below to put it on your website'}
+                ? t('Installed and answering visitors on your website')
+                : t('Built and ready — paste the install code below to put it on your website')}
             </p>
           </div>
         </div>
@@ -115,11 +117,11 @@ export default function SiteHeroCard({
           >
             {isCrawling ? (
               <>
-                <RefreshCw className="w-4 h-4 animate-spin text-brand-600" /> Learning your website...
+                <RefreshCw className="w-4 h-4 animate-spin text-brand-600" /> {t('Learning your website...')}
               </>
             ) : (
               <>
-                <Eye className="w-4 h-4" /> Test your assistant
+                <Eye className="w-4 h-4" /> {t('Test your assistant')}
               </>
             )}
           </button>
@@ -132,16 +134,16 @@ export default function SiteHeroCard({
               }}
               className="bg-white hover:bg-surface-200 border border-dark-900/10 text-gray-700 hover:text-dark-900 px-3 sm:px-4 py-3 rounded-xl text-xs sm:text-sm font-medium flex items-center justify-center gap-2 transition-all shadow-sm"
             >
-              <Code className="w-4 h-4 text-brand-600 shrink-0" /> <span className="truncate">Install</span>
+              <Code className="w-4 h-4 text-brand-600 shrink-0" /> <span className="truncate">{t('Install')}</span>
             </button>
 
             <button
               type="button"
               onClick={onOpenSettings}
               className="bg-white hover:bg-surface-200 border border-dark-900/10 text-gray-600 hover:text-dark-900 px-3 sm:px-4 py-3 rounded-xl text-xs sm:text-sm font-medium flex items-center justify-center gap-2 transition-all shadow-sm"
-              title="Customize your assistant"
+              title={t('Customize your assistant')}
             >
-              <Settings2 className="w-4 h-4 text-brand-600 shrink-0" /> Settings
+              <Settings2 className="w-4 h-4 text-brand-600 shrink-0" /> {t('Settings')}
             </button>
           </div>
         </div>

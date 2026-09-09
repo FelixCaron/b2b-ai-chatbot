@@ -1,11 +1,13 @@
 import React from 'react';
 import { RotateCcw, X } from 'lucide-react';
+import { useT } from '../../../../i18n/LanguageContext';
 
 /** 12. RESET WEBSITE CONFIRMATION MODAL
     Confirms, then gets out of the way: the reset itself (deleting indexed
     content, then re-crawling) runs in the background afterward — same as
     onboarding — so this modal doesn't sit open waiting on it. */
 export default function ResetSiteModal({ show, activeSite, onCancel, onConfirm }) {
+  const { t } = useT();
   if (!show || !activeSite) return null;
 
   return (
@@ -22,9 +24,9 @@ export default function ResetSiteModal({ show, activeSite, onCancel, onConfirm }
           <RotateCcw className="w-7 h-7" />
         </div>
 
-        <h3 className="text-xl font-bold text-dark-900 mb-2">Reset {activeSite.domain}?</h3>
+        <h3 className="text-xl font-bold text-dark-900 mb-2">{t('Reset {domain}?', { domain: activeSite.domain })}</h3>
         <p className="text-sm text-gray-500 mb-6 leading-relaxed">
-          This clears everything your assistant has learned from this website — every indexed page and its business summary — and every customization: tone, goal, lead capture, integrations, widget color, and favicon. It then re-detects your brand and starts a fresh scan right away. Your install code, leads, and conversation history are not affected.
+          {t('This clears everything your assistant has learned from this website — every indexed page and its business summary — and every customization: tone, goal, lead capture, integrations, widget color, and favicon. It then re-detects your brand and starts a fresh scan right away. Your install code, leads, and conversation history are not affected.')}
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
@@ -33,14 +35,14 @@ export default function ResetSiteModal({ show, activeSite, onCancel, onConfirm }
             onClick={onCancel}
             className="w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-semibold text-gray-600 hover:text-dark-900 bg-white border border-dark-900/10 hover:bg-surface-200 transition-all"
           >
-            Cancel
+            {t('Cancel')}
           </button>
           <button
             type="button"
             onClick={onConfirm}
             className="w-full sm:w-auto bg-amber-600 hover:bg-amber-500 text-white font-semibold px-6 py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-all shadow-lg shadow-amber-900/30"
           >
-            <RotateCcw className="w-3.5 h-3.5" /> Reset & Re-scan
+            <RotateCcw className="w-3.5 h-3.5" /> {t('Reset & Re-scan')}
           </button>
         </div>
       </div>

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ArrowRight, Mail, X } from 'lucide-react';
 import LogoMark from './LogoMark';
+import { useT } from '../i18n/LanguageContext';
 
 export default function LoginModal({
   onLogin,
@@ -15,6 +16,7 @@ export default function LoginModal({
   error = '',
   onUseDifferentEmail
 }) {
+  const { t } = useT();
   const [email, setEmail] = useState('');
 
   const handleSubmit = async (e) => {
@@ -48,7 +50,7 @@ export default function LoginModal({
             <Mail className="w-7 h-7" />
           </div>
 
-          <h1 className="relative text-2xl font-bold text-dark-900">Check your email</h1>
+          <h1 className="relative text-2xl font-bold text-dark-900">{t('Check your email')}</h1>
           <p className="relative text-gray-500 text-sm mt-2 leading-relaxed">{message}</p>
 
           <div className="relative mt-8 flex flex-col gap-2.5">
@@ -58,7 +60,7 @@ export default function LoginModal({
                 onClick={onUseDifferentEmail}
                 className="w-full px-5 py-2.5 rounded-xl text-xs font-semibold text-gray-600 hover:text-dark-900 bg-white border border-dark-900/10 hover:bg-surface-200 transition-all"
               >
-                Use a different email
+                {t('Use a different email')}
               </button>
             )}
             {/* Sending the link doesn't finish anything by itself — the
@@ -71,7 +73,7 @@ export default function LoginModal({
                 onClick={onNotNow}
                 className="w-full text-center text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors"
               >
-                Not now — keep working as a guest
+                {t('Not now — keep working as a guest')}
               </button>
             )}
           </div>
@@ -92,18 +94,18 @@ export default function LoginModal({
             <LogoMark className="w-full h-full" />
           </div>
           <h1 className="text-2xl font-bold text-dark-900 text-center">
-            {isGuestConversion ? "Congratulations, your AI is ready!" : "Welcome to your AI Space"}
+            {isGuestConversion ? t('Congratulations, your AI is ready!') : t('Welcome to your AI Space')}
           </h1>
           <p className="text-gray-500 text-sm mt-2 text-center">
             {isGuestConversion
-              ? "Enter your work email to save your assistant and get your integration embed code."
-              : "Enter your work email to sign in or configure your assistant."}
+              ? t('Enter your work email to save your assistant and get your integration embed code.')
+              : t('Enter your work email to sign in or configure your assistant.')}
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="relative space-y-6">
           <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-2">Email Address</label>
+            <label className="block text-xs font-semibold text-gray-500 mb-2">{t('Email Address')}</label>
             <input
               type="email"
               value={email}
@@ -112,7 +114,7 @@ export default function LoginModal({
               className="w-full bg-white border border-gray-300 text-dark-900 rounded-xl px-4 py-3 text-sm outline-none focus:border-brand-500 transition-colors"
               required
             />
-            <p className="text-[11px] text-gray-500 mt-1.5">No password needed — we'll email you a secure sign-in link.</p>
+            <p className="text-[11px] text-gray-500 mt-1.5">{t("No password needed — we'll email you a secure sign-in link.")}</p>
             {error && <p className="text-[11px] text-rose-600 font-medium mt-1.5">{error}</p>}
           </div>
 
@@ -121,8 +123,8 @@ export default function LoginModal({
             disabled={loading || !email}
             className="w-full bg-brand-600 hover:bg-brand-500 text-white font-semibold py-3 rounded-xl text-sm flex items-center justify-center gap-2 shadow-lg transition-all disabled:opacity-50"
           >
-            {loading ? 'Sending link...' : (
-              <>{isGuestConversion ? 'Save My Assistant' : 'Continue'} <ArrowRight className="w-4 h-4" /></>
+            {loading ? t('Sending link...') : (
+              <>{isGuestConversion ? t('Save My Assistant') : t('Continue')} <ArrowRight className="w-4 h-4" /></>
             )}
           </button>
         </form>

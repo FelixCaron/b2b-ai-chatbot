@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, RefreshCw } from 'lucide-react';
+import { useT } from '../../../../i18n/LanguageContext';
 
 /** 6. EDIT PAGE CONTENT MODAL */
 export default function EditPageModal({
@@ -8,6 +9,7 @@ export default function EditPageModal({
   onSave,
   onClose
 }) {
+  const { t } = useT();
   if (!editingPage) return null;
 
   return (
@@ -20,7 +22,7 @@ export default function EditPageModal({
           <X className="w-5 h-5" />
         </button>
 
-        <h3 className="text-lg font-bold text-dark-900 mb-1">Edit what this page tells your assistant</h3>
+        <h3 className="text-lg font-bold text-dark-900 mb-1">{t('Edit what this page tells your assistant')}</h3>
         <p className="text-xs text-gray-500 font-mono mb-4 truncate pr-10">{editingPage.url}</p>
 
         <div className="flex-1 overflow-hidden flex flex-col min-h-0">
@@ -37,7 +39,7 @@ export default function EditPageModal({
             onClick={onClose}
             className="px-5 py-2.5 rounded-xl text-sm text-gray-500 hover:text-dark-900 font-medium"
           >
-            Cancel
+            {t('Cancel')}
           </button>
           <button
             onClick={onSave}
@@ -45,7 +47,7 @@ export default function EditPageModal({
             className="bg-brand-600 hover:bg-brand-500 text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition-all shadow-sm flex items-center gap-2"
           >
             {editingPage.saving && <RefreshCw className="w-4 h-4 animate-spin" />}
-            Save Changes
+            {t('Save Changes')}
           </button>
         </div>
       </div>

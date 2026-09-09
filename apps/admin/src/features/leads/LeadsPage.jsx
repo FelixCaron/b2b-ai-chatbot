@@ -1,9 +1,11 @@
 import React from 'react';
 import { Users } from 'lucide-react';
 import LeadsTable from '../../components/LeadsTable';
+import { useT } from '../../i18n/LanguageContext';
 
 /** The full Leads view. */
 export default function LeadsPage({ leads, onBack }) {
+  const { t } = useT();
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-8 space-y-6">
       <div className="flex items-center justify-between">
@@ -12,15 +14,15 @@ export default function LeadsPage({ leads, onBack }) {
             <Users className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-dark-900">Leads</h2>
-            <p className="text-xs text-gray-500">Visitors who asked to be contacted while chatting with your assistant</p>
+            <h2 className="text-xl font-bold text-dark-900">{t('Leads')}</h2>
+            <p className="text-xs text-gray-500">{t('Visitors who asked to be contacted while chatting with your assistant')}</p>
           </div>
         </div>
         <button
           onClick={onBack}
           className="text-xs text-gray-500 hover:text-dark-900 bg-surface-200 hover:bg-surface-300 px-3 py-1.5 rounded-lg border border-dark-900/10"
         >
-          ← Back to Dashboard
+          ← {t('Back to Dashboard')}
         </button>
       </div>
       <LeadsTable leads={leads} />

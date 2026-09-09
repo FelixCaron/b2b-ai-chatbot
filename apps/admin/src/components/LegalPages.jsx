@@ -7,14 +7,19 @@ import { ShieldCheck, FileText, AlertTriangle } from 'lucide-react';
 // third-party subprocessors are called, what's stored, how long guest data
 // lives, etc.) so it's accurate about what the product technically does.
 // It is NOT a substitute for review by a lawyer licensed in Québec before
-// this product takes real paying customers or real visitor data. The one
-// placeholder that still needs a real value is the legal entity name (no
-// company is registered yet — see TODO.md's "Administratif" section). The
-// contact addresses now point at the confirmed product domain; they only
-// deliver once that domain is verified in Resend (also tracked in TODO.md).
+// this product takes real paying customers or real visitor data. The legal
+// entity and the Law 25 privacy officer are now filled in with real values;
+// what remains is a lawyer's review and the sales-tax (GST/QST) decision.
+// The contact addresses point at the confirmed product domain; they only
+// deliver once that domain is verified in Resend (tracked in TODO.md).
 // ─────────────────────────────────────────────────────────────────────────
 
 const PRODUCT_NAME = 'Dorafi';
+// Registered operating entity behind the product, and the individual named as
+// the person responsible for the protection of personal information under
+// Québec's Law 25. Both shown in the legal pages below.
+const LEGAL_ENTITY = '18219184 Canada Inc.';
+const PRIVACY_OFFICER = 'Félix Caron';
 const CONTACT_EMAIL = 'privacy@dorafi.logafi.com';
 // Exported: the one general-inquiries address, reused wherever else in the
 // app a "contact us" link is needed (e.g. PageSelectionModal's large-website
@@ -29,9 +34,8 @@ function DraftBanner() {
       <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
       <p>
         This document is a working draft, not final legal advice. It should be reviewed by a
-        lawyer before being relied on commercially. The remaining placeholder — the registered
-        company name — is marked in <code className="text-amber-700">[brackets]</code> where it
-        still needs a real value.
+        lawyer before being relied on commercially. Any remaining open item — such as the
+        sales-tax treatment — is marked in <code className="text-amber-700">[brackets]</code>.
       </p>
     </div>
   );
@@ -66,7 +70,7 @@ export function PrivacyPolicy() {
   return (
     <LegalShell icon={<ShieldCheck className="w-5 h-5" />} title="Privacy Policy">
       <p>
-        [Legal entity name — not yet registered] ("<strong>we</strong>", "<strong>us</strong>",
+        {LEGAL_ENTITY} ("<strong>we</strong>", "<strong>us</strong>",
         the "<strong>{PRODUCT_NAME}</strong>") operates a service that lets businesses (
         "<strong>Customers</strong>") deploy an AI chatbot trained on their own website content
         for their website visitors ("<strong>Visitors</strong>"). This policy explains what
@@ -121,7 +125,7 @@ export function PrivacyPolicy() {
 
       <Section title="5. Your rights">
         <p>Subject to applicable law (including Québec's Law 25 and, where applicable, PIPEDA), you may request access to, correction of, or deletion of your personal information, and may withdraw consent to non-essential processing. To exercise these rights, contact <a className="text-brand-700 hover:underline" href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.</p>
-        <p>[Placeholder — a specific individual should be designated as the person responsible for the protection of personal information, as required under Québec Law 25, and named here.]</p>
+        <p>The person responsible for the protection of personal information, as required under Québec Law 25, is <strong>{PRIVACY_OFFICER}</strong>. You can reach them at <a className="text-brand-700 hover:underline" href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.</p>
       </Section>
 
       <Section title="6. Security">
@@ -148,7 +152,7 @@ export function TermsOfService() {
     <LegalShell icon={<FileText className="w-5 h-5" />} title="Terms of Service">
       <p>
         These Terms govern your access to and use of the {PRODUCT_NAME} service, operated by
-        [Legal entity name — not yet registered] (the "<strong>Provider</strong>"). By creating an
+        {LEGAL_ENTITY} (the "<strong>Provider</strong>"). By creating an
         account or using the service, you ("<strong>Customer</strong>", "<strong>you</strong>")
         agree to these Terms.
       </p>

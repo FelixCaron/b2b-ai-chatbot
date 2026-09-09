@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Layers, Search, Lock, RefreshCw, Check, Plus, AlertTriangle } from 'lucide-react';
+import { useT } from '../../../../i18n/LanguageContext';
 
 /** 3. The pages the assistant answers from.
  *
@@ -18,6 +19,7 @@ export default function KnowledgeBasePanel({
   onAddManualPage,
   onEditPage
 }) {
+  const { t } = useT();
   const [addUrl, setAddUrl] = useState('');
   const [addError, setAddError] = useState('');
   const [isAdding, setIsAdding] = useState(false);
@@ -32,7 +34,7 @@ export default function KnowledgeBasePanel({
     if (result?.ok) {
       setAddUrl('');
     } else {
-      setAddError(result?.error || 'Could not add that page.');
+      setAddError(result?.error || t('Could not add that page.'));
     }
   };
 
@@ -41,9 +43,9 @@ export default function KnowledgeBasePanel({
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
           <h4 className="text-sm font-bold text-dark-900 flex items-center gap-2">
-            <Layers className="w-4 h-4 text-brand-600" /> Website knowledge
+            <Layers className="w-4 h-4 text-brand-600" /> {t('Website knowledge')}
           </h4>
-          <p className="text-xs text-gray-500">Choose which pages of your website your assistant is allowed to answer from.</p>
+          <p className="text-xs text-gray-500">{t('Choose which pages of your website your assistant is allowed to answer from.')}</p>
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -51,7 +53,7 @@ export default function KnowledgeBasePanel({
             <Search className="w-3.5 h-3.5 text-gray-500 absolute left-3 top-2.5 pointer-events-none" />
             <input
               type="text"
-              placeholder="Filter pages by URL or title..."
+              placeholder={t('Filter pages by URL or title...')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-white border border-gray-300 rounded-xl pl-8 pr-3 py-1.5 text-xs text-dark-900 outline-none focus:border-brand-500"
@@ -68,7 +70,7 @@ export default function KnowledgeBasePanel({
           <Plus className="w-3.5 h-3.5 text-gray-500 absolute left-3 top-2.5 pointer-events-none" />
           <input
             type="text"
-            placeholder="Add a page the crawler missed, e.g. yoursite.com/pricing"
+            placeholder={t('Add a page the crawler missed, e.g. yoursite.com/pricing')}
             value={addUrl}
             onChange={(e) => { setAddUrl(e.target.value); setAddError(''); }}
             className="w-full bg-white border border-gray-300 rounded-xl pl-8 pr-3 py-1.5 text-xs text-dark-900 outline-none focus:border-brand-500"
@@ -79,7 +81,7 @@ export default function KnowledgeBasePanel({
           disabled={!addUrl.trim() || isAdding}
           className="text-xs font-semibold bg-brand-600 hover:bg-brand-500 text-white px-3.5 py-1.5 rounded-xl transition-colors disabled:opacity-40 shrink-0 w-full sm:w-auto"
         >
-          {isAdding ? 'Adding…' : 'Add page'}
+          {isAdding ? t('Adding…') : t('Add page')}
         </button>
       </form>
       {addError && <p className="text-xs text-rose-600">{addError}</p>}
@@ -88,10 +90,10 @@ export default function KnowledgeBasePanel({
         <table className="w-full text-left text-xs">
           <thead className="bg-surface-200 text-gray-500 uppercase tracking-wider border-b border-dark-900/5">
             <tr>
-              <th className="py-2.5 px-4 font-semibold w-12 text-center">Include</th>
-              <th className="py-2.5 px-4 font-semibold">Page Title</th>
-              <th className="py-2.5 px-4 font-semibold">Address</th>
-              <th className="py-2.5 px-4 font-semibold text-right">Status</th>
+              <th className="py-2.5 px-4 font-semibold w-12 text-center">{t('Include')}</th>
+              <th className="py-2.5 px-4 font-semibold">{t('Page Title')}</th>
+              <th className="py-2.5 px-4 font-semibold">{t('Address')}</th>
+              <th className="py-2.5 px-4 font-semibold text-right">{t('Status')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-dark-900/5 text-gray-700">
@@ -115,7 +117,7 @@ export default function KnowledgeBasePanel({
                       />
                     </td>
                     <td className="py-2.5 px-4">
-                      <div className="font-medium text-dark-900 line-clamp-1">{page.title || 'Untitled Page'}</div>
+                      <div className="font-medium text-dark-900 line-clamp-1">{page.title || t('Untitled Page')}</div>
                     </td>
                     <td className="py-2.5 px-4">
                       <div className="text-gray-500 font-mono truncate max-w-[200px]" title={page.url}>
@@ -127,7 +129,7 @@ export default function KnowledgeBasePanel({
                         onClick={(e) => onEditPage(page.url, e)}
                         className="text-[10px] bg-white hover:bg-surface-200 text-gray-600 px-2 py-1 rounded border border-dark-900/10 transition-colors"
                       >
-                        Edit
+                        {t('Edit')}
                       </button>
 
                       {/* The row's checkbox already toggles inclusion. A second
@@ -136,22 +138,22 @@ export default function KnowledgeBasePanel({
 
                       {currentStatus === 'protected' ? (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/10 text-rose-700 border border-rose-500/20">
-                          <Lock className="w-2.5 h-2.5" /> Couldn't open
+                          <Lock className="w-2.5 h-2.5" /> {t("Couldn't open")}
                         </span>
                       ) : currentStatus === 'empty' ? (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-surface-200 text-gray-500 border border-gray-300">
-                          No readable text
+                          {t('No readable text')}
                         </span>
                       ) : currentStatus === 'failed' ? (
                         <span
                           className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-500/10 text-orange-700 border border-orange-500/20"
-                          title={page.errorMessage || "We couldn't reach this page to scan it — this is different from an empty page."}
+                          title={page.errorMessage || t("We couldn't reach this page to scan it — this is different from an empty page.")}
                         >
-                          <AlertTriangle className="w-2.5 h-2.5" /> Couldn't scan — retry
+                          <AlertTriangle className="w-2.5 h-2.5" /> {t("Couldn't scan — retry")}
                         </span>
                       ) : currentStatus === 'loading' ? (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-700 border border-amber-500/20">
-                          <RefreshCw className="w-2.5 h-2.5 animate-spin" /> Reading...
+                          <RefreshCw className="w-2.5 h-2.5 animate-spin" /> {t('Reading...')}
                         </span>
                       ) : currentStatus === 'loaded' ? (
                         <span
@@ -160,13 +162,13 @@ export default function KnowledgeBasePanel({
                               ? 'bg-amber-500/10 text-amber-700 border-amber-500/20'
                               : 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20'
                           }`}
-                          title={page.embeddingDegraded ? 'Included, but only reachable by keyword search — semantic search could not be generated for part of this page.' : undefined}
+                          title={page.embeddingDegraded ? t('Included, but only reachable by keyword search — semantic search could not be generated for part of this page.') : undefined}
                         >
-                          <Check className="w-2.5 h-2.5" /> {page.embeddingDegraded ? 'Included (limited search)' : 'Included'}
+                          <Check className="w-2.5 h-2.5" /> {page.embeddingDegraded ? t('Included (limited search)') : t('Included')}
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-500/10 text-gray-600 border border-gray-500/20">
-                          Excluded
+                          {t('Excluded')}
                         </span>
                       )}
                     </td>

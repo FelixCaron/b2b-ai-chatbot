@@ -1,4 +1,5 @@
 import React from 'react';
+import { useT } from '../../i18n/LanguageContext';
 
 /**
  * The site footer. Its three links are the only route to the legal pages and
@@ -12,16 +13,17 @@ import React from 'react';
  * (apps/internal-admin's Niches tab).
  */
 export default function Footer({ onNavigate }) {
+  const { t } = useT();
   return (
     <footer className="max-w-7xl mx-auto px-4 sm:px-8 py-8 mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-gray-500 border-t border-dark-900/10">
       <button onClick={() => onNavigate('about')} className="hover:text-dark-900 transition-colors">
-        About
+        {t('About')}
       </button>
       <button onClick={() => onNavigate('privacy')} className="hover:text-dark-900 transition-colors">
-        Privacy Policy
+        {t('Privacy Policy')}
       </button>
       <button onClick={() => onNavigate('terms')} className="hover:text-dark-900 transition-colors">
-        Terms of Service
+        {t('Terms of Service')}
       </button>
       <span>&copy; {new Date().getFullYear()} Dorafi</span>
     </footer>

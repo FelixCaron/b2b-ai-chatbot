@@ -1,4 +1,5 @@
 import React from 'react';
+import { useT } from '../../../i18n/LanguageContext';
 
 /** Website switcher — every site the workspace has, plus the one place to
  *  add another. Always shown once there's at least one site (not just once
@@ -13,11 +14,12 @@ export default function SiteTabs({
   onSelectSite,
   onOpenAddSiteModal
 }) {
+  const { t } = useT();
   if (!sites || sites.length === 0) return null;
 
   return (
     <div className="flex items-center gap-2 overflow-x-auto pb-1">
-      <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider shrink-0 mr-1">Websites:</span>
+      <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider shrink-0 mr-1">{t('Websites:')}</span>
       {sites.map((s) => {
         const isSelected = activeSite?.id === s.id;
         const isParked = !isSiteActive(s);
@@ -25,7 +27,7 @@ export default function SiteTabs({
           <button
             key={s.id}
             onClick={() => onSelectSite(s.id)}
-            title={isParked ? 'Parked — this website\'s assistant is paused until your plan has room' : s.domain}
+            title={isParked ? t('Parked — this website\'s assistant is paused until your plan has room') : s.domain}
             className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 border ${
               isSelected
                 ? 'bg-brand-600 text-white border-brand-600 shadow-sm'
@@ -40,7 +42,7 @@ export default function SiteTabs({
             <span className={isParked ? 'opacity-70' : ''}>{s.domain}</span>
             {isParked && (
               <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded-full">
-                Paused
+                {t('Paused')}
               </span>
             )}
           </button>
@@ -50,7 +52,7 @@ export default function SiteTabs({
         onClick={onOpenAddSiteModal}
         className="text-xs text-brand-700 hover:text-brand-800 font-semibold px-2.5 py-1.5 rounded-xl border border-brand-500/20 hover:bg-brand-500/10 transition-all shrink-0"
       >
-        + Add Website
+        {t('+ Add Website')}
       </button>
     </div>
   );

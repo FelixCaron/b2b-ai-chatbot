@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { NotebookPen, Save, Check, RefreshCw } from 'lucide-react';
 import { readAdditionalInfo, saveAdditionalInfo } from '../../../../lib/knowledge-notes';
+import { useT } from '../../../../i18n/LanguageContext';
 
 /**
  * Everything the owner told the assistant by hand.
@@ -17,6 +18,7 @@ import { readAdditionalInfo, saveAdditionalInfo } from '../../../../lib/knowledg
  * down from the dashboard.
  */
 export default function AdditionalInfoCard({ activeSite }) {
+  const { t } = useT();
   const [content, setContent] = useState('');
   const [loadedContent, setLoadedContent] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -62,18 +64,17 @@ export default function AdditionalInfoCard({ activeSite }) {
       return;
     }
     setLoadedContent(content);
-    setMessage({ text: 'Saved — your assistant can use this now.', isError: false });
+    setMessage({ text: t('Saved — your assistant can use this now.'), isError: false });
   };
 
   return (
     <div className="bg-surface-100 p-5 sm:p-6 rounded-xl border border-dark-900/5 space-y-4">
       <div>
         <h4 className="text-sm font-bold text-dark-900 flex items-center gap-2">
-          <NotebookPen className="w-4 h-4 text-brand-600" /> Additional Information
+          <NotebookPen className="w-4 h-4 text-brand-600" /> {t('Additional Information')}
         </h4>
         <p className="text-xs text-gray-500 mt-1">
-          Anything your assistant should know that isn't written on your website. Answers you add
-          from the Conversations page land here too. Separate each piece of information with a blank line.
+          {t("Anything your assistant should know that isn't written on your website. Answers you add from the Conversations page land here too. Separate each piece of information with a blank line.")}
         </p>
       </div>
 
@@ -82,7 +83,7 @@ export default function AdditionalInfoCard({ activeSite }) {
         onChange={(e) => setContent(e.target.value)}
         disabled={isLoading || loadFailed || !activeSite?.id}
         rows={8}
-        placeholder={isLoading ? 'Loading…' : 'e.g. We deliver to the South Shore on Tuesdays and Thursdays.\n\nOur workshop is closed for two weeks at the end of July.'}
+        placeholder={isLoading ? t('Loading…') : t('e.g. We deliver to the South Shore on Tuesdays and Thursdays.\n\nOur workshop is closed for two weeks at the end of July.')}
         className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 text-sm text-dark-900 placeholder-gray-400 outline-none focus:border-brand-500 resize-y disabled:opacity-60"
       />
 
@@ -101,7 +102,7 @@ export default function AdditionalInfoCard({ activeSite }) {
           className="shrink-0 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-          {isSaving ? 'Saving…' : 'Save'}
+          {isSaving ? t('Saving…') : t('Save')}
         </button>
       </div>
     </div>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Sparkles, X } from 'lucide-react';
+import { useT } from '../../i18n/LanguageContext';
 import { getMaxSitesForPlan, getMaxConversationsForPlan, hasActivePlan, getTrialInfo } from './lib/plan-limits';
 import { domainFromUrl, hasProtocol } from './lib/page-url';
 import { executeTurnstileCaptcha } from './lib/turnstile';
@@ -48,6 +49,7 @@ export default function Dashboard({
   // unanswered question: '' just opens Knowledge, a URL also pre-fills the
   // "Add a page" field with the page the visitor was actually stuck on.
 }) {
+  const { t } = useT();
   const [selectedSiteId, setSelectedSiteId] = useState(null);
   const [localCreatedSite, setLocalCreatedSite] = useState(null);
   const activeSite = (sites && sites.find(s => s.id === selectedSiteId)) || sites?.[0] || localCreatedSite;
@@ -151,7 +153,7 @@ export default function Dashboard({
     }
 
     setIsAnalyzing(true);
-    setStatusMsg('Analyzing your website...');
+    setStatusMsg(t('Analyzing your website...'));
 
     try {
       // Invisible silent captcha challenge
@@ -170,7 +172,7 @@ export default function Dashboard({
         console.warn('Theme extraction fallback:', themeErr);
       }
 
-      setStatusMsg('Building your assistant...');
+      setStatusMsg(t('Building your assistant...'));
       const siteObj = await onAddSite(currentDomain, brandColor, faviconUrl);
 
       if (siteObj) {
@@ -179,12 +181,12 @@ export default function Dashboard({
 
         await pipeline.runSynchronousCrawlAndIndex(siteObj, formattedUrl);
       } else {
-        setStatusMsg('Error: could not add this site. Check that your Supabase session is active.');
+        setStatusMsg(t('Error: could not add this site. Check that your Supabase session is active.'));
         setIsAnalyzing(false);
       }
     } catch (err) {
       console.error('Onboarding error:', err);
-      setStatusMsg(`Error: ${err.message}`);
+      setStatusMsg(t('Error: {message}', { message: err.message }));
       setIsAnalyzing(false);
     }
   };
@@ -455,7 +457,7 @@ export default function Dashboard({
         onSave={async () => {
           const result = await pipeline.handleSavePageContent();
           if (result?.ok) {
-            lifecycle.setSiteNotice('Page updated — your assistant now uses the new content.');
+            lifecycle.setSiteNotice(t('Page updated — your assistant now uses the new content.'));
           }
         }}
         onClose={() => pipeline.setEditingPage(null)}
@@ -494,7 +496,7 @@ export default function Dashboard({
           setShowResetSiteModal(false);
           pipeline.handleResetSite().catch((err) => {
             console.error('[handleResetSite] Reset failed:', err);
-            lifecycle.setSiteNotice(`Could not reset ${activeSite?.domain || 'this website'} — please try again.`);
+            lifecycle.setSiteNotice(t('Could not reset {domain} — please try again.', { domain: activeSite?.domain || t('this website') }));
           });
         }}
       />

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { X, Code, AlertTriangle, Sparkles, Check, Copy, RefreshCw, ChevronDown } from 'lucide-react';
 import { getMaxPagesForPlan } from '../../lib/plan-limits';
 import { supabase } from '../../../../lib/supabase';
+import { useT } from '../../../../i18n/LanguageContext';
 
 // Short, platform-specific "where do I paste this" instructions for
 // non-technical site owners. Kept as plain data so new platforms can be
@@ -80,6 +81,7 @@ export default function IntegrationModal({
   // opened is the same thing a "Checking installation..." spinner promises,
   // done for real instead of asking the tenant to just confirm they pasted
   // the snippet.
+  const { t } = useT();
   const [installDetected, setInstallDetected] = useState(false);
   const openedAtRef = useRef(null);
   const [guidesOpen, setGuidesOpen] = useState(false);
@@ -138,10 +140,10 @@ export default function IntegrationModal({
         </button>
 
         <h3 className="text-xl font-bold text-dark-900 mb-2 flex items-center gap-2">
-          <Code className="w-6 h-6 text-brand-600" /> Add your assistant to your website
+          <Code className="w-6 h-6 text-brand-600" /> {t('Add your assistant to your website')}
         </h3>
         <p className="text-sm text-gray-500 mb-6">
-          Copy this code snippet and paste it right before the closing <code className="text-brand-300 font-mono text-xs bg-dark-800 px-1 py-0.5 rounded">&lt;/body&gt;</code> tag on any pages where you want the assistant to appear.
+          {t('Copy this code snippet and paste it right before the closing')} <code className="text-brand-300 font-mono text-xs bg-dark-800 px-1 py-0.5 rounded">&lt;/body&gt;</code> {t('tag on any pages where you want the assistant to appear.')}
         </p>
 
         {/* PLAN LIMIT WARNING BANNER */}
@@ -153,13 +155,13 @@ export default function IntegrationModal({
               </div>
               <div className="flex-1 text-xs">
                 <h4 className="font-bold text-dark-900 text-sm mb-1 flex items-center gap-2">
-                  Plan Limit Exceeded ({activeIndexedPagesCount} / {allowedPagesForPlan} pages)
+                  {t('Plan Limit Exceeded ({count} / {max} pages)', { count: activeIndexedPagesCount, max: allowedPagesForPlan })}
                 </h4>
                 <p className="text-amber-800 leading-relaxed">
-                  Your website has <strong>{activeIndexedPagesCount} active pages</strong>, which exceeds your current <strong>{tenantPlan.toUpperCase()}</strong> plan limit of <strong>{allowedPagesForPlan} pages</strong>.
+                  {t('Your website has')} <strong>{t('{n} active pages', { n: activeIndexedPagesCount })}</strong>{t(', which exceeds your current')} <strong>{tenantPlan.toUpperCase()}</strong> {t('plan limit of')} <strong>{t('{n} pages', { n: allowedPagesForPlan })}</strong>.
                 </p>
                 <p className="text-gray-600 mt-1">
-                  To deploy to your live website, either <strong>upgrade your plan</strong> or <strong>remove {activeIndexedPagesCount - allowedPagesForPlan} page(s)</strong> from your website content list.
+                  {t('To deploy to your live website, either')} <strong>{t('upgrade your plan')}</strong> {t('or')} <strong>{t('remove {n} page(s)', { n: activeIndexedPagesCount - allowedPagesForPlan })}</strong> {t('from your website content list.')}
                 </p>
               </div>
             </div>
@@ -169,7 +171,7 @@ export default function IntegrationModal({
                 onClick={onManagePages}
                 className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-semibold text-gray-600 hover:text-dark-900 bg-white border border-dark-900/10 hover:bg-surface-200 transition-all"
               >
-                Manage & Deactivate Pages
+                {t('Manage & Deactivate Pages')}
               </button>
 
               <button
@@ -179,7 +181,7 @@ export default function IntegrationModal({
                 }}
                 className="w-full sm:w-auto px-5 py-2 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-amber-500 to-brand-600 hover:from-amber-400 hover:to-brand-500 shadow-md transition-all flex items-center justify-center gap-1.5"
               >
-                <Sparkles className="w-3.5 h-3.5" /> Upgrade Plan →
+                <Sparkles className="w-3.5 h-3.5" /> {t('Upgrade Plan →')}
               </button>
             </div>
           </div>
@@ -193,7 +195,7 @@ export default function IntegrationModal({
             onClick={onCopy}
             className="absolute top-3 right-3 bg-white/10 hover:bg-white/20 text-white p-2 rounded-lg transition-colors flex items-center gap-2 text-xs font-semibold backdrop-blur-md"
           >
-            {copied ? <><Check className="w-4 h-4 text-emerald-400" /> Copied</> : <><Copy className="w-4 h-4" /> Copy Code</>}
+            {copied ? <><Check className="w-4 h-4 text-emerald-400" /> {t('Copied')}</> : <><Copy className="w-4 h-4" /> {t('Copy Code')}</>}
           </button>
         </div>
 
@@ -204,7 +206,7 @@ export default function IntegrationModal({
             onClick={() => setGuidesOpen(o => !o)}
             className="w-full flex items-center justify-between gap-2 px-4 py-3 text-sm font-semibold text-dark-900 hover:bg-dark-900/5 transition-colors"
           >
-            <span>How to install on my platform</span>
+            <span>{t('How to install on my platform')}</span>
             <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${guidesOpen ? 'rotate-180' : ''}`} />
           </button>
 
@@ -222,7 +224,7 @@ export default function IntegrationModal({
                         : 'bg-white border-dark-900/10 text-gray-500 hover:text-dark-900 hover:bg-white/60'
                     }`}
                   >
-                    {platform.label}
+                    {t(platform.label)}
                   </button>
                 ))}
               </div>
@@ -231,7 +233,7 @@ export default function IntegrationModal({
                 <ol className="list-decimal list-inside space-y-1.5 text-xs text-gray-500 bg-white border border-dark-900/10 rounded-xl p-3">
                   {PLATFORM_GUIDES.find((platform) => platform.id === activePlatformId).steps.map((step, index) => (
                     <li key={index} className="leading-relaxed">
-                      <span className="text-dark-900">{step}</span>
+                      <span className="text-dark-900">{t(step)}</span>
                     </li>
                   ))}
                 </ol>
@@ -243,11 +245,11 @@ export default function IntegrationModal({
         <div className="mt-6 flex items-center justify-between gap-3">
           {installDetected ? (
             <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-lg">
-              <Check className="w-3.5 h-3.5" /> Installation detected
+              <Check className="w-3.5 h-3.5" /> {t('Installation detected')}
             </span>
           ) : (
             <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500">
-              <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Checking installation...
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" /> {t('Checking installation...')}
             </span>
           )}
 
@@ -255,7 +257,7 @@ export default function IntegrationModal({
             onClick={onClose}
             className="bg-brand-600 hover:bg-brand-500 text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition-all shadow-lg"
           >
-            Done
+            {t('Done')}
           </button>
         </div>
       </div>

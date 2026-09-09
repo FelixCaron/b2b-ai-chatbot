@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, Sparkles } from 'lucide-react';
 import { getNextPlanUpgrade, getPlanDisplayName } from '../../lib/plan-limits';
+import { useT } from '../../../../i18n/LanguageContext';
 
 /** 10. PLAN LIMIT REACHED — UPGRADE FIRST MODAL
     Adding a website at the limit is not an error the user made, it is a
@@ -17,6 +18,7 @@ export default function UpgradeRequiredModal({
   onDeleteInstead,
   onClose
 }) {
+  const { t } = useT();
   if (!show) return null;
 
   const nextPlan = getNextPlanUpgrade(tenantPlan);
@@ -36,13 +38,13 @@ export default function UpgradeRequiredModal({
         </div>
 
         <h3 className="text-xl font-bold text-dark-900 mb-2">
-          Add {upgradeRequiredDomain || 'another website'} with an upgrade
+          {t('Add {domain} with an upgrade', { domain: upgradeRequiredDomain || t('another website') })}
         </h3>
         <p className="text-sm text-gray-500 mb-6 leading-relaxed">
-          Your <strong className="text-dark-900">{getPlanDisplayName(tenantPlan)}</strong> plan covers <strong className="text-dark-900">{maxSitesForPlan} website{maxSitesForPlan > 1 ? 's' : ''}</strong>, and your workspace already has {sitesCount}.
+          {t('Your')} <strong className="text-dark-900">{getPlanDisplayName(tenantPlan)}</strong> {t('plan covers')} <strong className="text-dark-900">{maxSitesForPlan > 1 ? t('{n} websites', { n: maxSitesForPlan }) : t('{n} website', { n: maxSitesForPlan })}</strong>{t(', and your workspace already has {n}.', { n: sitesCount })}
           {nextPlan
-            ? <> Upgrading to <strong className="text-dark-900">{nextPlan.name}</strong> raises that to <strong className="text-dark-900">{nextPlan.sites} websites</strong> — your current assistants keep running exactly as they are.</>
-            : <> That is our largest plan; get in touch and we will work out what you need.</>}
+            ? <> {t('Upgrading to')} <strong className="text-dark-900">{nextPlan.name}</strong> {t('raises that to')} <strong className="text-dark-900">{t('{n} websites', { n: nextPlan.sites })}</strong>{t(' — your current assistants keep running exactly as they are.')}</>
+            : <> {t('That is our largest plan; get in touch and we will work out what you need.')}</>}
         </p>
 
         <div className="flex flex-col gap-3">
@@ -56,7 +58,7 @@ export default function UpgradeRequiredModal({
               className="w-full bg-gradient-to-r from-brand-700 to-brand-500 hover:from-brand-600 hover:to-brand-400 text-white font-bold px-6 py-3 rounded-xl text-sm flex items-center justify-center gap-2 transition-all shadow-lg shadow-brand-900/30 hover:scale-[1.02] active:scale-95"
             >
               <Sparkles className="w-4 h-4" />
-              {nextPlan ? `Upgrade to ${nextPlan.name}` : 'See plans'} →
+              {nextPlan ? t('Upgrade to {name}', { name: nextPlan.name }) : t('See plans')} →
             </button>
           )}
 
@@ -67,7 +69,7 @@ export default function UpgradeRequiredModal({
             onClick={onDeleteInstead}
             className="w-full px-5 py-2 rounded-xl text-xs font-medium text-gray-500 hover:text-dark-900 transition-colors"
           >
-            Or delete {activeSiteDomain || 'an existing website'} to free a slot
+            {t('Or delete {domain} to free a slot', { domain: activeSiteDomain || t('an existing website') })}
           </button>
 
           <button
@@ -75,7 +77,7 @@ export default function UpgradeRequiredModal({
             onClick={onClose}
             className="w-full px-5 py-1 text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors"
           >
-            Not now
+            {t('Not now')}
           </button>
         </div>
       </div>

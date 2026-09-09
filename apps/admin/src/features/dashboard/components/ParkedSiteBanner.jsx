@@ -1,6 +1,7 @@
 import React from 'react';
 import { AlertTriangle, RefreshCw, ToggleRight, Sparkles } from 'lucide-react';
 import { getPlanDisplayName } from '../lib/plan-limits';
+import { useT } from '../../../i18n/LanguageContext';
 
 /** PARKED WEBSITE BANNER — why this widget stopped answering, and
     the two ways out. Nothing here deletes anything. */
@@ -13,6 +14,7 @@ export default function ParkedSiteBanner({
   onReactivate,
   onShowPricing
 }) {
+  const { t } = useT();
   return (
     <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 space-y-3 animate-in fade-in">
       <div className="flex items-start gap-3">
@@ -21,13 +23,19 @@ export default function ParkedSiteBanner({
         </div>
         <div className="flex-1 text-xs">
           <h4 className="font-bold text-dark-900 text-sm mb-1">
-            This website is parked — its assistant is not answering
+            {t('This website is parked — its assistant is not answering')}
           </h4>
           <p className="text-amber-800 leading-relaxed">
-            Your <strong>{getPlanDisplayName(tenantPlan)}</strong> plan covers <strong>{maxSitesForPlan} active website(s)</strong>, and you currently have <strong>{activeSitesCount}</strong> active.
+            {t('Your {plan} plan covers {max} active website(s), and you currently have {count} active.', {
+              plan: getPlanDisplayName(tenantPlan),
+              max: maxSitesForPlan,
+              count: activeSitesCount,
+            })}
           </p>
           <p className="text-gray-600 mt-1">
-            Nothing was deleted: everything your assistant learned, and every lead it captured, for <strong className="text-dark-900">{activeSite.domain}</strong> is still here, exactly as you left it. Upgrade your plan and it comes straight back online.
+            {t('Nothing was deleted: everything your assistant learned, and every lead it captured, for {domain} is still here, exactly as you left it. Upgrade your plan and it comes straight back online.', {
+              domain: activeSite.domain,
+            })}
           </p>
         </div>
       </div>
@@ -37,13 +45,13 @@ export default function ParkedSiteBanner({
           type="button"
           disabled={isReactivating || activeSitesCount >= maxSitesForPlan}
           onClick={() => onReactivate(activeSite)}
-          title={activeSitesCount >= maxSitesForPlan ? 'Your plan has no free slot — park another website or upgrade first' : 'Bring this website back online'}
+          title={activeSitesCount >= maxSitesForPlan ? t('Your plan has no free slot — park another website or upgrade first') : t('Bring this website back online')}
           className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-semibold text-gray-600 hover:text-dark-900 bg-white border border-dark-900/10 hover:bg-surface-200 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
         >
           {isReactivating ? (
-            <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Reactivating...</>
+            <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> {t('Reactivating...')}</>
           ) : (
-            <><ToggleRight className="w-3.5 h-3.5" /> Reactivate this website</>
+            <><ToggleRight className="w-3.5 h-3.5" /> {t('Reactivate this website')}</>
           )}
         </button>
 
@@ -53,7 +61,7 @@ export default function ParkedSiteBanner({
             onClick={() => onShowPricing()}
             className="w-full sm:w-auto px-5 py-2 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-amber-500 to-brand-600 hover:from-amber-400 hover:to-brand-500 shadow-md transition-all flex items-center justify-center gap-1.5"
           >
-            <Sparkles className="w-3.5 h-3.5" /> Upgrade Plan →
+            <Sparkles className="w-3.5 h-3.5" /> {t('Upgrade Plan →')}
           </button>
         )}
       </div>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, Globe, RefreshCw } from 'lucide-react';
+import { useT } from '../../../../i18n/LanguageContext';
 
 /** 7. NON-BLOCKING ADD WEBSITE MODAL */
 export default function AddSiteModal({
@@ -11,6 +12,7 @@ export default function AddSiteModal({
   onSubmit,
   onClose
 }) {
+  const { t } = useT();
   if (!show) return null;
 
   return (
@@ -24,10 +26,10 @@ export default function AddSiteModal({
         </button>
 
         <h3 className="text-xl font-bold text-dark-900 mb-2 flex items-center gap-2">
-          <Globe className="w-6 h-6 text-brand-600" /> Add a New Website
+          <Globe className="w-6 h-6 text-brand-600" /> {t('Add a New Website')}
         </h3>
         <p className="text-sm text-gray-500 mb-6">
-          Connect another website to your account without interrupting your active assistant.
+          {t('Connect another website to your account without interrupting your active assistant.')}
         </p>
 
         {newSiteError && (
@@ -38,7 +40,7 @@ export default function AddSiteModal({
 
         <form onSubmit={onSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-2">Website URL / Domain</label>
+            <label className="block text-xs font-semibold text-gray-600 mb-2">{t('Website URL / Domain')}</label>
             <div className="relative">
               <Globe className="w-4 h-4 text-gray-500 absolute left-3.5 top-3 pointer-events-none" />
               <input
@@ -58,7 +60,7 @@ export default function AddSiteModal({
               onClick={onClose}
               className="px-4 py-2 text-xs font-medium text-gray-500 hover:text-dark-900"
             >
-              Cancel
+              {t('Cancel')}
             </button>
             <button
               type="submit"
@@ -66,9 +68,9 @@ export default function AddSiteModal({
               className="bg-brand-600 hover:bg-brand-500 text-white font-semibold px-5 py-2 rounded-xl text-xs flex items-center gap-2 transition-all shadow-md disabled:opacity-50"
             >
               {isAddingNewSite ? (
-                <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Adding & Learning...</>
+                <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> {t('Adding & Learning...')}</>
               ) : (
-                <>Add & Learn Website →</>
+                <>{t('Add & Learn Website →')}</>
               )}
             </button>
           </div>

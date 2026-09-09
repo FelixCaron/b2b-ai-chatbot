@@ -1,5 +1,6 @@
 import React from 'react';
 import { FileText, MessageSquare, Users, AlertCircle, ArrowUpRight, TrendingUp, MailWarning } from 'lucide-react';
+import { useT } from '../../../i18n/LanguageContext';
 
 /**
  * Is the assistant working? Four numbers, in the order an owner cares about.
@@ -25,6 +26,7 @@ export default function AssistantHealth({
   onViewSupportTickets,
   onShowPricing
 }) {
+  const { t } = useT();
   const needsAttention = unansweredCount > 0;
   const supportEmailFailing = failedSupportTicketsCount > 0;
 
@@ -42,25 +44,25 @@ export default function AssistantHealth({
         <Stat
           icon={FileText}
           value={pagesCount}
-          label={pagesCount === 1 ? 'page understood' : 'pages understood'}
-          hint={isCrawling ? 'still reading' : null}
+          label={pagesCount === 1 ? t('page understood') : t('pages understood')}
+          hint={isCrawling ? t('still reading') : null}
         />
         <Stat
           icon={MessageSquare}
           value={conversationsThisWeek}
-          label={conversationsThisWeek === 1 ? 'conversation this week' : 'conversations this week'}
+          label={conversationsThisWeek === 1 ? t('conversation this week') : t('conversations this week')}
           onClick={onViewConversations}
         />
         <Stat
           icon={Users}
           value={leadsCount}
-          label={leadsCount === 1 ? 'lead captured' : 'leads captured'}
+          label={leadsCount === 1 ? t('lead captured') : t('leads captured')}
           onClick={onViewLeads}
         />
         <Stat
           icon={AlertCircle}
           value={unansweredCount}
-          label="unanswered this week"
+          label={t('unanswered this week')}
           tone={needsAttention ? 'warn' : 'ok'}
           onClick={needsAttention ? onViewConversations : undefined}
         />
@@ -74,8 +76,8 @@ export default function AssistantHealth({
         >
           <AlertCircle className="w-4 h-4" />
           {unansweredCount === 1
-            ? 'One visitor asked something your website doesn’t cover'
-            : `${unansweredCount} visitors asked things your website doesn’t cover`}
+            ? t('One visitor asked something your website doesn’t cover')
+            : t('{n} visitors asked things your website doesn’t cover', { n: unansweredCount })}
           <ArrowUpRight className="w-3.5 h-3.5" />
         </button>
       )}
@@ -94,8 +96,8 @@ export default function AssistantHealth({
         >
           <MailWarning className="w-4 h-4" />
           {failedSupportTicketsCount === 1
-            ? 'A visitor asked for help and we couldn’t email it to you — read it here'
-            : `${failedSupportTicketsCount} visitors asked for help and we couldn’t email them to you — read them here`}
+            ? t('A visitor asked for help and we couldn’t email it to you — read it here')
+            : t('{n} visitors asked for help and we couldn’t email them to you — read them here', { n: failedSupportTicketsCount })}
           <ArrowUpRight className="w-3.5 h-3.5" />
         </button>
       )}
@@ -110,6 +112,7 @@ export default function AssistantHealth({
  * the widget stops answering: comfortable, close to the limit, and spent.
  */
 function ConversationQuota({ used, limit, onShowPricing }) {
+  const { t } = useT();
   const pct = limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0;
   const atLimit = used >= limit;
   const nearLimit = !atLimit && pct >= 80;
@@ -123,7 +126,7 @@ function ConversationQuota({ used, limit, onShowPricing }) {
       <div className="flex items-center justify-between mb-1.5">
         <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500">
           <TrendingUp className="w-3.5 h-3.5" />
-          Conversations this month
+          {t('Conversations this month')}
         </div>
         <span className={`text-xs font-bold ${textClass}`}>
           {used.toLocaleString()} / {limit.toLocaleString()}
@@ -136,8 +139,8 @@ function ConversationQuota({ used, limit, onShowPricing }) {
         <div className="flex items-center justify-between gap-2 mt-2">
           <p className={`text-[11px] ${tone === 'over' ? 'text-red-600' : 'text-amber-700'}`}>
             {atLimit
-              ? "This plan's monthly limit is reached — the widget has stopped accepting new conversations."
-              : 'Approaching this plan\'s monthly conversation limit.'}
+              ? t("This plan's monthly limit is reached — the widget has stopped accepting new conversations.")
+              : t('Approaching this plan\'s monthly conversation limit.')}
           </p>
           {onShowPricing && (
             <button
@@ -149,7 +152,7 @@ function ConversationQuota({ used, limit, onShowPricing }) {
                   : 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-900 border border-amber-500/30'
               }`}
             >
-              Upgrade
+              {t('Upgrade')}
             </button>
           )}
         </div>

@@ -5,6 +5,7 @@ import LogoMark from '../LogoMark';
 import { navItemsWithBadges } from './navigation';
 import api from '../../lib/api';
 import { hasActivePlan as checkHasActivePlan } from '../../features/dashboard/lib/plan-limits';
+import { useT } from '../../i18n/LanguageContext';
 
 /**
  * The full header a signed-in user gets: workspace selector, plan badge, and
@@ -21,6 +22,7 @@ export default function AppHeader({
   onSelectView,
   leadsCount = 0
 }) {
+  const { t, lang, toggleLang } = useT();
   const [portalLoading, setPortalLoading] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
@@ -82,7 +84,7 @@ export default function AppHeader({
                 }`}
               >
                 <Icon className={`w-3.5 h-3.5 ${iconClassName}`} />
-                <span>{label}</span>
+                <span>{t(label)}</span>
                 {badgeValue > 0 && (
                   <span className="bg-emerald-500/15 text-emerald-700 text-[10px] px-1.5 py-0.2 rounded-full font-bold">
                     {badgeValue}
@@ -96,7 +98,7 @@ export default function AppHeader({
           <button
             onClick={() => setMobileNavOpen((open) => !open)}
             className="sm:hidden w-9 h-9 rounded-lg bg-surface-200 hover:bg-surface-300 border border-dark-900/10 flex items-center justify-center text-gray-600 transition-colors"
-            aria-label={mobileNavOpen ? 'Close navigation' : 'Open navigation'}
+            aria-label={mobileNavOpen ? t('Close navigation') : t('Open navigation')}
             aria-expanded={mobileNavOpen}
           >
             {mobileNavOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
@@ -116,7 +118,7 @@ export default function AppHeader({
                 }`}
               >
                 <Icon className={`w-4 h-4 ${iconClassName}`} />
-                <span>{label}</span>
+                <span>{t(label)}</span>
                 {badgeValue > 0 && (
                   <span className="bg-emerald-500/15 text-emerald-700 text-[10px] px-1.5 py-0.2 rounded-full font-bold">
                     {badgeValue}
@@ -143,14 +145,14 @@ export default function AppHeader({
               onClick={handleManageSubscription}
               disabled={portalLoading}
               className="text-xs font-semibold text-gray-600 hover:text-dark-900 px-3 py-1.5 rounded-full border border-dark-900/10 hover:border-dark-900/25 flex items-center gap-1.5 transition-all disabled:opacity-50"
-              title="Manage Subscription"
+              title={t('Manage Subscription')}
             >
               {portalLoading ? (
                 <Loader2 className="w-3 h-3 animate-spin" />
               ) : (
                 <Settings className="w-3 h-3" />
               )}
-              <span className="hidden sm:inline">Manage</span>
+              <span className="hidden sm:inline">{t('Manage')}</span>
             </button>
           ) : (
             <button
@@ -158,32 +160,42 @@ export default function AppHeader({
               onClick={onShowPricing}
               className="text-xs font-semibold bg-gradient-to-r from-brand-700 to-brand-500 hover:from-brand-600 hover:to-brand-400 text-white px-3.5 py-1.5 rounded-full transition-all shadow-md shadow-brand-500/20 shrink-0"
             >
-              Upgrade / Plans
+              {t('Upgrade / Plans')}
             </button>
           )}
 
           <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-500 font-medium hidden md:inline">Logged in:</span>
+            <span className="text-xs text-gray-500 font-medium hidden md:inline">{t('Logged in:')}</span>
             <select
               value={selectedTenant?.id || ''}
               onChange={(e) => {
-                const t = tenants.find((item) => item.id === e.target.value);
-                if (t) setSelectedTenant(t);
+                const tenant = tenants.find((item) => item.id === e.target.value);
+                if (tenant) setSelectedTenant(tenant);
               }}
               className="bg-white text-dark-900 border border-gray-300 rounded-lg px-2.5 py-1 text-xs sm:text-sm font-medium outline-none focus:border-brand-500 transition-colors cursor-pointer max-w-[140px] sm:max-w-[200px] truncate"
             >
-              {tenants.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
+              {tenants.map((tn) => (
+                <option key={tn.id} value={tn.id}>
+                  {tn.name}
                 </option>
               ))}
             </select>
           </div>
 
           <button
+            type="button"
+            onClick={toggleLang}
+            className="shrink-0 text-xs font-bold text-gray-500 hover:text-dark-900 px-2.5 py-1.5 rounded-lg border border-dark-900/10 hover:bg-surface-200 transition-colors uppercase"
+            title={lang === 'fr' ? 'Switch to English' : 'Passer en français'}
+            aria-label={lang === 'fr' ? 'Switch to English' : 'Passer en français'}
+          >
+            {lang === 'fr' ? 'EN' : 'FR'}
+          </button>
+
+          <button
             onClick={onLogout}
             className="shrink-0 text-gray-500 hover:text-dark-900 p-2 rounded-lg hover:bg-surface-200 transition-colors"
-            title="Sign out"
+            title={t('Sign out')}
           >
             <LogOut className="w-4 h-4" />
           </button>

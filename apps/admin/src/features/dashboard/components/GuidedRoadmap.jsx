@@ -1,5 +1,6 @@
 import React from 'react';
 import { Check, ArrowUpRight, Code } from 'lucide-react';
+import { useT } from '../../../i18n/LanguageContext';
 
 /** Quick 3-Step Guided Roadmap */
 export default function GuidedRoadmap({
@@ -10,6 +11,7 @@ export default function GuidedRoadmap({
   onOpenPreview,
   onOpenIntegration
 }) {
+  const { t } = useT();
   // The step-1 card used to render `loadedPagesCount || 1`, so a site with
   // nothing indexed still claimed "1 page indexed in memory" under a green
   // checkmark. Zero pages is a real state (crawl still running, or every page
@@ -25,19 +27,21 @@ export default function GuidedRoadmap({
         <div>
           <div className="text-xs font-bold text-dark-900 flex items-center gap-1.5">
             {hasContent ? (
-              <>Website content ready <Check className="w-3.5 h-3.5 text-emerald-600" /></>
+              <>{t('Website content ready')} <Check className="w-3.5 h-3.5 text-emerald-600" /></>
             ) : isCrawling ? (
-              'Reading your website'
+              t('Reading your website')
             ) : (
-              'No content yet'
+              t('No content yet')
             )}
           </div>
           <div className="text-[11px] text-gray-500">
             {hasContent
-              ? `${loadedPagesCount} ${loadedPagesCount === 1 ? 'page' : 'pages'} available to your assistant`
+              ? (loadedPagesCount === 1
+                  ? t('{n} page available to your assistant', { n: loadedPagesCount })
+                  : t('{n} pages available to your assistant', { n: loadedPagesCount }))
               : isCrawling
-              ? "We're preparing your content"
-              : 'Nothing is available to your assistant yet'}
+              ? t("We're preparing your content")
+              : t('Nothing is available to your assistant yet')}
           </div>
         </div>
       </div>
@@ -51,9 +55,9 @@ export default function GuidedRoadmap({
         </div>
         <div className="flex-1">
           <div className="text-xs font-bold text-dark-900 flex items-center gap-1.5 group-hover:text-brand-700">
-            Test your assistant <ArrowUpRight className="w-3.5 h-3.5 text-brand-600" />
+            {t('Test your assistant')} <ArrowUpRight className="w-3.5 h-3.5 text-brand-600" />
           </div>
-          <div className="text-[11px] text-gray-500">Ask it questions before your visitors do</div>
+          <div className="text-[11px] text-gray-500">{t('Ask it questions before your visitors do')}</div>
         </div>
       </div>
 
@@ -69,9 +73,9 @@ export default function GuidedRoadmap({
         </div>
         <div className="flex-1">
           <div className="text-xs font-bold text-dark-900 flex items-center gap-1.5 group-hover:text-brand-700">
-            Install on your website <Code className="w-3.5 h-3.5 text-brand-600" />
+            {t('Install on your website')} <Code className="w-3.5 h-3.5 text-brand-600" />
           </div>
-          <div className="text-[11px] text-gray-500">One line to paste, and you're live</div>
+          <div className="text-[11px] text-gray-500">{t("One line to paste, and you're live")}</div>
         </div>
       </div>
     </div>

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Globe, ExternalLink, X } from 'lucide-react';
 import api from '../../../../lib/api';
 import { supabase } from '../../../../lib/supabase';
+import { useT } from '../../../../i18n/LanguageContext';
 
 /**
  * Full-screen preview of the customer's site with their assistant on it.
@@ -21,6 +22,7 @@ import { supabase } from '../../../../lib/supabase';
  * any origin but the customer's registered domain unless it carries one.
  */
 export default function LivePreviewModal({ show, activeSite, themeColor, onClose }) {
+  const { t } = useT();
   const frameRef = useRef(null);
   const [previewSrc, setPreviewSrc] = useState(null);
 
@@ -79,7 +81,7 @@ export default function LivePreviewModal({ show, activeSite, themeColor, onClose
             onClick={onClose}
             className="bg-surface-200 hover:bg-surface-300 text-dark-700 text-xs font-semibold px-2.5 sm:px-4 py-2 rounded-xl flex items-center gap-1.5 sm:gap-2 transition-all shrink-0"
           >
-            ← <span className="hidden sm:inline">Back to Dashboard</span><span className="sm:hidden">Back</span>
+            ← <span className="hidden sm:inline">{t('Back to Dashboard')}</span><span className="sm:hidden">{t('Back')}</span>
           </button>
           <div className="hidden md:flex items-center gap-2 text-xs text-gray-500 font-mono min-w-0">
             <Globe className="w-4 h-4 text-emerald-600 shrink-0" /> <span className="truncate">https://{activeSite.domain}</span>
@@ -92,10 +94,10 @@ export default function LivePreviewModal({ show, activeSite, themeColor, onClose
             target="_blank"
             rel="noopener noreferrer"
             className="bg-surface-200 hover:bg-surface-300 text-dark-700 text-xs font-semibold px-2.5 sm:px-3.5 py-1.5 rounded-xl flex items-center gap-2 transition-all border border-dark-900/10 shadow-sm"
-            title="Open the live site in a new tab"
+            title={t('Open the live site in a new tab')}
           >
             <ExternalLink className="w-3.5 h-3.5 text-brand-600" />
-            <span className="hidden sm:inline">Open live site</span>
+            <span className="hidden sm:inline">{t('Open live site')}</span>
           </a>
         </div>
 
@@ -114,7 +116,7 @@ export default function LivePreviewModal({ show, activeSite, themeColor, onClose
             ref={frameRef}
             src={previewSrc}
             className="w-full h-full border-0 bg-white block"
-            title={`Assistant preview for ${activeSite.domain}`}
+            title={t('Assistant preview for {domain}', { domain: activeSite.domain })}
           />
         )}
       </div>

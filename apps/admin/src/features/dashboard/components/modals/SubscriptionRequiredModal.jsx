@@ -1,5 +1,6 @@
 import React from 'react';
 import { Lock, Sparkles, X } from 'lucide-react';
+import { useT } from '../../../../i18n/LanguageContext';
 
 /** 11. SUBSCRIPTION REQUIRED — INSTALL GATE
     Installing puts the assistant on a real, live website — that's the one
@@ -13,6 +14,7 @@ export default function SubscriptionRequiredModal({
   onShowPricing,
   onClose
 }) {
+  const { t } = useT();
   if (!show) return null;
 
   return (
@@ -30,10 +32,10 @@ export default function SubscriptionRequiredModal({
         </div>
 
         <h3 className="text-xl font-bold text-dark-900 mb-2">
-          Subscribe to install {activeSiteDomain || 'your assistant'}
+          {t('Subscribe to install {domain}', { domain: activeSiteDomain || t('your assistant') })}
         </h3>
         <p className="text-sm text-gray-500 mb-6 leading-relaxed">
-          You can build and test your assistant for free, but putting it live on your website needs an active plan. Choose a plan to get your install code.
+          {t('You can build and test your assistant for free, but putting it live on your website needs an active plan. Choose a plan to get your install code.')}
         </p>
 
         <div className="flex flex-col gap-3">
@@ -46,7 +48,7 @@ export default function SubscriptionRequiredModal({
               }}
               className="w-full bg-gradient-to-r from-brand-700 to-brand-500 hover:from-brand-600 hover:to-brand-400 text-white font-bold px-6 py-3 rounded-xl text-sm flex items-center justify-center gap-2 transition-all shadow-lg shadow-brand-900/30 hover:scale-[1.02] active:scale-95"
             >
-              <Sparkles className="w-4 h-4" /> See Plans →
+              <Sparkles className="w-4 h-4" /> {t('See Plans →')}
             </button>
           )}
 
@@ -55,7 +57,7 @@ export default function SubscriptionRequiredModal({
             onClick={onClose}
             className="w-full px-5 py-2 text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors"
           >
-            Go back
+            {t('Go back')}
           </button>
         </div>
       </div>
