@@ -9,12 +9,13 @@ import Pricing from './components/Pricing';
 import PaymentSuccessPage from './components/PaymentSuccessPage';
 import AboutPage from './components/AboutPage';
 import { PrivacyPolicy, TermsOfService } from './components/LegalPages';
-import OsteopathyLanding from './components/OsteopathyLanding';
+import NicheLanding from './components/NicheLanding';
 import Dashboard from './features/dashboard/Dashboard';
 import ConversationsPage from './features/conversations/ConversationsPage';
 import LeadsPage from './features/leads/LeadsPage';
 import RecentLeadsSection from './features/leads/RecentLeadsSection';
 import SupportTicketsPage from './features/support/SupportTicketsPage';
+import { isNicheView, nicheForView } from './content/niches';
 import {
   useAuthSession,
   useCopilotNavigation,
@@ -100,7 +101,7 @@ export default function App() {
   const headerHidden =
     !isAuthenticated &&
     (showLoginModal ||
-      currentView === 'osteopathes' ||
+      isNicheView(currentView) ||
       (currentView === 'dashboard' && sites.length === 0));
 
   const header = {
@@ -118,6 +119,21 @@ export default function App() {
   };
 
   const renderView = () => {
+    // Every /solutions/<slug> page is the same component with different
+    // content (content/niches.js), so they share one branch rather than a
+    // case each.
+    const niche = nicheForView(currentView);
+    if (niche) {
+      return (
+        <NicheLanding
+          niche={niche}
+          onNavigate={navigate}
+          showSignIn={!isAuthenticated}
+          onSignIn={() => setShowLoginModal(true)}
+        />
+      );
+    }
+
     switch (currentView) {
       case 'payment-success':
         return <PaymentSuccessPage onGoToDashboard={() => { navigate('dashboard'); setPaymentToast(null); }} />;
@@ -132,14 +148,6 @@ export default function App() {
         );
       case 'about':
         return <AboutPage />;
-      case 'osteopathes':
-        return (
-          <OsteopathyLanding
-            onNavigate={navigate}
-            showSignIn={!isAuthenticated}
-            onSignIn={() => setShowLoginModal(true)}
-          />
-        );
       case 'privacy':
         return <PrivacyPolicy />;
       case 'terms':

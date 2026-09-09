@@ -7,6 +7,8 @@
 // (see hooks/useRouter.js).
 // ---------------------------------------------------------------------------
 
+import { NICHES } from '../content/niches.js';
+
 export const VIEW_PATHS = {
   dashboard: '/',
   conversations: '/conversations',
@@ -17,7 +19,9 @@ export const VIEW_PATHS = {
   privacy: '/privacy',
   terms: '/terms',
   'payment-success': '/payment-success',
-  osteopathes: '/solutions/osteopathes'
+  // One /solutions/<slug> entry per segment, straight from content/niches.js
+  // — a new landing page needs no edit here.
+  ...Object.fromEntries(NICHES.map((niche) => [niche.view, niche.path]))
 };
 
 export const DEFAULT_VIEW = 'dashboard';
