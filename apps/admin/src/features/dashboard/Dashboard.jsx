@@ -499,7 +499,6 @@ export default function Dashboard({
         tenantPlan={tenantPlan}
         onConfirm={pipeline.handleConfirmSelectedPagesAndScan}
         onClose={() => pipeline.setShowPageSelectionModal(false)}
-        onShowPricing={onShowPricing}
       />
 
       <UpgradeRequiredModal

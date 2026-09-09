@@ -122,8 +122,7 @@ export default function PageSelectionModal({
   setPageSelectionSearch,
   tenantPlan,
   onConfirm,
-  onClose,
-  onShowPricing
+  onClose
 }) {
   const filteredPages = useMemo(() => {
     const q = pageSelectionSearch.trim().toLowerCase();
@@ -239,8 +238,8 @@ export default function PageSelectionModal({
         <VirtualizedPageList pages={filteredPages} selectedUrls={selectedUrls} onTogglePage={togglePage} />
 
         {/* Modal Footer Actions */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-dark-900/5">
-          {needsCustomPlan ? (
+        <div className="flex flex-col sm:flex-row items-center gap-3 pt-3 border-t border-dark-900/5">
+          {needsCustomPlan && (
             <a
               href={customPlanMailto}
               className="w-full sm:w-auto text-xs text-amber-700 hover:text-amber-800 font-semibold flex items-center gap-1.5 px-3 py-2"
@@ -248,21 +247,9 @@ export default function PageSelectionModal({
               <Sparkles className="w-3.5 h-3.5 text-amber-600" />
               Contact us for a custom plan →
             </a>
-          ) : (
-            <button
-              type="button"
-              onClick={() => {
-                onClose();
-                if (onShowPricing) onShowPricing();
-              }}
-              className="w-full sm:w-auto text-xs text-amber-700 hover:text-amber-800 font-semibold flex items-center gap-1.5 px-3 py-2"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-              Upgrade plan for unlimited pages →
-            </button>
           )}
 
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end sm:ml-auto">
             <button
               type="button"
               onClick={onClose}
