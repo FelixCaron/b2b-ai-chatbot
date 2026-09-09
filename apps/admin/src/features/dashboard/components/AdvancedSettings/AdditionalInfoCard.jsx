@@ -21,6 +21,7 @@ export default function AdditionalInfoCard({ activeSite }) {
   const [loadedContent, setLoadedContent] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [message, setMessage] = useState({ text: '', isError: false });
 
   useEffect(() => {
@@ -28,12 +29,22 @@ export default function AdditionalInfoCard({ activeSite }) {
     if (!activeSite?.id) return undefined;
 
     setIsLoading(true);
+    setLoadFailed(false);
     setMessage({ text: '', isError: false });
-    readAdditionalInfo(activeSite).then((text) => {
+    readAdditionalInfo(activeSite).then((result) => {
       if (cancelled) return;
-      setContent(text);
-      setLoadedContent(text);
       setIsLoading(false);
+      // An empty box after a failed read looks exactly like "you have not
+      // written anything yet" — and Save would then replace everything the
+      // owner actually has with whatever they type into it. Say what
+      // happened and keep the editor locked instead.
+      if (!result.ok) {
+        setLoadFailed(true);
+        setMessage({ text: result.error, isError: true });
+        return;
+      }
+      setContent(result.text);
+      setLoadedContent(result.text);
     });
 
     return () => { cancelled = true; };
@@ -69,7 +80,7 @@ export default function AdditionalInfoCard({ activeSite }) {
       <textarea
         value={isLoading ? '' : content}
         onChange={(e) => setContent(e.target.value)}
-        disabled={isLoading || !activeSite?.id}
+        disabled={isLoading || loadFailed || !activeSite?.id}
         rows={8}
         placeholder={isLoading ? 'Loading…' : 'e.g. We deliver to the South Shore on Tuesdays and Thursdays.\n\nOur workshop is closed for two weeks at the end of July.'}
         className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 text-sm text-dark-900 placeholder-gray-400 outline-none focus:border-brand-500 resize-y disabled:opacity-60"
@@ -86,7 +97,7 @@ export default function AdditionalInfoCard({ activeSite }) {
         <button
           type="button"
           onClick={handleSave}
-          disabled={!isDirty || isSaving || isLoading}
+          disabled={!isDirty || isSaving || isLoading || loadFailed}
           className="shrink-0 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}

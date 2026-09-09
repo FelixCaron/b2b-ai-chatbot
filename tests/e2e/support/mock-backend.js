@@ -144,17 +144,54 @@ export function defaultFixtures(user) {
       usage: [
         { tenant_id: tenantId, messages_count: 42, leads_count: 1, updated_at: new Date().toISOString() },
       ],
-      documents: [
-        {
-          id: uuid(),
-          tenant_id: tenantId,
-          site_id: siteId,
-          url: 'https://acme.example.com/',
-          content: 'Acme Corp home page content.',
-          metadata: { title: 'Home' },
-          created_at: new Date().toISOString(),
-        },
-      ],
+      documents: (() => {
+        const indexedAt = new Date().toISOString();
+        return [
+          {
+            id: uuid(),
+            tenant_id: tenantId,
+            site_id: siteId,
+            url: 'https://acme.example.com/',
+            content: 'Acme Corp home page content.',
+            metadata: { title: 'Home' },
+            chunk_index: 0,
+            created_at: indexedAt,
+          },
+          // The owner's hand-written Additional Information, stored the way
+          // the database really holds it: several chunks of ONE save, so
+          // every row shares a created_at, and the rows are deliberately laid
+          // out here out of order. Only chunk_index can put them back — which
+          // is the whole point of migration 20260909060000, and what an
+          // unordered read used to get wrong (and then save back wrong).
+          {
+            id: uuid(),
+            tenant_id: tenantId,
+            site_id: siteId,
+            url: 'https://acme.example.com/#additional-info',
+            content: '[Source URL: https://acme.example.com/#additional-info]\nThird: we close for two weeks at the end of July.',
+            chunk_index: 2,
+            created_at: indexedAt,
+          },
+          {
+            id: uuid(),
+            tenant_id: tenantId,
+            site_id: siteId,
+            url: 'https://acme.example.com/#additional-info',
+            content: '[Source URL: https://acme.example.com/#additional-info]\nFirst: we reimburse insurance claims within 30 days.',
+            chunk_index: 0,
+            created_at: indexedAt,
+          },
+          {
+            id: uuid(),
+            tenant_id: tenantId,
+            site_id: siteId,
+            url: 'https://acme.example.com/#additional-info',
+            content: '[Source URL: https://acme.example.com/#additional-info]\nSecond: delivery to the South Shore runs Tuesdays and Thursdays.',
+            chunk_index: 1,
+            created_at: indexedAt,
+          },
+        ];
+      })(),
       site_summaries: [
         {
           id: uuid(),
@@ -203,16 +240,42 @@ function applyEqFilters(rows, searchParams) {
   return result;
 }
 
+/**
+ * PostgREST's `order` param, including the parts the app actually relies on:
+ * several keys separated by commas ("order=chunk_index.asc,created_at.asc"),
+ * applied in sequence as tiebreakers, and explicit null placement
+ * ("chunk_index.asc.nullslast"). Honouring only the first key would let a
+ * test pass on ordering the real database would not give — the ordering of
+ * a page's chunks is exactly such a case, since they all share a created_at.
+ */
 function applyOrder(rows, searchParams) {
   const order = searchParams.get('order');
   if (!order) return rows;
-  const [col, dir] = order.split('.');
-  const sorted = [...rows].sort((a, b) => {
-    if (a[col] < b[col]) return dir === 'desc' ? 1 : -1;
-    if (a[col] > b[col]) return dir === 'desc' ? -1 : 1;
-    return 0;
+
+  const keys = order.split(',').map((clause) => {
+    const [col, ...rest] = clause.split('.');
+    const parts = rest.map((p) => p.toLowerCase());
+    const desc = parts.includes('desc');
+    // PostgREST's own default: nulls sort last ascending, first descending.
+    const nullsFirst = parts.includes('nullsfirst') || (desc && !parts.includes('nullslast'));
+    return { col, desc, nullsFirst };
   });
-  return sorted;
+
+  const compare = (a, b) => {
+    for (const { col, desc, nullsFirst } of keys) {
+      const av = a[col];
+      const bv = b[col];
+      const aNull = av === null || av === undefined;
+      const bNull = bv === null || bv === undefined;
+      if (aNull && bNull) continue;
+      if (aNull || bNull) return (aNull ? 1 : -1) * (nullsFirst ? -1 : 1);
+      if (av < bv) return desc ? 1 : -1;
+      if (av > bv) return desc ? -1 : 1;
+    }
+    return 0;
+  };
+
+  return [...rows].sort(compare);
 }
 
 /**

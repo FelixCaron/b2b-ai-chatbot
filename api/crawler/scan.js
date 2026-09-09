@@ -307,6 +307,9 @@ export default edgeRoute(contracts.crawler.scan, async (req, { data, json }) => 
     site_id,
     url: targetUrl,
     content: chunk,
+    // Position within the page, so it can be read back in the order it
+    // was written (migration 20260909060000).
+    chunk_index: i,
     embedding: allEmbeddings[i] ?? null
   }));
 

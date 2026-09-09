@@ -33,22 +33,38 @@ export function isAdditionalInfoUrl(url) {
   return typeof url === 'string' && url.includes('#additional-info');
 }
 
-/** Everything currently in the site's Additional Information, as one string. */
+/**
+ * Everything currently in the site's Additional Information.
+ *
+ * Returns {ok, text, error} rather than a bare string because "no notes yet"
+ * and "we could not read the notes" are the same empty string, and every
+ * caller here goes on to *rewrite* this document from what it read: treating
+ * a failed read as "it was empty" silently deletes everything the owner had
+ * saved. Failure has to be loud enough to stop that.
+ *
+ * Ordered by chunk_index (migration 20260909060000): the chunks of one save
+ * all share a created_at, so ordering by that alone is a tie Postgres may
+ * return in any order — which used to come back, and get saved back,
+ * scrambled. Rows written before that column existed sort last on
+ * (created_at, id): arbitrary, but stable, and the next save repopulates them.
+ */
 export async function readAdditionalInfo(site) {
-  if (!site?.id || !supabase) return '';
+  if (!site?.id || !supabase) return { ok: false, text: '', error: 'No website selected.' };
   const { data, error } = await supabase
     .from('documents')
-    .select('content, created_at')
+    .select('content, chunk_index, created_at, id')
     .eq('site_id', site.id)
     .eq('url', additionalInfoUrl(site))
-    .order('created_at', { ascending: true });
+    .order('chunk_index', { ascending: true, nullsFirst: false })
+    .order('created_at', { ascending: true })
+    .order('id', { ascending: true });
 
   if (error) {
     console.error('[knowledge-notes] could not read existing notes:', error.message);
-    return '';
+    return { ok: false, text: '', error: 'Could not read your existing information. Check your connection and try again.' };
   }
 
-  return (data || []).map((row) => stripSourcePrefix(row.content)).join('\n\n');
+  return { ok: true, text: (data || []).map((row) => stripSourcePrefix(row.content)).join('\n\n'), error: '' };
 }
 
 /**
@@ -87,8 +103,13 @@ export async function appendAdditionalInfo(site, note) {
   if (!text) return { ok: false, error: 'Nothing to save.' };
   if (!site?.id || !site?.tenant_id) return { ok: false, error: 'No website selected.' };
 
+  // crawler.update replaces the whole document, so this append is really a
+  // read-modify-write. If the read failed we do not know what we would be
+  // overwriting — stop, rather than "append" the owner's answer onto nothing
+  // and wipe every answer they saved before it.
   const existing = await readAdditionalInfo(site);
-  const combined = existing ? `${existing}\n\n${text}` : text;
+  if (!existing.ok) return { ok: false, error: existing.error };
+  const combined = existing.text ? `${existing.text}\n\n${text}` : text;
 
   const result = await api.crawler.update({
     site_id: site.id,

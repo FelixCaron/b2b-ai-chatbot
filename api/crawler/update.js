@@ -103,6 +103,10 @@ export default edgeRoute(contracts.crawler.update, async (req, { data, json }) =
       site_id,
       url,
       content: chunk,
+      // Which chunk of this page this is. Without it a reader has nothing
+      // to sort by (every chunk of one save shares a created_at), and the
+      // text comes back out of order — see migration 20260909060000.
+      chunk_index: i,
       embedding: allEmbeddings[i] ?? FALLBACK_EMBEDDING
     }));
 

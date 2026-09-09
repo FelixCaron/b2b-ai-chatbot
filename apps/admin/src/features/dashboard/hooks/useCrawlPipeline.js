@@ -515,7 +515,18 @@ export default function useCrawlPipeline({
     e.stopPropagation();
     setEditingPage({ url: pageUrl, content: 'Loading content...', saving: false });
     try {
-      const { data, error } = await supabase.from('documents').select('content').eq('site_id', activeSite.id).eq('url', pageUrl);
+      // Ordered, not just fetched: a page is several chunk rows that all
+      // share one created_at, so an unordered read hands the editor the
+      // page's own paragraphs shuffled — and saving writes that shuffle
+      // back as the new truth. See migration 20260909060000.
+      const { data, error } = await supabase
+        .from('documents')
+        .select('content, chunk_index, created_at, id')
+        .eq('site_id', activeSite.id)
+        .eq('url', pageUrl)
+        .order('chunk_index', { ascending: true, nullsFirst: false })
+        .order('created_at', { ascending: true })
+        .order('id', { ascending: true });
       if (error) throw error;
       // Each stored chunk carries a '[Source URL: ...]' line that the indexer
       // added, not the operator. Handing it back to the editor meant the next
