@@ -199,7 +199,11 @@ export default function App() {
           loading={auth.loading}
           onClose={!isGuest ? () => { setShowLoginModal(false); auth.clearAuthStatus(); } : undefined}
           onNotNow={() => { setShowLoginModal(false); auth.clearAuthStatus(); }}
-          isGuestConversion={isGuest}
+          // isGuest alone just means "anonymous session" — true from first
+          // load, before the visitor has entered a URL. The "Save My
+          // Assistant" / "your AI is ready" copy only makes sense once a
+          // guest has actually built something worth saving.
+          isGuestConversion={isGuest && sites.length > 0}
           message={auth.authMessage}
           error={auth.authError}
           onUseDifferentEmail={auth.clearAuthStatus}

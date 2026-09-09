@@ -122,8 +122,12 @@ export default function AppHeader({
           </nav>
         )}
 
-        {/* Tenant Selector, Plan Badge & Actions */}
-        <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 border-dark-900/5 pt-2 sm:pt-0">
+        {/* Tenant Selector, Plan Badge & Actions — wraps on narrow phones
+            instead of overflowing: these items don't all fit on one line
+            under ~380px, and body has overflow-x:hidden, so whatever didn't
+            fit (the logout button, being last) was getting clipped off
+            screen entirely rather than scrollable into view. */}
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-3 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 border-dark-900/5 pt-2 sm:pt-0">
           {/* Plan Badge — always visible */}
           <PlanBadge plan={plan} planStatus={planStatus} />
 
