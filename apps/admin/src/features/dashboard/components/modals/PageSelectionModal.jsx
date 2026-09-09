@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, Search, Sparkles } from 'lucide-react';
 import { MAX_DISCOVERABLE_PAGES } from '@b2b-ai-chatbot/contracts';
-import { getMaxPagesForPlan } from '../../lib/plan-limits';
+import { getMaxPagesForPlan, getNextPlanUpgrade } from '../../lib/plan-limits';
 import { GENERAL_EMAIL } from '../../../../components/LegalPages';
 
 // Every row is rendered at exactly this height (see the `style={{ height }}`
@@ -133,6 +133,17 @@ export default function PageSelectionModal({
     );
   }, [pendingCrawlPages, pageSelectionSearch]);
 
+  // "Upgrade plan" is only an honest next step while a bigger plan actually
+  // exists and would cover this site. A site whose real page count clears
+  // even the top plan's quota — or one so large discovery itself had to stop
+  // early (discoveryTruncated) — isn't a self-serve upgrade, it's a lead:
+  // the right move is a plan custom-sized to the site, not pointing the
+  // owner at a plan that still wouldn't fit.
+  const needsCustomPlan = discoveryTruncated || !getNextPlanUpgrade(tenantPlan);
+  const customPlanMailto = `mailto:${GENERAL_EMAIL}?subject=${encodeURIComponent(
+    `Custom plan — ${pendingCrawlPages.length.toLocaleString()}-page website`
+  )}`;
+
   const togglePage = (pageUrl) => {
     setSelectedUrls((prev) => {
       const next = new Set(prev);
@@ -164,7 +175,7 @@ export default function PageSelectionModal({
                 Large Website ({pendingCrawlPages.length} Pages Discovered)
               </h3>
               <p className="text-xs text-gray-500">
-                Your current <strong>{tenantPlan.toUpperCase()}</strong> plan includes up to <strong>{getMaxPagesForPlan(tenantPlan)} pages</strong>. Select which pages to index or upgrade your plan.
+                Your current <strong>{tenantPlan.toUpperCase()}</strong> plan includes up to <strong>{getMaxPagesForPlan(tenantPlan)} pages</strong>. Select which pages to index{needsCustomPlan ? ', or contact us for a custom plan' : ' or upgrade your plan'}.
               </p>
             </div>
           </div>
@@ -214,11 +225,11 @@ export default function PageSelectionModal({
 
         {discoveryTruncated && (
           <p className="text-[11px] text-amber-700 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 mt-3">
-            This site has more than {MAX_DISCOVERABLE_PAGES.toLocaleString()} pages — showing the first {MAX_DISCOVERABLE_PAGES.toLocaleString()} discovered. Need a page beyond that indexed?{' '}
-            <a href={`mailto:${GENERAL_EMAIL}`} className="font-semibold underline hover:text-amber-800">
+            This site has more than {MAX_DISCOVERABLE_PAGES.toLocaleString()} pages — bigger than any of our plans are sized for, so we only scanned the first {MAX_DISCOVERABLE_PAGES.toLocaleString()}.{' '}
+            <a href={customPlanMailto} className="font-semibold underline hover:text-amber-800">
               Contact us
             </a>{' '}
-            and we'll add it by hand.
+            for a custom plan sized to your site.
           </p>
         )}
 
@@ -229,17 +240,27 @@ export default function PageSelectionModal({
 
         {/* Modal Footer Actions */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-dark-900/5">
-          <button
-            type="button"
-            onClick={() => {
-              onClose();
-              if (onShowPricing) onShowPricing();
-            }}
-            className="w-full sm:w-auto text-xs text-amber-700 hover:text-amber-800 font-semibold flex items-center gap-1.5 px-3 py-2"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-            Upgrade plan for unlimited pages →
-          </button>
+          {needsCustomPlan ? (
+            <a
+              href={customPlanMailto}
+              className="w-full sm:w-auto text-xs text-amber-700 hover:text-amber-800 font-semibold flex items-center gap-1.5 px-3 py-2"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+              Contact us for a custom plan →
+            </a>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                if (onShowPricing) onShowPricing();
+              }}
+              className="w-full sm:w-auto text-xs text-amber-700 hover:text-amber-800 font-semibold flex items-center gap-1.5 px-3 py-2"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+              Upgrade plan for unlimited pages →
+            </button>
+          )}
 
           <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
             <button
