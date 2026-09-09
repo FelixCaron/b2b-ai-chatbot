@@ -551,6 +551,20 @@ export async function installMockBackend(page, overrides = {}) {
   await page.route('**/fonts.gstatic.com/**', (route) =>
     route.fulfill({ status: 200, contentType: 'font/woff2', body: Buffer.from('') })
   );
+  // SiteHeroCard's favicon fallback chain (favicon_url → the domain's own
+  // /favicon.ico → Google's s2 lookup) reaches real external hosts whenever
+  // a fixture site has no favicon_url on record — a fixture domain like
+  // acme.example.com was never going to have a real one. Fulfill instead of
+  // leaving these unmocked, same reasoning as the stubs above: no test
+  // should depend on live network, and an unmocked request genuinely 404s
+  // (real servers, fixture domain), which is a real console error these
+  // tests correctly fail on.
+  await page.route('**/favicon.ico', (route) =>
+    route.fulfill({ status: 200, contentType: 'image/x-icon', body: Buffer.from('') })
+  );
+  await page.route('**/www.google.com/s2/favicons**', (route) =>
+    route.fulfill({ status: 200, contentType: 'image/png', body: Buffer.from('') })
+  );
 
   return { db, state, anonUser };
 }
