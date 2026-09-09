@@ -1,7 +1,63 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { X, Code, AlertTriangle, Sparkles, Check, Copy, RefreshCw } from 'lucide-react';
+import { X, Code, AlertTriangle, Sparkles, Check, Copy, RefreshCw, ChevronDown } from 'lucide-react';
 import { getMaxPagesForPlan } from '../../lib/plan-limits';
 import { supabase } from '../../../../lib/supabase';
+
+// Short, platform-specific "where do I paste this" instructions for
+// non-technical site owners. Kept as plain data so new platforms can be
+// added without touching the render logic.
+const PLATFORM_GUIDES = [
+  {
+    id: 'wordpress',
+    label: 'WordPress',
+    steps: [
+      'Install a header/footer script plugin, e.g. "WPCode" or "Insert Headers and Footers" (Plugins → Add New).',
+      "Open the plugin's Footer scripts field.",
+      'Paste the snippet in the footer field and save/publish.',
+      "No plugin allowed? Ask your host or theme developer to add it to footer.php, just before </body>."
+    ]
+  },
+  {
+    id: 'wix',
+    label: 'Wix',
+    steps: [
+      'Go to your site Dashboard → Settings → Custom Code (under "Advanced").',
+      'Click "+ Add Custom Code" and paste the snippet.',
+      'Set "Add Code to Pages" to All Pages, and "Place Code in" to Body - end.',
+      'Click Apply, then publish your site.'
+    ]
+  },
+  {
+    id: 'squarespace',
+    label: 'Squarespace',
+    steps: [
+      'Go to Settings → Advanced → Code Injection.',
+      'Paste the snippet into the Footer box — this applies it to every page automatically.',
+      'Save, then make sure your site is published.',
+      'Note: Code Injection needs a Business or Commerce plan.'
+    ]
+  },
+  {
+    id: 'shopify',
+    label: 'Shopify',
+    steps: [
+      'Go to Online Store → Themes, then click "Edit code" on your live theme.',
+      'Open theme.liquid under the Layout folder.',
+      'Paste the snippet right before the closing </body> tag.',
+      'Save the file.'
+    ]
+  },
+  {
+    id: 'generic',
+    label: 'Generic / raw HTML',
+    steps: [
+      "Open the HTML file(s) for your site, or your builder's page/template editor.",
+      'Find the closing </body> tag near the bottom of the file.',
+      'Paste the snippet immediately before </body>.',
+      'Repeat on every page where the assistant should appear, then re-upload or publish.'
+    ]
+  }
+];
 
 /** 5. INTEGRATION MODAL */
 export default function IntegrationModal({
@@ -26,6 +82,8 @@ export default function IntegrationModal({
   // the snippet.
   const [installDetected, setInstallDetected] = useState(false);
   const openedAtRef = useRef(null);
+  const [guidesOpen, setGuidesOpen] = useState(false);
+  const [activePlatformId, setActivePlatformId] = useState(null);
 
   useEffect(() => {
     if (!show || !activeSite?.id) {
@@ -138,7 +196,50 @@ export default function IntegrationModal({
             {copied ? <><Check className="w-4 h-4 text-emerald-400" /> Copied</> : <><Copy className="w-4 h-4" /> Copy Code</>}
           </button>
         </div>
-        
+
+        {/* HOW TO INSTALL ON MY PLATFORM (collapsible) */}
+        <div className="mt-4 rounded-2xl border border-dark-900/10 bg-surface-200 overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setGuidesOpen(o => !o)}
+            className="w-full flex items-center justify-between gap-2 px-4 py-3 text-sm font-semibold text-dark-900 hover:bg-dark-900/5 transition-colors"
+          >
+            <span>How to install on my platform</span>
+            <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${guidesOpen ? 'rotate-180' : ''}`} />
+          </button>
+
+          {guidesOpen && (
+            <div className="px-4 pb-4 space-y-3">
+              <div className="flex flex-wrap gap-1.5">
+                {PLATFORM_GUIDES.map((platform) => (
+                  <button
+                    key={platform.id}
+                    type="button"
+                    onClick={() => setActivePlatformId(id => (id === platform.id ? null : platform.id))}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
+                      activePlatformId === platform.id
+                        ? 'bg-brand-600 border-brand-600 text-white'
+                        : 'bg-white border-dark-900/10 text-gray-500 hover:text-dark-900 hover:bg-white/60'
+                    }`}
+                  >
+                    {platform.label}
+                  </button>
+                ))}
+              </div>
+
+              {activePlatformId && (
+                <ol className="list-decimal list-inside space-y-1.5 text-xs text-gray-500 bg-white border border-dark-900/10 rounded-xl p-3">
+                  {PLATFORM_GUIDES.find((platform) => platform.id === activePlatformId).steps.map((step, index) => (
+                    <li key={index} className="leading-relaxed">
+                      <span className="text-dark-900">{step}</span>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
+          )}
+        </div>
+
         <div className="mt-6 flex items-center justify-between gap-3">
           {installDetected ? (
             <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-lg">

@@ -65,7 +65,7 @@ const CONTENT = [
         },
         {
           q: 'Avez-vous de la disponibilité cette semaine?',
-          a: "Je vérifie ça pour vous — voici le lien de réservation en ligne de la clinique, vous y verrez les créneaux disponibles en temps réel : [Réserver un rendez-vous].",
+          a: "Bien sûr — voici le lien de réservation en ligne de la clinique, vous y verrez les disponibilités et pourrez choisir votre créneau : [Réserver un rendez-vous].",
         },
       ],
     },
@@ -226,13 +226,13 @@ const CONTENT = [
     view: 'animaleries',
     seoTitle: 'Assistant IA pour animaleries et boutiques pour animaux',
     seoDescription:
-      "Un assistant IA entraîné sur le contenu réel de votre site répond aux questions de vos clients 24/7 — disponibilité, marques de nourriture, formats, livraison et cueillette — et les dirige vers le bon produit. Pensé pour les animaleries.",
+      "Un assistant IA entraîné sur le contenu réel de votre site répond aux questions de vos clients 24/7 — marques, formats, livraison et cueillette, heures d'ouverture — à partir de votre catalogue en ligne. Pensé pour les animaleries.",
     badge: { icon: PawPrint, text: 'Pensé pour les animaleries & boutiques pour animaux' },
     hero: {
-      titleLead: 'Vos clients demandent si vous avez le bon produit,',
-      titleAccent: 'votre assistant leur répond tout de suite',
+      titleLead: 'Vos clients posent les mêmes questions toute la journée,',
+      titleAccent: 'votre assistant y répond à votre place',
       subtitle:
-        "Collez l'adresse de votre site : votre assistant apprend vos marques, vos formats, vos prix et vos modalités de livraison, puis répond à vos visiteurs 24/7 — au lieu de les laisser aller vérifier ailleurs.",
+        "Collez l'adresse de votre site : votre assistant apprend vos marques, vos formats, vos prix et vos modalités de livraison, puis répond à vos visiteurs 24/7 — pendant que vous êtes occupé·e sur le plancher.",
       primaryCta: 'Essayer avec le site de ma boutique',
       reassurance: 'Essai gratuit sans carte de crédit. Prêt en moins d’une minute.',
     },
@@ -241,7 +241,7 @@ const CONTENT = [
       exchange: [
         {
           q: 'Est-ce que vous tenez de la nourriture sans grains pour chat?',
-          a: "Oui, plusieurs gammes sans grains sont offertes en boutique, en formats de 2 kg à 7 kg. Si votre chat a une sensibilité particulière, dites-moi laquelle et je vous oriente vers la bonne formule.",
+          a: "Oui, plusieurs gammes sans grains figurent à notre catalogue, en formats de 2 kg à 7 kg. Si votre chat a une sensibilité particulière, dites-moi laquelle et je vous oriente vers la bonne formule.",
         },
         {
           q: 'Livrez-vous à domicile ou faut-il passer en magasin?',
@@ -258,8 +258,8 @@ const CONTENT = [
       {
         icon: PackageSearch,
         iconClass: 'text-amber-600',
-        title: '« Est-ce que vous avez ça en stock? »',
-        text: "La question revient sans arrêt, par téléphone, par courriel et par message. Sans réponse rapide, le client commande en ligne ailleurs.",
+        title: '« Est-ce que vous tenez telle marque? »',
+        text: "Marques, formats, gammes sans grains… les mêmes questions produit reviennent sans arrêt, par téléphone et par message. Votre assistant y répond à partir de votre catalogue en ligne.",
       },
       {
         icon: Clock,

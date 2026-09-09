@@ -58,7 +58,7 @@ export const PLANS = Object.freeze([
       '1,500 conversations / month',
       'Up to 2,000 indexed pages',
       'Lead capture & visitor qualification',
-      'Appointment booking (Google Calendar, Calendly)',
+      'Booking link in chat (Calendly, Cal.com, GoRendezvous…)',
       'Lead export',
       'Full analytics & notifications',
       'Priority support',
