@@ -12,6 +12,7 @@ import { contracts } from '@b2b-ai-chatbot/contracts';
 import { createClient } from '@supabase/supabase-js';
 import { edgeRoute } from '../lib/http.js';
 import { isOwnDomainOrigin, requestOrigin } from '../lib/site-origin.js';
+import { resolveTenantPlan } from '../lib/plan.js';
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
 const SECRET_KEY = process.env.SUPABASE_SECRET_KEY;
@@ -51,7 +52,7 @@ export default edgeRoute(contracts.chat.init, async (req, { data, json }) => {
   try {
     let { data: site, error: siteError } = await supabase
       .from('sites')
-      .select('id, tenant_id, domain, is_active, theme_primary_color, widget_last_seen_at, tenants(plan)')
+      .select('id, tenant_id, domain, is_active, theme_primary_color, widget_last_seen_at, tenants(plan, plan_status, trial_ends_at, stripe_subscription_id)')
       .eq('public_key', tenantPublicKey)
       .maybeSingle();
 
@@ -95,8 +96,9 @@ export default edgeRoute(contracts.chat.init, async (req, { data, json }) => {
     // "Powered by" badge is a growth lever: shown on Basic (default), hidden
     // on Pro/Premium — driven by the tenant's live plan, not the embed
     // snippet, so a plan change takes effect without re-pasting anything.
-    const tenantPlan = (Array.isArray(site.tenants) ? site.tenants[0]?.plan : site.tenants?.plan) || 'basic';
-    const hideBranding = tenantPlan === 'pro' || tenantPlan === 'premium';
+    const tenantRow = Array.isArray(site.tenants) ? site.tenants[0] : site.tenants;
+    const { effectivePlan, trialExpiredUnpaid } = resolveTenantPlan(tenantRow);
+    const hideBranding = effectivePlan === 'pro' || effectivePlan === 'premium';
 
     // Parked by a plan downgrade: the widget must not open as if it were ready
     // to answer, and the reason has to be legible to the tenant looking at
@@ -111,6 +113,24 @@ export default edgeRoute(contracts.chat.init, async (req, { data, json }) => {
         code: 'site_inactive',
         welcome_message: message,
         ui_status_online: 'Paused',
+        theme_primary_color: site.theme_primary_color || null,
+        hide_branding: hideBranding,
+      });
+    }
+
+    // A self-serve Business trial that lapsed without converting: the widget
+    // must not open as if ready to answer (api/chat/index.js refuses the
+    // conversation with the same code). Same paused shape as a parked site,
+    // with its own code so the message can be about subscribing rather than
+    // about a plan downgrade.
+    if (trialExpiredUnpaid) {
+      const message = 'This assistant\'s free trial has ended. It will be back once a plan is chosen.';
+      return json({
+        ...FALLBACK,
+        trial_ended: true,
+        code: 'trial_ended',
+        welcome_message: message,
+        ui_status_online: 'Unavailable',
         theme_primary_color: site.theme_primary_color || null,
         hide_branding: hideBranding,
       });

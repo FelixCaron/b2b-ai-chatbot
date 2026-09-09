@@ -7,19 +7,20 @@ import { ShieldCheck, FileText, AlertTriangle } from 'lucide-react';
 // third-party subprocessors are called, what's stored, how long guest data
 // lives, etc.) so it's accurate about what the product technically does.
 // It is NOT a substitute for review by a lawyer licensed in Québec before
-// this product takes real paying customers or real visitor data. Known
-// placeholders to replace before that: the legal entity name (no company is
-// registered yet — see TODO.md's new "Administratif" section), and the
-// contact email addresses below.
+// this product takes real paying customers or real visitor data. The one
+// placeholder that still needs a real value is the legal entity name (no
+// company is registered yet — see TODO.md's "Administratif" section). The
+// contact addresses now point at the confirmed product domain; they only
+// deliver once that domain is verified in Resend (also tracked in TODO.md).
 // ─────────────────────────────────────────────────────────────────────────
 
 const PRODUCT_NAME = 'Dorafi';
-const CONTACT_EMAIL = 'privacy@your-domain.com';
+const CONTACT_EMAIL = 'privacy@dorafi.logafi.com';
 // Exported: the one general-inquiries address, reused wherever else in the
 // app a "contact us" link is needed (e.g. PageSelectionModal's large-website
-// notice) so there's a single placeholder to swap for a real address instead
-// of one drifting from another.
-export const GENERAL_EMAIL = 'hello@your-domain.com';
+// notice) so there's a single address to change instead of one drifting from
+// another.
+export const GENERAL_EMAIL = 'hello@dorafi.logafi.com';
 const LAST_UPDATED = 'August 25, 2026';
 
 function DraftBanner() {
@@ -28,9 +29,9 @@ function DraftBanner() {
       <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
       <p>
         This document is a working draft, not final legal advice. It should be reviewed by a
-        lawyer before being relied on commercially. Placeholders (company name, contact email)
-        are marked in <code className="text-amber-700">[brackets]</code> where they still need
-        real values.
+        lawyer before being relied on commercially. The remaining placeholder — the registered
+        company name — is marked in <code className="text-amber-700">[brackets]</code> where it
+        still needs a real value.
       </p>
     </div>
   );

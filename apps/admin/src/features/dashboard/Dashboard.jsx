@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Sparkles, X } from 'lucide-react';
-import { getMaxSitesForPlan, getMaxConversationsForPlan, hasActivePlan } from './lib/plan-limits';
+import { getMaxSitesForPlan, getMaxConversationsForPlan, hasActivePlan, getTrialInfo } from './lib/plan-limits';
 import { domainFromUrl, hasProtocol } from './lib/page-url';
 import { executeTurnstileCaptcha } from './lib/turnstile';
 import { fetchBrandTheme } from './lib/brand-theme';
@@ -13,6 +13,7 @@ import OnboardingHero from './components/OnboardingHero';
 import SiteTabs from './components/SiteTabs';
 import SiteHeroCard from './components/SiteHeroCard';
 import ParkedSiteBanner from './components/ParkedSiteBanner';
+import TrialBanner from './components/TrialBanner';
 import GuidedRoadmap from './components/GuidedRoadmap';
 import AssistantHealth from './components/AssistantHealth';
 import AdvancedSettingsPanel from './components/AdvancedSettings/AdvancedSettingsPanel';
@@ -52,6 +53,7 @@ export default function Dashboard({
   const activeSite = (sites && sites.find(s => s.id === selectedSiteId)) || sites?.[0] || localCreatedSite;
 
   const tenantPlan = selectedTenant?.plan || 'basic';
+  const trial = getTrialInfo(selectedTenant);
   const maxSitesForPlan = getMaxSitesForPlan(tenantPlan);
   const maxConversationsForPlan = getMaxConversationsForPlan(tenantPlan);
 
@@ -281,6 +283,15 @@ export default function Dashboard({
             onOpenIntegration={openIntegrationModal}
             onOpenSettings={openAdvancedSettings}
           >
+            {(trial.trialActive || trial.trialExpired) && (
+              <TrialBanner
+                trialActive={trial.trialActive}
+                trialExpired={trial.trialExpired}
+                trialDaysLeft={trial.trialDaysLeft}
+                onShowPricing={onShowPricing}
+              />
+            )}
+
             {!lifecycle.isSiteActive(activeSite) && (
               <ParkedSiteBanner
                 activeSite={activeSite}

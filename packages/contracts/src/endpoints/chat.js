@@ -65,7 +65,11 @@ export const chatInit = defineEndpoint({
     // (apps/widget/src/main.js). A session already mid-conversation never
     // gets this — see conversation_quota_reached() in migration
     // 20260909010000.
-    conversation_limit_reached: optional(f.boolean())
+    conversation_limit_reached: optional(f.boolean()),
+    // TRUE when a self-serve Business trial has lapsed without converting to a
+    // paid plan — the widget hides itself, same as a parked site, until the
+    // owner subscribes (see api/chat/init.js and api/lib/plan.js).
+    trial_ended: optional(f.boolean())
   }
 });
 

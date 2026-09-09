@@ -36,6 +36,11 @@ export default function AppHeader({
   // Trialing counts as active — same definition used everywhere else this
   // question is asked (see plan-limits.js's hasActivePlan for why).
   const hasActivePlan = plan !== 'free' && checkHasActivePlan(selectedTenant);
+  // "Manage" opens the Stripe billing portal, which only exists once there is
+  // a real Stripe subscription. A self-serve trial is active but has none, so
+  // it must see "Upgrade / Plans" (→ checkout), not a portal button that would
+  // 400 on a missing customer.
+  const hasStripeBilling = Boolean(selectedTenant?.stripe_subscription_id);
 
   const handleManageSubscription = async () => {
     if (!selectedTenant?.id) return;
@@ -131,8 +136,8 @@ export default function AppHeader({
           {/* Plan Badge — always visible */}
           <PlanBadge plan={plan} planStatus={planStatus} />
 
-          {/* Manage Subscription (if on a paid plan) */}
-          {hasActivePlan ? (
+          {/* Manage Subscription (only with a real Stripe subscription) */}
+          {hasActivePlan && hasStripeBilling ? (
             <button
               id="manage-subscription-btn"
               onClick={handleManageSubscription}

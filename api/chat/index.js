@@ -4,6 +4,7 @@ import { edgeRoute } from '../lib/http.js';
 import { generateEmbedding } from '../lib/llm.js';
 import { sendLeadEmail, sendBugAlertEmail, sendSupportTicketEmail } from '../lib/email.js';
 import { normalizedHostname, requestOrigin } from '../lib/site-origin.js';
+import { resolveTenantPlan } from '../lib/plan.js';
 
 export const config = {
   runtime: 'edge',
@@ -77,7 +78,7 @@ export default edgeRoute(contracts.chat.send, async (req, { data, json }) => {
     {
       const { data: fullData, error: fullError } = await supabase
         .from('sites')
-        .select('id, tenant_id, domain, is_active, enable_lead_capture, theme_primary_color, bot_goal, bot_tone, support_email, calendar_link, tenants(plan)')
+        .select('id, tenant_id, domain, is_active, enable_lead_capture, theme_primary_color, bot_goal, bot_tone, support_email, calendar_link, tenants(plan, plan_status, trial_ends_at, stripe_subscription_id)')
         .eq('public_key', tenant_public_key)
         .maybeSingle();
 
@@ -141,8 +142,23 @@ export default edgeRoute(contracts.chat.send, async (req, { data, json }) => {
     // can't retroactively fix a value nothing has re-saved yet). The
     // tenant's *current* plan is what decides whether the behavior actually
     // runs, checked fresh on every request.
-    const tenantPlan = (Array.isArray(site.tenants) ? site.tenants[0]?.plan : site.tenants?.plan) || 'basic';
-    const hasProPlan = tenantPlan === 'pro' || tenantPlan === 'premium';
+    const tenantRow = Array.isArray(site.tenants) ? site.tenants[0] : site.tenants;
+    const { effectivePlan, trialExpiredUnpaid } = resolveTenantPlan(tenantRow);
+
+    // A self-serve Business trial that lapsed without converting is unpaid:
+    // stop serving, same posture as a plan-parked site, but with its own code
+    // so the widget and the tenant's dashboard can say "trial ended, subscribe"
+    // rather than "plan no longer covers this site". Checked before any LLM
+    // work so an expired trial costs nothing. Stripe-managed subscriptions are
+    // never flagged here (see api/lib/plan.js).
+    if (trialExpiredUnpaid) {
+      return json({
+        error: 'This assistant\'s free trial has ended. Subscribe to a plan to bring it back online.',
+        code: 'trial_ended'
+      }, 403);
+    }
+
+    const hasProPlan = effectivePlan === 'pro' || effectivePlan === 'premium';
 
     // Strict Domain Locking: verify request origin strictly matches client's registered domain
     const origin = requestOrigin(req);
