@@ -78,4 +78,24 @@ test.describe('Floating Copilot widget — click-through integrity', () => {
     await closeBtn.click();
     await expect(panelLocator).not.toHaveClass(/active/);
   });
+
+  test('a link in an assistant reply opens in a new tab, never the host page itself', async ({ page, mock }) => {
+    // A same-tab navigation would tear down the widget's own DOM — the host
+    // page unloads and the script re-runs from scratch, closing the panel
+    // and wiping the visible transcript even though the conversation lives
+    // on server-side under the same session_id. See markdown.js.
+    await page.goto('/');
+    await expect(page.getByRole('heading', { name: 'acme.example.com' })).toBeVisible();
+
+    const host = page.locator('#b2b-chatbot-host');
+    await host.locator('#b2b-launcher').click();
+    await host.locator('#b2b-input').fill('What is your shipping policy?');
+    await host.locator('#b2b-send-btn').click();
+
+    const link = host.locator('#b2b-messages a', { hasText: 'Shipping Policy' });
+    await expect(link).toBeVisible();
+    await expect(link).toHaveAttribute('target', '_blank');
+    await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    await expect(link).toHaveAttribute('href', 'https://acme.example.com/shipping');
+  });
 });

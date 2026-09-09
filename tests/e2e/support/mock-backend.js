@@ -505,11 +505,23 @@ export async function installMockBackend(page, overrides = {}) {
     // dispatched this event in a shape App.jsx's listener didn't read, so
     // the model would truthfully claim it navigated while the UI silently
     // stayed put.
+    // Regression coverage for markdown.js's forced target="_blank": a
+    // reply carrying a real link, grounded in a search-result URL the way
+    // api/chat/index.js's flag_unanswered_question/contextText change now
+    // actually gives the model.
     const sseBody = /about/i.test(body?.message || '')
       ? [
           'data: {"tool_call":{"name":"navigate_to","page":"about"}}',
           '',
           'data: {"text":"I\'ve opened our About Us page for you."}',
+          '',
+          'data: [DONE]',
+          '',
+          '',
+        ].join('\n')
+      : /shipping/i.test(body?.message || '')
+      ? [
+          'data: {"text":"See our [Shipping Policy](https://acme.example.com/shipping) page for the details."}',
           '',
           'data: [DONE]',
           '',

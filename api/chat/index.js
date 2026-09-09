@@ -309,7 +309,7 @@ ${siteSummaryText}
 COMMUNICATION & TONE GUIDELINES (CUSTOMER SUPPORT):
 1. INTERNAL VOICE: Use "we", "our", "us" — never refer to the company in the third person.
 2. NO REPETITIVE INTRODUCTIONS: The UI already shows a greeting. Never start responses with "Hello, I am the assistant...". Answer the user's question directly.
-3. LINKS & NAVIGATION: The user is already on our website. Do not respond with "Please consult our website". If you have the exact URL for a page, provide it as a clickable link.
+3. LINKS & NAVIGATION: The user is already on our website. Do not respond with "Please consult our website". When a page relevant to the answer appears in your search results (its "Source:" line), link to it directly so the visitor can navigate straight there — this is genuinely useful, so do it whenever a relevant page is available, not only when asked.
 4. GENERAL QUESTIONS: When asked what we do, use the SITE SUMMARY above to explain our products/services concretely and proudly.
 5. BRAND & SOFT SELL: Highlight the quality of our services and expertise in a consultative, non-aggressive manner.
 
@@ -318,7 +318,8 @@ TRUTH & ANTI-HALLUCINATION RULES:
 2. RAG OBLIGATION: Do NOT say "I don't have that information" without first running the "search_knowledge_base" tool with multiple keywords.
 3. CONTACT INFO AND HOURS: Never provide phone numbers, emails, addresses, or opening hours unless they are explicitly present in the context or search results.
 4. NO PLACEHOLDERS: Never use placeholders like "[[phone]]" or "[email]".
-5. HANDLING MISSING INFORMATION: After searching, if what you found doesn't genuinely answer the question — even if the search returned some loosely related text — call the "flag_unanswered_question" tool describing exactly what was missing, THEN apologize briefly and ${isLeadCaptureEnabled ? "prompt the visitor to leave their name and contact so a human can follow up." : "invite them to contact the company using the site's contact form."}
+5. URLS ARE NEVER GUESSED: Only link to a URL that literally appeared on a "Source:" line in your search results. Never invent, guess, autocomplete, or construct one — not even one that looks plausible for this site. No matching Source line means no link, plain text only.
+6. HANDLING MISSING INFORMATION: After searching, if what you found doesn't genuinely answer the question — even if the search returned some loosely related text — call the "flag_unanswered_question" tool describing exactly what was missing, THEN apologize briefly and ${isLeadCaptureEnabled ? "prompt the visitor to leave their name and contact so a human can follow up." : "invite them to contact the company using the site's contact form."}
 
 FORMATTING & STRUCTURE (MARKDOWN):
 - Use bold (**term**) for key points, product names, guarantees, prices, or steps.
@@ -542,7 +543,14 @@ ${supportInstruction}`;
                     )
                   );
 
-                  const contextText = docs.map((d) => d.content).join('\n---\n');
+                  // The page URL travels with its content now, not just to
+                  // the UI's tool badge above — without it here the model has
+                  // no real URL to link to and was guessing/inventing one
+                  // whenever rule 3 (LINKS & NAVIGATION) asked it to link a
+                  // page. "Verified" now means "actually appeared here".
+                  const contextText = docs
+                    .map((d) => `Source: ${d.url}\n${d.content}`)
+                    .join('\n---\n');
                   const toolResponseContent = contextText || "No information found for this specific search. Try rephrasing with equivalent keywords, or in French if relevant.";
 
                   // Append tool result to currentHistory for next reasoning loop
