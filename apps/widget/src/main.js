@@ -228,10 +228,23 @@ import { parseMarkdown } from "./markdown.js";
   // Fire-and-forget: if it's slow or fails, the English defaults already
   // rendered are a perfectly fine widget, not a broken one.
   const initEndpoint = apiEndpoint.replace(/\/chat\/?$/, "/chat/init");
-  fetch(`${initEndpoint}?tenant_public_key=${encodeURIComponent(tenantPublicKey)}`)
+  const initParams = new URLSearchParams({ tenant_public_key: tenantPublicKey });
+  // Lets the backend tell whether *this* visitor's session already has a
+  // conversation slot this month — a returning, mid-conversation visitor
+  // must never be hidden just because other visitors used up the plan's
+  // quota (see api/chat/init.js's conversation_quota_reached check).
+  if (chatManager.sessionId) initParams.set("session_id", chatManager.sessionId);
+  fetch(`${initEndpoint}?${initParams.toString()}`)
     .then((res) => (res.ok ? res.json() : null))
     .then((data) => {
       if (!data) return;
+      // The plan's monthly conversation quota is spent and this visitor has
+      // no conversation already underway: hide the widget entirely rather
+      // than show a launcher that can only fail to open a new conversation.
+      if (data.conversation_limit_reached) {
+        host.style.display = "none";
+        return;
+      }
       if (data.ui_status_title) statusTitleEl.textContent = data.ui_status_title;
       if (data.ui_status_online) statusOnlineEl.textContent = data.ui_status_online;
       if (data.ui_input_placeholder) input.placeholder = data.ui_input_placeholder;

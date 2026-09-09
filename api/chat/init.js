@@ -116,6 +116,38 @@ export default edgeRoute(contracts.chat.init, async (req, { data, json }) => {
       });
     }
 
+    // Conversation quota: read-only, side-effect-free check (never registers
+    // a slot — only api/chat/index.js's register_conversation() does that,
+    // when a message is actually sent). A session_id that already has a slot
+    // this month always comes back FALSE, so a returning visitor mid-
+    // conversation never gets hidden here, only a new visitor the plan has
+    // no room left to answer. No session_id (older cached embed) skips this
+    // check entirely rather than guessing.
+    if (data.session_id) {
+      try {
+        const { data: quotaReached, error: quotaError } = await supabase.rpc('conversation_quota_reached', {
+          p_tenant_id: site.tenant_id,
+          p_session_id: data.session_id
+        });
+        if (quotaError) {
+          console.warn('[chat/init] conversation_quota_reached warning:', quotaError.message);
+        } else if (quotaReached === true) {
+          const message = "This assistant has reached its plan's monthly conversation limit. It will be back once the plan renews or is upgraded.";
+          return json({
+            ...FALLBACK,
+            conversation_limit_reached: true,
+            code: 'conversation_limit_reached',
+            welcome_message: message,
+            ui_status_online: 'Unavailable',
+            theme_primary_color: site.theme_primary_color || null,
+            hide_branding: hideBranding,
+          });
+        }
+      } catch (e) {
+        console.warn('[chat/init] conversation_quota_reached warning:', e.message);
+      }
+    }
+
     const { data: summary } = await supabase
       .from('site_summaries')
       .select('language, welcome_message, ui_status_title, ui_status_online, ui_input_placeholder')

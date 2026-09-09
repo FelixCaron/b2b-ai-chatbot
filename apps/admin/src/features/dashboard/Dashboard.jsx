@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Sparkles, X } from 'lucide-react';
-import { getMaxSitesForPlan, hasActivePlan } from './lib/plan-limits';
+import { getMaxSitesForPlan, getMaxConversationsForPlan, hasActivePlan } from './lib/plan-limits';
 import { domainFromUrl, hasProtocol } from './lib/page-url';
 import { executeTurnstileCaptcha } from './lib/turnstile';
 import { fetchBrandTheme } from './lib/brand-theme';
@@ -54,6 +54,7 @@ export default function Dashboard({
 
   const tenantPlan = selectedTenant?.plan || 'basic';
   const maxSitesForPlan = getMaxSitesForPlan(tenantPlan);
+  const maxConversationsForPlan = getMaxConversationsForPlan(tenantPlan);
 
   // Onboarding Step State
   const [siteUrl, setSiteUrl] = useState('');
@@ -328,10 +329,13 @@ export default function Dashboard({
                 pagesCount={loadedPagesCount}
                 isCrawling={pipeline.isCrawling}
                 conversationsThisWeek={health.conversationsThisWeek}
+                conversationsThisMonth={health.conversationsThisMonth}
+                conversationLimit={maxConversationsForPlan}
                 leadsCount={leadsCount}
                 unansweredCount={health.unansweredCount}
                 onViewConversations={onViewConversations}
                 onViewLeads={onViewLeads}
+                onShowPricing={onShowPricing}
               />
             ) : (
               <GuidedRoadmap

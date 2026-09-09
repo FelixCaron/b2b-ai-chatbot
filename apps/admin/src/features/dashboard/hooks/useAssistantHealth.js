@@ -25,6 +25,7 @@ const SESSION_SCAN_LIMIT = 2000;
 export default function useAssistantHealth(tenantId) {
   const [health, setHealth] = useState({
     conversationsThisWeek: 0,
+    conversationsThisMonth: 0,
     unansweredCount: 0,
     hasEverBeenUsed: false
   });
@@ -32,12 +33,26 @@ export default function useAssistantHealth(tenantId) {
 
   const load = useCallback(async () => {
     if (!tenantId || !supabase) {
-      setHealth({ conversationsThisWeek: 0, unansweredCount: 0, hasEverBeenUsed: false });
+      setHealth({ conversationsThisWeek: 0, conversationsThisMonth: 0, unansweredCount: 0, hasEverBeenUsed: false });
       return;
     }
 
     setIsLoading(true);
     const since = new Date(Date.now() - WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+
+    // Exact and cheap, unlike the weekly figure below: `conversations` holds
+    // one row per tenant+session_id (register_conversation(), migration
+    // 20260909000000), so this is a plain count against the same billing-
+    // cycle window the plan's monthly quota is checked against — not a
+    // distinct-session scan over messages.
+    const monthlyConversationsQuery = supabase
+      .from('conversations')
+      .select('id', { count: 'exact', head: true })
+      .eq('tenant_id', tenantId)
+      .gte('started_at', monthStart.toISOString());
 
     // Conversations, not messages: a visitor who asks six questions in one
     // sitting is one conversation, and counting them as six would flatter the
@@ -71,18 +86,21 @@ export default function useAssistantHealth(tenantId) {
       .eq('tenant_id', tenantId)
       .eq('role', 'user');
 
-    const [sessions, unanswered, everUsed] = await Promise.all([
+    const [sessions, monthlyConversations, unanswered, everUsed] = await Promise.all([
       sessionsQuery,
+      monthlyConversationsQuery,
       unansweredQuery,
       everUsedQuery
     ]);
 
     if (sessions.error) console.warn('[useAssistantHealth] sessions:', sessions.error.message);
+    if (monthlyConversations.error) console.warn('[useAssistantHealth] monthlyConversations:', monthlyConversations.error.message);
     if (unanswered.error) console.warn('[useAssistantHealth] unanswered:', unanswered.error.message);
     if (everUsed.error) console.warn('[useAssistantHealth] everUsed:', everUsed.error.message);
 
     setHealth({
       conversationsThisWeek: new Set((sessions.data || []).map((row) => row.session_id)).size,
+      conversationsThisMonth: monthlyConversations.count || 0,
       unansweredCount: unanswered.count || 0,
       hasEverBeenUsed: (everUsed.count || 0) > 0
     });

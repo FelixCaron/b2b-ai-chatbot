@@ -42,7 +42,12 @@ export const chatInit = defineEndpoint({
   auth: AUTH.PUBLIC,
   runtime: 'edge',
   request: {
-    tenant_public_key: f.uuid()
+    tenant_public_key: f.uuid(),
+    // The widget's persisted session id (see ChatManager.getOrCreateSessionId
+    // in apps/widget/src/chat.js). Optional — an older cached embed bundle
+    // that predates this field simply never gets the conversation_limit_reached
+    // check below; everything else in the response still works.
+    session_id: optional(f.string({ min: 1, max: 128 }))
   },
   response: {
     welcome_message: f.string(),
@@ -53,7 +58,14 @@ export const chatInit = defineEndpoint({
     theme_primary_color: optional(f.hexColor()),
     // Whether the "Powered by Dorafi" badge should be hidden — driven by the
     // tenant's plan (see api/chat/init.js), never by the embed snippet.
-    hide_branding: optional(f.boolean())
+    hide_branding: optional(f.boolean()),
+    // TRUE when this session_id has no conversation slot yet and the plan's
+    // monthly conversation quota is already spent — the widget hides itself
+    // entirely rather than show a launcher that can't start a conversation
+    // (apps/widget/src/main.js). A session already mid-conversation never
+    // gets this — see conversation_quota_reached() in migration
+    // 20260909010000.
+    conversation_limit_reached: optional(f.boolean())
   }
 });
 
