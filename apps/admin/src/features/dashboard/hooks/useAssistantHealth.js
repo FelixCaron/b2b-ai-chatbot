@@ -27,13 +27,14 @@ export default function useAssistantHealth(tenantId) {
     conversationsThisWeek: 0,
     conversationsThisMonth: 0,
     unansweredCount: 0,
+    failedSupportTicketsCount: 0,
     hasEverBeenUsed: false
   });
   const [isLoading, setIsLoading] = useState(false);
 
   const load = useCallback(async () => {
     if (!tenantId || !supabase) {
-      setHealth({ conversationsThisWeek: 0, conversationsThisMonth: 0, unansweredCount: 0, hasEverBeenUsed: false });
+      setHealth({ conversationsThisWeek: 0, conversationsThisMonth: 0, unansweredCount: 0, failedSupportTicketsCount: 0, hasEverBeenUsed: false });
       return;
     }
 
@@ -86,22 +87,43 @@ export default function useAssistantHealth(tenantId) {
       .eq('tenant_id', tenantId)
       .eq('role', 'user');
 
-    const [sessions, monthlyConversations, unanswered, everUsed] = await Promise.all([
+    // All-time, same reasoning as unansweredQuery above: a support request
+    // that failed to deliver stays a mystery to the tenant until someone
+    // looks, not just for the week it happened in. This is what actually
+    // answers "is support email not working?" — a code bug in the tool
+    // itself would show up as the assistant never calling it at all (no rows
+    // here), while a config/deliverability problem (missing RESEND_API_KEY,
+    // an unverified sending domain, Resend rejecting the send) shows up as
+    // rows with delivered = false.
+    const failedSupportTicketsQuery = supabase
+      .from('support_tickets')
+      .select('id', { count: 'exact', head: true })
+      .eq('tenant_id', tenantId)
+      .eq('delivered', false);
+
+    const [sessions, monthlyConversations, unanswered, everUsed, failedSupportTickets] = await Promise.all([
       sessionsQuery,
       monthlyConversationsQuery,
       unansweredQuery,
-      everUsedQuery
+      everUsedQuery,
+      failedSupportTicketsQuery
     ]);
 
     if (sessions.error) console.warn('[useAssistantHealth] sessions:', sessions.error.message);
     if (monthlyConversations.error) console.warn('[useAssistantHealth] monthlyConversations:', monthlyConversations.error.message);
     if (unanswered.error) console.warn('[useAssistantHealth] unanswered:', unanswered.error.message);
     if (everUsed.error) console.warn('[useAssistantHealth] everUsed:', everUsed.error.message);
+    // Missing table (pre-migration database) isn't worth warning about —
+    // just means nothing to report yet, same as a tenant with zero tickets.
+    if (failedSupportTickets.error && failedSupportTickets.error.code !== '42P01') {
+      console.warn('[useAssistantHealth] failedSupportTickets:', failedSupportTickets.error.message);
+    }
 
     setHealth({
       conversationsThisWeek: new Set((sessions.data || []).map((row) => row.session_id)).size,
       conversationsThisMonth: monthlyConversations.count || 0,
       unansweredCount: unanswered.count || 0,
+      failedSupportTicketsCount: failedSupportTickets.count || 0,
       hasEverBeenUsed: (everUsed.count || 0) > 0
     });
     setIsLoading(false);

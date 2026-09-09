@@ -26,6 +26,7 @@ export function useWorkspace({ currentUser, authReady, setCurrentUser, onLandOnS
   const [selectedTenant, setSelectedTenant] = useState(null);
   const [sites, setSites] = useState([]);
   const [leads, setLeads] = useState([]);
+  const [supportTickets, setSupportTickets] = useState([]);
   const [usage, setUsage] = useState(null);
 
   const focusSiteIdRef = useRef(null);
@@ -88,6 +89,13 @@ export function useWorkspace({ currentUser, authReady, setCurrentUser, onLandOnS
       const { data: leadsData } = await supabase.from('leads').select('*').eq('tenant_id', tId).order('created_at', { ascending: false });
       setLeads(leadsData || []);
 
+      const { data: ticketsData } = await supabase
+        .from('support_tickets')
+        .select('*')
+        .eq('tenant_id', tId)
+        .order('created_at', { ascending: false });
+      setSupportTickets(ticketsData || []);
+
       const { data: usageData } = await supabase.from('usage').select('*').eq('tenant_id', tId).maybeSingle();
       setUsage(usageData || { messages_count: 0, leads_count: 0 });
     }
@@ -101,6 +109,7 @@ export function useWorkspace({ currentUser, authReady, setCurrentUser, onLandOnS
     setTenants([]);
     setSites([]);
     setLeads([]);
+    setSupportTickets([]);
   };
 
   /** Pull the account's data back in around a site that just arrived (or that
@@ -123,6 +132,13 @@ export function useWorkspace({ currentUser, authReady, setCurrentUser, onLandOnS
       .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false });
     setLeads(leadsData || []);
+
+    const { data: ticketsData } = await supabase
+      .from('support_tickets')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .order('created_at', { ascending: false });
+    setSupportTickets(ticketsData || []);
 
     onLandOnSite?.();
   };
@@ -290,6 +306,7 @@ export function useWorkspace({ currentUser, authReady, setCurrentUser, onLandOnS
     setSelectedTenant,
     sites,
     leads,
+    supportTickets,
     usage,
     landOnSite,
     resetWorkspace,

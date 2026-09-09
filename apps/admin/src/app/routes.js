@@ -11,6 +11,7 @@ export const VIEW_PATHS = {
   dashboard: '/',
   conversations: '/conversations',
   leads: '/leads',
+  'support-tickets': '/support-requests',
   pricing: '/pricing',
   about: '/about',
   privacy: '/privacy',

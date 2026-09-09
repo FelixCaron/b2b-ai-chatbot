@@ -40,6 +40,7 @@ export default function Dashboard({
   onRequireLogin,
   onViewLeads,
   onViewConversations,
+  onViewSupportTickets,
   onShowPricing,
   leadsCount = 0,
   // Set by the Conversations page's "Improve knowledge" action on an
@@ -333,8 +334,10 @@ export default function Dashboard({
                 conversationLimit={maxConversationsForPlan}
                 leadsCount={leadsCount}
                 unansweredCount={health.unansweredCount}
+                failedSupportTicketsCount={health.failedSupportTicketsCount}
                 onViewConversations={onViewConversations}
                 onViewLeads={onViewLeads}
+                onViewSupportTickets={onViewSupportTickets}
                 onShowPricing={onShowPricing}
               />
             ) : (

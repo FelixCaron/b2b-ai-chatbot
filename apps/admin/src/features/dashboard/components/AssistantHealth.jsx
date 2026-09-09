@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileText, MessageSquare, Users, AlertCircle, ArrowUpRight, TrendingUp } from 'lucide-react';
+import { FileText, MessageSquare, Users, AlertCircle, ArrowUpRight, TrendingUp, MailWarning } from 'lucide-react';
 
 /**
  * Is the assistant working? Four numbers, in the order an owner cares about.
@@ -19,11 +19,14 @@ export default function AssistantHealth({
   conversationLimit,
   leadsCount,
   unansweredCount,
+  failedSupportTicketsCount = 0,
   onViewConversations,
   onViewLeads,
+  onViewSupportTickets,
   onShowPricing
 }) {
   const needsAttention = unansweredCount > 0;
+  const supportEmailFailing = failedSupportTicketsCount > 0;
 
   return (
     <div className="bg-surface-100 rounded-xl border border-dark-900/5 p-4 sm:p-5 space-y-4">
@@ -73,6 +76,27 @@ export default function AssistantHealth({
           {unansweredCount === 1
             ? 'One visitor asked something your website doesn’t cover'
             : `${unansweredCount} visitors asked things your website doesn’t cover`}
+          <ArrowUpRight className="w-3.5 h-3.5" />
+        </button>
+      )}
+
+      {/* The assistant did call the support-email tool — that part is
+          working — but the email itself never left: almost always a Resend
+          config issue (missing API key, unverified sending domain) rather
+          than a code bug. The request itself is still saved, so nothing the
+          visitor asked for is actually lost — surfaced so the tenant finds
+          out from the dashboard instead of from a visitor who never heard
+          back. */}
+      {supportEmailFailing && (
+        <button
+          type="button"
+          onClick={onViewSupportTickets}
+          className="w-full sm:w-auto text-xs font-semibold bg-red-500/10 hover:bg-red-500/20 text-red-800 border border-red-500/30 px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 transition-colors"
+        >
+          <MailWarning className="w-4 h-4" />
+          {failedSupportTicketsCount === 1
+            ? 'A support request could not be emailed — check your Resend setup'
+            : `${failedSupportTicketsCount} support requests could not be emailed — check your Resend setup`}
           <ArrowUpRight className="w-3.5 h-3.5" />
         </button>
       )}

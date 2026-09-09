@@ -14,6 +14,7 @@ import Dashboard from './features/dashboard/Dashboard';
 import ConversationsPage from './features/conversations/ConversationsPage';
 import LeadsPage from './features/leads/LeadsPage';
 import RecentLeadsSection from './features/leads/RecentLeadsSection';
+import SupportTicketsPage from './features/support/SupportTicketsPage';
 import {
   useAuthSession,
   useCopilotNavigation,
@@ -80,7 +81,7 @@ export default function App() {
   claimRef.current = claim;
 
   const { sessionEmail, isGuest } = auth;
-  const { sites, leads, selectedTenant } = workspace;
+  const { sites, leads, supportTickets, selectedTenant } = workspace;
 
   const handleLogout = async () => {
     workspace.resetWorkspace();
@@ -162,6 +163,8 @@ export default function App() {
         );
       case 'leads':
         return <LeadsPage leads={leads} onBack={() => navigate('dashboard')} />;
+      case 'support-tickets':
+        return <SupportTicketsPage supportTickets={supportTickets} onBack={() => navigate('dashboard')} />;
       default:
         return (
           <main className="max-w-7xl mx-auto px-4 sm:px-8 space-y-8 sm:space-y-12">
@@ -178,6 +181,7 @@ export default function App() {
                 onRequireLogin={() => setShowLoginModal(true)}
                 onViewLeads={() => navigate('leads')}
                 onViewConversations={() => navigate('conversations')}
+                onViewSupportTickets={() => navigate('support-tickets')}
                 onShowPricing={() => navigate('pricing')}
                 leadsCount={leads.length}
                 pendingKnowledgeUrl={pendingKnowledgeUrl}

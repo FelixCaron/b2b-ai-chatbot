@@ -570,6 +570,24 @@ ${supportInstruction}`;
                   // the failure anywhere the tenant would see it.
                   const delivered = await sendSupportTicketEmail(toolArgs, site);
 
+                  // Persist the ticket regardless of delivery outcome. The
+                  // email itself is the only place this used to live — a
+                  // failed send (unverified Resend domain, missing API key,
+                  // Resend rejecting it) left no trace the tenant could ever
+                  // see. `delivered` records which of those happened, so
+                  // "did the bot even try" and "did the email actually go
+                  // out" are answerable from the dashboard instead of guessed.
+                  const { error: ticketError } = await supabase.from('support_tickets').insert({
+                    tenant_id: tenantId,
+                    site_id: site.id,
+                    session_id,
+                    name: toolArgs.name || null,
+                    email: toolArgs.email || null,
+                    message: toolArgs.message || null,
+                    delivered
+                  });
+                  if (ticketError) console.error('[chat] support_tickets insert failed:', ticketError.message);
+
                   // Stream tool badge to UI
                   controller.enqueue(
                     encoder.encode(
@@ -681,35 +699,91 @@ ${supportInstruction}`;
                   )
                 );
 
-                // Dedup on whichever contact detail this extraction actually
-                // captured. `leadData.email` is "" (not just undefined) when
-                // only a phone number was given, but a stray .eq('email', '')
-                // is just as wrong: it would match every other phone-only
-                // lead for this tenant and silently skip inserting a new one.
-                // Match on the field(s) present instead of always assuming
-                // email.
-                let existingLeadQuery = supabase.from('leads')
-                  .select('id')
-                  .eq('tenant_id', tenantId);
-                if (leadData.email) {
-                  existingLeadQuery = existingLeadQuery.eq('email', leadData.email);
-                } else if (leadData.phone) {
-                  existingLeadQuery = existingLeadQuery.eq('phone', leadData.phone);
+                // Merge into whichever lead this *conversation* already
+                // produced before ever matching by contact field. Extraction
+                // re-reads the whole transcript on every message, so a
+                // visitor who gives an email early and a phone number later
+                // yields one extraction with only an email and a later one
+                // with only a phone — matching each "on whichever field this
+                // call returned" (the old approach) never finds the earlier
+                // row from the later, phone-only call, so it inserts a
+                // second row for the same conversation. session_id doesn't
+                // have that gap: it's the same value for every extraction in
+                // one conversation regardless of which fields got captured.
+                const { data: sessionLead } = await supabase.from('leads')
+                  .select('id, session_id, name, email, phone, summary')
+                  .eq('tenant_id', tenantId)
+                  .eq('session_id', session_id)
+                  .order('created_at', { ascending: false })
+                  .limit(1)
+                  .maybeSingle();
+
+                let existingLead = sessionLead;
+
+                // Nothing from this conversation yet — fall back to matching
+                // a *returning* visitor by contact detail across other
+                // sessions, on whichever field this extraction captured.
+                // `leadData.email` is "" (not just undefined) when only a
+                // phone number was given, but a stray .eq('email', '') is
+                // just as wrong: it would match every other phone-only lead
+                // for this tenant.
+                if (!existingLead) {
+                  let existingLeadQuery = supabase.from('leads')
+                    .select('id, session_id, name, email, phone, summary')
+                    .eq('tenant_id', tenantId);
+                  if (leadData.email) {
+                    existingLeadQuery = existingLeadQuery.eq('email', leadData.email);
+                  } else if (leadData.phone) {
+                    existingLeadQuery = existingLeadQuery.eq('phone', leadData.phone);
+                  }
+                  const { data: rows } = await existingLeadQuery.order('created_at', { ascending: false }).limit(1);
+                  existingLead = rows?.[0] || null;
                 }
-                const { data: existingLead } = await existingLeadQuery.maybeSingle();
 
                 if (!existingLead) {
                   await supabase.from('leads').insert({
                     tenant_id: tenantId,
+                    session_id,
                     name: leadData.name || null,
                     email: leadData.email || null,
                     phone: leadData.phone || null,
                     summary: leadData.summary || null
                   });
-                  
+
                   if (hasProPlan) {
                     // Fire and forget email
                     sendLeadEmail(leadData, site).catch(console.error);
+                  }
+                } else {
+                  // Fill in gaps, never blank a field this pass didn't
+                  // mention — a phone number given now doesn't erase a name
+                  // given three messages ago. The freshest non-empty value
+                  // wins for a field both have (e.g. summary, which is meant
+                  // to track the conversation as it evolves).
+                  const mergedName = leadData.name || existingLead.name;
+                  const mergedEmail = leadData.email || existingLead.email;
+                  const mergedPhone = leadData.phone || existingLead.phone;
+                  const mergedSummary = leadData.summary || existingLead.summary;
+                  // Worth a fresh notification when this pass added a
+                  // contact channel the tenant didn't have before — the lead
+                  // itself isn't new, but there's now a new way to reach
+                  // them that the earlier notification (if any) didn't have.
+                  const gainedContactChannel =
+                    (!!mergedEmail && !existingLead.email) || (!!mergedPhone && !existingLead.phone);
+
+                  await supabase.from('leads').update({
+                    name: mergedName || null,
+                    email: mergedEmail || null,
+                    phone: mergedPhone || null,
+                    summary: mergedSummary || null,
+                    // Backfill session_id on a pre-migration or
+                    // contact-matched row so this conversation's next pass
+                    // finds it directly; never overwrite one already set.
+                    session_id: existingLead.session_id || session_id
+                  }).eq('id', existingLead.id);
+
+                  if (hasProPlan && gainedContactChannel) {
+                    sendLeadEmail({ name: mergedName, email: mergedEmail, phone: mergedPhone, summary: mergedSummary }, site).catch(console.error);
                   }
                 }
               }
