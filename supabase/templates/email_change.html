@@ -1,0 +1,82 @@
+<!--
+  Dorafi — Email Change / Guest Conversion email template.
+
+  Where this is used: `supabase.auth.updateUser({ email })` in
+  apps/admin/src/hooks/useAuthSession.js's login() — the one place this app
+  calls it. A first-time visitor gets an anonymous session automatically
+  (see initSession()); typing an email that has no account yet attaches that
+  email to the anonymous identity in place, which Supabase routes through
+  its "email change" flow even though the account never had an old email to
+  confirm. Confirming this link is what turns the guest's workspace into a
+  real, permanent account — the copy says that plainly instead of reading
+  like a routine "you changed your email" notice.
+
+  How to apply it:
+    - Dashboard: Authentication -> Email Templates -> Change Email Address,
+      paste the HTML below into the "Message body" editor, and set the
+      Subject heading to "Confirm your email to secure your Dorafi workspace".
+    - CLI (local dev / `supabase config push`): wired up already via
+      [auth.email.template.email_change] in supabase/config.toml, which
+      points at this file.
+
+  Available variables: {{ .ConfirmationURL }} {{ .Token }} {{ .TokenHash }}
+  {{ .SiteURL }} {{ .Email }} {{ .NewEmail }} {{ .RedirectTo }}
+-->
+<div style="background-color:#f7f8fb; padding:32px 16px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:480px; margin:0 auto;">
+    <tr>
+      <td style="padding-bottom:24px; text-align:center;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
+          <tr>
+            <td style="width:40px; height:40px; border-radius:10px; background-color:#ffffff; border:1px solid #e5e7eb; text-align:center; vertical-align:middle;">
+              <!-- Dorafi mark: a "d" whose bowl is a speech bubble, navy on white -->
+              <svg width="22" height="22" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle;">
+                <path d="M62 8c5 0 9 4 9 9v45c0 5-4 9-9 9s-9-4-9-9V17c0-5 4-9 9-9z" fill="#293f68"/>
+                <path d="M62 8c8 0 15 3 15 9s-7 8-15 8-15-2-15-8 7-9 15-9z" fill="#293f68"/>
+                <path d="M53 34c15 0 27 11 27 25s-12 25-27 25c-4 0-8-1-11-2l-13 7 3-13c-6-5-9-11-9-17 0-14 12-25 27-25z" fill="#293f68"/>
+                <circle cx="45" cy="59" r="5.5" fill="#ffffff"/>
+                <circle cx="63" cy="59" r="5.5" fill="#ffffff"/>
+              </svg>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="background-color:#ffffff; border:1px solid #e5e7eb; border-radius:12px; padding:32px 28px;">
+        <h1 style="margin:0 0 12px; font-size:20px; line-height:28px; color:#0b0f19; font-weight:600; text-align:center;">
+          Secure your Dorafi workspace
+        </h1>
+        <p style="margin:0 0 24px; font-size:14px; line-height:22px; color:#4b5563; text-align:center;">
+          Confirm <strong style="color:#0b0f19;">{{ .NewEmail }}</strong> to finish attaching it to the workspace you've already started building — nothing you've set up is going anywhere, this just makes sure you can always get back in.
+        </p>
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto 24px;">
+          <tr>
+            <td style="border-radius:8px; background-color:#293f68;">
+              <a href="{{ .ConfirmationURL }}"
+                 style="display:inline-block; padding:12px 28px; font-size:14px; font-weight:600; color:#ffffff; text-decoration:none; border-radius:8px;">
+                Confirm email
+              </a>
+            </td>
+          </tr>
+        </table>
+        <p style="margin:0 0 8px; font-size:12px; line-height:18px; color:#9ca3af; text-align:center;">
+          Button not working? Paste this link into your browser:
+        </p>
+        <p style="margin:0; font-size:12px; line-height:18px; color:#293f68; text-align:center; word-break:break-all;">
+          <a href="{{ .ConfirmationURL }}" style="color:#293f68;">{{ .ConfirmationURL }}</a>
+        </p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding-top:20px; text-align:center;">
+        <p style="margin:0; font-size:12px; line-height:18px; color:#9ca3af;">
+          If you didn't request this, you can safely ignore it — no changes will be made.
+        </p>
+        <p style="margin:8px 0 0; font-size:12px; line-height:18px; color:#c1c5cd;">
+          Dorafi
+        </p>
+      </td>
+    </tr>
+  </table>
+</div>

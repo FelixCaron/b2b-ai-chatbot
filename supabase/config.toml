@@ -243,10 +243,12 @@ otp_expiry = 3600
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
 
-# Uncomment to customize email template
-# [auth.email.template.invite]
-# subject = "You have been invited"
-# content_path = "./supabase/templates/invite.html"
+# Staff-invite email sent by supabase.auth.admin.inviteUserByEmail() (see
+# apps/internal-admin/api/staff/admins.js) when a teammate is granted staff
+# access and has no account yet.
+[auth.email.template.invite]
+subject = "You've been invited to the Dorafi staff console"
+content_path = "./supabase/templates/invite.html"
 
 # Sign-in email sent by supabase.auth.signInWithOtp() (see
 # apps/admin/src/hooks/useAuthSession.js) — covers both the "sign in to an
@@ -254,6 +256,15 @@ otp_expiry = 3600
 [auth.email.template.magic_link]
 subject = "Your Dorafi sign-in link"
 content_path = "./supabase/templates/magic_link.html"
+
+# Sent by supabase.auth.updateUser({ email }) — the same call site in
+# useAuthSession.js's login() attaches a real email to a guest's anonymous
+# session in place, which Supabase routes through its "email change" flow
+# even though there was no old email to confirm. This is what turns a
+# guest's workspace into a permanent account.
+[auth.email.template.email_change]
+subject = "Confirm your email to secure your Dorafi workspace"
+content_path = "./supabase/templates/email_change.html"
 
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]
