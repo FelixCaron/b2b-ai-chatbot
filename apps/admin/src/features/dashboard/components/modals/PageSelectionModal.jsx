@@ -174,7 +174,7 @@ export default function PageSelectionModal({
                 Large Website ({pendingCrawlPages.length} Pages Discovered)
               </h3>
               <p className="text-xs text-gray-500">
-                Your current <strong>{tenantPlan.toUpperCase()}</strong> plan includes up to <strong>{getMaxPagesForPlan(tenantPlan)} pages</strong>. Select which pages to index{needsCustomPlan ? ', or contact us for a custom plan' : ' or upgrade your plan'}.
+                Your current <strong>{tenantPlan.toUpperCase()}</strong> plan includes up to <strong>{getMaxPagesForPlan(tenantPlan)} pages</strong> — we've pre-selected the first {getMaxPagesForPlan(tenantPlan)} below. Confirm as-is, search to swap in specific pages instead,{needsCustomPlan ? ' or contact us for a custom plan' : ' or upgrade your plan'}.
               </p>
             </div>
           </div>
