@@ -303,7 +303,10 @@ function describePage(pageUrl) {
  * nothing on the subject — which is something they can fix.
  */
 function answerNote(message) {
-  if (message.answer_status === 'no_match') return "Nothing on your website covered this";
+  // missing_info is the assistant's own account of the gap (via the
+  // flag_unanswered_question tool) — more useful to an owner than the
+  // generic line, so prefer it whenever it's there.
+  if (message.answer_status === 'no_match') return message.missing_info || "Nothing on your website covered this";
   if (message.answer_status === 'failed') return "Your assistant couldn't answer this";
   return null;
 }

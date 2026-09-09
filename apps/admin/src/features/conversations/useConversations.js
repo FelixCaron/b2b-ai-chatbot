@@ -38,7 +38,7 @@ export default function useConversations(tenantId) {
 
     const { data, error: queryError } = await supabase
       .from('messages')
-      .select('id, session_id, role, content, created_at, answer_status, site_id, page_url')
+      .select('id, session_id, role, content, created_at, answer_status, missing_info, site_id, page_url')
       .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false })
       .limit(MESSAGE_LIMIT);

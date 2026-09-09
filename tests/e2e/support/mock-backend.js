@@ -133,11 +133,13 @@ export function defaultFixtures(user) {
         { id: uuid(), tenant_id: tenantId, session_id: 'sess_alpha', role: 'assistant', content: 'Saturday orders go out on Monday morning.', created_at: hoursAgo(49.7), answer_status: 'answered' },
         { id: uuid(), tenant_id: tenantId, session_id: 'sess_beta', role: 'user', content: 'How much is an initial consultation?', created_at: hoursAgo(26) },
         { id: uuid(), tenant_id: tenantId, session_id: 'sess_beta', role: 'assistant', content: 'A first consultation is $90 and lasts an hour.', created_at: hoursAgo(25.9), answer_status: 'answered' },
-        // A question the site holds no content on: the loop searched, found
-        // nothing, and said so. This is the row the "couldn't be answered"
-        // filter exists for.
+        // A question the site holds no content on: the assistant recognized
+        // that and called flag_unanswered_question with what was missing
+        // (api/chat/index.js), rather than us guessing from search-result
+        // counts alone. This is the row the "couldn't be answered" filter
+        // exists for.
         { id: uuid(), tenant_id: tenantId, session_id: 'sess_gamma', site_id: siteId, page_url: 'https://acme.example.com/', role: 'user', content: 'Do you accept insurance reimbursements?', created_at: hoursAgo(3) },
-        { id: uuid(), tenant_id: tenantId, session_id: 'sess_gamma', role: 'assistant', content: "I couldn't find anything about that on the website.", created_at: hoursAgo(2.9), answer_status: 'no_match' },
+        { id: uuid(), tenant_id: tenantId, session_id: 'sess_gamma', role: 'assistant', content: "I couldn't find anything about that on the website.", created_at: hoursAgo(2.9), answer_status: 'no_match', missing_info: 'Insurance reimbursement policy' },
       ],
       usage: [
         { tenant_id: tenantId, messages_count: 42, leads_count: 1, updated_at: new Date().toISOString() },

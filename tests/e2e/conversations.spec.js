@@ -52,9 +52,10 @@ test.describe('Conversations', () => {
     await expect(insurance).toBeVisible();
     await expect(page.getByRole('button', { name: /Do you offer same-day delivery/i })).toHaveCount(0);
 
-    // And the transcript says why, in terms the owner can act on.
+    // And the transcript says why, in terms the owner can act on — the
+    // assistant's own missing_info note, not just a generic line.
     await insurance.click();
-    await expect(page.getByText(/Nothing on your website covered this/i)).toBeVisible();
+    await expect(page.getByText(/Insurance reimbursement policy/i)).toBeVisible();
   });
 
   test('says which page a conversation started on', async ({ page, mock }) => {

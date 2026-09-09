@@ -318,7 +318,7 @@ TRUTH & ANTI-HALLUCINATION RULES:
 2. RAG OBLIGATION: Do NOT say "I don't have that information" without first running the "search_knowledge_base" tool with multiple keywords.
 3. CONTACT INFO AND HOURS: Never provide phone numbers, emails, addresses, or opening hours unless they are explicitly present in the context or search results.
 4. NO PLACEHOLDERS: Never use placeholders like "[[phone]]" or "[email]".
-5. HANDLING MISSING INFORMATION: After searching and confirming absence, apologize briefly and ${isLeadCaptureEnabled ? "prompt the visitor to leave their name and contact so a human can follow up." : "invite them to contact the company using the site's contact form."}
+5. HANDLING MISSING INFORMATION: After searching, if what you found doesn't genuinely answer the question — even if the search returned some loosely related text — call the "flag_unanswered_question" tool describing exactly what was missing, THEN apologize briefly and ${isLeadCaptureEnabled ? "prompt the visitor to leave their name and contact so a human can follow up." : "invite them to contact the company using the site's contact form."}
 
 FORMATTING & STRUCTURE (MARKDOWN):
 - Use bold (**term**) for key points, product names, guarantees, prices, or steps.
@@ -374,6 +374,23 @@ ${supportInstruction}`;
             required: ["query"]
           }
         }
+      },
+      {
+        type: "function",
+        function: {
+          name: "flag_unanswered_question",
+          description: "Call this the moment you realize you cannot actually answer the visitor's question — after searching the knowledge base, if what came back doesn't genuinely cover it (even if some loosely related text was returned). This is how the site owner learns what content to add, so call it before telling the visitor you don't know.",
+          parameters: {
+            type: "object",
+            properties: {
+              missing_info: {
+                type: "string",
+                description: "A short, specific note — for the site owner, not the visitor — describing exactly what information was missing (e.g. 'return policy for international orders', 'pricing for the enterprise plan')."
+              }
+            },
+            required: ["missing_info"]
+          }
+        }
       }
     ];
 
@@ -417,6 +434,15 @@ ${supportInstruction}`;
           let searchCount = 0;
           let searchesWithResults = 0;
           let modelErrored = false;
+          // The searchesWithResults heuristic above misses the common real
+          // case: vector search has no similarity floor, so it always
+          // returns its nearest neighbors even when none of them are
+          // actually relevant — "results" that don't answer the question.
+          // flag_unanswered_question (migration 20260909020000) lets the
+          // model itself flag that, with the whole conversation in view,
+          // instead of us guessing from result counts alone.
+          let flaggedUnanswered = false;
+          let missingInfoNote = null;
 
           while (loopCount < MAX_TURNS) {
             loopCount++;
@@ -558,6 +584,20 @@ ${supportInstruction}`;
                     content: emailResponse,
                     tool_call_id: toolCall.id
                   });
+                } else if (toolCall.function.name === 'flag_unanswered_question') {
+                  const toolArgs = JSON.parse(toolCall.function.arguments || '{}');
+                  // Last flag in the turn wins if the model calls this more
+                  // than once — there's only one final reply, so only one
+                  // note is worth keeping.
+                  missingInfoNote = (toolArgs.missing_info || '').trim().slice(0, 500) || null;
+                  flaggedUnanswered = true;
+                  console.log(`[chat] Loop #${loopCount} flag_unanswered_question:`, missingInfoNote);
+
+                  currentHistory.push({
+                    role: 'tool',
+                    content: `Noted for the site owner. Now tell the visitor honestly that you don't have this information — do not invent an answer. Apologize briefly and ${isLeadCaptureEnabled ? "invite them to leave their name and contact so a human can follow up." : "invite them to contact the company directly."}`,
+                    tool_call_id: toolCall.id
+                  });
                 }
               }
             } else {
@@ -573,15 +613,17 @@ ${supportInstruction}`;
             finalReply = "Sorry, I searched our information but couldn't find what was needed.";
           }
 
-          // A reply the visitor can't use is 'failed'. A reply produced with
-          // nothing behind it — every search came back empty — is 'no_match':
-          // the assistant said something, but this site holds no content on
-          // the subject, which is the gap the owner can actually close. A
-          // question that needed no search at all (a greeting) is answered.
+          // A reply the visitor can't use is 'failed'. 'no_match' is the
+          // content gap the owner can actually close — signaled two ways:
+          // the model explicitly flagging it (flag_unanswered_question,
+          // trusted first: it saw the actual search results, we didn't), or
+          // — as a fallback for when it forgets to call the tool — every
+          // search coming back with literally nothing. A question that
+          // needed no search at all (a greeting) is answered.
           let answerStatus = 'answered';
           if (modelErrored || ranOutOfTurns) {
             answerStatus = 'failed';
-          } else if (searchCount > 0 && searchesWithResults === 0) {
+          } else if (flaggedUnanswered || (searchCount > 0 && searchesWithResults === 0)) {
             answerStatus = 'no_match';
           }
 
@@ -602,6 +644,10 @@ ${supportInstruction}`;
             role: 'assistant',
             content: finalReply,
             answer_status: answerStatus,
+            // Only meaningful alongside 'no_match' (migration
+            // 20260909020000's check constraint enforces this) — the
+            // fallback (searchCount heuristic) path has no note to give.
+            missing_info: answerStatus === 'no_match' ? missingInfoNote : null,
             site_id: site.id,
             page_url: originPageUrl
           });
