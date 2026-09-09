@@ -1,10 +1,9 @@
-import { contracts } from '@b2b-ai-chatbot/contracts';
+import { contracts, resolveTenantPlan } from '@b2b-ai-chatbot/contracts';
 import { createClient } from '@supabase/supabase-js';
 import { edgeRoute } from '../lib/http.js';
 import { generateEmbedding } from '../lib/llm.js';
 import { sendLeadEmail, sendBugAlertEmail, sendSupportTicketEmail } from '../lib/email.js';
 import { normalizedHostname, requestOrigin } from '../lib/site-origin.js';
-import { resolveTenantPlan } from '../lib/plan.js';
 
 export const config = {
   runtime: 'edge',
@@ -150,7 +149,7 @@ export default edgeRoute(contracts.chat.send, async (req, { data, json }) => {
     // so the widget and the tenant's dashboard can say "trial ended, subscribe"
     // rather than "plan no longer covers this site". Checked before any LLM
     // work so an expired trial costs nothing. Stripe-managed subscriptions are
-    // never flagged here (see api/lib/plan.js).
+    // never flagged here (see resolveTenantPlan in @b2b-ai-chatbot/contracts).
     if (trialExpiredUnpaid) {
       return json({
         error: 'This assistant\'s free trial has ended. Subscribe to a plan to bring it back online.',

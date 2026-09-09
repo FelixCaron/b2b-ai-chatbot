@@ -68,7 +68,7 @@ export const chatInit = defineEndpoint({
     conversation_limit_reached: optional(f.boolean()),
     // TRUE when a self-serve Business trial has lapsed without converting to a
     // paid plan — the widget hides itself, same as a parked site, until the
-    // owner subscribes (see api/chat/init.js and api/lib/plan.js).
+    // owner subscribes (see api/chat/init.js and resolveTenantPlan in plans.js).
     trial_ended: optional(f.boolean())
   }
 });

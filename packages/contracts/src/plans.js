@@ -121,3 +121,55 @@ export function getNextPlan(planId) {
   if (idx === -1 || idx >= PLANS.length - 1) return null;
   return PLANS[idx + 1];
 }
+
+// ---------------------------------------------------------------------------
+// Self-serve trial resolution.
+//
+// New self-serve tenants start on a 14-day Business ('pro') trial (migration
+// 20260909030000 sets the tenants column defaults). That trial expires lazily
+// at read time — there is no scheduled job to flip the column (the Vercel cron
+// slot is unavailable, see TODO.md) — so every server read that gates behavior
+// resolves the *effective* plan through this function.
+//
+// It lives here, in the dependency-free contracts package the API routes
+// already import, rather than in a file under /api: a new file under /api can
+// count against the Vercel Hobby serverless-function cap the project sits
+// exactly at, and this logic must stay identical between api/chat/index.js and
+// api/chat/init.js anyway.
+//
+// A self-serve trial is plan_status 'trialing' with NO stripe_subscription_id:
+// nobody is paying and no Stripe lifecycle will move it off 'trialing'. Once
+// trial_ends_at passes it is unpaid — the widget stops serving until the owner
+// subscribes. A Stripe-managed subscription always carries a subscription id
+// and is governed by the billing webhook, so this never touches it.
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve a tenant's live plan state from its billing columns.
+ *
+ * @param {object|null} tenant - a row exposing `plan`, `plan_status`,
+ *   `trial_ends_at`, `stripe_subscription_id`; any may be missing on a partial
+ *   read and is treated conservatively.
+ * @returns {{ effectivePlan: string, trialActive: boolean,
+ *   trialExpiredUnpaid: boolean, trialDaysLeft: number|null }}
+ */
+export function resolveTenantPlan(tenant) {
+  const plan = tenant?.plan || DEFAULT_PLAN_ID;
+  const status = tenant?.plan_status || 'free';
+  const hasStripeSub = Boolean(tenant?.stripe_subscription_id);
+  const trialEndsAt = tenant?.trial_ends_at ? new Date(tenant.trial_ends_at).getTime() : null;
+  const now = Date.now();
+
+  const isSelfServeTrial = status === 'trialing' && !hasStripeSub;
+  const trialExpiredUnpaid =
+    isSelfServeTrial && trialEndsAt !== null && !Number.isNaN(trialEndsAt) && trialEndsAt < now;
+  const trialActive = isSelfServeTrial && !trialExpiredUnpaid;
+
+  const effectivePlan = trialExpiredUnpaid ? DEFAULT_PLAN_ID : plan;
+  const trialDaysLeft =
+    trialActive && trialEndsAt !== null
+      ? Math.max(0, Math.ceil((trialEndsAt - now) / 86400000))
+      : null;
+
+  return { effectivePlan, trialActive, trialExpiredUnpaid, trialDaysLeft };
+}

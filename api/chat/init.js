@@ -8,11 +8,10 @@
 // site_summaries. Public/unauthenticated like api/chat/index.js — anonymous
 // site visitors are exactly who calls this — but scoped to the one site a
 // public_key identifies, same as the chat endpoint itself.
-import { contracts } from '@b2b-ai-chatbot/contracts';
+import { contracts, resolveTenantPlan } from '@b2b-ai-chatbot/contracts';
 import { createClient } from '@supabase/supabase-js';
 import { edgeRoute } from '../lib/http.js';
 import { isOwnDomainOrigin, requestOrigin } from '../lib/site-origin.js';
-import { resolveTenantPlan } from '../lib/plan.js';
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
 const SECRET_KEY = process.env.SUPABASE_SECRET_KEY;

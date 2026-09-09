@@ -42,7 +42,7 @@ export function getPlanDisplayName(plan) {
  *  Trialing counts as active only while the trial is live: a self-serve
  *  Business trial (plan_status 'trialing' with no Stripe subscription) expires
  *  at `trial_ends_at`, after which the account is unpaid and the widget stops
- *  serving (api/lib/plan.js). A Stripe-managed trial always carries a
+ *  serving (resolveTenantPlan in contracts). A Stripe-managed trial always carries a
  *  stripe_subscription_id and stays active until Stripe itself moves it. */
 export function hasActivePlan(tenant) {
   if (tenant?.plan_status === 'active') return true;
@@ -55,7 +55,7 @@ export function hasActivePlan(tenant) {
 }
 
 /** Live self-serve-trial state for a tenant, mirroring the server's
- *  resolveTenantPlan() (api/lib/plan.js) so the dashboard and the widget agree
+ *  resolveTenantPlan() (@b2b-ai-chatbot/contracts) so the dashboard and the widget agree
  *  on when a trial is running and when it has lapsed. A self-serve trial is
  *  `plan_status === 'trialing'` with no Stripe subscription; a Stripe-managed
  *  trial (with a subscription id) is Stripe's to expire, never this. */
