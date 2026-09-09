@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { CheckCircle, ArrowRight, Sparkles, Zap, Star } from 'lucide-react';
+import { useT } from '../i18n/LanguageContext';
 
 /**
  * PaymentSuccessPage — shown after a successful Stripe Checkout.
@@ -7,6 +8,7 @@ import { CheckCircle, ArrowRight, Sparkles, Zap, Star } from 'lucide-react';
  * is handled by the Stripe webhook asynchronously.
  */
 export default function PaymentSuccessPage({ onGoToDashboard }) {
+  const { t } = useT();
   // Simple confetti-like floating particles effect
   const particles = Array.from({ length: 20 }, (_, i) => ({
     id: i,
@@ -65,22 +67,22 @@ export default function PaymentSuccessPage({ onGoToDashboard }) {
 
         {/* Heading */}
         <h1 className="text-3xl sm:text-4xl font-bold text-dark-900 mb-4 leading-tight">
-          Welcome to the <br />
+          {t('Welcome to the')} <br />
           <span className="bg-gradient-to-r from-emerald-600 to-brand-700 bg-clip-text text-transparent">
-            Pro Plan! 🎉
+            {t('Pro Plan! 🎉')}
           </span>
         </h1>
 
         <p className="text-gray-500 text-base mb-3 leading-relaxed">
-          Your payment was processed successfully. Your subscription is now active.
+          {t('Your payment was processed successfully. Your subscription is now active.')}
         </p>
 
         {/* Feature highlights */}
         <div className="glass-card rounded-2xl p-6 mb-8 text-left space-y-3">
           {[
-            { icon: Zap, text: 'All premium features unlocked', color: 'text-emerald-600' },
-            { icon: Star, text: 'Priority customer support active', color: 'text-brand-700' },
-            { icon: CheckCircle, text: 'Automatic Stripe invoicing & billing', color: 'text-brand-700' },
+            { icon: Zap, text: t('All premium features unlocked'), color: 'text-emerald-600' },
+            { icon: Star, text: t('Priority customer support active'), color: 'text-brand-700' },
+            { icon: CheckCircle, text: t('Automatic Stripe invoicing & billing'), color: 'text-brand-700' },
           ].map(({ icon: Icon, text, color }, i) => (
             <div key={i} className="flex items-center gap-3 text-sm text-gray-600">
               <Icon className={`w-4 h-4 shrink-0 ${color}`} />
@@ -94,12 +96,12 @@ export default function PaymentSuccessPage({ onGoToDashboard }) {
           onClick={onGoToDashboard}
           className="w-full py-4 rounded-xl font-bold text-sm bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-500 hover:to-brand-400 text-white shadow-lg shadow-brand-900/30 flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-95"
         >
-          Go to My Dashboard
+          {t('Go to My Dashboard')}
           <ArrowRight className="w-4 h-4" />
         </button>
 
         <p className="text-xs text-gray-600 mt-4">
-          Automatic redirect in a few seconds…
+          {t('Automatic redirect in a few seconds…')}
         </p>
       </div>
     </div>

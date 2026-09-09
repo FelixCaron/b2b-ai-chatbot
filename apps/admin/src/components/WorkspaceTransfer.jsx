@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AlertTriangle, ArrowRight, CheckCircle2, Sparkles, X } from 'lucide-react';
 import { getPlanDisplayName } from '@b2b-ai-chatbot/contracts';
+import { useT } from '../i18n/LanguageContext';
 
 // The UI half of "a guest signed in with an email that already has an account"
 // (ADR 057). App.jsx owns the state machine and the network calls; this file
@@ -27,6 +28,7 @@ export default function WorkspaceTransfer({
   onUpgrade,
   onReplaceSite
 }) {
+  const { t } = useT();
   // Which site the user picked to sacrifice, and whether they have been shown
   // the destructive confirm for it yet. Local to this screen: nothing here is
   // worth lifting into App.jsx.
@@ -35,7 +37,7 @@ export default function WorkspaceTransfer({
 
   if (!state) return null;
 
-  const domain = state.domain || 'your guest workspace';
+  const domain = state.domain || t('your guest workspace');
 
   // --- Toasts: nothing to decide, just tell them what happened -------------
   if (state.phase === 'transferred' || state.phase === 'duplicate') {
@@ -45,13 +47,13 @@ export default function WorkspaceTransfer({
         <CheckCircle2 className="w-4 h-4 shrink-0" />
         <span>
           {transferred
-            ? `${domain} is now part of this account, with its pages and leads.`
-            : `${domain} is already in this account — we opened the one you already had.`}
+            ? t('{domain} is now part of this account, with its pages and leads.', { domain })
+            : t('{domain} is already in this account — we opened the one you already had.', { domain })}
         </span>
         <button
           onClick={onDismiss}
           className="text-emerald-700/60 hover:text-emerald-800 transition-colors"
-          aria-label="Dismiss"
+          aria-label={t('Dismiss')}
         >
           <X className="w-4 h-4" />
         </button>
@@ -76,11 +78,9 @@ export default function WorkspaceTransfer({
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-brand-600 to-brand-400 flex items-center justify-center text-white shadow-xl shadow-brand-500/30 mb-5">
             <Sparkles className="w-6 h-6" />
           </div>
-          <h2 className="text-xl font-bold text-dark-900">Move {domain} into this account?</h2>
+          <h2 className="text-xl font-bold text-dark-900">{t('Move {domain} into this account?', { domain })}</h2>
           <p className="text-gray-500 text-sm mt-2">
-            You set this assistant up before signing in. We can move the website, its scanned
-            pages and its captured leads into the account you just signed into. Your test
-            conversations stay behind.
+            {t('You set this assistant up before signing in. We can move the website, its scanned pages and its captured leads into the account you just signed into. Your test conversations stay behind.')}
           </p>
         </div>
 
@@ -92,14 +92,14 @@ export default function WorkspaceTransfer({
             disabled={busy}
             className="w-full bg-brand-600 hover:bg-brand-500 text-white font-semibold py-3 rounded-xl text-sm flex items-center justify-center gap-2 shadow-lg transition-all disabled:opacity-50"
           >
-            {busy ? 'Moving…' : <>Yes, move it over <ArrowRight className="w-4 h-4" /></>}
+            {busy ? t('Moving…') : <>{t('Yes, move it over')} <ArrowRight className="w-4 h-4" /></>}
           </button>
           <button
             onClick={onDismiss}
             disabled={busy}
             className="w-full text-gray-500 hover:text-dark-900 text-xs font-semibold py-2.5 rounded-xl hover:bg-surface-200 transition-colors disabled:opacity-50"
           >
-            No thanks, leave it
+            {t('No thanks, leave it')}
           </button>
         </div>
       </>
@@ -118,11 +118,15 @@ export default function WorkspaceTransfer({
         <div className="w-14 h-14 rounded-2xl bg-yellow-500/15 border border-yellow-500/30 flex items-center justify-center text-yellow-600 mb-5">
           <AlertTriangle className="w-6 h-6" />
         </div>
-        <h2 className="text-xl font-bold text-dark-900">Your plan is full</h2>
+        <h2 className="text-xl font-bold text-dark-900">{t('Your plan is full')}</h2>
         <p className="text-gray-500 text-sm mt-2">
-          {domain} is ready to move into this account, but the {getPlanDisplayName(plan)} plan covers{' '}
-          {limit} website{limit > 1 ? 's' : ''} and you already have {siteCount}. Nothing has
-          moved yet — we kept it waiting for you.
+          {t('{domain} is ready to move into this account, but the {planName} plan covers {limit} website{plural} and you already have {siteCount}. Nothing has moved yet — we kept it waiting for you.', {
+            domain,
+            planName: getPlanDisplayName(plan),
+            limit,
+            plural: limit > 1 ? 's' : '',
+            siteCount,
+          })}
         </p>
       </div>
 
@@ -133,17 +137,17 @@ export default function WorkspaceTransfer({
         disabled={busy}
         className="w-full bg-brand-600 hover:bg-brand-500 text-white font-semibold py-3 rounded-xl text-sm flex items-center justify-center gap-2 shadow-lg transition-all disabled:opacity-50"
       >
-        Upgrade and keep both <ArrowRight className="w-4 h-4" />
+        {t('Upgrade and keep both')} <ArrowRight className="w-4 h-4" />
       </button>
 
       <div className="mt-6 pt-5 border-t border-dark-900/10">
         <p className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold mb-3">
-          Or replace an existing site
+          {t('Or replace an existing site')}
         </p>
 
         <div className="space-y-1.5 max-h-44 overflow-y-auto">
           {sites.length === 0 && (
-            <p className="text-xs text-gray-500">No websites to replace in this account.</p>
+            <p className="text-xs text-gray-500">{t('No websites to replace in this account.')}</p>
           )}
           {sites.map((site) => (
             <label
@@ -176,16 +180,15 @@ export default function WorkspaceTransfer({
             disabled={busy}
             className="mt-3 w-full text-xs font-semibold text-red-700 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 py-2.5 rounded-xl transition-colors disabled:opacity-50"
           >
-            Replace {replaceTarget.domain} with {domain}
+            {t('Replace {site} with {domain}', { site: replaceTarget.domain, domain })}
           </button>
         )}
 
         {replaceTarget && confirmingReplace && (
           <div className="mt-3 rounded-xl border border-red-300 bg-red-50 p-4">
             <p className="text-xs text-red-700 leading-relaxed">
-              This permanently deletes <span className="font-semibold">{replaceTarget.domain}</span>:
-              all of its scanned pages, all of its captured leads, and its chat history. This
-              cannot be undone. {domain} then takes its place.
+              {t('This permanently deletes')} <span className="font-semibold">{replaceTarget.domain}</span>
+              {t(': all of its scanned pages, all of its captured leads, and its chat history. This cannot be undone. {domain} then takes its place.', { domain })}
             </p>
             <div className="mt-3 flex gap-2">
               <button
@@ -193,14 +196,14 @@ export default function WorkspaceTransfer({
                 disabled={busy}
                 className="flex-1 text-xs font-semibold text-white bg-red-600 hover:bg-red-500 py-2.5 rounded-lg transition-colors disabled:opacity-50"
               >
-                {busy ? 'Working…' : `Delete ${replaceTarget.domain} permanently`}
+                {busy ? t('Working…') : t('Delete {site} permanently', { site: replaceTarget.domain })}
               </button>
               <button
                 onClick={() => setConfirmingReplace(false)}
                 disabled={busy}
                 className="px-4 text-xs font-semibold text-gray-600 bg-surface-200 hover:bg-surface-300 py-2.5 rounded-lg transition-colors disabled:opacity-50"
               >
-                Cancel
+                {t('Cancel')}
               </button>
             </div>
           </div>
@@ -212,7 +215,7 @@ export default function WorkspaceTransfer({
         disabled={busy}
         className="mt-5 w-full text-gray-500 hover:text-dark-900 text-xs font-semibold py-2 rounded-xl hover:bg-surface-200 transition-colors disabled:opacity-50"
       >
-        Decide later
+        {t('Decide later')}
       </button>
     </>
   );

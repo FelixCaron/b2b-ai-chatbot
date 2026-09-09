@@ -1,6 +1,7 @@
 import React from 'react';
 import { Star, Zap, Shield, Crown } from 'lucide-react';
 import { getPlanDisplayName } from '@b2b-ai-chatbot/contracts';
+import { useT } from '../i18n/LanguageContext';
 
 // Icon/color are presentational only — the display label itself comes from
 // @b2b-ai-chatbot/contracts (the one source of truth for plan naming), so a
@@ -28,6 +29,17 @@ const STATUS_DOT = {
   canceled: 'bg-gray-600',
 };
 
+// Human-readable status words for the tooltip — keyed by the same raw slugs
+// as STATUS_DOT, but these are display text (translated) while the slugs
+// themselves stay untranslated logic keys.
+const STATUS_LABEL = {
+  active: 'Active',
+  free: 'Free',
+  trialing: 'Trialing',
+  past_due: 'Past due',
+  canceled: 'Canceled',
+};
+
 /**
  * PlanBadge — displays the tenant's current plan with status indicator.
  * @param {string} plan - 'basic' | 'pro' | 'premium'
@@ -35,16 +47,19 @@ const STATUS_DOT = {
  * @param {boolean} compact - If true, shows only the icon (for mobile)
  */
 export default function PlanBadge({ plan = 'basic', planStatus = 'free', compact = false }) {
+  const { t } = useT();
   const config = PLAN_CONFIG[plan] || PLAN_CONFIG.basic;
   const label = getPlanDisplayName(plan);
   const Icon = config.icon;
   const dotClass = STATUS_DOT[planStatus] || STATUS_DOT.free;
+  const statusLabel = t(STATUS_LABEL[planStatus] || STATUS_LABEL.free);
+  const title = t('Plan {plan} — {status}', { plan: label, status: statusLabel });
 
   if (compact) {
     return (
       <span
         className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold border ${config.className}`}
-        title={`Plan ${label} — ${planStatus}`}
+        title={title}
       >
         <span className={`w-1.5 h-1.5 rounded-full ${dotClass}`} />
         {Icon && <Icon className="w-3 h-3" />}
@@ -55,7 +70,7 @@ export default function PlanBadge({ plan = 'basic', planStatus = 'free', compact
   return (
     <span
       className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border ${config.className}`}
-      title={`Plan ${label} — ${planStatus}`}
+      title={title}
     >
       <span className={`w-1.5 h-1.5 rounded-full ${dotClass}`} />
       {Icon && <Icon className="w-3 h-3" />}
