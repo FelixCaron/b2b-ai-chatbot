@@ -12,7 +12,7 @@ import { test, expect } from './support/test.js';
 test.describe('Floating Copilot widget — click-through integrity', () => {
   test('while closed, clicks anywhere under the widget wrapper reach the real page element, not the widget host', async ({ page, mock }) => {
     await page.goto('/');
-    await expect(page.getByText('acme.example.com')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'acme.example.com' })).toBeVisible();
 
     const containerBox = await page.evaluate(() => {
       const host = document.getElementById('b2b-chatbot-host');
@@ -58,7 +58,7 @@ test.describe('Floating Copilot widget — click-through integrity', () => {
 
   test('the launcher still opens the panel, and the panel is still interactive', async ({ page, mock }) => {
     await page.goto('/');
-    await expect(page.getByText('acme.example.com')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'acme.example.com' })).toBeVisible();
 
     // Playwright locators pierce open shadow roots by default, so a plain
     // CSS locator chain reaches into the widget's shadow DOM directly.

@@ -11,7 +11,7 @@ test.describe('Assistant health', () => {
 
     test('shows the setup roadmap instead of statistics', async ({ page, mock }) => {
       await page.goto('/');
-      await expect(page.getByText('acme.example.com')).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'acme.example.com' })).toBeVisible();
 
       await expect(page.getByText(/Install on your website/i)).toBeVisible();
       await expect(page.getByText(/conversations this week/i)).toHaveCount(0);
@@ -21,7 +21,7 @@ test.describe('Assistant health', () => {
   test('reports pages, conversations this week, leads and unanswered questions', async ({ page, mock }) => {
     const consoleTracker = trackConsoleErrors(page);
     await page.goto('/');
-    await expect(page.getByText('acme.example.com')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'acme.example.com' })).toBeVisible();
 
     // Three fixture sessions, all inside the seven-day window. The roadmap
     // steps it replaces are gone.
@@ -39,7 +39,7 @@ test.describe('Assistant health', () => {
 
   test('the unanswered call to action opens Conversations', async ({ page, mock }) => {
     await page.goto('/');
-    await expect(page.getByText('acme.example.com')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'acme.example.com' })).toBeVisible();
 
     await page.getByRole('button', { name: /asked something your website doesn/i }).click();
     await expect(page.getByRole('heading', { name: /^Conversations$/i })).toBeVisible();

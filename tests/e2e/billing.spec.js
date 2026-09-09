@@ -10,7 +10,7 @@ import { test, expect, clickGuestNavButton } from './support/test.js';
 test.describe('Billing — checkout & portal send auth', () => {
   test('selecting a plan sends an Authorization header to /api/billing/checkout', async ({ page, mock }) => {
     await page.goto('/');
-    await expect(page.getByText('acme.example.com')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'acme.example.com' })).toBeVisible();
     await clickGuestNavButton(page, /^Plans/i);
     await expect(page.getByRole('heading', { name: /Turn Website Visitors Into Customers/i })).toBeVisible();
 

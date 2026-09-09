@@ -11,7 +11,7 @@ test.describe('Header navigation', () => {
     await page.goto('/');
 
     // Dashboard (default view) — the existing fixture site should render.
-    await expect(page.getByText('acme.example.com')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'acme.example.com' })).toBeVisible();
 
     await clickGuestNavButton(page, /^Leads/i);
     await expect(page.getByRole('heading', { name: /^Leads$/i })).toBeVisible();
@@ -25,14 +25,14 @@ test.describe('Header navigation', () => {
     await expect(page.getByRole('heading', { name: /Pioneering the Future of/i })).toBeVisible();
 
     await clickGuestNavButton(page, /^Dashboard/i);
-    await expect(page.getByText('acme.example.com')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'acme.example.com' })).toBeVisible();
 
     consoleTracker.assertNone();
   });
 
   test('the "Sign In" affordance is offered to guests', async ({ page, mock }) => {
     await page.goto('/');
-    await expect(page.getByText('acme.example.com')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'acme.example.com' })).toBeVisible();
     const menuToggle = page.getByRole('button', { name: /open menu/i });
     if (await menuToggle.isVisible().catch(() => false)) {
       await menuToggle.click();

@@ -3,7 +3,7 @@ import { test, expect } from './support/test.js';
 test.describe('Delete website flow', () => {
   test('a failed deletion shows the real error and keeps the site (no "ghost" site)', async ({ page, mock }) => {
     await page.goto('/');
-    await expect(page.getByText('acme.example.com')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'acme.example.com' })).toBeVisible();
 
     mock.state.deleteSiteShouldFail = true;
 
@@ -32,7 +32,7 @@ test.describe('Delete website flow', () => {
 
   test('a successful deletion removes the site and returns to onboarding when it was the only site', async ({ page, mock }) => {
     await page.goto('/');
-    await expect(page.getByText('acme.example.com')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'acme.example.com' })).toBeVisible();
 
     await page.getByRole('button', { name: /Show Settings/i }).click();
     await page.getByRole('button', { name: /^Delete Website$/ }).click();

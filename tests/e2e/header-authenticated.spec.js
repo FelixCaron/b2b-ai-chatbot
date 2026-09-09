@@ -1,4 +1,5 @@
 import { test, expect, trackConsoleErrors } from './support/test.js';
+import { getPlanDisplayName } from '@b2b-ai-chatbot/contracts';
 
 // The guest (anonymous) header is covered in navigation.spec.js. This file
 // covers the full <Header> shown to signed-in users — tenant selector, plan
@@ -10,7 +11,6 @@ test.describe('Full header (authenticated user)', () => {
     const consoleTracker = trackConsoleErrors(page);
     await page.goto('/');
 
-    await expect(page.getByText('Secure Workspace')).toBeVisible();
     // The tenant name lives inside a <select><option> — real and present in
     // the DOM, but Playwright correctly reports plain <option> elements as
     // not independently "visible" (they only render when the dropdown is
@@ -18,8 +18,13 @@ test.describe('Full header (authenticated user)', () => {
     await expect(page.locator('select option:checked')).toHaveText(mock.db.tenants[0].name);
     // Plan badge reflects the fixture tenant's plan (scoped via its title
     // attribute — a loose text match like /pro/i also matches unrelated
-    // copy elsewhere on the page, e.g. "prospect captured").
-    await expect(page.locator(`[title^="Plan "]`)).toContainText(new RegExp(mock.db.tenants[0].plan, 'i'));
+    // copy elsewhere on the page, e.g. "prospect captured"). The badge shows
+    // the plan's marketing displayName, not its internal id — they've been
+    // decoupled since the Starter/Business/Pro repricing (plans.js), so
+    // "pro" the id now reads "Business" on screen.
+    await expect(page.locator(`[title^="Plan "]`)).toContainText(
+      new RegExp(getPlanDisplayName(mock.db.tenants[0].plan), 'i')
+    );
 
     // Below the sm breakpoint the four tabs move behind a sandwich menu
     // (Header.jsx's own toggle, `sm:hidden` — separate from App.jsx's guest

@@ -10,7 +10,7 @@ test.describe('Conversations', () => {
     // Wait for the dashboard to render before reaching for the header: below
     // the sm breakpoint the nav lives behind a hamburger that isn't mounted
     // yet on first paint.
-    await expect(page.getByText('acme.example.com')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'acme.example.com' })).toBeVisible();
 
     await clickGuestNavButton(page, /^Conversations/i);
     await expect(page.getByRole('heading', { name: /^Conversations$/i })).toBeVisible();
@@ -25,7 +25,7 @@ test.describe('Conversations', () => {
 
   test('opening a conversation shows both sides of it, in the order it was said', async ({ page, mock }) => {
     await page.goto('/');
-    await expect(page.getByText('acme.example.com')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'acme.example.com' })).toBeVisible();
     await clickGuestNavButton(page, /^Conversations/i);
 
     // The multi-turn conversation, so the transcript has to hold up past the
@@ -38,7 +38,7 @@ test.describe('Conversations', () => {
 
   test('flags the conversations the assistant could not answer, and filters to them', async ({ page, mock }) => {
     await page.goto('/');
-    await expect(page.getByText('acme.example.com')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'acme.example.com' })).toBeVisible();
     await clickGuestNavButton(page, /^Conversations/i);
 
     // One of the three fixture conversations has an answer the site had no
@@ -59,7 +59,7 @@ test.describe('Conversations', () => {
 
   test('says which page a conversation started on', async ({ page, mock }) => {
     await page.goto('/');
-    await expect(page.getByText('acme.example.com')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'acme.example.com' })).toBeVisible();
     await clickGuestNavButton(page, /^Conversations/i);
 
     // The delivery question was asked from /shipping; the insurance one from
@@ -70,7 +70,7 @@ test.describe('Conversations', () => {
 
   test('search filters conversations by what was actually said', async ({ page, mock }) => {
     await page.goto('/');
-    await expect(page.getByText('acme.example.com')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'acme.example.com' })).toBeVisible();
     await clickGuestNavButton(page, /^Conversations/i);
 
     await page.getByPlaceholder(/Search what was said/i).fill('Saturday');

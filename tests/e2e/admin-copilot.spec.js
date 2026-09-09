@@ -13,7 +13,7 @@ import { test, expect } from './support/test.js';
 test.describe('Admin Copilot — navigate_to tool call', () => {
   test('asking to see the About page actually navigates there, not just claims to', async ({ page, mock }) => {
     await page.goto('/');
-    await expect(page.getByText('acme.example.com')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'acme.example.com' })).toBeVisible();
 
     const host = page.locator('#b2b-chatbot-host');
     await host.locator('#b2b-launcher').click();

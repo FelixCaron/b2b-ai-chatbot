@@ -21,7 +21,7 @@ for (const viewport of VIEWPORTS) {
     test('dashboard, leads, and pricing views have no horizontal overflow and no console errors', async ({ page, mock }) => {
       const consoleTracker = trackConsoleErrors(page);
       await page.goto('/');
-      await expect(page.getByText('acme.example.com')).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'acme.example.com' })).toBeVisible();
       await assertNoHorizontalOverflow(page, 'dashboard');
 
       await clickGuestNavButton(page, /^Leads/i);
@@ -37,7 +37,7 @@ for (const viewport of VIEWPORTS) {
 
     test('every primary action button on the dashboard has a real, on-screen, tappable hit target', async ({ page, mock }) => {
       await page.goto('/');
-      await expect(page.getByText('acme.example.com')).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'acme.example.com' })).toBeVisible();
 
       // Delete is no longer a quick-access dashboard action — it lives in the
       // Danger Zone behind "Show Settings", so it's checked separately below
@@ -46,6 +46,14 @@ for (const viewport of VIEWPORTS) {
       for (const name of buttonNames) {
         const button = page.getByRole('button', { name }).first();
         await expect(button).toBeVisible();
+        // "+ Add Website" lives in SiteTabs' own deliberately horizontal-
+        // scrolling strip (overflow-x-auto — a browser-tabs-style switcher,
+        // not meant to wrap or shrink to fit). Scroll it into view within
+        // that strip first, the same way a real tap would, before judging
+        // whether it's reachable — its resting position off the initial
+        // viewport isn't the "clipped and unreachable" bug this test exists
+        // to catch.
+        await button.scrollIntoViewIfNeeded();
         const box = await button.boundingBox();
         expect(box, `${name} should have a layout box`).not.toBeNull();
         expect(box.width).toBeGreaterThan(0);
