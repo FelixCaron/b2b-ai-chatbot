@@ -66,20 +66,18 @@ export default function useAssistantHealth(tenantId) {
       .gte('created_at', since)
       .limit(SESSION_SCAN_LIMIT);
 
-    // Unanswered is deliberately all-time, not this week: a question the site
-    // couldn't answer stays unanswered until someone writes the content, and
-    // ageing it out of the count would quietly retire the work rather than
-    // the problem. What *does* retire it is the owner actually handling it —
-    // answering it into the knowledge base or dismissing it (migration
-    // 20260909050000) — so resolved gaps drop out. Otherwise this number
-    // could only ever grow, and a number that never goes down stops being
-    // read.
+    // Same seven days as the conversation count above, and for the same
+    // reason a week is the unit everywhere else here: the owner fixes a gap
+    // by updating their website (or their Additional Information) and the
+    // number falls away on its own. An all-time tally could only ever grow,
+    // and a number that never goes down stops being read — no per-question
+    // "mark as handled" bookkeeping needed to keep it honest.
     const unansweredQuery = supabase
       .from('messages')
       .select('id', { count: 'exact', head: true })
       .eq('tenant_id', tenantId)
       .in('answer_status', ['no_match', 'failed'])
-      .is('missing_info_status', null);
+      .gte('created_at', since);
 
     // Has anyone ever talked to this assistant? All-time, and separate from
     // the weekly figure, because it decides which dashboard the owner gets:

@@ -32,7 +32,7 @@ test.describe('Assistant health', () => {
 
     // One lead in the fixture, and one answer the site had no content for.
     await expect(page.getByRole('button', { name: /1\s*lead captured/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /1\s*question unanswered/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /1\s*unanswered this week/i })).toBeVisible();
 
     consoleTracker.assertNone();
   });

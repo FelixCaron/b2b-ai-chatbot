@@ -49,7 +49,6 @@ export default function AdvancedSettingsPanel({
   onTogglePageActivation,
   onAddManualPage,
   onEditPage,
-  prefillAddUrl,
   onRequestDeleteSite,
   onRequestResetSite
 }) {
@@ -137,7 +136,6 @@ export default function AdvancedSettingsPanel({
             onTogglePageActivation={onTogglePageActivation}
             onAddManualPage={onAddManualPage}
             onEditPage={onEditPage}
-            prefillAddUrl={prefillAddUrl}
           />
 
           <DangerZone

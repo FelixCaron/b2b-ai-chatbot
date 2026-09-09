@@ -38,7 +38,7 @@ export default function useConversations(tenantId) {
 
     const { data, error: queryError } = await supabase
       .from('messages')
-      .select('id, session_id, role, content, created_at, answer_status, missing_info, missing_info_status, site_id, page_url')
+      .select('id, session_id, role, content, created_at, answer_status, missing_info, site_id, page_url')
       .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false })
       .limit(MESSAGE_LIMIT);
@@ -61,53 +61,13 @@ export default function useConversations(tenantId) {
     load();
   }, [load]);
 
-  /**
-   * Mark one flagged question as handled — 'added' once the owner has
-   * supplied the missing information, 'ignored' when it isn't a gap worth
-   * closing; null puts it back in the queue.
-   *
-   * Written straight through RLS (the tenant owner's own messages) and
-   * mirrored into local state rather than triggering a reload, so the
-   * transcript the owner is reading doesn't jump under them.
-   */
-  const resolveMissingInfo = useCallback(async (messageId, status) => {
-    if (!messageId || !supabase) return { ok: false, error: 'Not ready.' };
-
-    const { error: updateError } = await supabase
-      .from('messages')
-      .update({ missing_info_status: status })
-      .eq('id', messageId);
-
-    if (updateError) {
-      console.error('[useConversations] could not update missing_info_status:', updateError);
-      return { ok: false, error: 'Could not save that. Please try again.' };
-    }
-
-    setConversations((prev) =>
-      prev.map((conversation) => {
-        if (!conversation.messages.some((m) => m.id === messageId)) return conversation;
-        const messages = conversation.messages.map((m) =>
-          m.id === messageId ? { ...m, missing_info_status: status } : m
-        );
-        return { ...conversation, messages, ...unansweredSummary(messages) };
-      })
-    );
-
-    return { ok: true };
-  }, []);
-
-  return { conversations, isLoading, error, truncated, reload: load, resolveMissingInfo };
+  return { conversations, isLoading, error, truncated, reload: load };
 }
 
-/**
- * A question counts as unanswered while it is flagged *and* unresolved.
- * Without the second half the tally could only ever grow — an owner who had
- * already written the missing content still saw it reported as a gap, and a
- * number that never goes down stops being read.
- */
+/** The questions in this conversation the assistant couldn't answer. */
 export function unansweredSummary(messages) {
   const unanswered = messages.filter(
-    (m) => (m.answer_status === 'no_match' || m.answer_status === 'failed') && !m.missing_info_status
+    (m) => m.answer_status === 'no_match' || m.answer_status === 'failed'
   );
   return { unansweredCount: unanswered.length, needsAttention: unanswered.length > 0 };
 }
@@ -135,8 +95,7 @@ export function groupIntoConversations(rows) {
       // the assistant couldn't produce an answer at all. Both are worth an
       // owner's attention, for the same reason and with the same fix —
       // content. Messages written before answer_status existed are null, and
-      // are not retroactively accused of anything; ones the owner has since
-      // answered or dismissed drop out (see unansweredSummary).
+      // are not retroactively accused of anything.
       const summary = unansweredSummary(messages);
       // Where the conversation happened. A visitor can wander between pages
       // mid-session, so this is where they started — the page that prompted

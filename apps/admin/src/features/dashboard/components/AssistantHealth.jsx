@@ -60,7 +60,7 @@ export default function AssistantHealth({
         <Stat
           icon={AlertCircle}
           value={unansweredCount}
-          label={unansweredCount === 1 ? 'question unanswered' : 'questions unanswered'}
+          label="unanswered this week"
           tone={needsAttention ? 'warn' : 'ok'}
           onClick={needsAttention ? onViewConversations : undefined}
         />

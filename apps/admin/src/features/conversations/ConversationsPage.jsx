@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { MessageSquare, Search, RefreshCw, User, Sparkles, ChevronLeft, AlertCircle, FileText, Wrench, Check, EyeOff, Loader2, Undo2 } from 'lucide-react';
+import { MessageSquare, Search, RefreshCw, User, Sparkles, ChevronLeft, AlertCircle, FileText } from 'lucide-react';
 import useConversations from './useConversations';
-import { appendAdditionalInfo } from '../../lib/knowledge-notes';
 
 /**
  * What visitors actually asked the assistant.
@@ -12,8 +11,8 @@ import { appendAdditionalInfo } from '../../lib/knowledge-notes';
  * Every one of those exchanges was already being written to `messages` — it
  * just had nowhere to be read.
  */
-export default function ConversationsPage({ tenantId, sites = [], onBack, onImproveKnowledge }) {
-  const { conversations, isLoading, error, truncated, reload, resolveMissingInfo } = useConversations(tenantId);
+export default function ConversationsPage({ tenantId, sites = [], onBack }) {
+  const { conversations, isLoading, error, truncated, reload } = useConversations(tenantId);
   const [selectedId, setSelectedId] = useState(null);
   const [query, setQuery] = useState('');
   // Below lg the list and the transcript share the screen, so only one can be
@@ -58,14 +57,6 @@ export default function ConversationsPage({ tenantId, sites = [], onBack, onImpr
   // single site it's the same word on every row.
   const showSiteName = sites.length > 1;
   const domainForSite = (siteId) => sites.find((site) => site.id === siteId)?.domain || null;
-
-  // Which website an answer typed here belongs to. Messages carry their own
-  // site_id, but older rows predate that column — a single-site tenant has
-  // only one possible answer, so fall back to it rather than refusing to save.
-  const siteForMessage = (message) =>
-    sites.find((site) => site.id === message.site_id) ||
-    sites.find((site) => site.id === selected?.siteId) ||
-    (sites.length === 1 ? sites[0] : null);
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-8 space-y-6">
@@ -258,17 +249,8 @@ export default function ConversationsPage({ tenantId, sites = [], onBack, onImpr
                           {m.content}
                         </div>
                         {answerNote(m) && (
-                          <div className="mt-1 flex flex-col items-end gap-1.5">
-                            <div className="text-[10.5px] text-amber-800 flex items-center gap-1">
-                              <AlertCircle className="w-3 h-3 shrink-0" /> {answerNote(m)}
-                            </div>
-                            <KnowledgeGapActions
-                              message={m}
-                              site={siteForMessage(m)}
-                              onResolve={resolveMissingInfo}
-                              onImproveKnowledge={onImproveKnowledge}
-                              pageUrl={selected.pageUrl}
-                            />
+                          <div className="mt-1 text-[10.5px] text-amber-800 flex items-center gap-1 justify-end">
+                            <AlertCircle className="w-3 h-3 shrink-0" /> {answerNote(m)}
                           </div>
                         )}
                       </div>
@@ -285,155 +267,6 @@ export default function ConversationsPage({ tenantId, sites = [], onBack, onImpr
         </div>
       )}
     </main>
-  );
-}
-
-/**
- * What an owner can do about a question their assistant couldn't answer.
- *
- * The old answer was a single "Fix this in Knowledge" button that dropped
- * them on the dashboard with a page URL to re-crawl — which only helps when
- * the answer already exists somewhere on the website. Most of the time it
- * doesn't: the owner simply knows the answer. So the primary action is now to
- * type it, right here, into the site's Additional Information (a real,
- * searchable part of the assistant's knowledge — see lib/knowledge-notes.js),
- * and the gap is marked handled in the same gesture.
- *
- * 'Ignore' is the other honest outcome — out of scope, spam, a question the
- * owner doesn't want answered — and it matters as much as answering: without
- * it the unanswered count is a ratchet that only goes up.
- */
-function KnowledgeGapActions({ message, site, onResolve, onImproveKnowledge, pageUrl }) {
-  const [isWriting, setIsWriting] = useState(false);
-  const [draft, setDraft] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [failure, setFailure] = useState('');
-
-  const status = message.missing_info_status;
-
-  if (status) {
-    return (
-      <div className="text-[10.5px] flex items-center gap-1.5">
-        <span className={`inline-flex items-center gap-1 font-semibold ${status === 'added' ? 'text-emerald-700' : 'text-gray-500'}`}>
-          {status === 'added' ? <Check className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
-          {status === 'added' ? 'Answer added to your assistant' : 'Ignored'}
-        </span>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={async () => {
-            setBusy(true);
-            await onResolve(message.id, null);
-            setBusy(false);
-          }}
-          className="text-gray-500 hover:text-dark-900 inline-flex items-center gap-1 disabled:opacity-50"
-        >
-          <Undo2 className="w-3 h-3" /> Undo
-        </button>
-      </div>
-    );
-  }
-
-  const save = async () => {
-    const text = draft.trim();
-    if (!text) return;
-    setBusy(true);
-    setFailure('');
-
-    // The gap is only marked handled once the knowledge write actually
-    // succeeded — marking first would quietly retire a question whose answer
-    // never made it into the assistant.
-    const saved = await appendAdditionalInfo(site, text);
-    if (!saved.ok) {
-      setFailure(saved.error);
-      setBusy(false);
-      return;
-    }
-
-    const marked = await onResolve(message.id, 'added');
-    setBusy(false);
-    if (!marked.ok) {
-      setFailure(marked.error);
-      return;
-    }
-    setIsWriting(false);
-    setDraft('');
-  };
-
-  if (isWriting) {
-    return (
-      <div className="w-full sm:w-[22rem] bg-white border border-brand-500/25 rounded-xl p-2.5 space-y-2">
-        <label className="text-[10.5px] font-semibold text-gray-600 block">
-          What should your assistant have said?
-        </label>
-        <textarea
-          autoFocus
-          rows={4}
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder={message.missing_info ? `e.g. ${message.missing_info} — write the answer here.` : 'Write the answer in your own words…'}
-          className="w-full bg-surface-100 border border-gray-300 rounded-lg px-2.5 py-2 text-xs text-dark-900 outline-none focus:border-brand-500 resize-y"
-        />
-        <p className="text-[10px] text-gray-500">
-          Saved to your assistant's <strong>Additional Information</strong>. It can use this the next time someone asks.
-        </p>
-        {failure && <p className="text-[10px] text-red-600">{failure}</p>}
-        {!site && <p className="text-[10px] text-red-600">Pick which website this belongs to from the dashboard first.</p>}
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={save}
-            disabled={busy || !draft.trim() || !site}
-            className="text-[10.5px] font-semibold bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white px-2.5 py-1.5 rounded-lg flex items-center gap-1 transition-colors"
-          >
-            {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
-            {busy ? 'Saving…' : 'Save to knowledge'}
-          </button>
-          <button
-            type="button"
-            onClick={() => { setIsWriting(false); setFailure(''); }}
-            disabled={busy}
-            className="text-[10.5px] text-gray-500 hover:text-dark-900 px-2 py-1.5 disabled:opacity-50"
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex items-center gap-1.5 flex-wrap justify-end">
-      <button
-        type="button"
-        onClick={() => setIsWriting(true)}
-        className="text-[10.5px] font-semibold text-brand-700 bg-brand-500/10 hover:bg-brand-500/20 border border-brand-500/20 px-2 py-1 rounded-lg flex items-center gap-1 transition-colors"
-      >
-        <Wrench className="w-3 h-3" /> Answer this
-      </button>
-      <button
-        type="button"
-        disabled={busy}
-        onClick={async () => {
-          setBusy(true);
-          await onResolve(message.id, 'ignored');
-          setBusy(false);
-        }}
-        className="text-[10.5px] font-semibold text-gray-500 hover:text-dark-900 bg-surface-200 hover:bg-surface-300 border border-dark-900/10 px-2 py-1 rounded-lg flex items-center gap-1 transition-colors disabled:opacity-50"
-      >
-        <EyeOff className="w-3 h-3" /> Ignore
-      </button>
-      {onImproveKnowledge && (
-        <button
-          type="button"
-          onClick={() => onImproveKnowledge(pageUrl || '')}
-          className="text-[10.5px] text-gray-500 hover:text-brand-700 px-1.5 py-1 underline decoration-dotted underline-offset-2"
-          title={pageUrl ? `Re-read "${pageUrl}" instead` : "Review what your assistant knows"}
-        >
-          Edit pages instead
-        </button>
-      )}
-    </div>
   );
 }
 

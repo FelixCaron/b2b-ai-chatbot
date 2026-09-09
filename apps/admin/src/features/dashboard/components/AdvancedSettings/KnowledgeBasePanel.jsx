@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Layers, Search, Lock, RefreshCw, Check, Plus, AlertTriangle } from 'lucide-react';
 
 /** 3. The pages the assistant answers from.
@@ -16,19 +16,11 @@ export default function KnowledgeBasePanel({
   setSearchQuery,
   onTogglePageActivation,
   onAddManualPage,
-  onEditPage,
-  // Set from a "this wasn't answered" conversation: the page the visitor was
-  // stuck on, handed here so fixing it is one click instead of "go find the
-  // right URL yourself".
-  prefillAddUrl
+  onEditPage
 }) {
   const [addUrl, setAddUrl] = useState('');
   const [addError, setAddError] = useState('');
   const [isAdding, setIsAdding] = useState(false);
-
-  useEffect(() => {
-    if (prefillAddUrl) setAddUrl(prefillAddUrl);
-  }, [prefillAddUrl]);
 
   const handleAddSubmit = async (e) => {
     e.preventDefault();

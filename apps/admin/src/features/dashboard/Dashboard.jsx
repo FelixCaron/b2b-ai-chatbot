@@ -46,8 +46,6 @@ export default function Dashboard({
   // Set by the Conversations page's "Improve knowledge" action on an
   // unanswered question: '' just opens Knowledge, a URL also pre-fills the
   // "Add a page" field with the page the visitor was actually stuck on.
-  pendingKnowledgeUrl = null,
-  onPendingKnowledgeUrlConsumed
 }) {
   const [selectedSiteId, setSelectedSiteId] = useState(null);
   const [localCreatedSite, setLocalCreatedSite] = useState(null);
@@ -229,16 +227,6 @@ export default function Dashboard({
     }, 50);
   };
 
-  useEffect(() => {
-    if (pendingKnowledgeUrl === null || !activeSite || step !== 'dashboard') return;
-    setShowAdvancedSettings(true);
-    const timer = setTimeout(() => {
-      document.getElementById('knowledge-base-section')?.scrollIntoView({ behavior: 'smooth' });
-    }, 200);
-    onPendingKnowledgeUrlConsumed?.();
-    return () => clearTimeout(timer);
-  }, [pendingKnowledgeUrl, activeSite, step]);
-
   return (
     <div className="space-y-8">
       {/* 1. HERO ONBOARDING (When no site exists) */}
@@ -393,7 +381,6 @@ export default function Dashboard({
             onTogglePageActivation={pipeline.handleTogglePageActivation}
             onAddManualPage={pipeline.handleAddManualPage}
             onEditPage={pipeline.handleEditPage}
-            prefillAddUrl={pendingKnowledgeUrl || ''}
             onRequestDeleteSite={() => lifecycle.setShowDeleteConfirmModal(true)}
             onRequestResetSite={() => setShowResetSiteModal(true)}
           />
