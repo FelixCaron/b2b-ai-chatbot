@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, Search, Sparkles } from 'lucide-react';
 import { MAX_DISCOVERABLE_PAGES } from '@b2b-ai-chatbot/contracts';
 import { getMaxPagesForPlan } from '../../lib/plan-limits';
+import { GENERAL_EMAIL } from '../../../../components/LegalPages';
 
 // Every row is rendered at exactly this height (see the `style={{ height }}`
 // on each row below) so the windowing math here can be arithmetic instead of
@@ -213,7 +214,11 @@ export default function PageSelectionModal({
 
         {discoveryTruncated && (
           <p className="text-[11px] text-amber-700 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 mt-3">
-            This site has more than {MAX_DISCOVERABLE_PAGES.toLocaleString()} pages — showing the first {MAX_DISCOVERABLE_PAGES.toLocaleString()} discovered. Contact support if you need a specific page beyond that indexed.
+            This site has more than {MAX_DISCOVERABLE_PAGES.toLocaleString()} pages — showing the first {MAX_DISCOVERABLE_PAGES.toLocaleString()} discovered. Need a page beyond that indexed?{' '}
+            <a href={`mailto:${GENERAL_EMAIL}`} className="font-semibold underline hover:text-amber-800">
+              Contact us
+            </a>{' '}
+            and we'll add it by hand.
           </p>
         )}
 

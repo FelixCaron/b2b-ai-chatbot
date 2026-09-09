@@ -15,7 +15,11 @@ import { ShieldCheck, FileText, AlertTriangle } from 'lucide-react';
 
 const PRODUCT_NAME = 'Dorafi';
 const CONTACT_EMAIL = 'privacy@your-domain.com';
-const GENERAL_EMAIL = 'hello@your-domain.com';
+// Exported: the one general-inquiries address, reused wherever else in the
+// app a "contact us" link is needed (e.g. PageSelectionModal's large-website
+// notice) so there's a single placeholder to swap for a real address instead
+// of one drifting from another.
+export const GENERAL_EMAIL = 'hello@your-domain.com';
 const LAST_UPDATED = 'August 25, 2026';
 
 function DraftBanner() {
