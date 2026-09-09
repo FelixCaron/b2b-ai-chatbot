@@ -1,11 +1,120 @@
-import React from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, Search, Sparkles } from 'lucide-react';
+import { MAX_DISCOVERABLE_PAGES } from '@b2b-ai-chatbot/contracts';
 import { getMaxPagesForPlan } from '../../lib/plan-limits';
+
+// Every row is rendered at exactly this height (see the `style={{ height }}`
+// on each row below) so the windowing math here can be arithmetic instead of
+// measurement. Matches the natural height of the p-3 row + its two truncated
+// text lines.
+const ROW_HEIGHT = 58;
+// Extra rows rendered above/below the visible band so a fast scroll or a
+// keyboard PageDown doesn't show a blank flash before the next paint fills in.
+const OVERSCAN = 10;
+
+/**
+ * A large site can discover tens of thousands of pages (see MAX_DISCOVERABLE_PAGES
+ * in @b2b-ai-chatbot/contracts) — mapping that array straight into DOM nodes,
+ * as this list used to, put one row element per page in the tab's DOM at
+ * once and froze or crashed the browser before a customer could even make a
+ * selection. Windowing keeps the DOM bounded to what's actually on screen
+ * regardless of how many pages were discovered: `selectedUrls` and
+ * `pendingCrawlPages` still hold every page, only what gets rendered is
+ * limited.
+ */
+function VirtualizedPageList({ pages, selectedUrls, onTogglePage }) {
+  const containerRef = useRef(null);
+  const [scrollTop, setScrollTop] = useState(0);
+  const [viewportHeight, setViewportHeight] = useState(0);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return undefined;
+    const measure = () => setViewportHeight(el.clientHeight);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // The filtered list can shrink between renders (a search narrows it) while
+  // scrollTop is still whatever it was on the longer list — clamp so the
+  // window never starts past the end of what's actually there.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const maxScrollTop = Math.max(0, pages.length * ROW_HEIGHT - viewportHeight);
+    if (el.scrollTop > maxScrollTop) {
+      el.scrollTop = 0;
+      setScrollTop(0);
+    }
+  }, [pages, viewportHeight]);
+
+  const total = pages.length;
+  const startIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN);
+  const visibleRowCount = Math.ceil(viewportHeight / ROW_HEIGHT) + OVERSCAN * 2;
+  const endIndex = Math.min(total, startIndex + visibleRowCount);
+  const visiblePages = pages.slice(startIndex, endIndex);
+
+  const topSpacerHeight = startIndex * ROW_HEIGHT;
+  const bottomSpacerHeight = Math.max(0, (total - endIndex) * ROW_HEIGHT);
+
+  return (
+    <div
+      ref={containerRef}
+      onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
+      className="flex-1 overflow-y-auto min-h-0 my-3 rounded-xl border border-dark-900/5 bg-white"
+    >
+      {total === 0 ? (
+        <div className="p-6 text-center text-xs text-gray-500">No pages match your search.</div>
+      ) : (
+        <>
+          <div style={{ height: topSpacerHeight }} />
+          <div className="divide-y divide-dark-900/5">
+            {visiblePages.map((page) => {
+              const isChecked = selectedUrls.has(page.url);
+              return (
+                <div
+                  key={page.url}
+                  onClick={() => onTogglePage(page.url)}
+                  style={{ height: ROW_HEIGHT }}
+                  className={`px-3 flex items-center justify-between gap-3 cursor-pointer hover:bg-dark-900/[0.03] transition-colors ${
+                    isChecked ? 'bg-brand-500/5' : ''
+                  }`}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => {}}
+                      className="w-4 h-4 rounded text-brand-600 bg-white border-gray-300 focus:ring-0 shrink-0"
+                    />
+                    <div className="min-w-0">
+                      <div className="text-xs font-semibold text-dark-900 truncate">{page.title || page.url}</div>
+                      <div className="text-[11px] text-gray-500 font-mono truncate">{page.url}</div>
+                    </div>
+                  </div>
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${
+                    isChecked ? 'bg-emerald-500/10 text-emerald-700 border border-emerald-500/20' : 'bg-gray-200 text-gray-600'
+                  }`}>
+                    {isChecked ? 'Selected' : 'Skipped'}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ height: bottomSpacerHeight }} />
+        </>
+      )}
+    </div>
+  );
+}
 
 /** 9. LARGE WEBSITE PAGE SELECTION REVIEW MODAL (Never a silent miss) */
 export default function PageSelectionModal({
   show,
   pendingCrawlPages,
+  discoveryTruncated,
   selectedUrls,
   setSelectedUrls,
   pageSelectionSearch,
@@ -15,6 +124,30 @@ export default function PageSelectionModal({
   onClose,
   onShowPricing
 }) {
+  const filteredPages = useMemo(() => {
+    const q = pageSelectionSearch.trim().toLowerCase();
+    if (!q) return pendingCrawlPages;
+    return pendingCrawlPages.filter(
+      (p) => p.url.toLowerCase().includes(q) || (p.title && p.title.toLowerCase().includes(q))
+    );
+  }, [pendingCrawlPages, pageSelectionSearch]);
+
+  const togglePage = (pageUrl) => {
+    setSelectedUrls((prev) => {
+      const next = new Set(prev);
+      if (next.has(pageUrl)) {
+        next.delete(pageUrl);
+      } else {
+        if (next.size >= getMaxPagesForPlan(tenantPlan)) {
+          alert(`Your plan allows up to ${getMaxPagesForPlan(tenantPlan)} pages. Please upgrade or uncheck another page.`);
+          return next;
+        }
+        next.add(pageUrl);
+      }
+      return next;
+    });
+  };
+
   if (!show) return null;
 
   return (
@@ -78,55 +211,16 @@ export default function PageSelectionModal({
           </div>
         </div>
 
-        {/* Scrollable Page Checklist */}
-        <div className="flex-1 overflow-y-auto min-h-0 my-3 divide-y divide-dark-900/5 rounded-xl border border-dark-900/5 bg-white">
-          {pendingCrawlPages
-            .filter(p => p.url.toLowerCase().includes(pageSelectionSearch.toLowerCase()) || (p.title && p.title.toLowerCase().includes(pageSelectionSearch.toLowerCase())))
-            .map((page, idx) => {
-              const isChecked = selectedUrls.has(page.url);
-              return (
-                <div
-                  key={idx}
-                  onClick={() => {
-                    setSelectedUrls(prev => {
-                      const next = new Set(prev);
-                      if (next.has(page.url)) {
-                        next.delete(page.url);
-                      } else {
-                        if (next.size >= getMaxPagesForPlan(tenantPlan)) {
-                          alert(`Your plan allows up to ${getMaxPagesForPlan(tenantPlan)} pages. Please upgrade or uncheck another page.`);
-                          return next;
-                        }
-                        next.add(page.url);
-                      }
-                      return next;
-                    });
-                  }}
-                  className={`p-3 flex items-center justify-between gap-3 cursor-pointer hover:bg-dark-900/[0.03] transition-colors ${
-                    isChecked ? 'bg-brand-500/5' : ''
-                  }`}
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <input
-                      type="checkbox"
-                      checked={isChecked}
-                      onChange={() => {}}
-                      className="w-4 h-4 rounded text-brand-600 bg-white border-gray-300 focus:ring-0 shrink-0"
-                    />
-                    <div className="min-w-0">
-                      <div className="text-xs font-semibold text-dark-900 truncate">{page.title || page.url}</div>
-                      <div className="text-[11px] text-gray-500 font-mono truncate">{page.url}</div>
-                    </div>
-                  </div>
-                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${
-                    isChecked ? 'bg-emerald-500/10 text-emerald-700 border border-emerald-500/20' : 'bg-gray-200 text-gray-600'
-                  }`}>
-                    {isChecked ? 'Selected' : 'Skipped'}
-                  </span>
-                </div>
-              );
-            })}
-        </div>
+        {discoveryTruncated && (
+          <p className="text-[11px] text-amber-700 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 mt-3">
+            This site has more than {MAX_DISCOVERABLE_PAGES.toLocaleString()} pages — showing the first {MAX_DISCOVERABLE_PAGES.toLocaleString()} discovered. Contact support if you need a specific page beyond that indexed.
+          </p>
+        )}
+
+        {/* Scrollable, windowed page checklist — only the rows in view are ever
+            mounted, so this stays smooth whether pendingCrawlPages holds 20
+            pages or 20,000 (see VirtualizedPageList above). */}
+        <VirtualizedPageList pages={filteredPages} selectedUrls={selectedUrls} onTogglePage={togglePage} />
 
         {/* Modal Footer Actions */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-dark-900/5">

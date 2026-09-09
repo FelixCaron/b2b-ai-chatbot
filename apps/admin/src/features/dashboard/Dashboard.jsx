@@ -491,6 +491,7 @@ export default function Dashboard({
       <PageSelectionModal
         show={pipeline.showPageSelectionModal}
         pendingCrawlPages={pipeline.pendingCrawlPages}
+        discoveryTruncated={pipeline.pendingDiscoveryTruncated}
         selectedUrls={pipeline.selectedUrls}
         setSelectedUrls={pipeline.setSelectedUrls}
         pageSelectionSearch={pipeline.pageSelectionSearch}

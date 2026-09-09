@@ -83,6 +83,10 @@ export default function useCrawlPipeline({
   const [pendingSiteObj, setPendingSiteObj] = useState(null);
   const [pendingTargetUrl, setPendingTargetUrl] = useState('');
   const [pageSelectionSearch, setPageSelectionSearch] = useState('');
+  // True when /api/crawler/crawl itself stopped discovery early (the site has
+  // more indexable pages than MAX_DISCOVERABLE_PAGES) — so pendingCrawlPages
+  // is a prefix of the real site, not the whole thing. See crawl.js.
+  const [pendingDiscoveryTruncated, setPendingDiscoveryTruncated] = useState(false);
 
   // Batch indexer helper
   const executeBatchScan = async (siteObj, targetUrl, pagesToScan) => {
@@ -222,6 +226,7 @@ export default function useCrawlPipeline({
     setSelectedUrls(new Set([targetUrl]));
 
     const crawlRes = await api.crawler.discover({ url: targetUrl });
+    let discoveryTruncated = false;
     if (crawlRes.ok) {
       const crawlData = crawlRes.data;
       if (crawlData.pages && crawlData.pages.length > 0) {
@@ -231,6 +236,7 @@ export default function useCrawlPipeline({
           status: 'loading'
         }));
       }
+      discoveryTruncated = Boolean(crawlData.truncated);
     } else {
       // The client answers with an envelope instead of throwing, so a failed
       // discovery is reported here and the scan carries on with the home page
@@ -245,6 +251,7 @@ export default function useCrawlPipeline({
       setPendingCrawlPages(pagesToScan);
       setPendingSiteObj(siteObj);
       setPendingTargetUrl(targetUrl);
+      setPendingDiscoveryTruncated(discoveryTruncated);
       setSelectedUrls(new Set(pagesToScan.slice(0, maxAllowedPages).map(p => p.url)));
       setShowLearningModal(false);
       setIsCrawling(false);
@@ -580,6 +587,7 @@ export default function useCrawlPipeline({
     showPageSelectionModal,
     setShowPageSelectionModal,
     pendingCrawlPages,
+    pendingDiscoveryTruncated,
     pageSelectionSearch,
     setPageSelectionSearch,
     editingPage,

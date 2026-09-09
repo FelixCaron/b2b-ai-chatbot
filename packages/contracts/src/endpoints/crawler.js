@@ -2,6 +2,17 @@
 import { defineEndpoint, AUTH } from '../endpoint.js';
 import { f, optional } from '../schema.js';
 
+// Hard ceiling on how many pages a single discovery pass will hand back, no
+// matter how large the crawled site actually is. Comfortably above the
+// biggest plan's page quota (premium: 10,000 — see plans.js) so it never
+// second-guesses a real plan-limit decision, while still bounding the
+// worst case: without it, a 100,000-page site would make api/crawler/crawl.js
+// build a Set (and a JSON response) with one entry per page, and would hand
+// the admin UI's page-selection modal an array large enough to crash the
+// browser tab rendering it (apps/admin's PageSelectionModal). Both sides of
+// the pipeline share this one number so they can't drift apart.
+export const MAX_DISCOVERABLE_PAGES = 20_000;
+
 /** POST /api/crawler/crawl — page discovery (sitemaps + homepage links). */
 export const crawlerDiscover = defineEndpoint({
   name: 'crawler.discover',
@@ -18,10 +29,14 @@ export const crawlerDiscover = defineEndpoint({
     success: f.boolean(),
     root_url: f.url(),
     total_discovered: f.number({ min: 0, integer: true }),
+    // True when the site had more indexable pages than MAX_DISCOVERABLE_PAGES
+    // and discovery stopped early — the returned `pages` is a prefix, not the
+    // whole site.
+    truncated: optional(f.boolean()),
     pages: f.arrayOf(f.shape({
       url: f.url(),
       title: f.string({ min: 0 })
-    }))
+    }), { max: MAX_DISCOVERABLE_PAGES })
   },
   errors: {
     400: 'Missing or unreachable url',

@@ -1,4 +1,4 @@
-import { contracts } from '@b2b-ai-chatbot/contracts';
+import { contracts, MAX_DISCOVERABLE_PAGES } from '@b2b-ai-chatbot/contracts';
 import { edgeRoute } from '../lib/http.js';
 import { assertSafeExternalUrl, fetchSafeExternalUrl } from '../lib/url-security.js';
 import { verifyTurnstileToken } from '../lib/captcha.js';
@@ -94,6 +94,14 @@ export default edgeRoute(contracts.crawler.discover, async (req, { data, json })
   const discoveredUrls = new Set();
   discoveredUrls.add(initialParsed.href.split('#')[0]);
 
+  // Set once any of the loops below stop early because discoveredUrls hit
+  // MAX_DISCOVERABLE_PAGES — a massive site (tens or hundreds of thousands of
+  // pages) genuinely has more pages than we discovered, and the response says
+  // so via `truncated` rather than quietly presenting a partial list as the
+  // whole site.
+  let discoveryTruncated = false;
+  const atCap = () => discoveredUrls.size >= MAX_DISCOVERABLE_PAGES;
+
   const fetchWithTimeout = async (urlStr, timeoutMs = 2500) => {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeoutMs);
@@ -169,17 +177,28 @@ export default edgeRoute(contracts.crawler.discover, async (req, { data, json })
   ]);
 
   for (const link of renderedLinks) {
+    if (atCap()) { discoveryTruncated = true; break; }
     if (isValidPageUrl(link, cleanHost)) discoveredUrls.add(link);
   }
 
+  // Sitemaps are parsed with a manual exec loop rather than `xml.match(/g)`
+  // on purpose: `.match` with a global flag allocates an array holding every
+  // match up front, and the sitemap protocol allows up to 50,000 <loc>
+  // entries per file — for a genuinely huge site that's an array (and a
+  // parse pass) sized to the whole site before the cap below ever gets a
+  // chance to stop anything. Breaking out of exec()'s loop actually bounds
+  // the work, not just the result.
   for (const result of sitemapResults) {
+    if (atCap()) { discoveryTruncated = true; break; }
     if (result.status === 'fulfilled' && result.value && result.value.ok) {
       try {
         const xml = await result.value.text();
         if (!looksLikeXmlSitemap(xml)) continue;
-        const locMatches = xml.match(/<loc>([^<]+)<\/loc>/gi) || [];
-        for (const m of locMatches) {
-          const loc = m.replace(/<\/?loc>/gi, '').trim();
+        const locRegex = /<loc>([^<]+)<\/loc>/gi;
+        let locMatch;
+        while ((locMatch = locRegex.exec(xml)) !== null) {
+          if (atCap()) { discoveryTruncated = true; break; }
+          const loc = locMatch[1].trim();
           if (loc.endsWith('.xml') || loc.includes('sitemap')) {
             if (!loc.includes('sales-orders') && !loc.includes('sales-lines')) {
               subSitemapUrls.add(loc);
@@ -193,16 +212,19 @@ export default edgeRoute(contracts.crawler.discover, async (req, { data, json })
   }
 
   // Fetch sub-sitemaps in parallel if needed (up to 50 sub-sitemaps for comprehensive multi-section sites)
-  if (subSitemapUrls.size > 0) {
+  if (subSitemapUrls.size > 0 && !atCap()) {
     const subPromises = Array.from(subSitemapUrls).slice(0, 50).map(async (subUrl) => {
+      if (atCap()) { discoveryTruncated = true; return; }
       const res = await fetchWithTimeout(subUrl, 2500);
       if (res && res.ok) {
         try {
           const xml = await res.text();
           if (!looksLikeXmlSitemap(xml)) return;
-          const locMatches = xml.match(/<loc>([^<]+)<\/loc>/gi) || [];
-          for (const m of locMatches) {
-            const loc = m.replace(/<\/?loc>/gi, '').trim();
+          const locRegex = /<loc>([^<]+)<\/loc>/gi;
+          let locMatch;
+          while ((locMatch = locRegex.exec(xml)) !== null) {
+            if (atCap()) { discoveryTruncated = true; break; }
+            const loc = locMatch[1].trim();
             if (!loc.endsWith('.xml') && isValidPageUrl(loc, cleanHost)) {
               discoveredUrls.add(loc.split('#')[0]);
             }
@@ -214,12 +236,13 @@ export default edgeRoute(contracts.crawler.discover, async (req, { data, json })
   }
 
   // Extract links from homepage HTML
-  if (htmlRes && htmlRes.ok) {
+  if (htmlRes && htmlRes.ok && !atCap()) {
     try {
       const html = await htmlRes.text();
       const hrefRegex = /href=["']([^"']+)["']/gi;
       let match;
       while ((match = hrefRegex.exec(html)) !== null) {
+        if (atCap()) { discoveryTruncated = true; break; }
         try {
           const resolved = new URL(match[1], initialParsed.href);
           const cleanUrl = resolved.href.split('#')[0];
@@ -240,7 +263,15 @@ export default edgeRoute(contracts.crawler.discover, async (req, { data, json })
     }
   });
 
-  const pages = Array.from(normalizedSet).map((pageUrl) => {
+  // The per-loop cap checks above bound collection to MAX_DISCOVERABLE_PAGES
+  // in the common case, but loops that ran concurrently (the sub-sitemap
+  // fetches) can each see the count as "not yet at cap" and add a batch
+  // before any of them re-checks — this slice is the actual hard guarantee
+  // the response never exceeds the cap the admin UI is built to render.
+  if (normalizedSet.size > MAX_DISCOVERABLE_PAGES) discoveryTruncated = true;
+  const cappedUrls = Array.from(normalizedSet).slice(0, MAX_DISCOVERABLE_PAGES);
+
+  const pages = cappedUrls.map((pageUrl) => {
     const u = new URL(pageUrl);
     let pageTitle = (u.pathname === '/' || u.pathname === '') ? "Page d'accueil" : u.pathname;
     pageTitle = pageTitle
@@ -263,6 +294,7 @@ export default edgeRoute(contracts.crawler.discover, async (req, { data, json })
     success: true,
     root_url: targetUrl,
     total_discovered: pages.length,
+    truncated: discoveryTruncated,
     pages: pages
   });
 });
