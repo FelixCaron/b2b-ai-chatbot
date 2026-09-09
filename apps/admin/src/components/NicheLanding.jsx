@@ -87,8 +87,19 @@ export default function NicheLanding({ niche, onNavigate, showSignIn = false, on
     }
     const prevDescription = meta.getAttribute('content');
     meta.setAttribute('content', seoDescription);
+
+    // Unlisted, not secret. The title and description above still matter —
+    // they are what a prospect sees when the link is pasted into an email or
+    // a message — but the page is reachable by link only, so it should not
+    // turn up in search results for every other customer.
+    const robots = document.createElement('meta');
+    robots.setAttribute('name', 'robots');
+    robots.setAttribute('content', 'noindex, nofollow');
+    document.head.appendChild(robots);
+
     return () => {
       document.title = prevTitle;
+      robots.remove();
       if (created) {
         meta.remove();
       } else if (prevDescription !== null) {

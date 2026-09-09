@@ -1,3 +1,4 @@
+import { NICHE_REGISTRY } from '@b2b-ai-chatbot/contracts';
 import {
   PhoneMissed,
   MessageCircleQuestion,
@@ -16,10 +17,15 @@ import {
 // ─────────────────────────────────────────────────────────────────────────
 // Niche landing pages, as content rather than code.
 //
-// Each entry below is one page at /solutions/<slug>. They all render through
-// components/NicheLanding.jsx, and their routes come from this list too
-// (app/routes.js), so adding a segment is adding an object here — no new
-// component, no new route, no new test scaffolding.
+// Each entry below is the *copy* for one page; its identity (slug, URL,
+// label) comes from NICHE_REGISTRY in @b2b-ai-chatbot/contracts, which the
+// staff console reads too — so the team hands out the same link the app
+// serves. They all render through components/NicheLanding.jsx and their
+// routes come from the registry, so adding a segment is one registry entry
+// plus one copy block: no new component, no new route, no new test.
+//
+// These pages are unlisted on purpose: nothing in the product links to them
+// and they ask not to be indexed. The link is the door.
 //
 // Written in French: these target Québec small businesses, which is also why
 // the demo exchanges below read the way a real customer would ask.
@@ -31,11 +37,9 @@ import {
 // photo, or identity appears on a public page.
 // ─────────────────────────────────────────────────────────────────────────
 
-export const NICHES = [
+const CONTENT = [
   {
     view: 'osteopathes',
-    path: '/solutions/osteopathes',
-    navLabel: 'Ostéopathes',
     seoTitle: 'Assistant IA pour ostéopathes et cliniques manuelles',
     seoDescription:
       "Un assistant IA entraîné sur le contenu réel de votre site répond aux questions de vos patients 24/7, capture leurs coordonnées et les dirige vers votre réservation en ligne. Pensé pour les ostéopathes et cliniques de thérapie manuelle.",
@@ -128,8 +132,6 @@ export const NICHES = [
 
   {
     view: 'physiotherapeutes',
-    path: '/solutions/physiotherapeutes',
-    navLabel: 'Physiothérapeutes',
     seoTitle: 'Assistant IA pour physiothérapeutes et cliniques de réadaptation',
     seoDescription:
       "Un assistant IA entraîné sur le contenu réel de votre site répond aux questions de vos patients 24/7 — assurances, CNESST, SAAQ, référence médicale — et les dirige vers votre réservation en ligne. Pensé pour les cliniques de physiothérapie.",
@@ -222,8 +224,6 @@ export const NICHES = [
 
   {
     view: 'animaleries',
-    path: '/solutions/animaleries',
-    navLabel: 'Animaleries',
     seoTitle: 'Assistant IA pour animaleries et boutiques pour animaux',
     seoDescription:
       "Un assistant IA entraîné sur le contenu réel de votre site répond aux questions de vos clients 24/7 — disponibilité, marques de nourriture, formats, livraison et cueillette — et les dirige vers le bon produit. Pensé pour les animaleries.",
@@ -314,6 +314,16 @@ export const NICHES = [
     },
   },
 ];
+
+// Registry (identity) + content (copy), joined on `view`. A registry entry
+// with no copy block yet simply doesn't render — better than a half-built
+// page going live because someone added a slug.
+export const NICHES = NICHE_REGISTRY
+  .map((entry) => {
+    const content = CONTENT.find((c) => c.view === entry.view);
+    return content ? { ...entry, ...content } : null;
+  })
+  .filter(Boolean);
 
 /** The niche rendered at a given view key, or null for any other view. */
 export function nicheForView(view) {

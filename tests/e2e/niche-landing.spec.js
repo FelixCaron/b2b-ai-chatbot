@@ -1,16 +1,20 @@
 import { test, expect, trackConsoleErrors } from './support/test.js';
 import { NICHES } from '../../apps/admin/src/content/niches.js';
 
-// The /solutions/<slug> pages are static, zero-backend-dependency marketing
-// pages: each must load directly (as a real visitor or a search engine would
-// hit it) and its CTAs must route into the real onboarding flow, without ever
+// The /solutions/<slug> pages are static, zero-backend-dependency outreach
+// pages: each must load directly (as a prospect following a link would hit
+// it) and its CTAs must route into the real onboarding flow, without ever
 // calling a live API itself.
 //
-// Driven by the same content list the app renders from, so a segment added in
+// They are unlisted by design — reachable by link, not by browsing — so this
+// also pins the two halves of that: the page asks not to be indexed, and
+// nothing in the product links to it.
+//
+// Driven by the same list the app renders from, so a segment added in
 // content/niches.js is covered here the moment it exists — no test to
 // remember to write.
 for (const niche of NICHES) {
-  test.describe(`Niche landing — ${niche.navLabel}`, () => {
+  test.describe(`Niche landing — ${niche.label}`, () => {
     test('loads directly at its URL with its own headline, demo preview and SEO title', async ({ page, mock }) => {
       const consoleTracker = trackConsoleErrors(page);
       await page.goto(niche.path);
@@ -24,6 +28,12 @@ for (const niche of NICHES) {
       await expect(page.getByText(niche.demo.assistantLabel)).toBeVisible();
 
       await expect(page).toHaveTitle(niche.seoTitle);
+
+      // Unlisted: findable by whoever was sent the link, not by search.
+      await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
+        'content',
+        /noindex/i
+      );
 
       consoleTracker.assertNone();
     });
@@ -47,7 +57,7 @@ for (const niche of NICHES) {
     });
   });
 
-  test.describe(`Niche landing — ${niche.navLabel} (no site yet)`, () => {
+  test.describe(`Niche landing — ${niche.label} (no site yet)`, () => {
     // No site on the fixture tenant, so landing on 'dashboard' shows the
     // URL-paste onboarding hero rather than an existing site's dashboard.
     test.use({ mockOverrides: { db: { sites: [], leads: [], documents: [], site_summaries: [] } } });
@@ -58,11 +68,15 @@ for (const niche of NICHES) {
       await expect(page.getByPlaceholder(/your-company\.com/i)).toBeVisible();
     });
 
-    test('is reachable from the footer, not just by knowing the URL', async ({ page, mock }) => {
+    test('is not linked anywhere in the product — the link is the only door', async ({ page, mock }) => {
       await page.goto('/');
-      await page.getByRole('contentinfo').getByRole('button', { name: niche.navLabel }).click();
-      await expect(page.getByRole('heading', { name: niche.hero.titleAccent })).toBeVisible();
-      await expect(page).toHaveURL(new RegExp(`${niche.path}$`));
+      await expect(page.getByRole('heading', { name: /Turn your website into an AI assistant/i })).toBeVisible();
+
+      // Not in the footer (where it briefly was), and not anywhere else on
+      // the page a customer lands on.
+      await expect(page.getByRole('link', { name: niche.label })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: niche.label })).toHaveCount(0);
+      await expect(page.locator(`a[href*="${niche.path}"]`)).toHaveCount(0);
     });
   });
 }

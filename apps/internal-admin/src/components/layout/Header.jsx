@@ -2,6 +2,7 @@ import React from 'react';
 
 const TABS = [
   { id: 'tenants', label: 'Tenants' },
+  { id: 'niches', label: 'Niches' },
   { id: 'staff', label: 'Staff' },
 ];
 

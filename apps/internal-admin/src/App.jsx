@@ -7,6 +7,7 @@ import AccessDenied from './components/AccessDenied';
 import TenantsList from './components/TenantsList';
 import TenantDetail from './components/TenantDetail';
 import StaffAdmins from './components/StaffAdmins';
+import NicheDirectory from './components/NicheDirectory';
 
 export default function App() {
   if (supabaseConfigurationError) {
@@ -25,7 +26,7 @@ export default function App() {
   // 'checking' | 'denied' | 'granted'
   const [staffStatus, setStaffStatus] = useState('checking');
   const [selectedTenantId, setSelectedTenantId] = useState(null);
-  // 'tenants' | 'staff'
+  // 'tenants' | 'niches' | 'staff'
   const [activeTab, setActiveTab] = useState('tenants');
 
   useEffect(() => {
@@ -109,6 +110,8 @@ export default function App() {
     >
       {activeTab === 'staff' ? (
         <StaffAdmins />
+      ) : activeTab === 'niches' ? (
+        <NicheDirectory />
       ) : selectedTenantId ? (
         <TenantDetail tenantId={selectedTenantId} onBack={() => setSelectedTenantId(null)} />
       ) : (
