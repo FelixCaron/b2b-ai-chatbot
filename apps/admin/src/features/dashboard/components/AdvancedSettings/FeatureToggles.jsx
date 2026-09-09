@@ -70,14 +70,14 @@ export default function FeatureToggles({
         </button>
       </div>
 
-      {/* Lead Capture Toggle — Pro/Premium only, same lock treatment as the
-          Pro Integrations card below. */}
+      {/* Lead Capture Toggle — Business/Pro only (plan slugs 'pro'/'premium'),
+          same lock treatment as the Business Integrations card below. */}
       <div className="bg-surface-100 p-5 rounded-xl border border-dark-900/5 flex items-center justify-between relative overflow-hidden">
         {!isPro && (
           <div className="absolute inset-0 bg-dark-950/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center p-4 text-center">
             <Lock className="w-6 h-6 text-brand-400 mb-2" />
-            <h4 className="text-sm font-bold text-white">Pro Feature</h4>
-            <p className="text-xs text-gray-400 max-w-[250px]">Upgrade to Pro or Premium to capture visitor emails and contact info as leads.</p>
+            <h4 className="text-sm font-bold text-white">Business Feature</h4>
+            <p className="text-xs text-gray-400 max-w-[250px]">Upgrade to Business to capture visitor emails and contact info as leads.</p>
           </div>
         )}
 
@@ -142,11 +142,12 @@ export default function FeatureToggles({
         >
           <option value="support">Information & Support</option>
           {/* Lead generation as a conversation focus is only useful paired
-              with the Lead Capture toggle above, which is itself Pro-only —
-              so the option here follows the same gate rather than offering
-              a mode a Basic tenant couldn't actually collect anything from. */}
+              with the Lead Capture toggle above, which is itself Business-tier
+              and up — so the option here follows the same gate rather than
+              offering a mode a Starter tenant couldn't actually collect
+              anything from. */}
           <option value="lead" disabled={!isPro}>
-            Lead Generation & Sales{isPro ? '' : ' (Pro)'}
+            Lead Generation & Sales{isPro ? '' : ' (Business)'}
           </option>
         </select>
       </div>
@@ -170,19 +171,19 @@ export default function FeatureToggles({
         </select>
       </div>
 
-      {/* PRO Integrations: Support Email & Calendar Link */}
+      {/* Business Integrations: Support Email & Calendar Link */}
       <div className="bg-surface-100 p-5 rounded-xl border border-brand-500/20 flex flex-col gap-4 relative overflow-hidden">
         {!isPro && (
           <div className="absolute inset-0 bg-dark-950/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center p-4 text-center">
             <Lock className="w-6 h-6 text-brand-400 mb-2" />
-            <h4 className="text-sm font-bold text-white">Pro Feature</h4>
-            <p className="text-xs text-gray-400 mb-3 max-w-[250px]">Upgrade to Pro or Premium to unlock calendar integrations and support email forwarding.</p>
+            <h4 className="text-sm font-bold text-white">Business Feature</h4>
+            <p className="text-xs text-gray-400 mb-3 max-w-[250px]">Upgrade to Business to unlock calendar integrations and support email forwarding.</p>
           </div>
         )}
 
         <div className="flex items-center gap-2 mb-2">
           <Sparkles className="w-5 h-5 text-brand-600" />
-          <h4 className="text-base font-bold text-dark-900">Pro Integrations</h4>
+          <h4 className="text-base font-bold text-dark-900">Business Integrations</h4>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-4">

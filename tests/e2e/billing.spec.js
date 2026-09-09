@@ -12,7 +12,7 @@ test.describe('Billing — checkout & portal send auth', () => {
     await page.goto('/');
     await expect(page.getByText('acme.example.com')).toBeVisible();
     await clickGuestNavButton(page, /^Plans/i);
-    await expect(page.getByRole('heading', { name: /Level Up Your Customer Support/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Turn Website Visitors Into Customers/i })).toBeVisible();
 
     // Fixture tenant is on 'pro', so the 'basic' plan button is clickable
     // (not the disabled "Active Plan" state).

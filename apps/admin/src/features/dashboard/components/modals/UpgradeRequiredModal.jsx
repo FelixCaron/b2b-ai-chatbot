@@ -1,6 +1,6 @@
 import React from 'react';
 import { X, Sparkles } from 'lucide-react';
-import { getNextPlanUpgrade } from '../../lib/plan-limits';
+import { getNextPlanUpgrade, getPlanDisplayName } from '../../lib/plan-limits';
 
 /** 10. PLAN LIMIT REACHED — UPGRADE FIRST MODAL
     Adding a website at the limit is not an error the user made, it is a
@@ -39,7 +39,7 @@ export default function UpgradeRequiredModal({
           Add {upgradeRequiredDomain || 'another website'} with an upgrade
         </h3>
         <p className="text-sm text-gray-500 mb-6 leading-relaxed">
-          Your <strong className="text-dark-900">{tenantPlan.toUpperCase()}</strong> plan covers <strong className="text-dark-900">{maxSitesForPlan} website{maxSitesForPlan > 1 ? 's' : ''}</strong>, and your workspace already has {sitesCount}.
+          Your <strong className="text-dark-900">{getPlanDisplayName(tenantPlan)}</strong> plan covers <strong className="text-dark-900">{maxSitesForPlan} website{maxSitesForPlan > 1 ? 's' : ''}</strong>, and your workspace already has {sitesCount}.
           {nextPlan
             ? <> Upgrading to <strong className="text-dark-900">{nextPlan.name}</strong> raises that to <strong className="text-dark-900">{nextPlan.sites} websites</strong> — your current assistants keep running exactly as they are.</>
             : <> That is our largest plan; get in touch and we will work out what you need.</>}

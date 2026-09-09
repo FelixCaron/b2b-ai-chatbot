@@ -18,7 +18,7 @@ test.describe('Header navigation', () => {
     await expect(page.getByText('jane@example.com')).toBeVisible();
 
     await clickGuestNavButton(page, /^Plans/i);
-    await expect(page.getByRole('heading', { name: /Level Up Your Customer Support/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Turn Website Visitors Into Customers/i })).toBeVisible();
 
     // Reachable directly from the nav — no need to ask the chatbot to get here.
     await clickGuestNavButton(page, /^About/i);

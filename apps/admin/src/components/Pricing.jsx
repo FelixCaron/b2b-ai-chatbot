@@ -1,74 +1,27 @@
 import React, { useState } from 'react';
 import { Check, Zap, Shield, Sparkles, ArrowRight, Loader2 } from 'lucide-react';
+import { PLANS } from '@b2b-ai-chatbot/contracts';
 import api from '../lib/api';
 
-// The website counts advertised here are the ones actually enforced: the
-// database refuses anything above them (public.plan_site_limit and the
-// sites_enforce_limit trigger, migration 20260905030000_site_limits_and_
-// guest_claims.sql) and getMaxSitesForPlan in features/dashboard/Dashboard.jsx
-// mirrors them client-side — Basic 1, Pro 2, Premium 10. Keep all three in step.
-const PLANS = [
-  {
-    id: 'basic',
-    name: 'Basic',
-    price: '15',
-    currency: 'USD',
-    description: "Entry plan: base model, limited chat quota, ideal for small sites.",
-    features: [
-      '1 Website',
-      'Up to 500 live pages',
-      'Base LLM model',
-      '1,000 messages / month',
-      'Customizable widget styling',
-    ],
-    icon: <Sparkles className="w-6 h-6 text-sky-600" />,
-    color: 'sky',
-  },
-  {
-    id: 'pro',
-    name: 'Pro',
-    price: '40',
-    currency: 'USD',
-    description: "More features and higher chat allowances for growing businesses.",
-    popular: true,
-    features: [
-      'Up to 2 Websites',
-      'Up to 2,000 live pages per website',
-      'Base LLM model with higher throughput',
-      '10,000 messages / month',
-      'Calendar Integration (Google, Calendly)',
-      'Lead capture & CSV export',
-      'Priority email support',
-    ],
-    icon: <Zap className="w-6 h-6 text-emerald-600" />,
-    color: 'emerald',
-  },
-  {
-    id: 'premium',
-    name: 'Premium',
-    price: '65',
-    currency: 'USD',
-    description: 'Premium model, all features enabled, highest chat limits and priority support.',
-    features: [
-      'Up to 10 Websites',
-      'Unlimited pages per website',
-      'Premium LLM model',
-      'Unlimited messages',
-      'Dedicated onboarding & priority support',
-    ],
-    icon: <Shield className="w-6 h-6 text-brand-700" />,
-    color: 'brand',
-  },
-];
+// Plan copy, prices, and limits live in one place — packages/contracts/src/
+// plans.js — and this file only adds the presentational bits (icon, color)
+// on top. See that file's header comment for why: two rounds of "advertised
+// vs enforced" numbers drifting apart have already happened in this repo
+// (ADR 057, and the CAD/USD mismatch this pricing rewrite itself fixed).
+const PLAN_PRESENTATION = {
+  basic: { icon: <Sparkles className="w-6 h-6 text-sky-600" />, color: 'sky' },
+  pro: { icon: <Zap className="w-6 h-6 text-emerald-600" />, color: 'emerald' },
+  premium: { icon: <Shield className="w-6 h-6 text-brand-700" />, color: 'brand' },
+};
 
 export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'basic', onNavigate }) {
   const [loadingPlanId, setLoadingPlanId] = useState(null);
   const [error, setError] = useState(null);
 
   const handleSelectPlan = async (planId) => {
-    // Every plan is self-serve Stripe checkout (Premium included, via
-    // STRIPE_PRICE_ID_PREMIUM). Without a tenant there is nothing to bill
-    // yet, so hand the choice back to the caller to sort out sign-in first.
+    // Every plan is self-serve Stripe checkout. Without a tenant there is
+    // nothing to bill yet, so hand the choice back to the caller to sort out
+    // sign-in first.
     if (!tenantId) {
       onSelectPlan?.(planId);
       return;
@@ -95,9 +48,9 @@ export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'basic',
   return (
     <div className="py-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="text-center max-w-3xl mx-auto mb-16">
-        <h1 className="text-3xl font-bold text-dark-900 mb-4">Level Up Your Customer Support</h1>
+        <h1 className="text-3xl font-bold text-dark-900 mb-4">Turn Website Visitors Into Customers</h1>
         <p className="text-gray-500 text-lg">
-          Choose the plan that fits your business needs and automate your customer service 24/7.
+          A virtual employee on your site that answers, qualifies, and converts visitors — 24/7.
         </p>
       </div>
 
@@ -107,8 +60,9 @@ export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'basic',
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
         {PLANS.map((plan) => {
+          const { icon, color } = PLAN_PRESENTATION[plan.id];
           const isLoading = loadingPlanId === plan.id;
           const isCurrent = isCurrentPlan(plan.id);
 
@@ -135,25 +89,27 @@ export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'basic',
               )}
 
               <div
-                className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-6 bg-${plan.color}-500/10 border border-${plan.color}-500/20`}
+                className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-6 bg-${color}-500/10 border border-${color}-500/20`}
               >
-                {plan.icon}
+                {icon}
               </div>
 
-              <h3 className="text-xl font-bold text-dark-900 mb-2">{plan.name}</h3>
+              <h3 className="text-xl font-bold text-dark-900 mb-1">{plan.displayName}</h3>
+              <p className={`text-xs font-bold uppercase tracking-wider mb-3 text-${color}-600`}>{plan.tagline}</p>
               <p className="text-sm text-gray-500 mb-6 min-h-[40px]">{plan.description}</p>
 
-              <div className="mb-8">
+              <div className="mb-2">
                 <div className="flex items-baseline gap-1">
-                  <span className="text-4xl font-bold text-dark-900">${plan.price}</span>
-                  <span className="text-gray-500 font-medium">{plan.currency || 'CAD'}/month</span>
+                  <span className="text-4xl font-bold text-dark-900">${plan.priceCad}</span>
+                  <span className="text-gray-500 font-medium">CAD/month</span>
                 </div>
               </div>
+              <p className="text-xs text-gray-500 mb-6">14-day free trial · No credit card required</p>
 
               <ul className="space-y-4 mb-8 flex-1">
                 {plan.features.map((feature, i) => (
                   <li key={i} className="flex items-start gap-3 text-sm text-gray-600">
-                    <Check className={`w-5 h-5 shrink-0 text-${plan.color}-600`} />
+                    <Check className={`w-5 h-5 shrink-0 text-${color}-600`} />
                     <span>{feature}</span>
                   </li>
                 ))}
@@ -179,7 +135,7 @@ export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'basic',
                   </>
                 ) : (
                   <>
-                    Choose Plan <ArrowRight className="w-4 h-4" />
+                    Start Free Trial <ArrowRight className="w-4 h-4" />
                   </>
                 )}
               </button>
@@ -188,7 +144,15 @@ export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'basic',
         })}
       </div>
 
-      <p className="text-center text-xs text-gray-600 mt-10">
+      <p className="text-center text-sm text-gray-500 mt-10">
+        Need multiple locations, higher volumes, or a CRM integration?{' '}
+        <button onClick={() => onNavigate?.('about')} className="underline hover:text-gray-700 font-medium">
+          Contact us
+        </button>{' '}
+        about Enterprise.
+      </p>
+
+      <p className="text-center text-xs text-gray-600 mt-6">
         Secure payments powered by{' '}
         <a
           href="https://stripe.com"

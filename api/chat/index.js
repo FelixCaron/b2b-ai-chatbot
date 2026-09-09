@@ -184,6 +184,29 @@ export default edgeRoute(contracts.chat.send, async (req, { data, json }) => {
     }
     const isLeadCaptureEnabled = hasProPlan && (site.enable_lead_capture || false);
 
+    // Conversation-quota gate. A session_id new to this tenant counts
+    // against the plan's monthly conversation limit (register_conversation,
+    // migration 20260909000000); an existing one is always allowed to
+    // continue — the limit gates starting new conversations, not finishing
+    // ones already underway. Checked before any LLM call so a blocked new
+    // conversation costs nothing.
+    const { data: quotaRows, error: quotaError } = await supabase.rpc('register_conversation', {
+      p_tenant_id: tenantId,
+      p_session_id: session_id,
+      p_site_id: site.id
+    });
+
+    if (quotaError) {
+      // Fail open: a metering bug should not take every tenant's widget
+      // offline. Logged so it doesn't go unnoticed.
+      console.error('[chat] register_conversation error:', quotaError.message);
+    } else if (quotaRows?.[0]?.allowed === false) {
+      return json({
+        error: 'This chatbot has reached its monthly conversation limit for the current plan. Conversations already in progress are not affected — upgrade the plan to accept new ones again.',
+        code: 'conversation_limit_reached'
+      }, 403);
+    }
+
     // Null whenever the widget is old enough not to send it, or the value
     // doesn't belong to this site — including the admin's own preview, which
     // runs on our origin rather than the customer's.

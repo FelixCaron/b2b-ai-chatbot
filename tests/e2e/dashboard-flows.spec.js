@@ -15,6 +15,15 @@ test.describe('Dashboard — settings & embed flows', () => {
     expect(mock.db.sites[0].enable_lead_capture).toBe(!before);
   });
 
+});
+
+// The default fixture tenant is on 'pro' ("Business"), which as of the
+// 2026-09-09 repricing covers only 1 site (packages/contracts/src/plans.js)
+// — same as 'basic'. Adding a *second* site needs a plan with room for one,
+// so this test runs against 'premium' ("Pro", 3 sites) instead.
+test.describe('Dashboard — settings & embed flows (multi-site plan)', () => {
+  test.use({ mockOverrides: { tenantPatch: { plan: 'premium' } } });
+
   test('adding a second website via the modal creates it and switches the site tabs', async ({ page, mock }) => {
     await page.goto('/');
     await page.getByRole('button', { name: /\+ Add Website/i }).first().click();

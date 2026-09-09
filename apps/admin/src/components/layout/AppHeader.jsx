@@ -4,6 +4,7 @@ import PlanBadge from '../PlanBadge';
 import LogoMark from '../LogoMark';
 import { navItemsWithBadges } from './navigation';
 import api from '../../lib/api';
+import { hasActivePlan as checkHasActivePlan } from '../../features/dashboard/lib/plan-limits';
 
 /**
  * The full header a signed-in user gets: workspace selector, plan badge, and
@@ -32,7 +33,9 @@ export default function AppHeader({
 
   const plan = selectedTenant?.plan || 'free';
   const planStatus = selectedTenant?.plan_status || 'free';
-  const hasActivePlan = plan !== 'free' && planStatus === 'active';
+  // Trialing counts as active — same definition used everywhere else this
+  // question is asked (see plan-limits.js's hasActivePlan for why).
+  const hasActivePlan = plan !== 'free' && checkHasActivePlan(selectedTenant);
 
   const handleManageSubscription = async () => {
     if (!selectedTenant?.id) return;

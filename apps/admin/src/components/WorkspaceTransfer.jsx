@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { AlertTriangle, ArrowRight, CheckCircle2, Sparkles, X } from 'lucide-react';
+import { getPlanDisplayName } from '@b2b-ai-chatbot/contracts';
 
 // The UI half of "a guest signed in with an email that already has an account"
 // (ADR 057). App.jsx owns the state machine and the network calls; this file
@@ -119,7 +120,7 @@ export default function WorkspaceTransfer({
         </div>
         <h2 className="text-xl font-bold text-dark-900">Your plan is full</h2>
         <p className="text-gray-500 text-sm mt-2">
-          {domain} is ready to move into this account, but the {plan} plan covers{' '}
+          {domain} is ready to move into this account, but the {getPlanDisplayName(plan)} plan covers{' '}
           {limit} website{limit > 1 ? 's' : ''} and you already have {siteCount}. Nothing has
           moved yet — we kept it waiting for you.
         </p>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { AlertTriangle, RefreshCw, ToggleRight, Sparkles } from 'lucide-react';
+import { getPlanDisplayName } from '../lib/plan-limits';
 
 /** PARKED WEBSITE BANNER — why this widget stopped answering, and
     the two ways out. Nothing here deletes anything. */
@@ -23,7 +24,7 @@ export default function ParkedSiteBanner({
             This website is parked — its assistant is not answering
           </h4>
           <p className="text-amber-800 leading-relaxed">
-            Your <strong>{tenantPlan.toUpperCase()}</strong> plan covers <strong>{maxSitesForPlan} active website(s)</strong>, and you currently have <strong>{activeSitesCount}</strong> active.
+            Your <strong>{getPlanDisplayName(tenantPlan)}</strong> plan covers <strong>{maxSitesForPlan} active website(s)</strong>, and you currently have <strong>{activeSitesCount}</strong> active.
           </p>
           <p className="text-gray-600 mt-1">
             Nothing was deleted: everything your assistant learned, and every lead it captured, for <strong className="text-dark-900">{activeSite.domain}</strong> is still here, exactly as you left it. Upgrade your plan and it comes straight back online.

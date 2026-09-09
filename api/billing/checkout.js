@@ -72,7 +72,19 @@ export default nodeRoute(contracts.billing.checkout, async (req, res, { data, su
     ],
     subscription_data: {
       metadata: { tenant_id: tenantId },
+      // 14-day trial, no card required up front (Stripe's documented pattern
+      // for this: payment_method_collection deferred to 'if_required', paired
+      // with trial_settings so a trial that ends with no payment method on
+      // file cancels instead of silently trying to charge nothing). The
+      // subscription's status is 'trialing' for these 14 days — the webhook
+      // stores that as-is on plan_status, and hasActivePlan() (apps/admin)
+      // treats 'trialing' the same as 'active'.
+      trial_period_days: 14,
+      trial_settings: {
+        end_behavior: { missing_payment_method: 'cancel' },
+      },
     },
+    payment_method_collection: 'if_required',
     success_url: `${baseUrl}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${baseUrl}/payment-cancel`,
     allow_promotion_codes: true,

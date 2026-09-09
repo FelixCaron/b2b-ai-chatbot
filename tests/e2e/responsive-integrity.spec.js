@@ -29,7 +29,7 @@ for (const viewport of VIEWPORTS) {
       await assertNoHorizontalOverflow(page, 'leads');
 
       await clickGuestNavButton(page, /^Plans/i);
-      await expect(page.getByRole('heading', { name: /Level Up Your Customer Support/i })).toBeVisible();
+      await expect(page.getByRole('heading', { name: /Turn Website Visitors Into Customers/i })).toBeVisible();
       await assertNoHorizontalOverflow(page, 'pricing');
 
       consoleTracker.assertNone();

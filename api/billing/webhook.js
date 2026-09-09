@@ -83,19 +83,25 @@ export default async function handler(req, res) {
         const priceId = subscription.items.data[0]?.price?.id;
         const plan = getPlanFromPriceId(priceId);
         const expiresAt = new Date(subscription.current_period_end * 1000).toISOString();
+        // Checkout completing does not mean billing started: a 14-day trial
+        // (api/billing/checkout.js) leaves the subscription 'trialing' for
+        // those 14 days. Store Stripe's real status instead of assuming
+        // 'active' — hasActivePlan() (apps/admin) treats trialing the same
+        // as active, so this doesn't lock the tenant out during the trial.
+        const planStatus = subscription.status === 'active' ? 'active' : subscription.status;
 
         await supabase
           .from('tenants')
           .update({
             plan,
-            plan_status: 'active',
+            plan_status: planStatus,
             stripe_customer_id: session.customer,
             stripe_subscription_id: session.subscription,
             plan_expires_at: expiresAt,
           })
           .eq('id', tenantId);
 
-        console.log(`[stripe-webhook] Tenant ${tenantId} upgraded to ${plan} (Customer: ${session.customer})`);
+        console.log(`[stripe-webhook] Tenant ${tenantId} upgraded to ${plan} (status: ${planStatus}, Customer: ${session.customer})`);
         break;
       }
 

@@ -14,6 +14,7 @@
 export { ValidationError, f, optional, parseFields, safeParseFields } from './schema.js';
 export { defineEndpoint, registry, AUTH } from './endpoint.js';
 export { createApiClient } from './client.js';
+export * from './plans.js';
 
 import { registry } from './endpoint.js';
 

@@ -27,7 +27,7 @@ test.describe('Niche landing — Ostéopathes', () => {
   test('"Voir les tarifs" routes to the Pricing view', async ({ page, mock }) => {
     await page.goto('/solutions/osteopathes');
     await page.getByRole('button', { name: /Voir les tarifs/i }).click();
-    await expect(page.getByRole('heading', { name: /Level Up Your Customer Support/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Turn Website Visitors Into Customers/i })).toBeVisible();
   });
 
   test('no horizontal overflow on mobile viewport', async ({ page, mock }) => {

@@ -1,5 +1,6 @@
 import React from 'react';
 import { AlertTriangle, ShieldCheck, RefreshCw, Sparkles } from 'lucide-react';
+import { getPlanDisplayName } from '../../lib/plan-limits';
 
 /** 11. OVER_LIMIT_CHOOSE — MORE WEBSITES THAN THE PLAN COVERS
     Reached after a downgrade (Stripe change, past_due). The user picks
@@ -32,7 +33,7 @@ export default function OverLimitModal({
                 Choose which website{maxSitesForPlan > 1 ? 's' : ''} stay{maxSitesForPlan > 1 ? '' : 's'} active
               </h3>
               <p className="text-xs text-gray-500">
-                Your <strong>{tenantPlan.toUpperCase()}</strong> plan covers <strong>{maxSitesForPlan} active website{maxSitesForPlan > 1 ? 's' : ''}</strong>, and you have <strong>{activeSites.length}</strong>.
+                Your <strong>{getPlanDisplayName(tenantPlan)}</strong> plan covers <strong>{maxSitesForPlan} active website{maxSitesForPlan > 1 ? 's' : ''}</strong>, and you have <strong>{activeSites.length}</strong>.
               </p>
             </div>
           </div>

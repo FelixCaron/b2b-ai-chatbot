@@ -2,6 +2,46 @@
 
 Note (English): Plans were updated — Free was removed. New plans are: Basic ($15/month), Pro ($40/month), Premium ($65/month). Update environment variables for Stripe price IDs: STRIPE_PRICE_ID_BASIC, STRIPE_PRICE_ID_PRO, STRIPE_PRICE_ID_PREMIUM.
 
+Note (English, 2026-09-09): Repriced and renamed for value-based positioning — plan *slugs* (basic/pro/premium) are unchanged, only what each is worth and marketed as. Displayed as Starter ($19 CAD), Business ($49 CAD, most popular), Pro ($99 CAD). See ADR 058 below.
+
+---
+
+## ADR 058 : Value-based repricing, real conversation-quota enforcement, and a no-card trial
+
+**Date :** 2026-09-09
+
+### Context
+
+The pricing page priced the product on backend specs a small-business buyer doesn't evaluate on — "Base LLM model" vs. "Premium LLM model", raw messages/month, raw page counts — rather than the business outcome (a virtual employee that answers, qualifies, and converts website visitors). On top of the positioning problem, two real bugs turned up while implementing the fix:
+
+1. **Currency label bug.** `Pricing.jsx` displayed every plan as `USD`, but `scripts/ops/setup-stripe.mjs` creates the actual Stripe products in `cad` — verified against the real Stripe test-mode account (see the note above this one). Customers were shown the wrong currency for what they'd actually be charged.
+2. **"Messages/month" was enforced nowhere.** Unlike site limits (`plan_site_limit()` + a DB trigger, ADR 057), no trigger, RPC, or request-time check anywhere blocked a tenant at their plan's advertised message quota — `usage`/`usage_counters` only ever counted, never gated. A Basic tenant already had unlimited messages in practice.
+
+### Decision
+
+**Renamed the marketing tiers without renaming the plan slugs.** `basic` → Starter, `pro` → Business, `premium` → Pro. The slugs stay because they're wired through real infrastructure that would all need to move in lockstep for a cosmetic rename to be safe: Stripe env vars (`STRIPE_PRICE_ID_BASIC/PRO/PREMIUM`), `api/billing/webhook.js`'s price→plan mapping, and every DB function/trigger gating behavior by plan (`plan_site_limit`, `enforce_pro_features`). Convenient side effect: Business/Pro landing on the existing `pro`/`premium` slugs means the existing `hasProPlan` / `enforce_pro_features` gate (lead capture, calendar, support-email routing) already matches the new tier boundary with zero logic changes.
+
+**One source of truth for plan numbers:** `packages/contracts/src/plans.js` — display name, tagline, CAD price, site/page/conversation limits, and feature list per plan, consumed by `Pricing.jsx`, `plan-limits.js` (apps/admin), `PlanBadge.jsx`, and mirrored by the new SQL functions below. This repo has already hit "advertised vs. enforced" drift twice (ADR 057's site-limit numbers; this ADR's own currency and page-limit findings) — one file, read everywhere, is the fix.
+
+**New numbers** (site limits changed; conversation limits are new):
+
+| Plan | Sites | Pages/site | Conversations/mo | Price CAD |
+|---|---|---|---|---|
+| Starter (`basic`) | 1 | 500 | 300 | $19 |
+| Business (`pro`) | 1 | 2,000 | 1,500 | $49 |
+| Pro (`premium`) | 3 | 10,000 | 5,000 | $99 |
+
+Business dropping from 2 sites to 1, and Pro from 10 to 3, is a deliberate business call, not a bug fix — the previous Premium tier (10 sites, unlimited messages) was priced far below what a multi-site/franchise buyer would actually pay for that much capacity.
+
+**"Conversations/month" replaces "messages/month" as the metered resource, and this time it's enforced.** A conversation is one `session_id` — the same grouping the Conversations admin view already uses. A new `conversations` table (one row per tenant+session_id, migration `20260909000000`) and `register_conversation()` RPC (`SECURITY DEFINER`, service-role only, advisory-locked per tenant to close the check-then-insert race) block a *new* conversation once the current calendar month's count hits the plan's limit; a session already in the table is always allowed to continue — the limit gates starting new conversations, not finishing ones already underway. `api/chat/index.js` calls it before any LLM work, so a blocked new conversation costs nothing. Calendar-month granularity (not the tenant's exact Stripe billing cycle) is the same simplification `usage_counters` already made with day-level tracking.
+
+**14-day trial, no card required**, on every plan (`api/billing/checkout.js`: `subscription_data.trial_period_days: 14` with `payment_method_collection: 'if_required'` and `trial_settings.end_behavior.missing_payment_method: 'cancel'` — Stripe's documented pattern for a genuinely no-card trial that self-cancels rather than silently failing to charge). The webhook previously hardcoded `plan_status: 'active'` on `checkout.session.completed`; it now stores the subscription's real Stripe status, so a trialing subscription is recorded as `trialing`, not `active`. `hasActivePlan()` (apps/admin) already treated `trialing` as active for gating purposes — it just never received that value from a real checkout before.
+
+### Consequences
+
+- Client-side page-limit enforcement (crawl selection UI) still isn't mirrored in the database — same gap as before this change, not introduced by it. Site limits and (now) conversation limits are DB-enforced; page limits remain a browser-side check only.
+- An existing in-flight `session_id` that predates this migration is treated as a brand-new conversation the first time it sends another message after deploy — a one-time transitional quirk, not an ongoing one.
+- `scripts/ops/setup-stripe.mjs`'s Stripe product `name` fields were deliberately left as the original "Chatbot basic/Pro/Premium" (not renamed to "Starter/Business/Pro") — renaming them would make its own product lookup miss and create duplicates; only the `amount` changed, which creates new Prices under the existing products (the correct move, never mutate an existing Price).
 
 ---
 

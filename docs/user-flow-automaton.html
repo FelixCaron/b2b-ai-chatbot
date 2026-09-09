@@ -393,7 +393,7 @@ footer {
             <tr><td class="from">GUEST_WITH_SITE</td><td>identity</td><td>Anonymous session owning a <code>Guest_&lt;ts&gt;</code> tenant with at least one site. Expires on the 24h sweep.</td><td><code>isGuest</code> &amp;&amp; <code>sites.length &gt;= 1</code></td><td class="status"><span class="st imp">implemented</span></td></tr>
             <tr><td class="from">GUEST_PENDING_CONFIRM</td><td>identity</td><td>Guest has submitted an email; awaiting the confirm / sign-in link.</td><td>Only a local <code>authMessage</code> string. Not persisted, lost on reload.</td><td class="status"><span class="st part">partial</span></td></tr>
             <tr><td class="from">REGISTERED</td><td>identity</td><td>Non-anonymous user with a verified email, owning a tenant.</td><td><code>sessionEmail</code> truthy &amp;&amp; <code>!is_anonymous</code></td><td class="status"><span class="st imp">implemented</span></td></tr>
-            <tr><td class="from">REGISTERED_AT_LIMIT</td><td>identity</td><td>REGISTERED whose site count has reached <code>plan_site_limit(plan)</code>. Derived, never stored.</td><td>DB: <code>enforce_site_limit()</code> trigger. Client: <code>getMaxSitesForPlan</code>, which now mirrors it exactly (Basic 1 / Pro 2 / Premium 10).</td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="from">REGISTERED_AT_LIMIT</td><td>identity</td><td>REGISTERED whose site count has reached <code>plan_site_limit(plan)</code>. Derived, never stored.</td><td>DB: <code>enforce_site_limit()</code> trigger. Client: <code>getMaxSitesForPlan</code>, which now mirrors it exactly (Basic 1 / Pro 1 / Premium 3).</td><td class="status"><span class="st imp">implemented</span></td></tr>
 
             <tr><td class="from">INPUT</td><td>onboarding</td><td>Hero screen: paste a URL.</td><td><code>step === 'input'</code> — <code>Dashboard.jsx</code></td><td class="status"><span class="st imp">implemented</span></td></tr>
             <tr><td class="from">ANALYZING</td><td>onboarding</td><td>Turnstile → <code>/api/chat/theme</code> → <code>onAddSite</code> inserts the site row.</td><td><code>isAnalyzing</code></td><td class="status"><span class="st imp">implemented</span></td></tr>
@@ -430,7 +430,7 @@ footer {
 
       <div class="note">
         <strong>One number, three answers — now one number, one answer.</strong> The locked decision
-        is <strong>Basic 1 / Pro 2 / Premium 10</strong>. The database enforces it
+        is <strong>Basic 1 / Pro 1 / Premium 3</strong>. The database enforces it
         (<code>plan_site_limit</code>), and as of <code>815fbb3</code> the dashboard's
         <code>getMaxSitesForPlan</code> and the pricing page copy were rewritten to match it exactly —
         this was the very disagreement the site-limits migration set out to close, and it is closed.

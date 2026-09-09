@@ -44,20 +44,32 @@ if (!APP_URL) {
 
 const stripe = new Stripe(STRIPE_SECRET_KEY);
 
-// Source of truth for plan pricing — see ADR.md's pricing note. Amounts are
-// in cents. Verified 2026-09-05 against the real Stripe test-mode account:
-// the products already existed under the pre-rebrand "Chatbot ..." name, in
-// CAD (not "Repondo ..." / USD, which is what this file originally assumed
-// before that account was checked) — this file's job is to find-and-reuse
-// whatever is really there by name+amount+currency+interval, so getting
-// these three fields wrong means it creates unwanted duplicates instead of
-// reusing the real products. If you rename the Stripe products to the
-// current "Repondo" branding, update `name` here to match, or this script's
-// lookup will stop finding them and create new ones alongside the old.
+// Source of truth for plan pricing — packages/contracts/src/plans.js (the
+// `priceCad` field on each plan) mirrors these amounts; keep both in step.
+// Amounts are in cents. Verified 2026-09-05 against the real Stripe
+// test-mode account: the products already existed under the pre-rebrand
+// "Chatbot ..." name, in CAD (not "Repondo ..." / USD, which is what this
+// file originally assumed before that account was checked) — this file's job
+// is to find-and-reuse whatever is really there by name+amount+currency+
+// interval, so getting these three fields wrong means it creates unwanted
+// duplicates instead of reusing the real products.
+//
+// `name` is deliberately left as the original "Chatbot ..." Stripe product
+// name, not the current "Starter/Business/Pro" marketing names (see
+// packages/contracts/src/plans.js's `displayName`) — renaming it here would
+// make ensureProduct() miss the existing product and create a new one
+// alongside it. The Stripe product name is an internal identifier now, not
+// user-facing copy; Pricing.jsx is what customers actually see.
+//
+// 2026-09-09 repricing: amounts bumped from $15/$40/$65 to $19/$49/$99 CAD.
+// ensurePrice() looks up by (product, amount, currency, interval), so a new
+// amount creates a new Price under the *same* existing product rather than
+// touching the old one — the correct move per ADR.md's rule to never modify
+// an existing Stripe Price.
 const PLANS = [
-  { key: 'BASIC', name: 'Chatbot basic', amount: 1500, currency: 'cad', interval: 'month' },
-  { key: 'PRO', name: 'Chatbot Pro', amount: 4000, currency: 'cad', interval: 'month' },
-  { key: 'PREMIUM', name: 'Chatbot Premium', amount: 6500, currency: 'cad', interval: 'month' },
+  { key: 'BASIC', name: 'Chatbot basic', amount: 1900, currency: 'cad', interval: 'month' },
+  { key: 'PRO', name: 'Chatbot Pro', amount: 4900, currency: 'cad', interval: 'month' },
+  { key: 'PREMIUM', name: 'Chatbot Premium', amount: 9900, currency: 'cad', interval: 'month' },
 ];
 
 async function findProductByName(name) {
