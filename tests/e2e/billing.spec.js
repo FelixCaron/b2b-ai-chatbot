@@ -25,7 +25,17 @@ test.describe('Billing — checkout & portal send auth', () => {
 });
 
 test.describe('Billing — Manage Subscription (authenticated)', () => {
-  test.use({ authenticated: true });
+  // The "Manage" button (→ Stripe billing portal) only renders for a tenant
+  // with a real Stripe subscription — a self-serve trial is active but has no
+  // subscription yet and sees "Upgrade / Plans" instead (see AppHeader's
+  // hasStripeBilling gate). Seed a real subscription so the portal button is
+  // present for this test.
+  test.use({
+    authenticated: true,
+    mockOverrides: {
+      tenantPatch: { stripe_customer_id: 'cus_test', stripe_subscription_id: 'sub_test' },
+    },
+  });
 
   test('"Manage" sends an Authorization header to /api/billing/portal', async ({ page, mock }) => {
     await page.goto('/');
