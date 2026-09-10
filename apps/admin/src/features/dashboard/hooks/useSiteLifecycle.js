@@ -3,6 +3,8 @@ import { supabase } from '../../../lib/supabase';
 import { executeTurnstileCaptcha } from '../lib/turnstile';
 import { fetchBrandTheme } from '../lib/brand-theme';
 import { domainFromUrl, ensureHttps } from '../lib/page-url';
+import { getPlanDisplayName } from '../lib/plan-limits';
+import { useT } from '../../../i18n/LanguageContext';
 
 /**
  * Everything that changes the *set* of websites in the workspace: adding one,
@@ -23,6 +25,8 @@ export default function useSiteLifecycle({
   onSiteDeleted,
   onSiteReady
 }) {
+  const { t } = useT();
+
   // Local is_active overrides for websites parked or re-activated in this
   // session: `sites` is owned by App.jsx and is not refetched after a plain
   // supabase update, so without this the list would keep showing the previous
@@ -123,7 +127,10 @@ export default function useSiteLifecycle({
   const describeSiteWriteError = (err, fallback) => {
     const raw = err?.message || '';
     if (raw.includes('site_limit_reached')) {
-      return `Your ${tenantPlan.toUpperCase()} plan covers ${maxSitesForPlan} website(s). Upgrade your plan to connect another one.`;
+      return t('Your {plan} plan covers {max} website(s). Upgrade your plan to connect another one.', {
+        plan: t(getPlanDisplayName(tenantPlan)),
+        max: maxSitesForPlan,
+      });
     }
     if (raw.includes('sites_tenant_domain_uq') || raw.includes('duplicate key')) {
       return 'This website is already connected to your workspace.';

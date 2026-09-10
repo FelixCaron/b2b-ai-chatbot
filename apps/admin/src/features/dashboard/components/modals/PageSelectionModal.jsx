@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, Search, Sparkles } from 'lucide-react';
 import { MAX_DISCOVERABLE_PAGES } from '@b2b-ai-chatbot/contracts';
-import { getMaxPagesForPlan, getNextPlanUpgrade } from '../../lib/plan-limits';
+import { getMaxPagesForPlan, getNextPlanUpgrade, getPlanDisplayName } from '../../lib/plan-limits';
 import { GENERAL_EMAIL } from '../../../../components/LegalPages';
 import { useT } from '../../../../i18n/LanguageContext';
 
@@ -177,7 +177,7 @@ export default function PageSelectionModal({
                 {t('Large Website ({n} Pages Discovered)', { n: pendingCrawlPages.length })}
               </h3>
               <p className="text-xs text-gray-500">
-                {t('Your current')} <strong>{tenantPlan.toUpperCase()}</strong> {t('plan includes up to')} <strong>{t('{n} pages', { n: getMaxPagesForPlan(tenantPlan) })}</strong> {t("— we've pre-selected the first {n} below. Confirm as-is, search to swap in specific pages instead,", { n: getMaxPagesForPlan(tenantPlan) })}{needsCustomPlan ? t(' or contact us for a custom plan') : t(' or upgrade your plan')}.
+                {t('Your current')} <strong>{t(getPlanDisplayName(tenantPlan))}</strong> {t('plan includes up to')} <strong>{t('{n} pages', { n: getMaxPagesForPlan(tenantPlan) })}</strong> {t("— we've pre-selected the first {n} below. Confirm as-is, search to swap in specific pages instead,", { n: getMaxPagesForPlan(tenantPlan) })}{needsCustomPlan ? t(' or contact us for a custom plan') : t(' or upgrade your plan')}.
               </p>
             </div>
           </div>

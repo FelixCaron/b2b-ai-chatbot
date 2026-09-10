@@ -1,8 +1,11 @@
 // French translations for the Pricing page, including the plan copy that lives
 // in @b2b-ai-chatbot/contracts (plans.js) and is rendered through t() here.
-// Plan display names (Starter / Business / Pro) are intentionally left as-is —
-// they are product names, not translated.
 export default {
+  // Plan display names
+  'Starter': 'Découverte',
+  'Business': 'Affaires',
+  'Premium': 'Premium',
+
   // Header
   'Turn Website Visitors Into Customers': 'Transformez vos visiteurs en clients',
   'A virtual employee on your site that answers, qualifies, and converts visitors — 24/7.':
@@ -40,7 +43,7 @@ export default {
   'Conversation history': 'Historique des conversations',
 
   // Plan features — Business
-  'Everything in Starter, plus:': 'Tout Starter, plus :',
+  'Everything in Starter, plus:': 'Tout Découverte, plus :',
   '1,500 conversations / month': '1 500 conversations / mois',
   'Up to 2,000 indexed pages': "Jusqu'à 2 000 pages indexées",
   'Lead capture & visitor qualification': 'Capture de prospects et qualification des visiteurs',
@@ -50,8 +53,8 @@ export default {
   'Full analytics & notifications': 'Analytique complète et notifications',
   'Priority support': 'Soutien prioritaire',
 
-  // Plan features — Pro
-  'Everything in Business, plus:': 'Tout Business, plus :',
+  // Plan features — Premium
+  'Everything in Business, plus:': 'Tout Affaires, plus :',
   '5,000 conversations / month': '5 000 conversations / mois',
   'Up to 3 websites': "Jusqu'à 3 sites web",
   'Up to 10,000 indexed pages per site': "Jusqu'à 10 000 pages indexées par site",

@@ -66,7 +66,14 @@ export const PLANS = Object.freeze([
   },
   {
     id: 'premium',
-    displayName: 'Pro',
+    // Was 'Pro' — read as ambiguous next to 'Business' (which plan comes
+    // first?) and, on top of that, collided with the *other* plan's internal
+    // slug ('pro', the id below this one — see this file's header comment on
+    // why ids never change), so a raw plan id shown anywhere by mistake
+    // ('pro') looked like it named the top tier when it's actually the
+    // middle one. 'Premium' reads unambiguously as the top tier and matches
+    // this plan's own id, removing that trap for good.
+    displayName: 'Premium',
     tagline: 'Automate',
     priceCad: 99,
     description: 'For businesses handling a high volume of visitor requests.',

@@ -3,6 +3,7 @@ import { Check, Zap, Shield, Sparkles, ArrowRight, Loader2 } from 'lucide-react'
 import { PLANS } from '@b2b-ai-chatbot/contracts';
 import api from '../lib/api';
 import { useT } from '../i18n/LanguageContext';
+import { GENERAL_EMAIL } from './LegalPages';
 
 // Plan copy, prices, and limits live in one place — packages/contracts/src/
 // plans.js — and this file only adds the presentational bits (icon, color)
@@ -46,6 +47,12 @@ export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'basic',
   };
 
   const isCurrentPlan = (planId) => currentPlan === planId;
+
+  // A real way to reach a human about an Enterprise-sized need — this used to
+  // send people to the About page, a marketing page with no contact info and
+  // no way to actually get in touch, a dead end for exactly the visitor
+  // trying hardest to become a customer.
+  const enterpriseMailto = `mailto:${GENERAL_EMAIL}?subject=${encodeURIComponent('Enterprise plan inquiry')}`;
 
   return (
     <div className="py-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -96,7 +103,7 @@ export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'basic',
                 {icon}
               </div>
 
-              <h3 className="text-xl font-bold text-dark-900 mb-1">{plan.displayName}</h3>
+              <h3 className="text-xl font-bold text-dark-900 mb-1">{t(plan.displayName)}</h3>
               <p className={`text-xs font-bold uppercase tracking-wider mb-3 text-${color}-600`}>{t(plan.tagline)}</p>
               <p className="text-sm text-gray-500 mb-6 min-h-[40px]">{t(plan.description)}</p>
 
@@ -148,9 +155,9 @@ export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'basic',
 
       <p className="text-center text-sm text-gray-500 mt-10">
         {t('Need multiple locations, higher volumes, or a CRM integration?')}{' '}
-        <button onClick={() => onNavigate?.('about')} className="underline hover:text-gray-700 font-medium">
+        <a href={enterpriseMailto} className="underline hover:text-gray-700 font-medium">
           {t('Contact us')}
-        </button>{' '}
+        </a>{' '}
         {t('about Enterprise.')}
       </p>
 

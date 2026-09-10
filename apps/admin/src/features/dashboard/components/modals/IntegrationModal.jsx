@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, Code, AlertTriangle, Sparkles, Check, Copy, RefreshCw, ChevronDown } from 'lucide-react';
-import { getMaxPagesForPlan } from '../../lib/plan-limits';
+import { getMaxPagesForPlan, getPlanDisplayName } from '../../lib/plan-limits';
 import { supabase } from '../../../../lib/supabase';
 import { useT } from '../../../../i18n/LanguageContext';
 
@@ -158,7 +158,7 @@ export default function IntegrationModal({
                   {t('Plan Limit Exceeded ({count} / {max} pages)', { count: activeIndexedPagesCount, max: allowedPagesForPlan })}
                 </h4>
                 <p className="text-amber-800 leading-relaxed">
-                  {t('Your website has')} <strong>{t('{n} active pages', { n: activeIndexedPagesCount })}</strong>{t(', which exceeds your current')} <strong>{tenantPlan.toUpperCase()}</strong> {t('plan limit of')} <strong>{t('{n} pages', { n: allowedPagesForPlan })}</strong>.
+                  {t('Your website has')} <strong>{t('{n} active pages', { n: activeIndexedPagesCount })}</strong>{t(', which exceeds your current')} <strong>{t(getPlanDisplayName(tenantPlan))}</strong> {t('plan limit of')} <strong>{t('{n} pages', { n: allowedPagesForPlan })}</strong>.
                 </p>
                 <p className="text-gray-600 mt-1">
                   {t('To deploy to your live website, either')} <strong>{t('upgrade your plan')}</strong> {t('or')} <strong>{t('remove {n} page(s)', { n: activeIndexedPagesCount - allowedPagesForPlan })}</strong> {t('from your website content list.')}

@@ -49,7 +49,7 @@ const STATUS_LABEL = {
 export default function PlanBadge({ plan = 'basic', planStatus = 'free', compact = false }) {
   const { t } = useT();
   const config = PLAN_CONFIG[plan] || PLAN_CONFIG.basic;
-  const label = getPlanDisplayName(plan);
+  const label = t(getPlanDisplayName(plan));
   const Icon = config.icon;
   const dotClass = STATUS_DOT[planStatus] || STATUS_DOT.free;
   const statusLabel = t(STATUS_LABEL[planStatus] || STATUS_LABEL.free);

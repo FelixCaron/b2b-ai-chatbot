@@ -336,11 +336,18 @@ export default edgeRoute(contracts.crawler.scan, async (req, { data, json }) => 
 
   const { data: existingSummary } = await supabase
     .from('site_summaries')
-    .select('id')
+    .select('id, welcome_message')
     .eq('site_id', site_id)
     .maybeSingle();
 
-  if ((isHomepage || !existingSummary) && pageText && pageText.length >= 100) {
+  // Also (re)generate when a summary row exists but never got a localized
+  // welcome experience — a site scanned before that feature shipped, or
+  // whose first generation attempt failed, would otherwise be stuck showing
+  // the widget's English fallback forever, on every language of site, since
+  // nothing else ever revisits an existing row.
+  const missingWelcomeExperience = existingSummary && !existingSummary.welcome_message;
+
+  if ((isHomepage || !existingSummary || missingWelcomeExperience) && pageText && pageText.length >= 100) {
     try {
       const summaryText = await persistSiteSummary({
         supabase,

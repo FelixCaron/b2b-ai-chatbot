@@ -13,7 +13,11 @@ export default {
   'Close navigation': 'Fermer la navigation',
   'Manage Subscription': "Gérer l'abonnement",
   'Manage': 'Gérer',
-  'Upgrade / Plans': 'Améliorer / Forfaits',
+  // "Améliorer" means "to improve/enhance" — not the right verb for moving to
+  // a paid tier. "Mettre à niveau" is the standard French term for "upgrade"
+  // in a software/subscription context (same construction as "Manage
+  // Subscription" → "Gérer l'abonnement" above).
+  'Upgrade / Plans': 'Mettre à niveau / Forfaits',
   'Logged in:': 'Connecté :',
   'Sign out': 'Se déconnecter',
 

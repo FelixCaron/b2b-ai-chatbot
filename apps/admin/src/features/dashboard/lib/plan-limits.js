@@ -24,7 +24,10 @@ export function getMaxConversationsForPlan(plan) {
 }
 
 /** The marketing name for a plan slug — 'pro' → 'Business', etc. Use this
- *  anywhere a plan is shown to a user; never show the raw slug. */
+ *  anywhere a plan is shown to a user; never show the raw slug. The result is
+ *  an English source string like every other piece of UI copy — pass it
+ *  through t() at the call site (it has French entries in i18n/fr/pricing.js)
+ *  rather than rendering it directly. */
 export function getPlanDisplayName(plan) {
   return sharedGetPlanDisplayName(plan);
 }
