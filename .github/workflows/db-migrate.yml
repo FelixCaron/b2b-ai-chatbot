@@ -42,7 +42,10 @@ jobs:
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          version: latest
+          # Pinned, not "latest": resolving "latest" makes an unauthenticated
+          # GitHub API call that rate-limits on shared runner IPs. A pinned
+          # version downloads the release asset directly, no API call.
+          version: 2.117.0
 
       - name: Apply pending migrations
         env:
