@@ -1,14 +1,28 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { CheckCircle, ArrowRight, Sparkles, Zap, Star } from 'lucide-react';
 import { useT } from '../i18n/LanguageContext';
 
 /**
  * PaymentSuccessPage — shown after a successful Stripe Checkout.
- * Reads ?session_id= from the URL but the actual plan update
- * is handled by the Stripe webhook asynchronously.
+ *
+ * The tenant's plan used to be updated only by the Stripe webhook, arriving
+ * whenever it arrived — so this page congratulated someone whose account still
+ * said 'free', and the dashboard it hands them to went on refusing to give them
+ * their install code until the webhook landed (or forever, if it never did).
+ * The first thing it does now is reconcile the account against Stripe itself,
+ * which is true the moment checkout completes and does not depend on a delivery
+ * we don't control.
  */
-export default function PaymentSuccessPage({ onGoToDashboard }) {
+export default function PaymentSuccessPage({ onGoToDashboard, onSyncBilling }) {
   const { t } = useT();
+  // Once per visit, not once per render — onSyncBilling is a fresh closure on
+  // every one of them.
+  const syncedRef = useRef(false);
+  useEffect(() => {
+    if (syncedRef.current) return;
+    syncedRef.current = true;
+    onSyncBilling?.();
+  }, [onSyncBilling]);
   // Simple confetti-like floating particles effect
   const particles = Array.from({ length: 20 }, (_, i) => ({
     id: i,

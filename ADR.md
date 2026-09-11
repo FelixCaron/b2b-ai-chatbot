@@ -2316,3 +2316,29 @@ Deuxième sujet, sans rapport de cause mais de même nature (une boucle qu'on ne
 - Un email qui ne part pas est désormais : rapporté comme tel, expliqué (motif Resend), conservé en base, et signalé à nous. C'est la condition pour que la question « bug ou config ? » ait une réponse la prochaine fois — pour ce cas précis, c'était un bug.
 - Il reste à vérifier le domaine `dorafi.logafi.com` dans Resend si les envois échouent encore : la différence est qu'on le saura, avec le motif exact, au lieu de le supposer.
 - Le propriétaire peut enfin apprendre quelque chose à son assistant sans passer par son site web, et le compteur de questions sans réponse redescend quand il travaille.
+
+## ADR : Stripe comme source de vérité de l'abonnement, au lieu du seul webhook
+**Date:** 11 Septembre 2026
+**Statut:** Accepté
+
+### Contexte
+Un client abonné au forfait Business se faisait renvoyer vers la page des forfaits à chaque clic sur « Installer » — c'est-à-dire qu'on lui demandait d'acheter ce qu'il payait déjà.
+
+La porte d'installation (`Dashboard.jsx` → `hasActivePlan`) lit les colonnes de facturation du tenant. Ces colonnes n'étaient écrites que par le webhook Stripe, et ce webhook échouait :
+
+- **`current_period_end` n'existe plus sur l'objet `Subscription`** — il est passé sur les *items* dans les versions 2025+ de l'API Stripe (le SDK v22 installé épingle `2026-08-26.dahlia`). `api/billing/webhook.js` le lisait sur la souscription, donc `new Date(undefined * 1000).toISOString()` levait un `RangeError`… **avant** le `update()`. Le handler répondait 500 et la ligne du tenant n'était jamais mise à jour : chaque achat restait invisible pour le produit, alors que Stripe, lui, encaissait.
+- **`customer.subscription.updated` ne cherchait le tenant que dans `subscription.metadata.tenant_id`**, qui n'existe que pour les souscriptions créées par notre propre Checkout. Une souscription créée à la main dans le dashboard Stripe n'atterrissait sur aucun tenant.
+- Plus généralement, une livraison de webhook qui n'arrive jamais (mauvais `STRIPE_WEBHOOK_SECRET`, endpoint en mode test sur un compte live — voir `TODO.md` —, handler en erreur) est **indiscernable de « ce client n'a jamais payé »**. Le produit n'avait aucun second recours.
+- Côté client, `selectedTenant` n'est rechargé que lorsque son `id` change : au retour de Stripe, la navigation vers le dashboard est purement client-side, donc même une ligne correcte en base restait périmée en mémoire jusqu'au prochain rechargement complet de la page.
+
+### Décision
+- **Un mapping unique, partagé** : `packages/contracts/src/stripe-billing.js` (pur, sans dépendance, dans `contracts` pour la même raison que `resolveTenantPlan` — pas de nouveau fichier sous `/api`, plafond de fonctions Vercel Hobby). Il lit la fin de période sur l'item *puis* sur la souscription, retourne `null` si elle est absente au lieu de lever, et n'écrit jamais `plan_expires_at` inconnu : une date manquante ne peut plus faire perdre le forfait. Un prix inconnu conserve le forfait déjà inscrit plutôt que de rétrograder un client payant.
+- **Le webhook résout toujours un tenant** : métadonnées, puis `stripe_customer_id`, puis `stripe_subscription_id` ; `customer.subscription.created` est traité comme `updated`.
+- **Réconciliation à la demande** : `POST /api/billing/checkout` porte désormais deux actions (même route, même raison que `/api/sites/claim`) — `'checkout'` et `'sync'`, qui interroge Stripe et réécrit la ligne. Le dashboard n'oppose plus de refus sur sa copie en mémoire : avant d'afficher le mur d'abonnement, il relit la ligne et interroge Stripe (`useWorkspace.syncBilling`). La page de succès de paiement fait de même à l'ouverture, sans attendre le webhook.
+- **Plus de double facturation** : si Stripe dit que le tenant paie déjà exactement ce forfait, `checkout` corrige la ligne et répond « déjà abonné » au lieu d'ouvrir une seconde souscription — c'est précisément le geste que faisait le client renvoyé à tort vers les forfaits.
+- **Couverture** : `scripts/tests/test-billing-mapping.js` (branché sur `npm test`) fige les deux formes d'objet Stripe et l'absence de date ; deux tests E2E rejouent le bug tel que vécu — ligne de tenant périmée + souscription vivante chez Stripe → le code d'installation s'ouvre ; aucune souscription → le mur d'abonnement reste.
+
+### Conséquences
+- Le webhook reste le chemin normal, mais il n'est plus le seul : un client qui paie obtient son code d'installation même si aucune livraison n'arrive jamais.
+- La vérification de `STRIPE_WEBHOOK_SECRET` en mode live (`TODO.md`) reste à faire — la différence est qu'elle n'est plus bloquante pour un client.
+- `npm test`, `npm run build` et la suite E2E Playwright (116 tests) passent.

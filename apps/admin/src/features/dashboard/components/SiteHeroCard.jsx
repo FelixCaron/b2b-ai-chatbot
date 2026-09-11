@@ -14,6 +14,10 @@ export default function SiteHeroCard({
   onRequireLogin,
   onOpenPreview,
   onOpenIntegration,
+  // The install gate confirms the plan with the server before it can refuse
+  // (see Dashboard's openIntegrationModal), so the button says it is working
+  // rather than sitting there looking ignored.
+  isCheckingPlan = false,
   onOpenSettings,
   children
 }) {
@@ -128,13 +132,19 @@ export default function SiteHeroCard({
 
           <div className="grid grid-cols-2 gap-2.5 md:contents">
             <button
+              disabled={isCheckingPlan}
               onClick={() => {
                 if (isGuest) onRequireLogin();
                 else onOpenIntegration();
               }}
-              className="bg-white hover:bg-surface-200 border border-dark-900/10 text-gray-700 hover:text-dark-900 px-3 sm:px-4 py-3 rounded-xl text-xs sm:text-sm font-medium flex items-center justify-center gap-2 transition-all shadow-sm"
+              className="bg-white hover:bg-surface-200 border border-dark-900/10 text-gray-700 hover:text-dark-900 px-3 sm:px-4 py-3 rounded-xl text-xs sm:text-sm font-medium flex items-center justify-center gap-2 transition-all shadow-sm disabled:opacity-70 disabled:cursor-wait"
             >
-              <Code className="w-4 h-4 text-brand-600 shrink-0" /> <span className="truncate">{t('Install')}</span>
+              {isCheckingPlan ? (
+                <RefreshCw className="w-4 h-4 text-brand-600 shrink-0 animate-spin" />
+              ) : (
+                <Code className="w-4 h-4 text-brand-600 shrink-0" />
+              )}
+              <span className="truncate">{t('Install')}</span>
             </button>
 
             <button

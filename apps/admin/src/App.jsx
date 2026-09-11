@@ -136,7 +136,12 @@ export default function App() {
 
     switch (currentView) {
       case 'payment-success':
-        return <PaymentSuccessPage onGoToDashboard={() => { navigate('dashboard'); setPaymentToast(null); }} />;
+        return (
+          <PaymentSuccessPage
+            onSyncBilling={() => workspace.syncBilling()}
+            onGoToDashboard={() => { navigate('dashboard'); setPaymentToast(null); }}
+          />
+        );
       case 'pricing':
         return (
           <Pricing
@@ -144,6 +149,7 @@ export default function App() {
             tenantId={selectedTenant?.id}
             currentPlan={selectedTenant?.plan || 'free'}
             onNavigate={navigate}
+            onSyncBilling={() => workspace.syncBilling()}
           />
         );
       case 'about':
@@ -182,6 +188,7 @@ export default function App() {
                 onViewConversations={() => navigate('conversations')}
                 onViewSupportTickets={() => navigate('support-tickets')}
                 onShowPricing={() => navigate('pricing')}
+                onSyncBilling={() => workspace.syncBilling()}
                 leadsCount={leads.length}
               />
             </section>

@@ -16,10 +16,11 @@ const PLAN_PRESENTATION = {
   premium: { icon: <Shield className="w-6 h-6 text-brand-700" />, color: 'brand' },
 };
 
-export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'basic', onNavigate }) {
+export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'basic', onNavigate, onSyncBilling }) {
   const { t } = useT();
   const [loadingPlanId, setLoadingPlanId] = useState(null);
   const [error, setError] = useState(null);
+  const [notice, setNotice] = useState(null);
 
   const handleSelectPlan = async (planId) => {
     // Every plan is self-serve Stripe checkout. Without a tenant there is
@@ -32,12 +33,25 @@ export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'basic',
 
     setLoadingPlanId(planId);
     setError(null);
+    setNotice(null);
 
     const result = await api.billing.checkout({ planId, tenantId });
 
     if (result.ok && result.data?.url) {
       // Redirect to Stripe Checkout
       window.location.href = result.data.url;
+      return;
+    }
+
+    // Stripe says this tenant already pays for this exact plan — which is
+    // where someone lands when a stale account row sent them here by mistake.
+    // Selling it again would open a second subscription and bill them twice.
+    // The server has just corrected the row; pull it in so the page (and the
+    // dashboard's install gate) stop telling them they have no plan.
+    if (result.ok && result.data?.subscribed) {
+      await onSyncBilling?.();
+      setNotice(t('You are already subscribed to this plan — your account has been updated.'));
+      setLoadingPlanId(null);
       return;
     }
 
@@ -66,6 +80,12 @@ export default function Pricing({ onSelectPlan, tenantId, currentPlan = 'basic',
       {error && (
         <div className="max-w-md mx-auto mb-8 bg-red-500/10 border border-red-500/30 text-red-600 text-sm rounded-xl px-4 py-3 text-center">
           ⚠️ {error}
+        </div>
+      )}
+
+      {notice && (
+        <div className="max-w-md mx-auto mb-8 bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 text-sm rounded-xl px-4 py-3 text-center">
+          <Check className="w-4 h-4 inline-block mr-1 -mt-0.5" /> {notice}
         </div>
       )}
 

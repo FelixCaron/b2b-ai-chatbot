@@ -297,6 +297,9 @@ export async function installMockBackend(page, overrides = {}) {
   const db = { ...fixtures.db, ...(overrides.db || {}) };
   const state = {
     deleteSiteShouldFail: false,
+    // What Stripe holds for this tenant, if anything — see the billing/checkout
+    // route below. null means "no subscription", the honest no.
+    stripeSubscription: overrides.stripeSubscription || null,
     calls: [],
   };
 
@@ -539,9 +542,33 @@ export async function installMockBackend(page, overrides = {}) {
   // Both billing routes used to accept a bare tenantId with no proof the
   // caller owns it (IDOR — see ADR). Record the Authorization header so
   // tests can confirm the frontend actually sends one now.
+  //
+  // The route serves two actions, as the real one does (api/billing/checkout.js):
+  // 'checkout' opens a Stripe session, 'sync' reconciles the tenant row against
+  // what Stripe actually holds. `mockOverrides.stripeSubscription` is that
+  // Stripe side — seed it to play a customer who is genuinely subscribed while
+  // their tenant row still says otherwise, which is what a webhook that never
+  // arrived leaves behind.
   await page.route('**/api/billing/checkout', async (route) => {
-    const authHeader = route.request().headers()['authorization'];
-    state.calls.push({ type: 'api', path: 'billing/checkout', authHeader });
+    const request = route.request();
+    const authHeader = request.headers()['authorization'];
+    const body = request.postDataJSON() || {};
+    state.calls.push({ type: 'api', path: 'billing/checkout', authHeader, body });
+
+    if (body.action === 'sync') {
+      const tenant = db.tenants.find((row) => row.id === body.tenantId) || db.tenants[0];
+      if (state.stripeSubscription && tenant) Object.assign(tenant, state.stripeSubscription);
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          subscribed: Boolean(state.stripeSubscription),
+          plan: tenant?.plan || '',
+          planStatus: tenant?.plan_status || '',
+        }),
+      });
+    }
+
     await route.fulfill({
       status: 200,
       contentType: 'application/json',

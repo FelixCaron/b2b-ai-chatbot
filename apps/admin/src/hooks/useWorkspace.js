@@ -143,6 +143,47 @@ export function useWorkspace({ currentUser, authReady, setCurrentUser, onLandOnS
     onLandOnSite?.();
   };
 
+  /** Re-read the selected tenant's row and put it back in state.
+   *
+   *  The tenant is otherwise only loaded when `selectedTenant.id` changes, so
+   *  anything that changes the row from OUTSIDE the SPA — a Stripe webhook
+   *  landing while the user is on the payment-success screen, a plan bought in
+   *  another tab, a support override — is invisible until a full page reload.
+   *  Every gate that reads the plan (the install gate, chiefly) should refresh
+   *  before it decides to say no. */
+  const refreshTenant = async (optionalTenantId = null) => {
+    const tId = optionalTenantId || selectedTenant?.id;
+    if (!tId) return null;
+
+    const { data: freshTenant } = await supabase.from('tenants').select('*').eq('id', tId).maybeSingle();
+    if (!freshTenant) return null;
+
+    setSelectedTenant((current) => (current?.id === freshTenant.id ? freshTenant : current));
+    setTenants((prev) => prev.map((tenant) => (tenant.id === freshTenant.id ? freshTenant : tenant)));
+    return freshTenant;
+  };
+
+  /** Ask the server to reconcile this tenant's billing columns against Stripe,
+   *  then re-read the row.
+   *
+   *  The row is otherwise written only by the Stripe webhook, and a webhook
+   *  that never arrives (wrong endpoint secret, test-vs-live mode, a handler
+   *  that failed, a subscription created by hand in the Stripe dashboard) looks
+   *  exactly like a customer who never paid — which is how a paying customer
+   *  ends up staring at the pricing page every time they click Install. Stripe
+   *  is the source of truth, so ask it. */
+  const syncBilling = async (optionalTenantId = null) => {
+    const tId = optionalTenantId || selectedTenant?.id;
+    if (!tId) return null;
+
+    const result = await api.billing.sync({ tenantId: tId });
+    if (!result.ok) console.warn('[syncBilling] Could not reconcile with Stripe:', result.error);
+
+    // Re-read either way: the webhook may well have landed in the meantime,
+    // and a failed reconcile must not be the reason a real plan stays hidden.
+    return await refreshTenant(tId);
+  };
+
   const addSite = async (domain, primaryColor = '#293f68', faviconUrl = null) => {
     let user = currentUser;
     if (!user) {
@@ -309,6 +350,8 @@ export function useWorkspace({ currentUser, authReady, setCurrentUser, onLandOnS
     supportTickets,
     usage,
     landOnSite,
+    refreshTenant,
+    syncBilling,
     resetWorkspace,
     addSite,
     updateSiteSettings,

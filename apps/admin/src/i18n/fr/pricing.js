@@ -11,6 +11,8 @@ export default {
   'A virtual employee on your site that answers, qualifies, and converts visitors — 24/7.':
     'Un employé virtuel sur votre site qui répond, qualifie et convertit vos visiteurs — 24/7.',
   'Error creating checkout session': 'Erreur lors de la création de la session de paiement',
+  'You are already subscribed to this plan — your account has been updated.':
+    'Vous êtes déjà abonné à ce forfait — votre compte vient d’être mis à jour.',
 
   // Card badges & labels
   'Most Popular': 'Le plus populaire',

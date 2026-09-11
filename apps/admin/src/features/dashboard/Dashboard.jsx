@@ -44,6 +44,7 @@ export default function Dashboard({
   onViewConversations,
   onViewSupportTickets,
   onShowPricing,
+  onSyncBilling,
   leadsCount = 0,
   // Set by the Conversations page's "Improve knowledge" action on an
   // unanswered question: '' just opens Knowledge, a URL also pre-fills the
@@ -71,6 +72,9 @@ export default function Dashboard({
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
   const [showIntegrationModal, setShowIntegrationModal] = useState(false);
   const [showSubscriptionRequiredModal, setShowSubscriptionRequiredModal] = useState(false);
+  // The install gate re-checks the plan with the server before it refuses —
+  // this keeps the button from firing that check twice on a double click.
+  const [isCheckingPlan, setIsCheckingPlan] = useState(false);
   const [showResetSiteModal, setShowResetSiteModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedScriptKey, setCopiedScriptKey] = useState(null);
@@ -216,12 +220,29 @@ export default function Dashboard({
   // that actually requires a paid, active plan. Building and testing it
   // stays open to everyone (guest included), so this gate sits only here,
   // not behind the rest of the dashboard.
-  const openIntegrationModal = () => {
-    if (!hasActivePlan(selectedTenant)) {
-      setShowSubscriptionRequiredModal(true);
+  //
+  // A "no" here is the most expensive answer in the product: it tells someone
+  // who may well be paying that they have to go buy the thing again. So it is
+  // never given on the in-memory row alone — that copy is loaded once per
+  // tenant switch and goes stale the moment billing changes anywhere else (the
+  // Stripe webhook landing seconds after checkout, a plan bought in another
+  // tab, a subscription set up by hand in Stripe). Re-read the row, and if it
+  // still says no, ask Stripe itself (onSyncBilling) before locking the door.
+  const openIntegrationModal = async () => {
+    if (hasActivePlan(selectedTenant)) {
+      setShowIntegrationModal(true);
       return;
     }
-    setShowIntegrationModal(true);
+
+    if (isCheckingPlan) return;
+    setIsCheckingPlan(true);
+    try {
+      const tenant = (await onSyncBilling?.()) || selectedTenant;
+      if (hasActivePlan(tenant)) setShowIntegrationModal(true);
+      else setShowSubscriptionRequiredModal(true);
+    } finally {
+      setIsCheckingPlan(false);
+    }
   };
   const openPreviewModal = () => preview.setShowPreviewModal(true);
   const openAdvancedSettings = () => {
@@ -283,6 +304,7 @@ export default function Dashboard({
             onRequireLogin={onRequireLogin}
             onOpenPreview={openPreviewModal}
             onOpenIntegration={openIntegrationModal}
+            isCheckingPlan={isCheckingPlan}
             onOpenSettings={openAdvancedSettings}
           >
             {(trial.trialActive || trial.trialExpired) && (

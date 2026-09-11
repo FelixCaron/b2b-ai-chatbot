@@ -36,7 +36,10 @@ export const sites = {
 };
 
 export const billing = {
-  checkout: (payload) => callEndpoint(contracts.billing.checkout, payload),
+  checkout: (payload) => callEndpoint(contracts.billing.checkout, { action: 'checkout', ...payload }),
+  /** Reconcile the tenant's billing columns with Stripe. Same route as
+   *  checkout (one function, two actions — see the contract). */
+  sync: (payload) => callEndpoint(contracts.billing.checkout, { action: 'sync', ...payload }),
   portal: (payload) => callEndpoint(contracts.billing.portal, payload)
 };
 
