@@ -34,7 +34,7 @@ jobs:
   db-push:
     name: supabase db push (production)
     runs-on: ubuntu-latest
-    environment: production-admin
+    environment: "Production - admin"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
