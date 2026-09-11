@@ -1,0 +1,59 @@
+name: Apply DB Migrations
+
+# Applies pending Supabase migrations to the production database so a migration
+# that is merged to main can never sit silently unapplied (schema drifting from
+# code). The app deploy (Vercel) and this migration step are independent; for
+# additive, non-breaking migrations order does not matter. If a future migration
+# adds something the app depends on at boot, land the migration before the code
+# that needs it.
+#
+# Runs automatically when a migration file changes on main, and can be triggered
+# by hand (workflow_dispatch) to apply a migration that is already pending.
+#
+# Required secrets, set on the "production" GitHub Environment:
+#   SUPABASE_ACCESS_TOKEN  - Supabase account/CLI token (Account → Access Tokens)
+#   SUPABASE_DB_PASSWORD   - the project's database password
+#                            (Project Settings → Database → Database password).
+#                            `supabase db push` connects to Postgres directly, so
+#                            the access token alone is NOT enough — it needs this.
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'supabase/migrations/**'
+  workflow_dispatch:
+
+# Never run two pushes against the same database at once; never cancel one that
+# is mid-apply.
+concurrency:
+  group: db-migrate-production
+  cancel-in-progress: false
+
+jobs:
+  db-push:
+    name: supabase db push (production)
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Apply pending migrations
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          if [ -z "$SUPABASE_DB_PASSWORD" ]; then
+            echo "::error::SUPABASE_DB_PASSWORD is not set on the 'production' environment. supabase db push needs the database password, not just the access token."
+            exit 1
+          fi
+          # project_id in supabase/config.toml is a local label; the remote ref
+          # (from the project's API URL) is what we link to. It is not a secret.
+          supabase link --project-ref xuvueegdokgiyedwvmkm
+          supabase db push
