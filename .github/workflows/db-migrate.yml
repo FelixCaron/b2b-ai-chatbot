@@ -34,7 +34,7 @@ jobs:
   db-push:
     name: supabase db push (production)
     runs-on: ubuntu-latest
-    environment: "Production - admin"
+    environment: "Production – admin"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -53,7 +53,7 @@ jobs:
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
           if [ -z "$SUPABASE_DB_PASSWORD" ]; then
-            echo "::error::SUPABASE_DB_PASSWORD is not set on the 'production-admin' environment. supabase db push needs the database password, not just the access token."
+            echo "::error::SUPABASE_DB_PASSWORD is empty — check it exists as a *secret* on this job's deployment environment. supabase db push needs the database password, not just the access token."
             exit 1
           fi
           # project_id in supabase/config.toml is a local label; the remote ref
