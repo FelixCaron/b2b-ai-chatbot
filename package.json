@@ -14,7 +14,7 @@
     "dev": "npm run dev --workspaces --if-present",
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",
-    "test": "node scripts/tests/test-contracts.js && node scripts/tests/test-billing-mapping.js && node scripts/tests/test-widget-status.js && node scripts/tests/test-brand-color.js && node scripts/tests/test-db-retry.js && node scripts/tests/test-migrations.js && node scripts/tests/test-schemas.js && node scripts/tests/test-api-imports.cjs && node scripts/tests/test-email-delivery.js",
+    "test": "node scripts/tests/test-contracts.js && node scripts/tests/test-billing-mapping.js && node scripts/tests/test-widget-status.js && node scripts/tests/test-staff-bot-settings.js && node scripts/tests/test-brand-color.js && node scripts/tests/test-db-retry.js && node scripts/tests/test-migrations.js && node scripts/tests/test-schemas.js && node scripts/tests/test-api-imports.cjs && node scripts/tests/test-email-delivery.js",
     "test:secrets": "node scripts/ops/check-no-secrets.cjs",
     "test:api": "node scripts/tests/test-api-imports.cjs",
     "test:pipeline": "node scripts/tests/test-pipeline.js",
@@ -28,6 +28,7 @@
     "test:contracts": "node scripts/tests/test-contracts.js",
     "test:billing": "node scripts/tests/test-billing-mapping.js",
     "test:widget-status": "node scripts/tests/test-widget-status.js",
+    "test:staff-bot": "node scripts/tests/test-staff-bot-settings.js",
     "test:color": "node scripts/tests/test-brand-color.js",
     "test:migrations": "node scripts/tests/test-migrations.js"
   },

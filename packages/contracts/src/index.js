@@ -18,6 +18,7 @@ export * from './plans.js';
 export * from './stripe-billing.js';
 export * from './niches.js';
 export * from './widget-status.js';
+export * from './bot-settings.js';
 
 import { registry } from './endpoint.js';
 
@@ -71,6 +72,10 @@ export const contracts = Object.freeze({
     listTenants: endpoints['staff.listTenants'],
     getTenant: endpoints['staff.getTenant'],
     updateTenantPlan: endpoints['staff.updateTenantPlan'],
+    updateSite: endpoints['staff.updateSite'],
+    listSitePages: endpoints['staff.listSitePages'],
+    removeSitePages: endpoints['staff.removeSitePages'],
+    reindexSitePages: endpoints['staff.reindexSitePages'],
     deleteSite: endpoints['staff.deleteSite'],
     deleteTenant: endpoints['staff.deleteTenant'],
     listAdmins: endpoints['staff.listAdmins'],

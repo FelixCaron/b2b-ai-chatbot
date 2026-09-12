@@ -67,6 +67,9 @@ jobs:
       - name: Run Widget Status Verification
         run: node scripts/tests/test-widget-status.js
 
+      - name: Run Staff Bot Settings Verification
+        run: node scripts/tests/test-staff-bot-settings.js
+
       - name: Verify API Route Imports
         run: node scripts/tests/test-api-imports.cjs
 
