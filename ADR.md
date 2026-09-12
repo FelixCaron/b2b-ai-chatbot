@@ -2439,3 +2439,26 @@ Trois problèmes sans lien apparent, réunis par le même défaut : **le systèm
 - La zone « Renseignements additionnels » et l'éditeur de page fonctionnent même là où la migration n'est pas passée — mais **le vrai correctif reste à faire côté compte Supabase** : le jeton du workflow de migrations n'a pas les privilèges nécessaires, et tant qu'il en est ainsi, la base de production diverge du code.
 - Les couleurs proposées viennent maintenant de ce que le site déclare, et aucune ne peut rendre le widget invisible.
 - 14 nouveaux tests unitaires (couleur, repli de colonne) ; `npm test`, `npm run build` et les 124 tests E2E passent.
+
+## ADR : Une migration qui n'a jamais tourné parce qu'une autre portait le même numéro
+**Date:** 12 Septembre 2026
+**Statut:** Accepté
+
+### Contexte
+Le workflow « Apply DB Migrations » n'a jamais réussi (jeton Supabase sans privilèges sur le projet), donc la base de production était présumée très en retard. La liste réelle des migrations appliquées, lue via l'API de gestion, raconte autre chose — et c'est pire :
+
+**21 des 23 migrations du dépôt sont appliquées.** Il en manque deux :
+
+1. **`20260909030000_self_serve_business_trial`** — il partageait son numéro de version avec `20260909030000_leads_session_merge`. Supabase indexe les migrations appliquées par **version**, pas par nom de fichier : dès que `leads_session_merge` a été enregistrée, ce fichier-ci a été considéré comme fait et **n'a jamais tourné**. Aucune erreur nulle part ; la liste affiche bien la version 20260909030000 comme appliquée. Conséquence en production : pas de colonne `trial_ends_at`, et les valeurs par défaut de `tenants` restent `plan='free'` / `plan_status='free'` — donc **aucun nouvel espace de travail n'a jamais eu l'essai de 14 jours** que tout l'onboarding promet.
+2. **`20260910000000_harden_security_definer_grants`** — jamais appliquée, faute du workflow.
+
+Effet de bord du point 1, et il est instructif : `api/chat/init.js` et `api/chat/index.js` sélectionnent `tenants(plan, plan_status, trial_ends_at, …)`. PostgREST fait échouer **toute** la requête intégrée quand une colonne manque (42703), donc le repli « colonnes de base » s'applique à chaque appel, sans ligne tenant. Depuis le correctif de sécurité de la veille (« ne pas savoir n'est pas savoir qu'ils n'ont pas payé »), le widget continue de servir. Sans ce correctif, la mise en place du péage d'activation aurait éteint le widget sur **tous** les sites clients.
+
+### Décision
+- **Renumérotation** : `20260909030000_self_serve_business_trial.sql` → `20260912000000_self_serve_business_trial.sql`, au-dessus de la dernière version appliquée, pour qu'un simple `supabase db push` la prenne sans `--include-all`. Toutes ses instructions sont idempotentes (`ADD COLUMN IF NOT EXISTS`, `SET DEFAULT`, `COMMENT ON`), donc la rejouer là où elle serait passée ne coûte rien. L'en-tête du fichier explique pourquoi il porte une date qui n'est pas celle de son écriture.
+- **`scripts/tests/test-migrations.js`** (branché sur `npm test`) : aucune version dupliquée, un nom de fichier bien formé, aucune migration vide. C'est la seule protection possible contre une panne qui ne produit aucun message d'erreur. Vérifié en le faisant échouer sur un doublon fabriqué.
+
+### Conséquences
+- Une fois les migrations appliquées, les nouveaux espaces de travail retrouvent l'essai Business de 14 jours, et la résolution de forfait cesse de passer par le repli 42703 — donc le péage d'activation s'applique vraiment, ce qui n'est pas le cas aujourd'hui.
+- Le diagnostic initial de la boîte « Renseignements additionnels » (colonne `chunk_index` manquante) **est démenti** par cette liste : la migration `20260909060000` est bien appliquée. Le repli tolérant reste juste, mais la cause de ce symptôme précis reste à trouver — le `console.error` ajouté livre maintenant le code d'erreur réel.
+- Le jeton du workflow reste à remplacer : il ne peut être posé que par un humain dans les secrets GitHub.

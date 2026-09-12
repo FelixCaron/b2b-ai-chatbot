@@ -1,5 +1,18 @@
 -- ---------------------------------------------------------------------------
 -- Self-serve 14-day Business trial
+--
+-- RENUMBERED 12 Sep 2026, from 20260909030000. It shared that version with
+-- 20260909030000_leads_session_merge.sql, and Supabase keys applied migrations
+-- by VERSION, not by filename: once leads_session_merge was recorded, this file
+-- was considered done and never ran. Production therefore had no trial_ends_at
+-- column and kept the old 'free' defaults — so every new workspace was created
+-- with no trial at all, which is the one thing the whole onboarding promises.
+-- Nothing said so: `supabase db push` reported success, and the migrations list
+-- showed version 20260909030000 as applied.
+--
+-- Renumbered above the latest applied version rather than into a free slot
+-- below it, so a plain `supabase db push` picks it up without --include-all.
+-- Every statement is idempotent, so re-running it anywhere it did land is safe.
 -- ---------------------------------------------------------------------------
 -- The niche landing pages promise lead capture and booking redirection, but
 -- those are Business ('pro') features and the paste-your-URL onboarding used

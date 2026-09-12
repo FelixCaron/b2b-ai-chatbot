@@ -133,7 +133,7 @@ export function getNextPlan(planId) {
 // Self-serve trial resolution.
 //
 // New self-serve tenants start on a 14-day Business ('pro') trial (migration
-// 20260909030000 sets the tenants column defaults). That trial expires lazily
+// 20260912000000 sets the tenants column defaults). That trial expires lazily
 // at read time — there is no scheduled job to flip the column (the Vercel cron
 // slot is unavailable, see TODO.md) — so every server read that gates behavior
 // resolves the *effective* plan through this function.
