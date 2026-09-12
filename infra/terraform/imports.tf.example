@@ -1,0 +1,75 @@
+# Adopting what already exists.
+#
+# Four Vercel projects and one Supabase project were created by hand, before any
+# of this was written down. Terraform does not know about them, so its first
+# `plan` wants to CREATE all five — which fails on the name collisions, and, if
+# it somehow did not, would give you a second set of everything.
+#
+# Copy this file to imports.tf, fill in the real ids, run ONE plan, and delete
+# it again once the ids are in state. Import blocks are declarative (Terraform
+# ≥ 1.5): they change nothing on their own, they only tell Terraform "this
+# resource is that thing over there".
+#
+#   cp imports.tf.example imports.tf     # then edit the ids below
+#   terraform plan                       # must show 0 to destroy. If it does
+#                                        # not, stop and read why.
+#   terraform apply
+#   rm imports.tf
+#
+# Where the ids come from:
+#   Vercel   — Project → Settings → General → Project ID (prj_…), or `vercel project ls`
+#   Supabase — the project ref in the dashboard URL and in the API URL
+#              (https://<ref>.supabase.co)
+#
+# ---------------------------------------------------------------------------
+# Read this before you run apply
+# ---------------------------------------------------------------------------
+#
+# The first apply is not one change, it is five at once: adopting five
+# resources, changing the Root Directory of all four Vercel projects, adding a
+# preview environment's worth of variables, attaching domains, and (if you let
+# it) switching off Vercel's git deployments. On a live production site.
+#
+# Do it in stages. Each stage is a plan you can read in full:
+#
+#   1. Imports only. Comment out everything in vercel.tf and supabase.tf that
+#      would change an existing attribute, until `plan` says "no changes".
+#      That is the moment Terraform's picture matches reality.
+#   2. Root Directory. Uncomment it, apply, deploy once by hand, confirm the
+#      site and its /api/** routes still answer.
+#   3. The preview environment: the second Supabase project, the preview
+#      variables, the preview domains. Nothing here touches production.
+#   4. Only once a GitHub Actions deploy has gone green end to end:
+#      vercel_git_auto_deploy = false, deploy_pipeline_enabled = true.
+#
+# Between any two stages you can stop, and what is running keeps running.
+
+# import {
+#   to = vercel_project.this["admin"]
+#   id = "prj_xxxxxxxxxxxxxxxxxxxxxxxx"
+# }
+#
+# import {
+#   to = vercel_project.this["staff"]
+#   id = "prj_xxxxxxxxxxxxxxxxxxxxxxxx"
+# }
+#
+# import {
+#   to = vercel_project.this["widget"]
+#   id = "prj_xxxxxxxxxxxxxxxxxxxxxxxx"
+# }
+#
+# The logafi project has never been created — leave it out, and let the first
+# apply create it.
+#
+# import {
+#   to = supabase_project.this["production"]
+#   id = "xxxxxxxxxxxxxxxxxxxx"
+# }
+#
+# Domains already attached to a project, if any. The id is "<project-id>/<domain>".
+#
+# import {
+#   to = vercel_project_domain.this["admin-production-dorafi.logafi.com"]
+#   id = "prj_xxxxxxxxxxxxxxxxxxxxxxxx/dorafi.logafi.com"
+# }

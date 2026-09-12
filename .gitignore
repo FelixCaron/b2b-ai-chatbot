@@ -24,12 +24,12 @@ out/
 /playwright-report/
 /playwright/.cache/
 
-# Terraform
+# Terraform — state and credentials never; the provider lock file always,
+# so every machine and every CI run resolves the same provider versions.
 infra/terraform/**/.terraform/
 infra/terraform/**/*.tfstate
 infra/terraform/**/*.tfstate.*
 infra/terraform/**/terraform.tfvars
-infra/terraform/**/.terraform.lock.hcl
 
 # Claude Code local tooling scratch space (agent worktrees, session state)
 /.claude/

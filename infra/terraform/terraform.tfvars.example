@@ -1,0 +1,84 @@
+# Copy to terraform.tfvars (git-ignored) and fill in real values.
+#
+# This file, and the state file next to it, end up holding every credential the
+# product uses. Neither belongs in git, and the state belongs in a real backend
+# rather than on one laptop — see the commented backend blocks in versions.tf.
+
+# --- Who Terraform acts as ---------------------------------------------------
+vercel_api_token = "your-vercel-api-token"
+vercel_team_id   = null                      # or "team_xxxx" / your team slug
+vercel_user_id   = "your-vercel-account-id"  # only used when vercel_team_id is null
+
+supabase_access_token    = "sbp_..."
+supabase_organization_id = "your-org-slug"
+
+github_token = "ghp_..."                     # needs the `repo` scope
+github_repo  = "FelixCaron/b2b-ai-chatbot"
+
+# --- Databases ---------------------------------------------------------------
+# One password per environment. The production entry must be the password that
+# project ALREADY has: Terraform cannot read it back, and importing does not
+# discover it, so a different value here means a password change on your
+# production database.
+supabase_db_passwords = {
+  production = "the-existing-production-db-password"
+  preview    = "a-new-strong-password"
+}
+
+# Auth emails. Supabase's built-in sender allows a couple an hour, which is not
+# enough to sign in with. Reuse the Resend account this product already has.
+smtp = {
+  host         = "smtp.resend.com"
+  port         = 465
+  user         = "resend"
+  password     = "re_your-resend-api-key"
+  sender_name  = "Dorafi"
+  sender_email = "noreply@dorafi.logafi.com" # must be on a verified Resend domain
+}
+
+# --- Shared application secrets ----------------------------------------------
+openrouter_api_key = "sk-or-..."
+jina_api_key       = "jina_..."
+resend_api_key     = "re_..."
+admin_email        = "admin@example.com"
+
+# --- Stripe ------------------------------------------------------------------
+# Two complete sets, not one set with a different key. Test-mode prices are
+# different objects from live-mode prices, and each environment registers its
+# own webhook endpoint and therefore has its own signing secret. Get the price
+# ids by running `npm run setup:stripe` once per mode.
+stripe_production = {
+  secret_key       = "sk_live_..."
+  webhook_secret   = "whsec_..." # endpoint: https://dorafi.logafi.com/api/billing/webhook
+  price_id_basic   = "price_..."
+  price_id_pro     = "price_..."
+  price_id_premium = "price_..."
+}
+
+stripe_preview = {
+  secret_key       = "sk_test_..."
+  webhook_secret   = "whsec_..." # endpoint: https://preview.dorafi.logafi.com/api/billing/webhook
+  price_id_basic   = "price_..."
+  price_id_pro     = "price_..."
+  price_id_premium = "price_..."
+}
+
+# --- Captcha -----------------------------------------------------------------
+# Production only: preview uses Cloudflare's documented always-pass test pair,
+# set in locals.tf, because a Turnstile site key is scoped to its hostnames.
+turnstile_production = {
+  site_key   = "0x4AAA..."
+  secret_key = "0x4AAA..."
+}
+
+# --- Who may approve a production deploy -------------------------------------
+# Numeric GitHub user ids, not logins: https://api.github.com/users/<login>
+# An empty list removes the approval gate entirely.
+production_reviewers = [16125235] # FelixCaron
+
+# --- Rollout switches --------------------------------------------------------
+# Leave these as they are for the first applies. See imports.tf.example for the
+# order, and flip them only once an Actions deploy has gone green end to end:
+# turning git deploys off before that leaves no way to ship at all.
+vercel_git_auto_deploy  = true
+deploy_pipeline_enabled = false
