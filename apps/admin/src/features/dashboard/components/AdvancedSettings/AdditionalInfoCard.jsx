@@ -24,7 +24,7 @@ export default function AdditionalInfoCard({ activeSite }) {
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
-  const [message, setMessage] = useState({ text: '', isError: false });
+  const [message, setMessage] = useState({ text: '', isError: false, detail: '' });
 
   useEffect(() => {
     let cancelled = false;
@@ -32,7 +32,7 @@ export default function AdditionalInfoCard({ activeSite }) {
 
     setIsLoading(true);
     setLoadFailed(false);
-    setMessage({ text: '', isError: false });
+    setMessage({ text: '', isError: false, detail: '' });
     readAdditionalInfo(activeSite).then((result) => {
       if (cancelled) return;
       setIsLoading(false);
@@ -42,7 +42,7 @@ export default function AdditionalInfoCard({ activeSite }) {
       // happened and keep the editor locked instead.
       if (!result.ok) {
         setLoadFailed(true);
-        setMessage({ text: t(result.error), isError: true });
+        setMessage({ text: t(result.error), isError: true, detail: result.detail });
         return;
       }
       setContent(result.text);
@@ -56,15 +56,15 @@ export default function AdditionalInfoCard({ activeSite }) {
 
   const handleSave = async () => {
     setIsSaving(true);
-    setMessage({ text: '', isError: false });
+    setMessage({ text: '', isError: false, detail: '' });
     const result = await saveAdditionalInfo(activeSite, content);
     setIsSaving(false);
     if (!result.ok) {
-      setMessage({ text: t(result.error), isError: true });
+      setMessage({ text: t(result.error), isError: true, detail: result.detail });
       return;
     }
     setLoadedContent(content);
-    setMessage({ text: t('Saved — your assistant can use this now.'), isError: false });
+    setMessage({ text: t('Saved — your assistant can use this now.'), isError: false, detail: '' });
   };
 
   return (
@@ -89,9 +89,18 @@ export default function AdditionalInfoCard({ activeSite }) {
 
       <div className="flex items-center justify-between gap-3">
         {message.text ? (
-          <span className={`text-xs font-medium flex items-center gap-1.5 ${message.isError ? 'text-rose-600' : 'text-emerald-700'}`}>
-            {!message.isError && <Check className="w-3.5 h-3.5" />}
-            {message.text}
+          <span className={`text-xs font-medium ${message.isError ? 'text-rose-600' : 'text-emerald-700'}`}>
+            <span className="flex items-center gap-1.5">
+              {!message.isError && <Check className="w-3.5 h-3.5" />}
+              {message.text}
+            </span>
+            {/* What actually went wrong, verbatim. Not decoration: this line
+                is the difference between a bug report that can be fixed and
+                one that reads "it says it cannot read". The owner can copy it
+                straight into an email to us. */}
+            {message.detail && (
+              <span className="block mt-1 font-mono text-[10px] text-gray-500 break-all">{message.detail}</span>
+            )}
           </span>
         ) : <span />}
 

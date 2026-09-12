@@ -2462,3 +2462,32 @@ Effet de bord du point 1, et il est instructif : `api/chat/init.js` et `api/chat
 - Une fois les migrations appliquées, les nouveaux espaces de travail retrouvent l'essai Business de 14 jours, et la résolution de forfait cesse de passer par le repli 42703 — donc le péage d'activation s'applique vraiment, ce qui n'est pas le cas aujourd'hui.
 - Le diagnostic initial de la boîte « Renseignements additionnels » (colonne `chunk_index` manquante) **est démenti** par cette liste : la migration `20260909060000` est bien appliquée. Le repli tolérant reste juste, mais la cause de ce symptôme précis reste à trouver — le `console.error` ajouté livre maintenant le code d'erreur réel.
 - Le jeton du workflow reste à remplacer : il ne peut être posé que par un humain dans les secrets GitHub.
+
+## ADR : `documents.created_at` n'a jamais existé en production
+**Date:** 12 Septembre 2026
+**Statut:** Accepté
+
+### Contexte
+La boîte « Renseignements additionnels » affichait une erreur de lecture pour tout le monde, en permanence. Deux diagnostics précédents étaient faux — l'un accusait le réseau du client, l'autre la colonne `chunk_index` (bien présente). Le vrai coupable a été obtenu en rejouant la requête du navigateur avec la clé publiable, sur un `site_id` fictif, pour tester la **forme** de la requête sans toucher aux données :
+
+```
+{"code":"42703","message":"column documents.created_at does not exist"}
+```
+
+Sondage colonne par colonne de la table live : `id`, `tenant_id`, `site_id`, `url`, `content`, `metadata`, `embedding`, `chunk_index` présentes — **`created_at` absente**.
+
+Cause : `20260905000000_consolidated_schema.sql` déclare `documents` avec `CREATE TABLE IF NOT EXISTS (… created_at TIMESTAMPTZ DEFAULT NOW())`. La table existait déjà avant l'ère des migrations, donc l'instruction n'a rien fait — silencieusement. C'est exactement le trou que `20260907010000_backfill_sites_optional_columns` avait bouché pour `sites` ; personne ne l'avait fait pour `documents`.
+
+Conséquence : les deux lectures client de chunks (la boîte de renseignements et l'éditeur de page) trient par `created_at`, et PostgREST fait échouer **toute** la requête sur une colonne absente — le SELECT compris. Aucune des deux ne pouvait fonctionner.
+
+Et le correctif précédent n'a rien changé, pour une raison qui mérite d'être retenue : `withMissingColumnFallback` **supposait savoir quelle colonne manquait**. Il retirait `chunk_index` et gardait `created_at` — or les deux requêtes la nommaient, donc les deux échouaient.
+
+### Décision
+- **Migration `20260912010000_documents_backfill_created_at`** : `ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW()`, plus un `UPDATE` pour les lignes nulles. Aligne enfin la table sur ce que le schéma déclare depuis le début.
+- **Le repli devient une chaîne, pas une paire** : chaque tentative demande strictement moins que la précédente, et la dernière ne nomme que la clé primaire — une colonne que toutes les versions de cette table ont eue. Une colonne absente ne peut plus emporter la lecture, quelle que soit la colonne.
+- **L'erreur technique remonte jusqu'à l'écran** : la phrase rassurante reste, avec en dessous, en petit, `42703 · column documents.created_at does not exist`. C'est cette ligne qui manquait à chaque rapport de ce bug ; elle transforme « ça dit qu'il ne peut pas lire » en une cause identifiable, copiable dans un courriel.
+
+### Conséquences
+- Deux diagnostics erronés en trois jours sur ce seul symptôme, tous deux plausibles et tous deux faux, parce que le message d'erreur ne disait rien. Le coût de ne pas afficher une erreur technique est exactement là.
+- La leçon générale, valable au-delà de ce cas : un repli qui suppose connaître la panne ne répare que la panne qu'on avait imaginée.
+- Reste à vérifier si d'autres tables déclarées par le schéma consolidé ont dérivé de la même façon — `sites` et `documents` ont toutes deux été touchées, ce n'est probablement pas une coïncidence.

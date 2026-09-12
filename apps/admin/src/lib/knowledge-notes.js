@@ -47,7 +47,7 @@ export function isAdditionalInfoUrl(url) {
  * the owner still sees their text.
  */
 async function readDocumentChunks(siteId, url) {
-  if (!supabase) return { ok: false, rows: [], error: 'No connection to your workspace.' };
+  if (!supabase) return { ok: false, rows: [], error: 'No connection to your workspace.', detail: '' };
 
   const base = (columns) => supabase
     .from('documents')
@@ -55,31 +55,46 @@ async function readDocumentChunks(siteId, url) {
     .eq('site_id', siteId)
     .eq('url', url);
 
-  // The column has to come out of the SELECT as well as the ORDER BY: a
-  // database that doesn't have it fails on either one.
+  // Best ordering first, then strictly less each time. A missing column has to
+  // come out of the SELECT as well as the ORDER BY — PostgREST fails the whole
+  // query on either — and the last attempt names only the primary key, which
+  // every version of this table has had. Ordering is a nicety; reading is not.
   const { data, error } = await withMissingColumnFallback(
-    () => base('content, chunk_index, created_at, id')
-      .order('chunk_index', { ascending: true, nullsFirst: false })
-      .order('created_at', { ascending: true })
-      .order('id', { ascending: true }),
-    () => base('content, created_at, id')
-      .order('created_at', { ascending: true })
-      .order('id', { ascending: true }),
-    () => console.warn('[knowledge-notes] documents.chunk_index is missing — is migration 20260909060000 applied? Falling back to created_at ordering.')
+    [
+      () => base('content, chunk_index, created_at, id')
+        .order('chunk_index', { ascending: true, nullsFirst: false })
+        .order('created_at', { ascending: true })
+        .order('id', { ascending: true }),
+      () => base('content, chunk_index, id')
+        .order('chunk_index', { ascending: true, nullsFirst: false })
+        .order('id', { ascending: true }),
+      () => base('content, id').order('id', { ascending: true })
+    ],
+    (message) => console.warn(`[knowledge-notes] ${message} — reading with a simpler ordering. Are the migrations applied?`)
   );
 
   if (error) {
-    console.error('[knowledge-notes] could not read documents:', error.code, error.message);
-    return { ok: false, rows: [], error: error.message };
+    console.error('[knowledge-notes] could not read documents:', error.code, error.message, error.details, error.hint);
+    // `detail` is the part that actually identifies the fault. It used to be
+    // thrown away one level up, so every report of this failure arrived as the
+    // reassuring sentence and nothing else — unfixable without asking the
+    // person to open a browser console. The friendly sentence stays; the code
+    // rides along with it.
+    return {
+      ok: false,
+      rows: [],
+      error: error.message || 'Unknown database error',
+      detail: [error.code, error.message, error.hint].filter(Boolean).join(' · ')
+    };
   }
-  return { ok: true, rows: data || [], error: '' };
+  return { ok: true, rows: data || [], error: '', detail: '' };
 }
 
 /** The chunks of one page, joined back into the text a person would edit. */
 export async function readDocumentText(siteId, url) {
   const result = await readDocumentChunks(siteId, url);
-  if (!result.ok) return { ok: false, text: '', error: result.error };
-  return { ok: true, text: result.rows.map((row) => stripSourcePrefix(row.content)).join('\n\n'), error: '' };
+  if (!result.ok) return { ok: false, text: '', error: result.error, detail: result.detail };
+  return { ok: true, text: result.rows.map((row) => stripSourcePrefix(row.content)).join('\n\n'), error: '', detail: '' };
 }
 
 /**
@@ -96,7 +111,12 @@ export async function readAdditionalInfo(site) {
     // for what was, every single time, a server-side error they could do
     // nothing about — and "check your connection" sends someone off to
     // restart their router over a schema problem.
-    return { ok: false, text: '', error: 'Could not read what you saved here. Please try again in a moment.' };
+    return {
+      ok: false,
+      text: '',
+      error: 'Could not read what you saved here. Please try again in a moment.',
+      detail: result.detail
+    };
   }
   return result;
 }

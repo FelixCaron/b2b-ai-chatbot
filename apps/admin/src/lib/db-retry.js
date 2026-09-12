@@ -19,23 +19,36 @@
 export const UNDEFINED_COLUMN = '42703';
 
 /**
- * Run `preferred`; if it fails only because a column is missing, run `basic`.
+ * Run the queries in order, best first, stopping at the first one that is not
+ * refused for a missing column.
  *
- * Both arguments are thunks returning a Supabase query result
- * (`{ data, error }`), so the caller decides what "without that column" means —
- * usually the same query with the column dropped from both the select and the
- * ordering.
+ * A CHAIN rather than a pair, because the first version of this helper assumed
+ * it knew which column was missing: it dropped chunk_index and kept ordering by
+ * created_at, and in production BOTH were absent — so both attempts failed and
+ * the feature stayed broken. Every entry after the first should therefore ask
+ * for strictly less than the one before it, ending with something that cannot
+ * fail this way (a primary key, or no ordering at all).
  *
- * @param {() => Promise<{data: any, error: any}>} preferred
- * @param {() => Promise<{data: any, error: any}>} basic
- * @param {(message: string) => void} [warn] - told when the fallback is used,
- *   because a schema that is behind is worth seeing in a console even when the
- *   feature keeps working.
+ * Each entry is a thunk returning a Supabase query result (`{ data, error }`),
+ * so the caller decides what "without that column" means.
+ *
+ * @param {Array<() => Promise<{data: any, error: any}>>} attempts - best first.
+ * @param {(message: string) => void} [warn] - told each time a fallback is
+ *   taken: a schema that is behind the code is worth seeing in a console even
+ *   while the feature keeps working.
  */
-export async function withMissingColumnFallback(preferred, basic, warn) {
-  const first = await preferred();
-  if (first?.error?.code !== UNDEFINED_COLUMN) return first;
+export async function withMissingColumnFallback(attempts, warn) {
+  const queries = Array.isArray(attempts) ? attempts : [attempts];
+  let result;
 
-  warn?.(first.error.message || 'a column this query needs does not exist');
-  return await basic();
+  for (let index = 0; index < queries.length; index++) {
+    result = await queries[index]();
+    if (result?.error?.code !== UNDEFINED_COLUMN) return result;
+    // The last attempt has nothing left to fall back to — return its error.
+    if (index < queries.length - 1) {
+      warn?.(result.error.message || 'a column this query needs does not exist');
+    }
+  }
+
+  return result;
 }
