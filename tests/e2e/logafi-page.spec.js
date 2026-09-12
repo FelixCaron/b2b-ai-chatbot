@@ -1,14 +1,15 @@
 import { test, expect, trackConsoleErrors } from './support/test.js';
+import { LOGAFI_URL } from './support/logafi-site.js';
 
 // ─────────────────────────────────────────────────────────────────────────
-// apps/admin/public/logafi.html — the parent company's own page.
+// apps/logafi — the parent company's site, its own Vercel project on its own
+// domain (logafi.com). It shares this repository with Dorafi and nothing
+// else: no build step, no framework, no backend call, so these tests run
+// against the directory served as-is, exactly what Vercel returns.
 //
-// It ships inside this deployment but shares none of the app's code: a plain
-// static file, no React, no Supabase, no /api call. These tests pin the two
-// things that are easy to break from the outside: that /logafi actually
-// reaches the static file instead of falling through to the SPA (the rewrite
-// in vercel.json, mirrored by apps/admin/vite.config.js for the dev server),
-// and that the bilingual toggle still swaps both directions.
+// What they pin is what would rot unnoticed: the page still loads standalone,
+// the bilingual toggle still swaps both ways, the phone layout still holds,
+// and the two products stay pointed at each other's real addresses.
 // ─────────────────────────────────────────────────────────────────────────
 
 /** The page pulls Inter/Poppins from Google Fonts. Answering that request
@@ -21,14 +22,13 @@ async function stubWebFonts(page) {
   );
 }
 
-test.describe('logafi — parent company page', () => {
-  test('/logafi serves the static company page, not the Dorafi app', async ({ page }) => {
+test.describe('logafi — parent company site', () => {
+  test('loads standalone at the site root, with its logo and credential', async ({ page }) => {
     const consoleTracker = trackConsoleErrors(page);
     await stubWebFonts(page);
-    await page.goto('/logafi');
+    await page.goto(LOGAFI_URL);
 
-    // The SPA's mount point is the tell: if the rewrite ever stops matching,
-    // the catch-all answers with index.html and this page becomes the app.
+    // Nothing of the Dorafi SPA belongs here — no mount point, no bundle.
     await expect(page.locator('#root')).toHaveCount(0);
 
     await expect(page).toHaveTitle(/logafi/);
@@ -36,19 +36,38 @@ test.describe('logafi — parent company page', () => {
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'SnowPro Advanced: Architect' })).toBeVisible();
 
-    // The whole reason the page exists on this deployment: it points back at
-    // the product it is the parent of.
-    await expect(page.getByRole('link', { name: /dorafi\.logafi\.com/i })).toHaveAttribute(
-      'href',
-      'https://dorafi.logafi.com'
-    );
+    // Its own domain, its own canonical: this project must never claim, or be
+    // claimed by, dorafi.logafi.com.
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://logafi.com/');
 
     consoleTracker.assertNone();
   });
 
+  test('every asset it references actually resolves', async ({ page }) => {
+    const missing = [];
+    page.on('response', (response) => {
+      if (response.url().startsWith(LOGAFI_URL) && response.status() >= 400) {
+        missing.push(`${response.status()} ${response.url()}`);
+      }
+    });
+    await stubWebFonts(page);
+    await page.goto(LOGAFI_URL, { waitUntil: 'networkidle' });
+
+    // The footer logo is the one below the fold, so scroll it into view before
+    // concluding that everything loaded.
+    await page.getByRole('contentinfo').scrollIntoViewIfNeeded();
+    await page.waitForLoadState('networkidle');
+
+    expect(missing, `Assets the page asks for but the site does not serve:\n${missing.join('\n')}`).toEqual([]);
+    // Both logo files decode — a broken PNG is a 200 too.
+    for (const img of await page.locator('img').all()) {
+      expect(await img.evaluate((el) => el.naturalWidth)).toBeGreaterThan(0);
+    }
+  });
+
   test('the FR/EN toggle swaps the copy both ways', async ({ page }) => {
     await stubWebFonts(page);
-    await page.goto('/logafi');
+    await page.goto(LOGAFI_URL);
 
     await page.getByRole('button', { name: 'EN' }).click();
     await expect(page.getByRole('heading', { level: 1 })).toContainText(/Design, migrate and optimize/i);
@@ -62,7 +81,7 @@ test.describe('logafi — parent company page', () => {
   test('no horizontal overflow on a phone viewport', async ({ page }) => {
     await stubWebFonts(page);
     await page.setViewportSize({ width: 375, height: 812 });
-    await page.goto('/logafi');
+    await page.goto(LOGAFI_URL);
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
 
     const overflow = await page.evaluate(() => ({
@@ -72,20 +91,29 @@ test.describe('logafi — parent company page', () => {
     expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth + 1);
   });
 
-  test('the Dorafi footer links to it', async ({ page, mock }) => {
+  test('the two sites point at each other', async ({ page, mock }) => {
+    await stubWebFonts(page);
+    await page.goto(LOGAFI_URL);
+    await expect(page.getByRole('link', { name: /dorafi\.logafi\.com/i })).toHaveAttribute(
+      'href',
+      'https://dorafi.logafi.com'
+    );
+
+    // And back: Dorafi's footer is the only place in the product that names
+    // the parent company. Different deployment, so an absolute URL.
     await page.goto('/');
-    await expect(page.getByRole('link', { name: /logafi/i })).toHaveAttribute('href', '/logafi');
+    await expect(page.getByRole('link', { name: /logafi/i })).toHaveAttribute('href', 'https://logafi.com');
   });
 });
 
 // A visitor whose browser is French gets French without touching the toggle —
-// same rule as the app's own i18n (apps/admin/src/i18n/LanguageContext.jsx).
-test.describe('logafi — parent company page (French browser)', () => {
+// same rule as the Dorafi app's i18n (apps/admin/src/i18n/LanguageContext.jsx).
+test.describe('logafi — parent company site (French browser)', () => {
   test.use({ locale: 'fr-CA' });
 
   test('defaults to French', async ({ page }) => {
     await stubWebFonts(page);
-    await page.goto('/logafi');
+    await page.goto(LOGAFI_URL);
     await expect(page.getByRole('heading', { level: 1 })).toContainText(/Concevoir, migrer et optimiser/i);
     await expect(page.locator('html')).toHaveAttribute('lang', 'fr');
   });

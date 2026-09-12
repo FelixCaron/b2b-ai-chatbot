@@ -6,14 +6,14 @@
 <title>logafi — Consultation en plateformes de données | Snowflake</title>
 <meta name="description" content="logafi conçoit, migre et optimise des plateformes de données modernes. Expertise Snowflake certifiée SnowPro Advanced: Architect. Société mère de Dorafi." />
 <link rel="canonical" href="https://logafi.com/" />
-<link rel="icon" type="image/svg+xml" href="/favicon-logafi.svg" />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <meta name="color-scheme" content="light" />
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="logafi" />
 <meta property="og:title" content="logafi — Consultation en plateformes de données" />
 <meta property="og:description" content="Architecture, migration et optimisation Snowflake. Certification SnowPro Advanced: Architect. Société mère de Dorafi." />
 <meta property="og:url" content="https://logafi.com/" />
-<meta property="og:image" content="https://logafi.com/logafi-logo.png" />
+<meta property="og:image" content="https://logafi.com/logo.png" />
 <meta name="twitter:card" content="summary" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -24,7 +24,7 @@
   "@type": "Organization",
   "name": "logafi",
   "url": "https://logafi.com/",
-  "logo": "https://logafi.com/logafi-logo.png",
+  "logo": "https://logafi.com/logo.png",
   "description": "Consultation en plateformes de données modernes, avec une expertise Snowflake certifiée SnowPro Advanced: Architect.",
   "address": { "@type": "PostalAddress", "addressRegion": "QC", "addressCountry": "CA" },
   "email": "hello@logafi.com",
@@ -33,14 +33,13 @@
 </script>
 <style>
   /* ───────────────────────────────────────────────────────────────────────
-     logafi — the parent-company page.
+     logafi — the parent company's site (apps/logafi, deployed as its own
+     Vercel project at logafi.com).
 
-     Deliberately a single, self-contained static file in apps/admin/public/:
-     Vite copies it verbatim into dist/, so Vercel serves it as a real asset
-     ahead of the SPA catch-all rewrite (same mechanism as sitemap.xml and
-     preview.html). It shares the deployment with the Dorafi app but none of
-     its code — no React, no build step, no Supabase — because it is a
-     brochure for a different company, not a view of the product.
+     It shares this repository with Dorafi and nothing else: one hand-written
+     HTML file plus three assets, no framework, no build step, no backend
+     call. Vercel serves the directory as-is, so what is committed here is
+     byte-for-byte what production returns.
 
      Palette is taken from the logafi mark itself (#0e1924 ink), and the two
      logo files it loads are the supplied artwork with the white background
@@ -49,7 +48,8 @@
      Bilingual FR/EN with no framework: French is the markup, English lives
      in `data-en` attributes, and the toggle swaps textContent. With JS off
      the page still reads correctly — in French, the default for the Québec
-     market (same choice as the app's i18n, see apps/admin/src/i18n).
+     market (same choice as the Dorafi app's i18n, see
+     apps/admin/src/i18n/LanguageContext.jsx).
      ─────────────────────────────────────────────────────────────────────── */
 
   :root {
@@ -289,7 +289,7 @@
 <header class="site">
   <div class="wrap bar">
     <a class="brand" href="#top" aria-label="logafi">
-      <img src="/logafi-logo.png" width="426" height="125" alt="logafi" />
+      <img src="/logo.png" width="426" height="125" alt="logafi" />
     </a>
     <nav class="main" aria-label="Navigation principale">
       <a href="#services" data-en="Services">Services</a>
@@ -515,7 +515,7 @@
   <div class="wrap">
     <div class="foot-top">
       <div>
-        <img src="/logafi-logo-white.png" width="426" height="125" alt="logafi" />
+        <img src="/logo-white.png" width="426" height="125" alt="logafi" />
         <p data-en="Data platform consulting — architecture, migration and Snowflake optimization. Parent company of Dorafi.">
           Consultation en plateformes de données — architecture, migration et optimisation Snowflake. Société mère de Dorafi.
         </p>

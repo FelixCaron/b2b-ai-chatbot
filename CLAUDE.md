@@ -7,6 +7,7 @@ Dorafi — a multi-tenant B2B AI Chatbot SaaS built with Supabase (pgvector, FTS
 - `/packages/shared`: Shared Zod schemas & TypeScript types.
 - `/apps/admin`: React / Vite admin portal + Vercel Serverless API (`/apps/admin/api/`).
 - `/apps/widget`: Embeddable Vanilla JS chat widget (standalone IIFE bundle).
+- `/apps/logafi`: The parent company's site (`logafi.com`) — hand-written static HTML, no build step, deployed as its own Vercel project. Shares nothing with the product but this repository.
 - `/supabase/migrations`: Raw SQL migrations (pgvector, FTS, RLS, usage RPCs).
 - `/scripts`: Admin dev tools & E2E tests.
 
@@ -45,6 +46,16 @@ All API endpoints live in `/api/` and are deployed with the root Vercel project:
 4. **API in apps/admin/api/**: All serverless functions MUST live in `apps/admin/api/` since deployment runs from `apps/admin/`. Never put API routes at monorepo root.
 
 ## Deployment
-- **Admin SPA + API**: Deployed via `vercel --prod` from the repository root. The root build writes the SPA to `apps/admin/dist` and Vercel discovers the root `api/` functions.
-- **Widget**: Deployed via `vercel --prod` from `apps/widget/` directory. Serves `widget.iife.js` as CDN asset.
-- **CI/CD**: GitHub Actions workflow (`.github/workflows/deploy.yml`) runs tests, builds, and deploys both apps.
+Four Vercel projects, one per deployable directory — each deployed with `vercel --prod` from that directory:
+
+| Vercel project | Directory | Domain |
+|---|---|---|
+| `dorafi-admin` | repository root | `dorafi.logafi.com` |
+| `dorafi-staff` | `apps/internal-admin/` | staff-only console |
+| `dorafi-widget` | `apps/widget/` | widget CDN asset |
+| `logafi` | `apps/logafi/` | `logafi.com` |
+
+- **Admin SPA + API** (`dorafi-admin`): deployed from the repository root. The root build writes the SPA to `apps/admin/dist` and Vercel discovers the root `api/` functions.
+- **Widget** (`dorafi-widget`): serves `widget.iife.js` as a CDN asset.
+- **logafi** (`logafi`): no build command and no `package.json` — Vercel serves the directory as it is.
+- **CI/CD**: GitHub Actions workflow (`.github/workflows/ci.yml`) runs tests and builds every app; deployment itself is manual per project.

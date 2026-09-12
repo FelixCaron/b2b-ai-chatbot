@@ -1905,7 +1905,9 @@ Utiliser les utilisateurs anonymes Supabase : un tenant d'essai est lié à cet 
 Les fonctions serverless (\start-scan.js\, \update-document.js\, \generate-summary.js\) utilisaient la \SUPABASE_SERVICE_ROLE_KEY\ sans vérifier l'identité de l'appelant. Cela permettait à n'importe quel utilisateur non authentifié de modifier ou supprimer les documents de n'importe quel site/tenant.
 
 ### Décision
-1. Mise en place de \equireAuthentication\ et \equireSiteOwnership\ dans \pi/lib/server-config.js\.
+1. Mise en place de \
+equireAuthentication\ et \
+equireSiteOwnership\ dans \pi/lib/server-config.js\.
 2. Les endpoints API qui modifient des données exigent désormais un header \Authorization: Bearer <token>\ et vérifient que l'utilisateur est bien le propriétaire du \	enant_id\ ET que le \site_id\ appartient bien à ce tenant.
 3. \ClientOnboarding.jsx\ envoie maintenant les headers authentifiés lors de ses appels \etch\.
 4. L'endpoint cron \cleanup-guests.js\ est sécurisé par un \CRON_SECRET\.
@@ -2494,7 +2496,7 @@ Et le correctif précédent n'a rien changé, pour une raison qui mérite d'êtr
 
 ## ADR : Page de la société mère `logafi`, servie par le même déploiement que Dorafi
 **Date:** 12 Septembre 2026
-**Statut:** Accepté
+**Statut:** Remplacé le jour même par « `logafi` devient un projet Vercel à part entière » (dernier ADR de ce fichier). Le contenu de la page, le traitement du logo et le bilinguisme sans framework restent valables ; c'est l'hébergement — fichier statique embarqué dans le déploiement de Dorafi, réécritures `vercel.json` conditionnées à l'hôte — qui a été abandonné.
 
 ### Contexte
 `logafi` est la société mère : consultation en plateformes de données (Snowflake en particulier, certification *SnowPro Advanced: Architect*), et éditrice de Dorafi. Elle n'avait aucune présence web, alors que son nom est déjà dans l'adresse du produit — `dorafi.logafi.com` est un sous-domaine de `logafi.com`, et un visiteur qui remonte à la racine ne trouvait rien.
@@ -2516,3 +2518,27 @@ Trois façons de la loger : une vue de plus dans le SPA admin, un troisième pro
 - La page se déclare canonique sur `https://logafi.com/`. Tant que le domaine n'est pas rattaché, ce canonique pointe dans le vide pour un moteur de recherche — c'est assumé : l'adresse de référence de la société mère n'est pas un sous-chemin du produit. Rattacher le domaine est une opération de tableau de bord Vercel, sans changement de code.
 - L'adresse `hello@logafi.com` est écrite dans la page (et dans le JSON-LD) alors que seule `dorafi.logafi.com` est vérifiée chez Resend. Elle n'est utilisée qu'en `mailto:` — donc rien à voir avec Resend, mais la boîte doit exister côté MX de `logafi.com`, sinon les courriels des prospects rebondissent. Inscrit au TODO.
 - `tests/e2e/logafi-page.spec.js` vérifie ce qui casse en silence : que `/logafi` atteint bien le fichier statique et non le SPA (absence de `#root`), que le sélecteur de langue fonctionne dans les deux sens, que le navigateur francophone obtient le français, qu'il n'y a pas de débordement horizontal sur téléphone, et que le lien du pied de page de Dorafi pointe toujours au bon endroit.
+
+## ADR : `logafi` devient un projet Vercel à part entière
+**Date:** 12 Septembre 2026
+**Statut:** Accepté (remplace l'ADR précédent)
+
+### Contexte
+La page de la société mère venait d'être posée dans `apps/admin/public/`, servie par le déploiement de Dorafi avec une réécriture `vercel.json` conditionnée à l'hôte : un seul projet Vercel, `logafi.com` servi à la racine le jour où le domaine serait rattaché. C'était l'option la moins coûteuse à mettre en place, pas la plus juste.
+
+Décision du propriétaire : un projet Vercel par déploiement, nommés `dorafi-admin`, `dorafi-staff`, `logafi` et `dorafi-widget`. C'est le découpage que le dépôt appliquait déjà pour le widget et la console interne ; la page logafi était la seule exception, et elle l'était pour la mauvaise raison — l'économie d'un projet, alors qu'il s'agit d'une autre société, d'un autre domaine et d'un autre public.
+
+Ce que l'arrangement précédent coûtait réellement : la page de la société mère ne pouvait pas être déployée sans redéployer le produit (et inversement) ; une panne de build de l'admin emportait le site vitrine ; le `vercel.json` du produit portait deux règles qui ne le concernaient pas, dont une comparaison d'hôte à ancrer soigneusement pour ne pas risquer de servir la mauvaise page à la racine de `dorafi.logafi.com`.
+
+### Décision
+- **`apps/logafi/`** — le répertoire *est* le site : `index.html`, `logo.png`, `logo-white.png`, `favicon.svg`, `robots.txt`, `sitemap.xml`, `vercel.json`. Déployé par `vercel --prod` depuis ce répertoire, comme `apps/widget` et `apps/internal-admin`.
+- **Aucun `package.json`, aucune étape de build.** `vercel.json` fixe `framework: null`, `buildCommand: null`, `outputDirectory: "."` : Vercel sert le répertoire tel quel. Ce qui est versionné est donc, octet pour octet, ce que la production renvoie — et `npm ci` à la racine a un workspace de moins à installer. `cleanUrls` est activé pour que les URL se comportent comme sur les autres projets.
+- **Le produit redevient ignorant de logafi** : les réécritures ajoutées à `vercel.json` (racine et `apps/admin/`) et le détour `/logafi` du serveur de dev Vite sont retirés. Il ne reste qu'un lien sortant dans le pied de page de Dorafi, vers `https://logafi.com` — une URL absolue, puisque ce n'est plus le même déploiement.
+- **`scripts/dev/serve-static.mjs`** — un serveur statique sans dépendance (30 lignes) qui reproduit les deux comportements dont la page dépend chez Vercel : `cleanUrls` et l'`index.html` d'un répertoire. Il sert à regarder la page localement, et `playwright.config.js` le démarre comme deuxième `webServer` pour que les tests E2E s'exécutent sur le vrai site servi en HTTP plutôt que sur une URL `file://`.
+- **`tests/e2e/logafi-page.spec.js`** est réécrit en conséquence : chargement autonome à la racine du site, canonique `https://logafi.com/`, absence de toute trace du SPA, bascule FR/EN dans les deux sens, navigateur francophone servi en français, pas de débordement horizontal sur téléphone, et — nouveau — chaque ressource demandée par la page répond bien (avec `naturalWidth > 0`, parce qu'un PNG cassé répond 200 lui aussi). Un dernier test vérifie que les deux sites pointent l'un vers l'autre avec les bonnes adresses absolues.
+
+### Conséquences
+- Les quatre projets Vercel correspondent maintenant aux quatre répertoires déployables, et `CLAUDE.md` porte le tableau de correspondance. Déployer le site vitrine ne redéploie plus le produit.
+- Rattacher `logafi.com` se fait sur le projet `logafi`, pas sur celui du produit. Le canonique de la page (`https://logafi.com/`) correspond enfin à son adresse réelle au lieu d'anticiper une réécriture.
+- Le site n'a aucun moyen de casser le produit : plus de règle partagée, plus de comparaison d'hôte à ancrer, plus de fichier de la société mère dans `public/` de l'admin.
+- Coût assumé : un projet Vercel de plus à créer et à surveiller, et un déploiement manuel de plus. Pour un site d'un seul fichier sans build, c'est quelques secondes.

@@ -25,11 +25,15 @@ export default function Footer({ onNavigate }) {
       <button onClick={() => onNavigate('terms')} className="hover:text-dark-900 transition-colors">
         {t('Terms of Service')}
       </button>
-      {/* The parent company's own page — a plain static file served from the
-          same deployment (apps/admin/public/logafi.html, reachable at /logafi
-          through the rewrite in vercel.json), so this is a real navigation out
-          of the SPA rather than a view. */}
-      <a href="/logafi" className="hover:text-dark-900 transition-colors">
+      {/* The parent company's own site (apps/logafi) — a different deployment
+          on a different domain, so this is an ordinary outbound link, not a
+          view of this app. */}
+      <a
+        href="https://logafi.com"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="hover:text-dark-900 transition-colors"
+      >
         {t('A logafi company')}
       </a>
       <span>&copy; {new Date().getFullYear()} Dorafi</span>

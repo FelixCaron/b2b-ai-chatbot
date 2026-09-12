@@ -1,5 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 import { MOCK_SUPABASE_URL, MOCK_ANON_KEY } from './tests/e2e/support/mock-backend.js';
+import { LOGAFI_PORT, LOGAFI_URL } from './tests/e2e/support/logafi-site.js';
 
 const PORT = 5173;
 const BASE_URL = `http://127.0.0.1:${PORT}`;
@@ -37,7 +38,15 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
   },
-  webServer: {
+  // Two servers: the admin app under test, and the logafi site — a separate
+  // Vercel project (apps/logafi) with no build step, so it is served straight
+  // from its directory, the way Vercel serves it.
+  webServer: [{
+    command: `node scripts/dev/serve-static.mjs apps/logafi ${LOGAFI_PORT}`,
+    url: LOGAFI_URL,
+    reuseExistingServer: !process.env.CI,
+    timeout: 30_000,
+  }, {
     command: `npm run dev --workspace=@b2b-ai-chatbot/admin -- --port ${PORT} --host 127.0.0.1 --strictPort`,
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
@@ -55,7 +64,7 @@ export default defineConfig({
       // env var for it.
       SUPABASE_SECRET_KEY: 'mock-service-role-key-for-e2e-tests',
     },
-  },
+  }],
   projects: [
     {
       name: 'Desktop Chrome',
