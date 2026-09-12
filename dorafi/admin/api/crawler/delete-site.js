@@ -1,6 +1,6 @@
 import { contracts } from '@b2b-ai-chatbot/contracts';
-import { edgeRoute } from '../lib/http.js';
-import { requireSiteOwnership } from '../lib/server-config.js';
+import { edgeRoute } from '../_lib/http.js';
+import { requireSiteOwnership } from '../_lib/server-config.js';
 
 export const config = {
   runtime: 'edge',

@@ -71,7 +71,7 @@ variable "production_branch" {
 variable "node_version" {
   description = "Node version Vercel builds and runs functions with. Keep this equal to the version in .github/workflows/verify.yml, or CI builds on one runtime and production runs another."
   type        = string
-  default     = "22.x"
+  default     = "24.x"
 }
 
 variable "production_app_domain" {

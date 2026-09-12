@@ -16,10 +16,11 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          # Keep this equal to node_version in infra/terraform/variables.tf.
-          # Building on one runtime and running functions on another is a class
-          # of bug that only shows up in production.
-          node-version: 22
+          # Keep this equal to node_version in infra/terraform/variables.tf. The
+          # live Vercel projects run 24.x; building on one runtime and running
+          # functions on another is a class of bug that only shows up in
+          # production.
+          node-version: 24
           cache: npm
 
       # packages/shared's dist/ is not committed; its `prepare` script builds it

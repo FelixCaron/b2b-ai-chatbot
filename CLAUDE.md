@@ -81,6 +81,7 @@ address.
 2. **Seamless User Flow**: The onboarding and crawling pipeline must work automatically for ANY URL entered by ANY user without manual intervention.
 3. **Strict Tenant Data Isolation**: `documents` queries ALWAYS enforce `tenant_id` matching. All sites under one tenant share knowledge. No cross-tenant data leakage.
 4. **API next to the app that deploys it**: serverless functions MUST live in `dorafi/admin/api/` (or `dorafi/staff/api/` for the staff console), because Vercel only turns `<project root directory>/api/**` into functions. Never put API routes at the monorepo root — the root is not a deployable.
+5. **Shared server code goes in `api/_lib/`, and the underscore is load-bearing.** Vercel makes a serverless function out of *every* `.js` file under `api/`, shared modules included. With the directory named `lib/`, `dorafi/admin` built 21 functions instead of 12 and could not deploy at all: the Hobby plan rejects a deployment above 12. The `_` prefix is what excludes a path from route detection. Never add a directory under `api/` that is not meant to be routes without prefixing it.
 
 ## Deployment
 Four Vercel projects, one per deployable directory, each declared in

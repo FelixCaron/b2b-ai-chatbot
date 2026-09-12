@@ -6,7 +6,7 @@
  * A database built from supabase/migrations/ is empty of tenants. The admin app
  * embeds its own widget (dorafi/admin/index.html) with a fixed tenant key, and
  * the chat API refuses any request whose Origin doesn't match the site's
- * registered domain (api/lib/site-origin.js) — so on a fresh database that
+ * registered domain (api/_lib/site-origin.js) — so on a fresh database that
  * widget has no site to answer for, /chat/init falls back to English defaults
  * and /chat 404s. The flagship visible feature is dead by construction.
  *

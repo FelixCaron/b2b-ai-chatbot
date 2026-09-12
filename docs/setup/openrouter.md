@@ -1,7 +1,7 @@
 # OpenRouter setup
 
 OpenRouter is the LLM abstraction layer for chat responses, lead extraction, theme
-extraction, and embeddings (`dorafi/admin/api/lib/llm.js`).
+extraction, and embeddings (`dorafi/admin/api/_lib/llm.js`).
 
 ## Manual (no scriptable resource creation needed — it's just an API key)
 

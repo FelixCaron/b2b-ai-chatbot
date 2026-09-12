@@ -41,17 +41,36 @@ const fail = (what, detail) => {
   failures.push(what);
 };
 
+// A host that does not resolve, or refuses the connection, is a failed check —
+// not an unhandled rejection that takes the whole run down before the remaining
+// checks report. `preview.logafi.com` having no DNS record yet is exactly the
+// condition this script exists to tell you about.
+const UNREACHABLE = Symbol('unreachable');
+
 async function get(url, options = {}) {
-  const res = await fetch(url, { redirect: 'follow', ...options });
-  return { res, body: options.method === 'HEAD' ? '' : await res.text() };
+  try {
+    const res = await fetch(url, { redirect: 'follow', ...options });
+    return { res, body: options.method === 'HEAD' ? '' : await res.text() };
+  } catch (err) {
+    const reason = err?.cause?.code === 'ENOTFOUND'
+      ? 'the hostname does not resolve — is DNS pointed at Vercel?'
+      : `${err?.cause?.code || err.message}`;
+    return { res: { ok: false, status: UNREACHABLE, statusText: reason, headers: new Headers() }, body: '' };
+  }
 }
+
+const describe = (res) => (res.status === UNREACHABLE ? res.statusText : `HTTP ${res.status}`);
 
 // --- the product ------------------------------------------------------------
 if (args.app) {
   console.log(`\n${args.app}`);
   const { res, body } = await get(args.app);
 
-  res.ok ? ok('homepage answers 200') : fail('homepage answers 200', `got ${res.status}`);
+  if (!res.ok) {
+    fail('homepage answers 200', describe(res));
+  } else {
+    ok('homepage answers 200');
+  }
 
   const scripts = [...body.matchAll(/<script[^>]+src="([^"]+\.js)"/g)].map((m) => m[1]);
   const entry = scripts.find((s) => s.includes('/assets/'));
@@ -62,7 +81,7 @@ if (args.app) {
     const { res: bundleRes, body: bundle } = await get(bundleUrl);
 
     if (!bundleRes.ok) {
-      fail('the bundle is served', `${bundleUrl} -> ${bundleRes.status}`);
+      fail('the bundle is served', `${bundleUrl} -> ${describe(bundleRes)}`);
     } else {
       // Wrong database.
       if (args['supabase-ref']) {
@@ -88,7 +107,7 @@ if (args.app) {
   }
 
   // No API at all. OPTIONS is answered uniformly by every contract route
-  // (api/lib/http.js) and costs nothing, so it is the cheapest proof that
+  // (api/_lib/http.js) and costs nothing, so it is the cheapest proof that
   // functions exist and route.
   for (const route of ['/api/chat/init', '/api/crawler/scan', '/api/billing/checkout']) {
     const { res: optRes } = await get(new URL(route, args.app).toString(), { method: 'OPTIONS' });
@@ -96,7 +115,7 @@ if (args.app) {
       ? ok(`${route} is a function`)
       : fail(
           `${route} is a function`,
-          `${optRes.status}, CORS header ${optRes.headers.has('access-control-allow-origin') ? 'present' : 'absent'} ` +
+          `${describe(optRes)}, CORS header ${optRes.headers.has('access-control-allow-origin') ? 'present' : 'absent'} ` +
             '— a Root Directory that is not dorafi/admin deploys the SPA with no API'
         );
   }
@@ -114,10 +133,14 @@ if (args.app) {
 if (args.site) {
   console.log(`\n${args.site}`);
   const { res, body } = await get(args.site);
-  res.ok ? ok('homepage answers 200') : fail('homepage answers 200', `got ${res.status}`);
-  body.includes('logafi')
-    ? ok('it is the logafi site')
-    : fail('it is the logafi site', 'the page does not mention logafi — wrong project?');
+  if (!res.ok) {
+    fail('homepage answers 200', describe(res));
+  } else {
+    ok('homepage answers 200');
+    body.includes('logafi')
+      ? ok('it is the logafi site')
+      : fail('it is the logafi site', 'the page does not mention logafi — wrong project?');
+  }
 
   if (args['expect-noindex']) {
     const tag = res.headers.get('x-robots-tag') || '';

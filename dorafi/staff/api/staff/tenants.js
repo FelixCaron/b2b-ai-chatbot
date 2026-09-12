@@ -21,9 +21,9 @@
 // pattern already proven working by every flat route in this app.
 //
 // requireStaff() is the entire security model here — see
-// api/lib/server-config.js for why that's safe even with a service-role
+// api/_lib/server-config.js for why that's safe even with a service-role
 // client.
-import { requireStaff } from '../lib/server-config.js';
+import { requireStaff } from '../_lib/server-config.js';
 
 const VALID_PLANS = ['free', 'basic', 'pro', 'premium'];
 const VALID_STATUSES = ['free', 'active', 'trialing', 'past_due', 'canceled'];
@@ -191,7 +191,7 @@ export default async function handler(req, res) {
     // (resolveTenantWidgetStatus in @b2b-ai-chatbot/contracts), which needs
     // each site's own install signal and parked flag. Derived there rather
     // than here so this app's serverless functions keep their zero
-    // cross-boundary imports — see api/lib/server-config.js's header for why
+    // cross-boundary imports — see api/_lib/server-config.js's header for why
     // that rule exists.
     const sitesByTenant = new Map();
     for (const site of sites || []) {

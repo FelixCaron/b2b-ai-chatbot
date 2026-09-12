@@ -3,7 +3,7 @@
 // (requireStaff) — this page manages who else can see cross-tenant data, so
 // it's gated the same way everything else in this app is, not opened up to
 // any authenticated user.
-import { requireStaff } from '../lib/server-config.js';
+import { requireStaff } from '../_lib/server-config.js';
 
 export default async function handler(req, res) {
   let user;

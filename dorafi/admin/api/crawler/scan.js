@@ -1,10 +1,10 @@
 import { contracts } from '@b2b-ai-chatbot/contracts';
 import { createClient } from '@supabase/supabase-js';
-import { edgeRoute } from '../lib/http.js';
-import { generateEmbedding } from '../lib/llm.js';
-import { assertSafeExternalUrl } from '../lib/url-security.js';
-import { requireSiteOwnership } from '../lib/server-config.js';
-import { persistSiteSummary } from '../lib/site-summary.js';
+import { edgeRoute } from '../_lib/http.js';
+import { generateEmbedding } from '../_lib/llm.js';
+import { assertSafeExternalUrl } from '../_lib/url-security.js';
+import { requireSiteOwnership } from '../_lib/server-config.js';
+import { persistSiteSummary } from '../_lib/site-summary.js';
 
 export const config = {
   runtime: 'edge',

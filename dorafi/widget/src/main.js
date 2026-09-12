@@ -276,7 +276,7 @@ import { parseMarkdown } from "./markdown.js";
       }
 
       // Fetch the site's own greeting/labels (pregenerated once at scan time,
-      // see api/lib/llm.js's generateWelcomeExperience — this is a fast DB read,
+      // see api/_lib/llm.js's generateWelcomeExperience — this is a fast DB read,
       // not a live LLM call) and swap them in for the English defaults above.
       // Fire-and-forget: if it's slow or fails, the English defaults already
       // rendered are a perfectly fine widget, not a broken one.

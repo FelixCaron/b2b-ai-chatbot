@@ -1,9 +1,9 @@
 import { contracts, resolveTenantPlan } from '@b2b-ai-chatbot/contracts';
 import { createClient } from '@supabase/supabase-js';
-import { edgeRoute } from '../lib/http.js';
-import { generateEmbedding } from '../lib/llm.js';
-import { sendLeadEmail, sendBugAlertEmail, sendSupportTicketEmail } from '../lib/email.js';
-import { normalizedHostname, requestOrigin } from '../lib/site-origin.js';
+import { edgeRoute } from '../_lib/http.js';
+import { generateEmbedding } from '../_lib/llm.js';
+import { sendLeadEmail, sendBugAlertEmail, sendSupportTicketEmail } from '../_lib/email.js';
+import { normalizedHostname, requestOrigin } from '../_lib/site-origin.js';
 
 export const config = {
   runtime: 'edge',
@@ -456,7 +456,7 @@ ${supportInstruction}`;
     const stream = new ReadableStream({
       async start(controller) {
         try {
-          const { generateChatResponse, extractLeadInfo } = await import('../lib/llm.js');
+          const { generateChatResponse, extractLeadInfo } = await import('../_lib/llm.js');
           
           // MULTI-TURN AGENTIC LOOP (True Reasoning Loop)
           // Allows up to MAX_TURNS iterations of tool calls & query reformulations

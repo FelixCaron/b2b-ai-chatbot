@@ -71,7 +71,7 @@ runs:
       run: |
         api_dir='${{ inputs.api-dir }}'
         if [ -n "$api_dir" ]; then
-          expected=$(find "$api_dir" -name '*.js' -not -path '*/lib/*' | wc -l)
+          expected=$(find "$api_dir" -name '*.js' -not -path '*/_lib/*' | wc -l)
           actual=$(find .vercel/output/functions -name '*.func' -type d 2>/dev/null | wc -l)
           echo "serverless functions: $actual built, $expected route files in $api_dir"
           if [ "$actual" -ne "$expected" ]; then

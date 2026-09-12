@@ -3,15 +3,15 @@
 // (greeting bubble, header title, status line, input placeholder) in the
 // site's own language instead of a hardcoded English default. Read-only,
 // no LLM call here — that already happened once at scan time (see
-// api/lib/llm.js's generateWelcomeExperience, called from
+// api/_lib/llm.js's generateWelcomeExperience, called from
 // api/crawler/scan.js and summarize.js) and is just served back from
 // site_summaries. Public/unauthenticated like api/chat/index.js — anonymous
 // site visitors are exactly who calls this — but scoped to the one site a
 // public_key identifies, same as the chat endpoint itself.
 import { contracts, resolveTenantPlan } from '@b2b-ai-chatbot/contracts';
 import { createClient } from '@supabase/supabase-js';
-import { edgeRoute } from '../lib/http.js';
-import { isOwnDomainOrigin, requestOrigin } from '../lib/site-origin.js';
+import { edgeRoute } from '../_lib/http.js';
+import { isOwnDomainOrigin, requestOrigin } from '../_lib/site-origin.js';
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
 const SECRET_KEY = process.env.SUPABASE_SECRET_KEY;

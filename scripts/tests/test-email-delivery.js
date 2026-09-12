@@ -4,7 +4,7 @@
 // This exists because of a bug that was invisible by construction: the Resend
 // SDK never throws on a rejected send — a bad key, an unverified sending
 // domain, a malformed recipient and a network error all come back as a
-// *resolved* `{ data: null, error }`. api/lib/email.js awaited that inside a
+// *resolved* `{ data: null, error }`. api/_lib/email.js awaited that inside a
 // try/catch and returned success because nothing threw, so every failure was
 // reported as a delivery: support requests that never arrived were recorded
 // as sent, the assistant promised visitors a reply, and nothing was logged.
@@ -44,7 +44,7 @@ function stubResend(status, body) {
   };
 }
 
-const { sendSupportTicketEmail, sendLeadEmail } = await import('../../dorafi/admin/api/lib/email.js');
+const { sendSupportTicketEmail, sendLeadEmail } = await import('../../dorafi/admin/api/_lib/email.js');
 
 const site = { id: 'site-1', domain: 'acme.example.com', support_email: 'help@acme.example.com' };
 const ticket = { name: 'Jane', email: 'jane@example.com', message: 'My order never arrived.' };

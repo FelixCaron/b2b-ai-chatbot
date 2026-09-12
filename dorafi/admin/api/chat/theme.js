@@ -1,8 +1,8 @@
 import { contracts } from '@b2b-ai-chatbot/contracts';
-import { edgeRoute } from '../lib/http.js';
-import { extractThemeColors } from '../lib/llm.js';
-import { assertSafeExternalUrl, fetchSafeExternalUrl } from '../lib/url-security.js';
-import { verifyTurnstileToken } from '../lib/captcha.js';
+import { edgeRoute } from '../_lib/http.js';
+import { extractThemeColors } from '../_lib/llm.js';
+import { assertSafeExternalUrl, fetchSafeExternalUrl } from '../_lib/url-security.js';
+import { verifyTurnstileToken } from '../_lib/captcha.js';
 
 export const config = {
   runtime: 'edge',

@@ -61,7 +61,7 @@ export const crawlerScan = defineEndpoint({
 handler remembering to: `public` · `user` · `tenant` · `staff` · `webhook` ·
 `cron`.
 
-### The server end — `dorafi/admin/api/lib/http.js`
+### The server end — `dorafi/admin/api/_lib/http.js`
 
 `edgeRoute(endpoint, handler)` and `nodeRoute(endpoint, handler)` wrap a handler
 in its contract and do, once, what every route used to repeat: the `OPTIONS`

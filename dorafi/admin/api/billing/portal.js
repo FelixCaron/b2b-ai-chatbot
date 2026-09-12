@@ -3,8 +3,8 @@
 import Stripe from 'stripe';
 import WebSocket from 'ws';
 import { contracts } from '@b2b-ai-chatbot/contracts';
-import { nodeRoute } from '../lib/http.js';
-import { requireServerEnv } from '../lib/server-config.js';
+import { nodeRoute } from '../_lib/http.js';
+import { requireServerEnv } from '../_lib/server-config.js';
 
 if (typeof globalThis !== 'undefined' && !globalThis.WebSocket) {
   globalThis.WebSocket = WebSocket;

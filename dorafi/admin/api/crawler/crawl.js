@@ -1,7 +1,7 @@
 import { contracts, MAX_DISCOVERABLE_PAGES } from '@b2b-ai-chatbot/contracts';
-import { edgeRoute } from '../lib/http.js';
-import { assertSafeExternalUrl, fetchSafeExternalUrl } from '../lib/url-security.js';
-import { verifyTurnstileToken } from '../lib/captcha.js';
+import { edgeRoute } from '../_lib/http.js';
+import { assertSafeExternalUrl, fetchSafeExternalUrl } from '../_lib/url-security.js';
+import { verifyTurnstileToken } from '../_lib/captcha.js';
 
 export const config = {
   runtime: 'edge',

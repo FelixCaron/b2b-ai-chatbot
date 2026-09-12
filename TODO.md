@@ -5,30 +5,37 @@ un moment, puis disparaît — l'historique complet est dans `ADR.md`.
 
 ---
 
-## 🔴 Bloquant — à faire dans les tableaux de bord, sinon rien ne se déploie
-
-Hérité de la réorganisation du 2026-09-12 (un dossier par déployable). Tant que
-ces trois réglages ne sont pas changés, **toute** tentative de déploiement
-échoue, pipeline ou pas : le répertoire racine pointe sur des dossiers qui
-n'existent plus.
-
-- [ ] Vercel → `dorafi-admin` → Settings → General → Root Directory : `.` → `dorafi/admin`.
-      C'est aussi ce réglage qui décide si `api/**` devient des fonctions serverless.
-- [ ] Vercel → `dorafi-staff` : `apps/internal-admin` → `dorafi/staff`.
-- [ ] Vercel → `dorafi-widget` : `apps/widget` → `dorafi/widget`.
-
 ## 🟠 Mise en service des deux environnements
+
+*(Les répertoires racines Vercel, longtemps bloquants, sont réglés : les trois
+projets s'appellent désormais `dorafi-admin` / `dorafi-staff` / `dorafi-widget`
+et pointent sur `dorafi/admin`, `dorafi/staff`, `dorafi/widget`. La production a
+été redéployée et vérifiée le 2026-09-12 — les deux déploiements précédents
+avaient échoué.)*
 
 Voir `docs/DEPLOYMENT.md` pour la vue d'ensemble et `infra/terraform/README.md`
 pour l'ordre exact des opérations — il est important : le premier `apply` touche
 la production.
 
-- [ ] `terraform import` des quatre projets Vercel et du projet Supabase de
-      production, puis `terraform plan` jusqu'à ce qu'il n'annonce **aucune**
-      destruction. Ne pas appliquer avant.
+- [ ] **Fournir les quatre secrets que Terraform ne peut pas retrouver seul** :
+      `OPENROUTER_API_KEY`, `JINA_API_KEY`, `RESEND_API_KEY`, `STRIPE_SECRET_KEY`.
+      Vercel les marque « sensibles » et refuse de les relire, y compris à un
+      jeton d'API. Sans eux, laisser Terraform gérer les variables d'environnement
+      **supprimerait** celles qu'il ne connaît pas et casserait la production.
+      C'est le seul vrai blocage avant un `terraform apply` complet.
+- [ ] Un jeton GitHub (`repo`) pour que Terraform pose les secrets et variables
+      Actions.
+- [ ] `terraform import` des projets existants (ids ci-dessous), puis
+      `terraform plan` jusqu'à ce qu'il n'annonce **aucune** destruction :
+      `dorafi-admin` = `prj_MI45o3kUhwE4RqRRcZUyVEhKSrWZ`,
+      `dorafi-staff` = `prj_lqAXf1wEdimGtxt8aqDFeNkHGE2A`,
+      `dorafi-widget` = `prj_lIDHJ22MoFKthvnn3uFgudoeVH1V`,
+      Supabase production = `xuvueegdokgiyedwvmkm` (org `frcollnxlzqgussqqsmi`,
+      région `ca-central-1`).
 - [ ] DNS : `preview.dorafi.logafi.com` et `preview.logafi.com` vers Vercel.
 - [ ] Créer le projet Vercel `logafi` (le seul des quatre qui n'existe pas encore)
-      et y rattacher `logafi.com` + `www.logafi.com`.
+      et y rattacher `logafi.com` + `www.logafi.com`. **`logafi.com` ne résout pas
+      du tout aujourd'hui** — le domaine n'est pointé nulle part.
 - [ ] Stripe : rejouer `npm run setup:stripe` avec une clé **test** pour obtenir
       les trois `STRIPE_PRICE_ID_*` de l'environnement preview, et déclarer un
       endpoint webhook distinct sur `preview.dorafi.logafi.com/api/billing/webhook`
@@ -51,15 +58,18 @@ la production.
 - [ ] Révoquer et remplacer les clés Supabase service-role et Jina précédemment versionnées, puis n'enregistrer les nouvelles valeurs que dans Vercel/Supabase.
 - [ ] Décider de la visibilité du dépôt GitHub — il est **public** aujourd'hui : code, ADR, ce fichier, et les notes juridiques sont lisibles par n'importe qui. Si c'est voulu, rien à faire ; sinon Settings → Danger Zone. À noter : les règles d'approbation d'environnement GitHub utilisées par le pipeline sont gratuites sur un dépôt public, payantes sur un dépôt privé.
 
-**Résiduel connu, non trivial** : `api/lib/url-security.js` bloque bien les IP
+**Résiduel connu, non trivial** : `api/_lib/url-security.js` bloque bien les IP
 privées et revalide chaque redirection, mais ne fait pas de résolution DNS
 préalable — un hostname public en apparence qui résout vers une IP privée au
 moment du fetch (DNS rebinding) passerait.
 
 ## 🟡 Infrastructure — plan Vercel Hobby (12 fonctions par déploiement)
 
-Le projet `dorafi-admin` est à exactement 12/12. Un simple ajout d'import dans
-un handler existant a déjà suffi à faire échouer un déploiement (2026-09-08).
+Le projet `dorafi-admin` est à exactement 12/12, vérifié sur un vrai
+`vercel build` le 2026-09-12. Attention : Vercel transforme **chaque** fichier
+`.js` sous `api/` en fonction, y compris les modules partagés — c'est pourquoi
+ils vivent dans `api/_lib/` (le préfixe `_` les exclut). Avec `api/lib/`, la
+construction produisait 21 fonctions et le déploiement était refusé.
 
 - [ ] **Restaurer `api/cron/cleanup.js`** (et son contrat `cron.cleanup`) dès qu'un
       slot est libre — sans lui, les tenants invités abandonnés et leurs comptes
@@ -90,6 +100,10 @@ Ces points bloquent des placeholders `[entre crochets]` dans
 - [ ] Désigner nommément la personne responsable de la protection des renseignements personnels (Loi 25, Québec) — placeholder aujourd'hui.
 - [ ] Faire réviser `Privacy Policy` et `Terms of Service` par un·e avocat·e. Le contenu décrit fidèlement les pratiques techniques réelles, mais n'a aucune valeur juridique certifiée.
 - [ ] Décider si la TPS/TVQ s'applique et configurer Stripe Tax (`Pricing.jsx` affiche des prix hors taxe).
+- [ ] **`STRIPE_WEBHOOK_SECRET` n'existe pas dans le projet Vercel de production.**
+      `api/billing/webhook.js` le lit pour vérifier la signature Stripe : sans lui,
+      le webhook rejette tout, donc **aucun paiement ne met à jour le forfait du
+      client**. Constaté le 2026-09-12 en listant les variables du projet.
 - [ ] Basculer Stripe du mode sandbox au mode live une fois la vérification d'entreprise faite, et confirmer que `STRIPE_WEBHOOK_SECRET` correspond bien à l'endpoint live.
 - [ ] Définir une politique de remboursement explicite (les CGU disent « non remboursable sauf obligation légale » par défaut).
 
@@ -113,7 +127,7 @@ Ces points bloquent des placeholders `[entre crochets]` dans
 - [x] **Une arborescence qui dit la vérité** *(2026-09-12)* — un dossier par déployable, plus rien de déployable à la racine.
 - [x] **Page et projet Vercel de la société mère `logafi`** *(2026-09-12)*.
 - [x] Protéger les endpoints administratifs par authentification et contrôle de propriété du tenant *(2026-08-25 ; voir ADR 036 et 038)*.
-- [x] Protéger les fetches sortants contre le SSRF *(`api/lib/url-security.js`)*.
+- [x] Protéger les fetches sortants contre le SSRF *(`api/_lib/url-security.js`)*.
 - [x] Supprimer `preview-proxy`, qui acceptait une URL arbitraire et renvoyait du HTML tiers sous l'origine de l'admin *(2026-09-08)*.
 - [x] Ajouter `npm run test:secrets` à la CI *(2026-08-25)*.
 - [x] Limites de forfaits appliquées côté base (trigger `sites_enforce_limit`) et non plus seulement dans l'interface *(voir ADR 057)*.

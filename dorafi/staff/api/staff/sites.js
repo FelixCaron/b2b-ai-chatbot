@@ -3,12 +3,12 @@
 // Reuses the same atomic, cascade-checked RPC the tenant-facing delete-site
 // flow uses (supabase/migrations — delete_site_cascade, see its own comment
 // for why it's one transaction rather than delete-each-table-and-swallow-
-// errors). Staff-gated (requireStaff) — see api/lib/server-config.js.
+// errors). Staff-gated (requireStaff) — see api/_lib/server-config.js.
 //
 // id is a query param, not a path segment — see api/staff/tenants.js's
 // header comment for why: this Vercel project doesn't build bracket-segment
 // (`[id].js`) routes, confirmed live 2026-09-05 on two independent examples.
-import { requireStaff } from '../lib/server-config.js';
+import { requireStaff } from '../_lib/server-config.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'DELETE') {

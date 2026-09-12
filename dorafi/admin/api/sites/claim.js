@@ -31,8 +31,8 @@
 // guest_site_claims and to execute claim_guest_site — so every query below
 // runs through it.
 import { contracts } from '@b2b-ai-chatbot/contracts';
-import { edgeRoute } from '../lib/http.js';
-import { requireTenantOwnership } from '../lib/server-config.js';
+import { edgeRoute } from '../_lib/http.js';
+import { requireTenantOwnership } from '../_lib/server-config.js';
 
 export const config = {
   runtime: 'edge',

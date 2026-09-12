@@ -95,7 +95,7 @@ export default defineConfig(({ mode, command }) => {
                   // in dev fail with "req.headers.get is not a function".
                   // edgeRoute's wrapper declares one parameter, nodeRoute's
                   // two — which is the only distinction available here, and
-                  // the one the two factories in api/lib/http.js guarantee.
+                  // the one the two factories in api/_lib/http.js guarantee.
                   if (handler.length >= 2) {
                     await handler(req, res);
                     return;

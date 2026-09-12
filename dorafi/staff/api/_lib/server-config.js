@@ -1,4 +1,4 @@
-// Local copy of the auth-check pattern from the root api/lib/server-config.js.
+// Local copy of the auth-check pattern from the root api/_lib/server-config.js.
 // Duplicated rather than imported across the app boundary: Vercel bundles
 // each project's serverless functions starting from that project's own root
 // directory, so a relative import reaching into ../../../api would be

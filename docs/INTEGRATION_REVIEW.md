@@ -59,7 +59,7 @@ guarantee than "RLS in `public`, hope the policy is right": a bug in the tenant-
 policies above has literally no path to this data, because the access mechanism is
 different. A `SECURITY DEFINER` bridge function, `public.is_staff_admin(uuid)`, restricted
 to `service_role` only, is the one way server code can check staff membership — see
-`dorafi/staff/api/lib/server-config.js`.
+`dorafi/staff/api/_lib/server-config.js`.
 
 **Fixed in this pass — plan limits were a UI suggestion, not a boundary.** Sites are inserted
 client-side through RLS (`App.jsx`'s `handleAddSite`), and the only thing standing between a
@@ -127,14 +127,14 @@ stale `Guest_` name until it does.
 
 ## API layer
 
-Auth model: `api/lib/server-config.js`'s `requireAuthentication` (verifies a bearer JWT
+Auth model: `api/_lib/server-config.js`'s `requireAuthentication` (verifies a bearer JWT
 against Supabase Auth) → `requireTenantOwnership` / `requireSiteOwnership` (confirms the
 authenticated user owns the tenant/site being acted on) is applied to every admin-facing
 mutation (checkout, portal, delete-site, scan, update-document, generate-summary).
 Onboarding endpoints that run *before* a site exists (`crawl-site`, `analyze-theme`) are
 protected by Turnstile captcha instead, since there's no tenant to own yet.
 
-**Fixed in this pass:** `api/lib/rate-limiter.js` was dead code — not imported anywhere in
+**Fixed in this pass:** `api/_lib/rate-limiter.js` was dead code — not imported anywhere in
 the codebase, and it queried `tenants.query_limit` / `tenants.current_query_count`,
 columns that don't exist in any migration (so if it *had* been wired up, it would have
 failed closed and denied every request). Deleted. The real, working rate limiting is
