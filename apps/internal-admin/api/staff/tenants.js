@@ -1,4 +1,5 @@
-// GET /api/staff/tenants — list every tenant with plan/status/usage/site count.
+// GET /api/staff/tenants — list every tenant with plan/status/usage, its
+//   sites (domain, parked flag, widget install signal) and their count.
 // GET /api/staff/tenants?id=<uuid> — one tenant's detail (sites, usage,
 //   leads, scan jobs).
 // PATCH /api/staff/tenants?id=<uuid> — manual plan/plan_status override
@@ -122,7 +123,7 @@ export default async function handler(req, res) {
     try {
       const { data: tenant, error: tenantError } = await supabase
         .from('tenants')
-        .select('id, name, plan, plan_status, plan_expires_at, stripe_customer_id, stripe_subscription_id, created_at, owner_user_id')
+        .select('id, name, plan, plan_status, plan_expires_at, trial_ends_at, stripe_customer_id, stripe_subscription_id, created_at, owner_user_id')
         .eq('id', tenantId)
         .maybeSingle();
 
@@ -133,7 +134,7 @@ export default async function handler(req, res) {
         await Promise.all([
           supabase
             .from('sites')
-            .select('id, domain, public_key, enable_lead_capture, created_at')
+            .select('id, domain, public_key, enable_lead_capture, is_active, widget_last_seen_at, created_at')
             .eq('tenant_id', tenantId)
             .order('created_at', { ascending: false }),
           supabase
@@ -174,10 +175,10 @@ export default async function handler(req, res) {
       await Promise.all([
         supabase
           .from('tenants')
-          .select('id, name, plan, plan_status, plan_expires_at, stripe_customer_id, created_at')
+          .select('id, name, plan, plan_status, plan_expires_at, trial_ends_at, stripe_customer_id, stripe_subscription_id, created_at')
           .order('created_at', { ascending: false })
           .limit(500),
-        supabase.from('sites').select('id, tenant_id'),
+        supabase.from('sites').select('id, tenant_id, domain, is_active, widget_last_seen_at'),
         supabase.from('usage').select('tenant_id, messages_count, leads_count'),
       ]);
 
@@ -185,18 +186,31 @@ export default async function handler(req, res) {
     if (sitesError) throw sitesError;
     if (usageError) throw usageError;
 
-    const siteCountByTenant = new Map();
+    // The sites themselves ride along, not just their count: the console rolls
+    // them up into one widget status per tenant with the shared helper
+    // (resolveTenantWidgetStatus in @b2b-ai-chatbot/contracts), which needs
+    // each site's own install signal and parked flag. Derived there rather
+    // than here so this app's serverless functions keep their zero
+    // cross-boundary imports — see api/lib/server-config.js's header for why
+    // that rule exists.
+    const sitesByTenant = new Map();
     for (const site of sites || []) {
-      siteCountByTenant.set(site.tenant_id, (siteCountByTenant.get(site.tenant_id) || 0) + 1);
+      const list = sitesByTenant.get(site.tenant_id);
+      if (list) list.push(site);
+      else sitesByTenant.set(site.tenant_id, [site]);
     }
     const usageByTenant = new Map((usage || []).map((u) => [u.tenant_id, u]));
 
-    const result = (tenants || []).map((tenant) => ({
-      ...tenant,
-      site_count: siteCountByTenant.get(tenant.id) || 0,
-      messages_count: usageByTenant.get(tenant.id)?.messages_count || 0,
-      leads_count: usageByTenant.get(tenant.id)?.leads_count || 0,
-    }));
+    const result = (tenants || []).map((tenant) => {
+      const tenantSites = sitesByTenant.get(tenant.id) || [];
+      return {
+        ...tenant,
+        sites: tenantSites,
+        site_count: tenantSites.length,
+        messages_count: usageByTenant.get(tenant.id)?.messages_count || 0,
+        leads_count: usageByTenant.get(tenant.id)?.leads_count || 0,
+      };
+    });
 
     return res.status(200).json({ tenants: result });
   } catch (err) {

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, Code, AlertTriangle, Sparkles, Check, Copy, RefreshCw, ChevronDown, Power } from 'lucide-react';
+import { resolveSiteWidgetStatus } from '@b2b-ai-chatbot/contracts';
 import { getMaxPagesForPlan, getPlanDisplayName } from '../../lib/plan-limits';
 import { supabase } from '../../../../lib/supabase';
 import { useT } from '../../../../i18n/LanguageContext';
@@ -110,13 +111,13 @@ export default function IntegrationModal({
         .select('widget_last_seen_at')
         .eq('id', activeSite.id)
         .maybeSingle();
-      if (cancelled || !data?.widget_last_seen_at) return;
-      const seenAt = new Date(data.widget_last_seen_at).getTime();
-      // Any sighting within the last 10 minutes counts — not just ones after
-      // the modal opened, since a tenant who pasted the snippet and loaded
-      // their site just before opening this modal shouldn't be told "not
-      // installed" over a few seconds of timing.
-      if (Date.now() - seenAt < 10 * 60 * 1000) {
+      if (cancelled) return;
+      // Any sighting within the live window counts — not just ones after the
+      // modal opened, since a tenant who pasted the snippet and loaded their
+      // site just before opening this modal shouldn't be told "not installed"
+      // over a few seconds of timing. How wide that window is belongs to the
+      // shared rule (@b2b-ai-chatbot/contracts), not to this modal.
+      if (resolveSiteWidgetStatus(data).isLive) {
         setInstallDetected(true);
       }
     };

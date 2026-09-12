@@ -1,6 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, ExternalLink, Trash2 } from 'lucide-react';
+import { resolveSiteWidgetStatus, resolveTenantWidgetStatus } from '@b2b-ai-chatbot/contracts';
 import { api } from '../lib/api';
+import WidgetStatusBadge, { formatLastSeen } from './WidgetStatusBadge';
 
 // 'free' has to be a selectable Plan (not just a Status) — it's the DEFAULT
 // every tenant starts on before they ever subscribe, so it's a real value of
@@ -92,6 +94,16 @@ export default function TenantDetail({ tenantId, onBack }) {
 
   const dirty = data && (plan !== data.tenant.plan || planStatus !== data.tenant.plan_status);
 
+  // One rollup for the summary, and each site's own status for the list
+  // below it — both from the shared rules in @b2b-ai-chatbot/contracts, so
+  // this console and the customer's own dashboard answer "is it live?" the
+  // same way. Recomputed only when the tenant is reloaded (the live window is
+  // ten minutes wide; nothing here moves faster than a refresh).
+  const widget = useMemo(
+    () => (data ? resolveTenantWidgetStatus(data.tenant, data.sites) : null),
+    [data]
+  );
+
   return (
     <div>
       <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-dark-900 mb-4">
@@ -180,10 +192,22 @@ export default function TenantDetail({ tenantId, onBack }) {
               </p>
             )}
 
-            <dl className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 text-sm">
+            <dl className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mt-6 text-sm">
               <div>
                 <dt className="text-gray-500 text-xs">Sites</dt>
                 <dd className="text-dark-900 font-semibold">{data.sites.length}</dd>
+              </div>
+              <div>
+                <dt className="text-gray-500 text-xs">Widget</dt>
+                <dd className="mt-0.5">
+                  <WidgetStatusBadge status={widget.status} lastSeenAt={widget.lastSeenAt} />
+                  <span className="block text-[11px] text-gray-500 mt-1">
+                    {widget.siteCount === 0
+                      ? 'no site to install on'
+                      : `${widget.installedCount}/${widget.siteCount} installed`}
+                    {widget.lastSeenAt ? ` · last seen ${formatLastSeen(widget.lastSeenAt)}` : ''}
+                  </span>
+                </dd>
               </div>
               <div>
                 <dt className="text-gray-500 text-xs">Leads (all time)</dt>
@@ -206,12 +230,19 @@ export default function TenantDetail({ tenantId, onBack }) {
             <h3 className="text-sm font-semibold text-gray-600 mb-4">Sites</h3>
             {data.sites.length === 0 && <p className="text-sm text-gray-500">No sites yet.</p>}
             <ul className="divide-y divide-dark-900/5">
-              {data.sites.map((site) => (
+              {data.sites.map((site) => {
+                const siteWidget = resolveSiteWidgetStatus(site, data.tenant);
+                return (
                 <li key={site.id} className="py-2.5 flex items-center justify-between text-sm gap-3">
-                  <span className="text-dark-900">{site.domain}</span>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-dark-900 truncate">{site.domain}</span>
+                    <WidgetStatusBadge status={siteWidget.status} lastSeenAt={siteWidget.lastSeenAt} />
+                  </div>
                   <div className="flex items-center gap-3">
                     <span className="text-xs text-gray-500 whitespace-nowrap">
-                      {site.enable_lead_capture ? 'lead capture on' : 'lead capture off'} · added {new Date(site.created_at).toLocaleDateString()}
+                      {siteWidget.lastSeenAt
+                        ? `widget seen ${formatLastSeen(siteWidget.lastSeenAt)}`
+                        : 'widget never seen'} · {site.enable_lead_capture ? 'lead capture on' : 'lead capture off'} · added {new Date(site.created_at).toLocaleDateString()}
                     </span>
                     <button
                       onClick={() => handleDeleteSite(site)}
@@ -223,7 +254,8 @@ export default function TenantDetail({ tenantId, onBack }) {
                     </button>
                   </div>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           </div>
 

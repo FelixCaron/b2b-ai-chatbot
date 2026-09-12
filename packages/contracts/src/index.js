@@ -17,6 +17,7 @@ export { createApiClient } from './client.js';
 export * from './plans.js';
 export * from './stripe-billing.js';
 export * from './niches.js';
+export * from './widget-status.js';
 
 import { registry } from './endpoint.js';
 

@@ -1,10 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import { resolveSiteWidgetStatus } from '@b2b-ai-chatbot/contracts';
 import { supabase } from '../../../lib/supabase';
 
-// Same window IntegrationModal's "Checking installation..." indicator uses —
-// long enough that a quiet minute on an otherwise-installed site doesn't
-// flip the badge back to "not installed".
-const LIVE_WINDOW_MS = 10 * 60 * 1000;
 const POLL_INTERVAL_MS = 30 * 1000;
 
 /**
@@ -24,6 +21,10 @@ const POLL_INTERVAL_MS = 30 * 1000;
  *     installed weeks ago to go install it again.
  *   isLive — was it seen in the last few minutes? That is traffic, and it is
  *     only ever used to say something positive ("live on your website").
+ *
+ * The rule itself — including how wide "the last few minutes" is — lives in
+ * @b2b-ai-chatbot/contracts' widget-status.js, shared with the install modal
+ * and the staff console, so the three cannot drift apart.
  *
  * Only polls while `enabled` — there is no point asking this while the
  * assistant is paused or still being built.
@@ -48,12 +49,11 @@ export default function useWidgetLiveStatus(siteId, enabled = true) {
         .eq('id', siteId)
         .maybeSingle();
       if (cancelledRef.current) return;
-      if (!data?.widget_last_seen_at) {
-        setStatus({ isInstalled: false, isLive: false });
-        return;
-      }
-      const seenAt = new Date(data.widget_last_seen_at).getTime();
-      setStatus({ isInstalled: true, isLive: Date.now() - seenAt < LIVE_WINDOW_MS });
+      // Only the install signal is read here — no site row, no tenant — so
+      // the helper reports just the two booleans this hook promises, without
+      // the parked/plan states the staff console also renders.
+      const { isInstalled, isLive } = resolveSiteWidgetStatus(data);
+      setStatus({ isInstalled, isLive });
     };
 
     checkOnce();

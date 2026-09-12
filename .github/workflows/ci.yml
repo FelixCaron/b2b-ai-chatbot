@@ -64,6 +64,9 @@ jobs:
       - name: Run Schema Contracts Verification
         run: node scripts/tests/test-schemas.js
 
+      - name: Run Widget Status Verification
+        run: node scripts/tests/test-widget-status.js
+
       - name: Verify API Route Imports
         run: node scripts/tests/test-api-imports.cjs
 
