@@ -99,3 +99,49 @@ test.describe('Floating Copilot widget — click-through integrity', () => {
     await expect(link).toHaveAttribute('href', 'https://acme.example.com/shipping');
   });
 });
+
+// This bundle runs on other people's websites, pasted into a footer and then
+// forgotten. It has to keep being harmless long after anyone here stops
+// maintaining it — a slow backend, a 500, a lapsed domain answering nothing.
+// The contract is: nothing appears, nothing throws, the page is untouched.
+test.describe('Floating widget — fail-safe on someone else\'s website', () => {
+  test('a backend that cannot be reached takes the widget off the page, not the page down', async ({ page, mock }) => {
+    const pageErrors = [];
+    page.on('pageerror', (err) => pageErrors.push(err.message));
+
+    // Stand in for "the company is gone": the API host no longer answers.
+    await page.route('**/api/chat/init*', (route) => route.abort('connectionfailed'));
+
+    await page.goto('/');
+    // The host page itself is completely unaffected.
+    await expect(page.getByRole('heading', { name: 'acme.example.com' })).toBeVisible();
+
+    // And the widget has taken itself off the page rather than leave a
+    // launcher that opens onto an error.
+    await expect
+      .poll(() => page.evaluate(() => Boolean(document.getElementById('b2b-chatbot-host'))))
+      .toBe(false);
+
+    expect(pageErrors, 'the widget must never throw into the page it runs on').toEqual([]);
+  });
+
+  test('a snippet pasted twice still renders exactly one widget', async ({ page, mock }) => {
+    await page.goto('/');
+    await expect(page.getByRole('heading', { name: 'acme.example.com' })).toBeVisible();
+
+    // A site builder duplicating the snippet in a template, or a tag manager
+    // firing it a second time.
+    await page.evaluate(() => new Promise((resolve) => {
+      const s = document.createElement('script');
+      s.src = '/widget.iife.js';
+      s.async = true;
+      s.onload = resolve;
+      s.onerror = resolve;
+      document.body.appendChild(s);
+    }));
+
+    await expect
+      .poll(() => page.evaluate(() => document.querySelectorAll('#b2b-chatbot-host').length))
+      .toBe(1);
+  });
+});

@@ -91,7 +91,7 @@ test.describe('Dashboard — the paywall is activation, not installation', () =>
       // A paying customer is never told their assistant is dark.
       await expect(page.getByRole('button', { name: /Activate on my website/i })).toHaveCount(0);
 
-      await page.getByRole('button', { name: /^Install$/i }).first().click();
+      await page.getByRole("button", { name: /Add it to my website/i }).first().click();
       await expect(page.getByRole('heading', { name: /Add your assistant to your website/i })).toBeVisible();
       await expect(page.getByText(/Paste it now/i)).toHaveCount(0);
     });
@@ -113,17 +113,20 @@ test.describe('Dashboard — the paywall is activation, not installation', () =>
 
       // The install modal opens for an inactive workspace — no wall in front
       // of it — and carries the real snippet.
-      await page.getByRole('button', { name: /^Install$/i }).first().click();
+      await page.getByRole("button", { name: /Add it to my website/i }).first().click();
       await expect(page.getByRole('heading', { name: /Add your assistant to your website/i })).toBeVisible();
       await expect(page.locator('pre')).toContainText(mock.db.sites[0].public_key);
       // ...and says what pasting it will (not) do yet.
       await expect(page.getByText(/Paste it now/i)).toBeVisible();
       await expect(page.getByRole('button', { name: /Activate my assistant/i })).toBeVisible();
 
-      // The dashboard itself is honest about the state, and offers the way out.
+      // The dashboard itself is honest about the state, and offers the way
+      // out. This site isn't installed yet either, so installing is the lead
+      // action and activating waits its turn in the secondary row — one
+      // call-to-action at a time (SiteHeroCard's primaryAction).
       await page.getByRole('button', { name: /^Close$|^Done$/i }).first().click();
       await expect(page.getByText(/does not appear on your website yet/i)).toBeVisible();
-      await page.getByRole('button', { name: /Activate on my website/i }).click();
+      await page.getByRole('button', { name: /^Activate$/i }).click();
       await expect(page.getByRole('heading', { name: /Activate your assistant on/i })).toBeVisible();
     });
   });

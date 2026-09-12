@@ -2366,3 +2366,25 @@ Ce découpage était faux dans les deux sens :
 - Ce qui est vendu est désormais ce que le client veut : l'assistant présent devant ses visiteurs. Le reste (construire, tester, installer) est gratuit et sans friction.
 - Un compte résilié cesse effectivement d'être servi — ce qui n'était pas le cas avant cet ADR.
 - `npm test`, `npm run build` et les 116 tests E2E Playwright passent.
+
+## ADR : Le bouton d'installation disparaît une fois installé, et le widget ne peut pas casser le site du client
+**Date:** 12 Septembre 2026
+**Statut:** Accepté
+
+### Contexte
+Deux problèmes sans rapport l'un avec l'autre, réglés ensemble parce qu'ils touchent le même bout de produit : le code qu'on fait coller chez le client.
+
+**1. Le bouton « Installer » était toujours là, au même endroit, quoi qu'il arrive.** Discret quand il fallait qu'il saute aux yeux (assistant construit, jamais installé — c'est LA prochaine action), et toujours présent quand il n'avait plus aucun sens (déjà installé depuis des semaines). Pire : l'unique signal disponible pour dire « installé » était `isLive` — le widget vu dans les **10 dernières minutes**. Un site client sans visiteur depuis une heure était donc annoncé « Pas encore installé », avec l'invitation à aller l'installer une deuxième fois.
+
+**2. Le script chez le client n'était pas conçu pour survivre à notre disparition.** Il est collé dans le pied de page d'un site tiers et y restera des années — bien après une fermeture d'entreprise, un domaine non renouvelé, une panne longue. Dans l'état : balise `<script>` **synchrone** (un serveur lent bloque le rendu de la page du client — et c'est *son* site qui a l'air cassé), aucun `try/catch` global (une exception inattendue remonte dans la page hôte), pas de garde contre une double injection, pas de délai maximal sur les requêtes, et surtout : si l'API ne répondait pas, le widget restait affiché — une bulle qui échoue à chaque message.
+
+### Décision
+**Le bouton suit l'état réel de l'assistant.** `useWidgetLiveStatus` distingue désormais deux questions qui étaient confondues : `isInstalled` (le widget a-t-il **déjà** été vu se charger depuis le domaine du client ?) et `isLive` (dans les dernières minutes ?). `isInstalled` ne redevient jamais faux parce qu'un mardi est calme, et ne sert qu'à retirer l'invitation ; `isLive` ne sert qu'à dire quelque chose de positif (« En ligne sur votre site web »). Le hero n'a plus qu'**une seule action principale**, choisie dans l'ordre de l'entonnoir : apprendre → installer → activer → tester. « L'ajouter à mon site web » devient donc le gros bouton tant que ce n'est pas installé, puis **disparaît complètement**. Le code reste joignable en permanence via Réglages → « Code d'installation » (`InstallCodeCard`), pour le jour où le site est refait.
+
+**Le widget est conçu pour échouer proprement**, dans cet ordre de priorité : (1) ne jamais lever d'exception dans la page hôte — tout le build est dans un `try/catch` qui retire ce qu'il a ajouté et se tait ; (2) ne jamais la bloquer — l'extrait est maintenant `async`, on attend `<body>` au lieu de le supposer, et l'appel `/chat/init` a une échéance de 8 s ; (3) ne jamais afficher ce qui ne peut pas fonctionner — si l'API est injoignable, illisible ou hors délai, le widget **se retire de la page** au lieu de laisser un lanceur qui ouvre sur une erreur. Une garde `window.__dorafiWidgetLoaded` empêche un deuxième widget si l'extrait est collé deux fois.
+
+### Conséquences
+- Un client dont le site n'a pas eu de visite depuis une heure n'est plus invité à réinstaller ce qui est déjà installé.
+- Si l'entreprise ferme : les sites clients ne montrent plus rien, ne ralentissent pas, ne lèvent pas d'erreur. Le pire cas est l'absence d'assistant — jamais un site cassé.
+- Les extraits déjà collés chez des clients restent synchrones (on ne peut pas les réécrire à distance) ; le reste des garanties, lui, s'applique à eux dès le prochain déploiement du bundle, puisqu'il est servi depuis notre CDN.
+- Deux tests E2E figent le comportement de repli (backend injoignable → widget retiré, aucune exception dans la page ; extrait collé deux fois → un seul widget), un troisième fige la disparition du bouton une fois installé. `npm test`, `npm run build` et les 122 tests E2E passent.

@@ -27,7 +27,21 @@ export default function SiteHeroCard({
   const { t } = useT();
   // Whether the widget has actually loaded on the live site recently — only
   // worth checking once the assistant is built and not mid-crawl.
-  const isLive = useWidgetLiveStatus(activeSite?.id, isActive && !isCrawling);
+  const { isInstalled, isLive } = useWidgetLiveStatus(activeSite?.id, isActive && !isCrawling);
+
+  // Exactly one primary action, and it is whatever this owner's assistant is
+  // actually waiting on. The order is the order the funnel runs in: get the
+  // code onto the website, turn it on, then use it. A second gradient button
+  // next to the first is how a call-to-action stops being one.
+  const primaryAction = isCrawling
+    ? 'learning'
+    : !isActive
+    ? 'test'
+    : !isInstalled
+    ? 'install'
+    : !isPlanActive
+    ? 'activate'
+    : 'test';
   // The site's own favicon, not a generic globe — works for any domain
   // without asking anyone to upload a logo. Tried in order of how likely
   // each is to actually be right:
@@ -91,6 +105,11 @@ export default function SiteHeroCard({
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                   {t('Live on your website')}
                 </span>
+              ) : isInstalled ? (
+                <span className="bg-emerald-500/10 text-emerald-700 text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5 border border-emerald-500/20">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500/70"></span>
+                  {t('Installed on your website')}
+                </span>
               ) : (
                 <span className="bg-gray-500/10 text-gray-600 text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5 border border-gray-500/20">
                   <span className="w-2 h-2 rounded-full bg-gray-400"></span>
@@ -111,36 +130,48 @@ export default function SiteHeroCard({
                 ? t('Your assistant does not appear on your website yet — activate it to put it in front of visitors')
                 : isLive
                 ? t('Installed and answering visitors on your website')
-                : t('Built and ready — paste the install code below to put it on your website')}
+                : isInstalled
+                ? t('Installed on your website and ready for your next visitor')
+                : t('Built and ready — add it to your website to put it in front of visitors')}
             </p>
           </div>
         </div>
 
         {/* Action Buttons — stacked & grouped on mobile so nothing wraps
             raggedly or ends up too small to tap comfortably; unchanged
-            single-row layout from md (≥768px) upward. */}
-        <div className="flex flex-col gap-2.5 w-full md:w-auto md:flex-row md:flex-wrap md:items-center md:gap-3">
-          <button
-            disabled={isCrawling}
-            onClick={onOpenPreview}
-            className={`w-full md:w-auto text-white font-semibold px-6 py-3 rounded-xl text-sm flex items-center justify-center gap-2 shadow-lg transition-all ${
-              isCrawling
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed border border-dark-900/10 opacity-70'
-                : 'bg-gradient-to-r from-brand-700 to-brand-500 hover:from-brand-600 hover:to-brand-400 shadow-brand-900/30 hover:scale-[1.02] active:scale-98'
-            }`}
-          >
-            {isCrawling ? (
-              <>
-                <RefreshCw className="w-4 h-4 animate-spin text-brand-600" /> {t('Learning your website...')}
-              </>
-            ) : (
-              <>
-                <Eye className="w-4 h-4" /> {t('Test your assistant')}
-              </>
-            )}
-          </button>
+            single-row layout from md (≥768px) upward.
 
-          {!isPlanActive && isActive && (
+            The primary slot changes with the state of the assistant, and the
+            actions that aren't primary drop to the quiet row below it. The
+            Install button in particular does not exist once the widget has
+            been seen loading on the site: an owner who has already pasted the
+            snippet has no use for a button telling them to paste it, and the
+            code stays reachable from Settings for the rare day they need it
+            again. */}
+        <div className="flex flex-col gap-2.5 w-full md:w-auto md:flex-row md:flex-wrap md:items-center md:gap-3">
+          {primaryAction === 'learning' && (
+            <button
+              disabled
+              className="w-full md:w-auto font-semibold px-6 py-3 rounded-xl text-sm flex items-center justify-center gap-2 shadow-lg bg-gray-300 text-gray-500 cursor-not-allowed border border-dark-900/10 opacity-70"
+            >
+              <RefreshCw className="w-4 h-4 animate-spin text-brand-600" /> {t('Learning your website...')}
+            </button>
+          )}
+
+          {primaryAction === 'install' && (
+            <button
+              type="button"
+              onClick={() => {
+                if (isGuest) onRequireLogin();
+                else onOpenIntegration();
+              }}
+              className="w-full md:w-auto bg-gradient-to-r from-brand-700 to-brand-500 hover:from-brand-600 hover:to-brand-400 text-white font-semibold px-6 py-3 rounded-xl text-sm flex items-center justify-center gap-2 shadow-lg shadow-brand-900/30 transition-all hover:scale-[1.02] active:scale-98"
+            >
+              <Code className="w-4 h-4" /> {t('Add it to my website')}
+            </button>
+          )}
+
+          {primaryAction === 'activate' && (
             <button
               type="button"
               onClick={() => {
@@ -153,17 +184,56 @@ export default function SiteHeroCard({
             </button>
           )}
 
-          <div className="grid grid-cols-2 gap-2.5 md:contents">
+          {primaryAction === 'test' && (
             <button
-              onClick={() => {
-                if (isGuest) onRequireLogin();
-                else onOpenIntegration();
-              }}
-              className="bg-white hover:bg-surface-200 border border-dark-900/10 text-gray-700 hover:text-dark-900 px-3 sm:px-4 py-3 rounded-xl text-xs sm:text-sm font-medium flex items-center justify-center gap-2 transition-all shadow-sm"
+              onClick={onOpenPreview}
+              className="w-full md:w-auto bg-gradient-to-r from-brand-700 to-brand-500 hover:from-brand-600 hover:to-brand-400 text-white font-semibold px-6 py-3 rounded-xl text-sm flex items-center justify-center gap-2 shadow-lg shadow-brand-900/30 transition-all hover:scale-[1.02] active:scale-98"
             >
-              <Code className="w-4 h-4 text-brand-600 shrink-0" />
-              <span className="truncate">{t('Install')}</span>
+              <Eye className="w-4 h-4" /> {t('Test your assistant')}
             </button>
+          )}
+
+          <div className="grid grid-cols-2 gap-2.5 md:contents">
+            {primaryAction !== 'test' && primaryAction !== 'learning' && (
+              <button
+                type="button"
+                onClick={onOpenPreview}
+                className="bg-white hover:bg-surface-200 border border-dark-900/10 text-gray-700 hover:text-dark-900 px-3 sm:px-4 py-3 rounded-xl text-xs sm:text-sm font-medium flex items-center justify-center gap-2 transition-all shadow-sm"
+              >
+                <Eye className="w-4 h-4 text-brand-600 shrink-0" /> <span className="truncate">{t('Test')}</span>
+              </button>
+            )}
+
+            {/* Not installed yet AND not activated: installing is the primary
+                action above, so activating waits here rather than competing
+                with it. */}
+            {primaryAction === 'install' && !isPlanActive && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (isGuest) onRequireLogin();
+                  else onActivate?.();
+                }}
+                className="bg-white hover:bg-surface-200 border border-amber-500/40 text-amber-700 hover:text-amber-800 px-3 sm:px-4 py-3 rounded-xl text-xs sm:text-sm font-medium flex items-center justify-center gap-2 transition-all shadow-sm"
+              >
+                <Power className="w-4 h-4 shrink-0" /> <span className="truncate">{t('Activate')}</span>
+              </button>
+            )}
+
+            {/* Still building: the code is no use yet, but an owner who wants
+                to look at it (or paste it in advance) can. */}
+            {primaryAction === 'learning' && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (isGuest) onRequireLogin();
+                  else onOpenIntegration();
+                }}
+                className="bg-white hover:bg-surface-200 border border-dark-900/10 text-gray-700 hover:text-dark-900 px-3 sm:px-4 py-3 rounded-xl text-xs sm:text-sm font-medium flex items-center justify-center gap-2 transition-all shadow-sm"
+              >
+                <Code className="w-4 h-4 text-brand-600 shrink-0" /> <span className="truncate">{t('Install')}</span>
+              </button>
+            )}
 
             <button
               type="button"

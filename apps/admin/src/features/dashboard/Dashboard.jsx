@@ -202,7 +202,14 @@ export default function Dashboard({
   // plan upgrade takes effect on the customer's site without anyone
   // re-pasting anything.
   const buildWidgetSnippet = (key) => {
-    return `<script src="${window.location.origin}/widget.iife.js" data-tenant-key="${key}"></script>`;
+    // `async` matters more than it looks: this tag sits in someone else's
+    // website, possibly for years, and a synchronous one makes their page wait
+    // on our server every single load. The day that server is slow — or gone,
+    // or a lapsed domain answering nothing at all — a blocking tag would hold
+    // up their page and it would look like THEIR site was broken. Async means
+    // the worst case is that nothing appears (the widget bundle itself is
+    // built to fail the same way — see apps/widget/src/main.js).
+    return `<script async src="${window.location.origin}/widget.iife.js" data-tenant-key="${key}"></script>`;
   };
 
   const copyWidgetScript = (key) => {
@@ -417,6 +424,7 @@ export default function Dashboard({
             onEditPage={pipeline.handleEditPage}
             onRequestDeleteSite={() => lifecycle.setShowDeleteConfirmModal(true)}
             onRequestResetSite={() => setShowResetSiteModal(true)}
+            onShowInstallCode={openIntegrationModal}
           />
         </div>
       )}

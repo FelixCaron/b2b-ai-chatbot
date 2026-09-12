@@ -42,7 +42,10 @@ for (const viewport of VIEWPORTS) {
       // Delete is no longer a quick-access dashboard action — it lives in the
       // Danger Zone behind "Show Settings", so it's checked separately below
       // once that section is expanded.
-      const buttonNames = [/Test your assistant/i, /^Install$/i, /Show Settings/i, /\+ Add Website/i];
+      // The hero's primary action changes with the state of the assistant
+      // (see SiteHeroCard's primaryAction): this fixture has never been seen
+      // loading on its own domain, so installing leads and testing follows.
+      const buttonNames = [/Add it to my website/i, /^Test$/i, /Show Settings/i, /\+ Add Website/i];
       for (const name of buttonNames) {
         const button = page.getByRole('button', { name }).first();
         await expect(button).toBeVisible();

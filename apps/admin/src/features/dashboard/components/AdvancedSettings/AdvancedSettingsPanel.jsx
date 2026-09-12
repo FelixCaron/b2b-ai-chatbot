@@ -5,6 +5,7 @@ import SiteSummaryCard from './SiteSummaryCard';
 import AdditionalInfoCard from './AdditionalInfoCard';
 import WelcomeExperienceCard from './WelcomeExperienceCard';
 import KnowledgeBasePanel from './KnowledgeBasePanel';
+import InstallCodeCard from './InstallCodeCard';
 import DangerZone from './DangerZone';
 import { useT } from '../../../../i18n/LanguageContext';
 
@@ -51,7 +52,8 @@ export default function AdvancedSettingsPanel({
   onAddManualPage,
   onEditPage,
   onRequestDeleteSite,
-  onRequestResetSite
+  onRequestResetSite,
+  onShowInstallCode
 }) {
   const { t } = useT();
   return (
@@ -139,6 +141,8 @@ export default function AdvancedSettingsPanel({
             onAddManualPage={onAddManualPage}
             onEditPage={onEditPage}
           />
+
+          <InstallCodeCard activeSite={activeSite} onShowInstallCode={onShowInstallCode} />
 
           <DangerZone
             activeSite={activeSite}

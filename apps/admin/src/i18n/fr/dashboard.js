@@ -22,7 +22,17 @@ export default {
   'Automatically prompts visitors for email and contact info.': "Demande automatiquement aux visiteurs leur courriel et leurs coordonnées.",
   'Bring this website back online': 'Remettre ce site en ligne',
   'Building your assistant...': 'Création de votre assistant...',
-  'Built and ready — paste the install code below to put it on your website': "Prêt et fonctionnel — collez le code d'installation ci-dessous pour l'ajouter à votre site web",
+  'Built and ready — add it to your website to put it in front of visitors': "Prêt et fonctionnel — ajoutez-le à votre site web pour le mettre devant vos visiteurs",
+  'Add it to my website': "L'ajouter à mon site web",
+  'Installed on your website': 'Installé sur votre site web',
+  'Installed on your website and ready for your next visitor': 'Installé sur votre site web et prêt pour votre prochain visiteur',
+  'Test': 'Tester',
+  'Activate': 'Activer',
+  // InstallCodeCard (advanced settings)
+  'Installation code': "Code d'installation",
+  'The one line that puts your assistant on {domain}. You only need it again if your website is rebuilt or moves.':
+    "La ligne unique qui place votre assistant sur {domain}. Vous n'en aurez besoin à nouveau que si votre site web est refait ou déménage.",
+  'Show install code': "Afficher le code d'installation",
   'Business Feature': 'Fonctionnalité Affaires',
   'Business Integrations': 'Intégrations Affaires',
   'Calendar Link': 'Lien de calendrier',
