@@ -1,0 +1,44 @@
+name: Apply Supabase migrations
+description: >-
+  Push every pending migration in supabase/migrations/ to one database, so a
+  migration merged to main can never sit unapplied with the schema drifting away
+  from the code that expects it.
+
+inputs:
+  project-ref:
+    description: Supabase project ref (the subdomain of its API URL)
+    required: true
+  access-token:
+    description: Supabase personal access token
+    required: true
+  db-password:
+    description: >-
+      The project's database password. `supabase db push` opens a direct
+      Postgres connection, so the access token alone is not enough.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: supabase/setup-cli@v1
+      with:
+        # Pinned rather than "latest": resolving "latest" makes an
+        # unauthenticated GitHub API call that rate-limits on shared runner IPs.
+        version: 2.117.0
+
+    - name: Push migrations
+      shell: bash
+      env:
+        SUPABASE_ACCESS_TOKEN: ${{ inputs.access-token }}
+        SUPABASE_DB_PASSWORD: ${{ inputs.db-password }}
+      run: |
+        if [ -z "$SUPABASE_DB_PASSWORD" ]; then
+          echo "::error::SUPABASE_DB_PASSWORD is empty. It is an environment secret — check it exists on this job's environment, not just at repository level."
+          exit 1
+        fi
+        if [ -z "${{ inputs.project-ref }}" ]; then
+          echo "::error::SUPABASE_PROJECT_REF is empty. Terraform sets it as an environment variable; has it been applied?"
+          exit 1
+        fi
+        supabase link --project-ref "${{ inputs.project-ref }}"
+        supabase db push

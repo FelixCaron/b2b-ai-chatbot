@@ -1,0 +1,209 @@
+name: Deploy
+
+# The only path to a deployment.
+#
+# A push to main goes: verify -> preview database -> preview deployment ->
+# smoke test -> [a human approves] -> production database -> production.
+# Production is one approval away, on a commit whose preview is already live
+# and already checked.
+#
+# Everything here is inert until the DEPLOY_PIPELINE_ENABLED repository
+# variable is "true" (Terraform sets it). Without that, a push would reach for a
+# Vercel token that does not exist yet and fail for no reason.
+#
+# See docs/DEPLOYMENT.md for the whole picture, including how to roll back.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  # Never two deployments of the same branch at once, and never cancel one
+  # mid-flight: a cancelled `supabase db push` is a half-applied migration.
+  group: deploy-main
+  cancel-in-progress: false
+
+jobs:
+  enabled:
+    name: Pipeline enabled?
+    runs-on: ubuntu-latest
+    outputs:
+      go: ${{ steps.check.outputs.go }}
+    steps:
+      - id: check
+        run: |
+          if [ "${{ vars.DEPLOY_PIPELINE_ENABLED }}" = "true" ]; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "go=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Deployment pipeline is off (DEPLOY_PIPELINE_ENABLED is not \"true\"). Verifying only."
+          fi
+
+  verify:
+    uses: ./.github/workflows/verify.yml
+
+  # --- preview --------------------------------------------------------------
+
+  migrate-preview:
+    name: Migrate preview database
+    needs: [enabled, verify]
+    if: needs.enabled.outputs.go == 'true'
+    runs-on: ubuntu-latest
+    environment: preview
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/supabase-migrate
+        with:
+          project-ref: ${{ vars.SUPABASE_PROJECT_REF }}
+          access-token: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          db-password: ${{ secrets.SUPABASE_DB_PASSWORD }}
+
+      # A database built from migrations alone has no tenants, so the widget the
+      # admin app embeds in itself has no site to answer for. One row makes the
+      # environment demonstrable; see the script's header for what it
+      # deliberately does not do.
+      - name: Seed preview
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          node scripts/ops/seed-preview.mjs \
+            "${{ vars.SUPABASE_PROJECT_REF }}" \
+            "$(echo '${{ vars.APP_URL }}' | sed 's#https\?://##')"
+
+  deploy-preview:
+    name: Deploy ${{ matrix.project }} (preview)
+    needs: [enabled, migrate-preview]
+    if: needs.enabled.outputs.go == 'true'
+    runs-on: ubuntu-latest
+    environment: preview
+    strategy:
+      # One failing project must not leave the other three half-deployed
+      # without anyone noticing which.
+      fail-fast: false
+      matrix:
+        include:
+          - project: admin
+            id_var: VERCEL_PROJECT_ID_ADMIN
+            alias_var: APP_URL
+            api_dir: dorafi/admin/api
+          - project: staff
+            id_var: VERCEL_PROJECT_ID_STAFF
+            alias_var: ''
+            api_dir: dorafi/staff/api
+          - project: widget
+            id_var: VERCEL_PROJECT_ID_WIDGET
+            alias_var: ''
+            api_dir: ''
+          - project: logafi
+            id_var: VERCEL_PROJECT_ID_LOGAFI
+            alias_var: SITE_URL
+            api_dir: ''
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: ./.github/actions/vercel-deploy
+        with:
+          project-id: ${{ vars[matrix.id_var] }}
+          org-id: ${{ vars.VERCEL_ORG_ID }}
+          token: ${{ secrets.VERCEL_TOKEN }}
+          environment: preview
+          alias: ${{ matrix.alias_var != '' && vars[matrix.alias_var] || '' }}
+          api-dir: ${{ matrix.api_dir }}
+
+  smoke-preview:
+    name: Smoke-test preview
+    needs: [enabled, deploy-preview]
+    if: needs.enabled.outputs.go == 'true'
+    runs-on: ubuntu-latest
+    environment: preview
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Check the deployed preview
+        run: |
+          node scripts/ops/smoke.mjs \
+            --app "${{ vars.APP_URL }}" \
+            --site "${{ vars.SITE_URL }}" \
+            --supabase-ref "${{ vars.SUPABASE_PROJECT_REF }}" \
+            --expect-noindex
+
+  # --- production -----------------------------------------------------------
+  # This is the gate. The `production` GitHub environment carries a required
+  # reviewer, so the run stops here and waits, with the preview of this exact
+  # commit already live to look at.
+
+  migrate-production:
+    name: Migrate production database
+    needs: [enabled, smoke-preview]
+    if: needs.enabled.outputs.go == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/supabase-migrate
+        with:
+          project-ref: ${{ vars.SUPABASE_PROJECT_REF }}
+          access-token: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          db-password: ${{ secrets.SUPABASE_DB_PASSWORD }}
+
+  deploy-production:
+    name: Deploy ${{ matrix.project }} (production)
+    needs: [enabled, migrate-production]
+    if: needs.enabled.outputs.go == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - project: admin
+            id_var: VERCEL_PROJECT_ID_ADMIN
+            api_dir: dorafi/admin/api
+          - project: staff
+            id_var: VERCEL_PROJECT_ID_STAFF
+            api_dir: dorafi/staff/api
+          - project: widget
+            id_var: VERCEL_PROJECT_ID_WIDGET
+            api_dir: ''
+          - project: logafi
+            id_var: VERCEL_PROJECT_ID_LOGAFI
+            api_dir: ''
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: ./.github/actions/vercel-deploy
+        with:
+          project-id: ${{ vars[matrix.id_var] }}
+          org-id: ${{ vars.VERCEL_ORG_ID }}
+          token: ${{ secrets.VERCEL_TOKEN }}
+          environment: production
+          # No alias: a production deployment is assigned the project's
+          # production domains by Vercel itself.
+          api-dir: ${{ matrix.api_dir }}
+
+  smoke-production:
+    name: Smoke-test production
+    needs: [enabled, deploy-production]
+    if: needs.enabled.outputs.go == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Check the deployed production
+        run: |
+          node scripts/ops/smoke.mjs \
+            --app "${{ vars.APP_URL }}" \
+            --site "${{ vars.SITE_URL }}" \
+            --supabase-ref "${{ vars.SUPABASE_PROJECT_REF }}"

@@ -1,0 +1,116 @@
+name: Deploy one Vercel project
+description: >-
+  Pull the project's settings and environment variables, build locally, upload
+  the prebuilt output, and alias it if asked. Building here rather than on
+  Vercel is what lets the pipeline inspect the output before it ships.
+
+inputs:
+  project-id:
+    description: Vercel project id (prj_…)
+    required: true
+  org-id:
+    description: Vercel team or account id
+    required: true
+  token:
+    description: Vercel API token
+    required: true
+  environment:
+    description: production or preview
+    required: true
+  alias:
+    description: >-
+      Domain to point at this deployment. Only needed for preview: a production
+      deployment gets its domains assigned automatically.
+    required: false
+    default: ''
+  api-dir:
+    description: >-
+      The project's api/ directory, if it has one. Every .js file in it that is
+      not under lib/ must come out of the build as a serverless function — a
+      wrong Root Directory silently ships the SPA with no functions at all, and
+      nothing else in the pipeline would notice. Counted rather than hardcoded,
+      so adding a route does not quietly disable the check.
+    required: false
+    default: ''
+
+outputs:
+  url:
+    description: The deployment URL
+    value: ${{ steps.deploy.outputs.url }}
+
+runs:
+  using: composite
+  steps:
+    - name: Pull project settings and environment
+      shell: bash
+      env:
+        VERCEL_ORG_ID: ${{ inputs.org-id }}
+        VERCEL_PROJECT_ID: ${{ inputs.project-id }}
+      run: |
+        npx --yes vercel@latest pull --yes \
+          --environment=${{ inputs.environment }} \
+          --token="${{ inputs.token }}"
+
+    - name: Build
+      shell: bash
+      env:
+        VERCEL_ORG_ID: ${{ inputs.org-id }}
+        VERCEL_PROJECT_ID: ${{ inputs.project-id }}
+      run: |
+        # Run from the repository root, not the project directory: these apps
+        # import workspace packages that live at the root, so the build needs
+        # the whole tree. The project's Root Directory setting, which `pull`
+        # just wrote into .vercel/project.json, is what selects the app inside
+        # it.
+        npx --yes vercel@latest build \
+          ${{ inputs.environment == 'production' && '--prod' || '' }} \
+          --token="${{ inputs.token }}"
+
+    - name: Check the build output
+      shell: bash
+      run: |
+        api_dir='${{ inputs.api-dir }}'
+        if [ -n "$api_dir" ]; then
+          expected=$(find "$api_dir" -name '*.js' -not -path '*/lib/*' | wc -l)
+          actual=$(find .vercel/output/functions -name '*.func' -type d 2>/dev/null | wc -l)
+          echo "serverless functions: $actual built, $expected route files in $api_dir"
+          if [ "$actual" -ne "$expected" ]; then
+            echo "::error::Built $actual functions from $expected route files."
+            echo "Vercel only turns <root directory>/api/** into functions. A wrong Root"
+            echo "Directory deploys the SPA with no API behind it and says nothing."
+            find .vercel/output/functions -name '*.func' -type d 2>/dev/null || true
+            exit 1
+          fi
+        fi
+        # The build must not have rewritten a committed artifact. It would, if a
+        # build command ever resolved to the repository root's `npm run build`,
+        # which rebuilds the widget into dorafi/admin/public/.
+        if ! git diff --quiet -- dorafi/admin/public/widget.iife.js; then
+          echo "::error::The build modified the committed widget bundle."
+          exit 1
+        fi
+
+    - name: Deploy
+      id: deploy
+      shell: bash
+      env:
+        VERCEL_ORG_ID: ${{ inputs.org-id }}
+        VERCEL_PROJECT_ID: ${{ inputs.project-id }}
+      run: |
+        url=$(npx --yes vercel@latest deploy --prebuilt \
+          ${{ inputs.environment == 'production' && '--prod' || '' }} \
+          --token="${{ inputs.token }}")
+        echo "url=$url" >> "$GITHUB_OUTPUT"
+        echo "Deployed to $url"
+
+    - name: Alias
+      if: inputs.alias != ''
+      shell: bash
+      env:
+        VERCEL_ORG_ID: ${{ inputs.org-id }}
+        VERCEL_PROJECT_ID: ${{ inputs.project-id }}
+      run: |
+        npx --yes vercel@latest alias set \
+          "${{ steps.deploy.outputs.url }}" "${{ inputs.alias }}" \
+          --token="${{ inputs.token }}"
+        echo "${{ inputs.alias }} now points at ${{ steps.deploy.outputs.url }}"

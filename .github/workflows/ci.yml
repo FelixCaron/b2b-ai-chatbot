@@ -1,96 +1,18 @@
-name: Monorepo CI Pipeline
+name: CI
 
+# Pull requests, and any branch that is not the one deploy.yml handles. A push
+# to main runs deploy.yml, which calls the same verify workflow — so a merge
+# does not build and test twice.
 on:
-  push:
-    branches: [ main ]
   pull_request:
-    branches: [ main ]
+    branches: [main]
+  push:
+    branches-ignore: [main]
 
-# Cancel concurrent in-flight runs on the same branch/PR to save CI runners
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build-and-verify:
-    name: Build & Verify Monorepo
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'npm'
-
-      - name: Install Monorepo Dependencies
-        run: npm ci
-
-      - name: Build Shared Packages (@b2b-ai-chatbot/shared)
-        run: npm run build --prefix packages/shared
-
-      - name: Build Vanilla JS Widget Bundle (@b2b-ai-chatbot/widget)
-        run: npm run build --prefix dorafi/widget
-
-      - name: Sync Widget to Admin Static Assets
-        run: cp dorafi/widget/dist/widget.iife.js dorafi/admin/public/widget.iife.js
-
-      # The committed bundle IS what production serves: dorafi-admin deploys
-      # from dorafi/admin and only runs `vite build`, so nothing rebuilds the
-      # widget at deploy time. It used to, back when this app deployed from
-      # the repository root and the root build chained widget -> copy -> admin.
-      # That guarantee now lives here instead: if the freshly built bundle
-      # differs from the one in git, the commit is shipping a stale widget.
-      - name: Committed Widget Bundle Is Up To Date
-        run: |
-          if ! git diff --quiet -- dorafi/admin/public/widget.iife.js; then
-            echo "::error::dorafi/admin/public/widget.iife.js is stale."
-            echo "The widget source changed without the built bundle being rebuilt."
-            echo "Run 'npm run build:widget' and commit the result."
-            git diff --stat -- dorafi/admin/public/widget.iife.js
-            exit 1
-          fi
-
-      - name: Build Admin Single Page App (@b2b-ai-chatbot/admin)
-        run: npm run build --prefix dorafi/admin
-        env:
-          # Not secrets: placeholders that keep supabaseConfigurationError from
-          # folding to a constant at build time. Without them Rollup shakes the
-          # whole app out behind the config-error guard and this step "passes"
-          # having compiled almost nothing.
-          VITE_SUPABASE_URL: https://placeholder.supabase.co
-          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
-
-      - name: Build Staff Console (@b2b-ai-chatbot/staff)
-        run: npm run build --prefix dorafi/staff
-        env:
-          # Not secrets: placeholders that keep supabaseConfigurationError from
-          # folding to a constant at build time. Without them Rollup shakes the
-          # whole app out behind the config-error guard and this step "passes"
-          # having compiled almost nothing.
-          VITE_SUPABASE_URL: https://placeholder.supabase.co
-          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
-
-      - name: Run API Contract Verification
-        run: node scripts/tests/test-contracts.js
-
-      - name: Run Schema Contracts Verification
-        run: node scripts/tests/test-schemas.js
-
-      - name: Run Widget Status Verification
-        run: node scripts/tests/test-widget-status.js
-
-      - name: Verify API Route Imports
-        run: node scripts/tests/test-api-imports.cjs
-
-      - name: Install Playwright Chromium
-        run: npx playwright install --with-deps chromium
-
-      - name: Run E2E UI Test Suite (Playwright)
-        run: npm run test:e2e
-
-      - name: Reject committed credentials
-        run: npm run test:secrets
+  verify:
+    uses: ./.github/workflows/verify.yml

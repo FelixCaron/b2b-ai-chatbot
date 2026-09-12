@@ -1,0 +1,83 @@
+name: Verify
+
+# Builds everything and runs every test. Called by ci.yml on pull requests and
+# by deploy.yml before it deploys anything, so there is exactly one definition
+# of "does this commit pass" and a merge does not run it twice.
+on:
+  workflow_call:
+
+jobs:
+  verify:
+    name: Build & test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Keep this equal to node_version in infra/terraform/variables.tf.
+          # Building on one runtime and running functions on another is a class
+          # of bug that only shows up in production.
+          node-version: 22
+          cache: npm
+
+      # packages/shared's dist/ is not committed; its `prepare` script builds it
+      # here, which is why there is no separate build step for it any more.
+      - name: Install
+        run: npm ci
+
+      - name: Build widget
+        run: npm run build --prefix dorafi/widget
+
+      # The bundle the admin app serves is the *committed*
+      # dorafi/admin/public/widget.iife.js — dorafi-admin deploys from
+      # dorafi/admin and runs `vite build` alone, so nothing rebuilds the widget
+      # at deploy time. If a fresh build differs from what is in git, the commit
+      # is shipping a stale widget to every customer site.
+      - name: Committed widget bundle is up to date
+        run: |
+          cp dorafi/widget/dist/widget.iife.js dorafi/admin/public/widget.iife.js
+          if ! git diff --quiet -- dorafi/admin/public/widget.iife.js; then
+            echo "::error::dorafi/admin/public/widget.iife.js is stale. Run 'npm run build:widget' and commit the result."
+            git diff --stat -- dorafi/admin/public/widget.iife.js
+            exit 1
+          fi
+
+      - name: Build admin
+        run: npm run build --prefix dorafi/admin
+        env:
+          # Not secrets: placeholders that stop supabaseConfigurationError from
+          # folding to a constant at build time. Without them Rollup shakes the
+          # whole app out behind the config-error guard and this step "passes"
+          # having compiled almost nothing.
+          VITE_SUPABASE_URL: https://placeholder.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
+
+      - name: Build staff console
+        run: npm run build --prefix dorafi/staff
+        env:
+          VITE_SUPABASE_URL: https://placeholder.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
+
+      # All nine suites. Four of them used to be listed individually here and
+      # the other five ran only if someone typed `npm test` locally, so they
+      # guarded nothing.
+      - name: Unit and contract suites
+        run: npm test
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: End-to-end suite
+        run: npm run test:e2e
+
+      - name: Reject committed credentials
+        run: npm run test:secrets
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
