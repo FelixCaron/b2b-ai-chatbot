@@ -303,6 +303,15 @@ export async function installMockBackend(page, overrides = {}) {
     calls: [],
   };
 
+  // Registered FIRST, so every specific route below (which Playwright checks
+  // in reverse order of registration) still wins: nothing in this suite may
+  // reach the real production host. A test that depends on the live site is
+  // not a test — it is a monitor with a flaky opinion.
+  await page.route('https://dorafi.logafi.com/**', async (route) => {
+    state.calls.push({ type: 'blocked', url: route.request().url() });
+    await route.abort('blockedbyclient');
+  });
+
   // --- Supabase Auth -------------------------------------------------
   await page.route('**/auth/v1/**', async (route) => {
     const url = new URL(route.request().url());
@@ -482,7 +491,14 @@ export async function installMockBackend(page, overrides = {}) {
   // has nothing better to say, plus the plan-driven fields (theme color,
   // "Powered by" branding) real api/chat/init.js resolves from the site's
   // tenant so the widget never needs them baked into its embed snippet.
-  await page.route('**/api/chat/init', async (route) => {
+  // NOTE the trailing `*`: the widget always calls this WITH a query string
+  // (tenant_public_key, session_id), and a glob without it does not match a
+  // URL that has one — so this route quietly never fired and every test run
+  // was hitting the real production API instead. Harmless while the widget
+  // ignored a failed init; the moment it started removing itself when the
+  // backend can't be reached, that unmocked call took the widget off the page
+  // in CI and six specs failed for a reason that had nothing to do with them.
+  await page.route('**/api/chat/init*', async (route) => {
     state.calls.push({ type: 'api', path: 'chat/init' });
     const tenantPlan = db.tenants[0]?.plan || 'basic';
     await route.fulfill({
