@@ -1,9 +1,15 @@
 # Integration review — Stripe, Supabase, API layer
 
-Written 2026-09-05 while preparing the product for an enterprise sale. Covers what each
-integration actually does today, what was found and fixed in this pass, and what's still
-open before this is enterprise-ready. Cross-references `TODO.md`/`ADR.md` rather than
-duplicating what's already tracked there.
+**A dated snapshot, 2026-09-05.** It records what each integration did at the time, what
+that pass found and fixed, and what was still open. It is not maintained as a current
+description — where it and the code disagree, the code is right. Corrections made since,
+inline below and marked as such, cover the parts that had become actively misleading.
+For the current shape of things: `CLAUDE.md`, `docs/ARCHITECTURE.md`,
+`docs/DEPLOYMENT.md`.
+
+Paths written as `api/...` below were correct when this was written: the functions lived
+at the repository root until the 2026-09-12 reorganisation moved them to
+`dorafi/admin/api/`.
 
 ## Stripe billing
 
@@ -80,6 +86,10 @@ in directly; distributed rate limiting (see below).
 anonymous sign-in (`signInAnonymously()` on every visit before onboarding) are the two
 pieces here.
 
+**Since corrected:** that cleanup function no longer exists. It was deleted on 2026-09-08
+to get the admin project back under Vercel Hobby's 12-function-per-deployment cap, so
+nothing sweeps abandoned guest workspaces today. `TODO.md` tracks restoring it.
+
 **Fixed in this pass — the cascade this job depends on did not exist.** `messages.tenant_id`,
 `leads.tenant_id` and `usage.tenant_id` were declared as bare `REFERENCES tenants(id)` — i.e.
 `NO ACTION` — while every other tenant-scoped table (`sites`, `documents`, `site_summaries`,
@@ -147,9 +157,9 @@ deployable at all.
 
 ## Migration consolidation
 
-The 9 incremental migrations from 2026-08-08 through 2026-08-25, plus the separate,
-partially-stale `supabase/consolidated_latest_migrations.sql` reference dump, are all
-replaced by one migration:
+The 9 incremental migrations from 2026-08-08 through 2026-08-25, plus a separate,
+partially-stale `supabase/consolidated_latest_migrations.sql` reference dump (deleted in
+that same pass — it is not in the tree), are all replaced by one migration:
 `supabase/migrations/20260905000000_consolidated_schema.sql`. It's a verified merge of
 their net effect (every table, index, RPC, and RLS policy was traced back to the migration
 that introduced it) plus the one thing the old dump file was still missing
@@ -168,10 +178,12 @@ command printed at the end of `scripts/ops/setup-supabase.mjs`.
 
 ## What's missing before an enterprise buyer signs off
 
-Beyond what `TODO.md`/`ADR.md` already track (RLS/auth hardening items above, Stripe
-live-mode switch, `preview-proxy`'s SSRF exposure, the legal-entity/ToS/Privacy-Policy
-placeholders in `LegalPages.jsx`), an enterprise procurement/security review typically
-also asks for:
+Beyond what `TODO.md`/`ADR.md` already track (RLS/auth hardening items above, the Stripe
+live-mode switch, the legal-entity/ToS/Privacy-Policy placeholders in `LegalPages.jsx`),
+an enterprise procurement/security review typically also asks for:
+
+*(`preview-proxy`'s SSRF exposure was on this list; the endpoint was deleted on
+2026-09-08 and the item is closed.)*
 
 - **Audit logging.** Nothing beyond `console.log` today — no record of who changed a
   tenant's plan, deleted a site, or accessed what, and no durable log storage. Matters
@@ -195,7 +207,11 @@ also asks for:
 - **A subprocessor list.** Supabase, Vercel, OpenRouter, Resend, Stripe, Cloudflare
   Turnstile, Jina Reader are all subprocessors today; `LegalPages.jsx` has the start of
   this but it should be a complete, current list before a security review.
-- **Supabase Auth's URL Configuration, SMTP, rate limit, and email-change setting are
+- ~~**Supabase Auth's URL Configuration, SMTP, rate limit, and email-change setting are
+  still on their new-project defaults.**~~ **Since resolved:** all four are declared in
+  `infra/terraform/supabase.tf` and applied per environment. The account of why each one
+  matters is kept below because it is the reason they are in code now.
+  **Supabase Auth's URL Configuration, SMTP, rate limit, and email-change setting are
   still on their new-project defaults.** Confirmed live 2026-09-05, all four bit real
   signup/login attempts the same day: Site URL defaults to `http://localhost:3000`, so any
   magic link requested from a domain not yet in Redirect URLs silently redirects there

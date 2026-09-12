@@ -42,19 +42,26 @@ DNS, business verification).
 - [ ] Create an account + API key → `RESEND_API_KEY`
 - [ ] Verify a sending domain (skip only for early testing) → set `ADMIN_EMAIL`
 
-## 5. Vercel — the three deployable apps
-- [ ] Fill in `infra/terraform/vercel/terraform.tfvars` with everything gathered in steps
-      1-4 (see `terraform.tfvars.example`)
-- [ ] `terraform init && terraform plan && terraform apply` from
-      `infra/terraform/vercel/` — creates `dorafi-admin`, `dorafi-staff`,
-      `dorafi-widget` and `logafi` with their env vars set
+## 5. Vercel and GitHub — `terraform apply`
+- [ ] Fill in `infra/terraform/terraform.tfvars` with everything gathered in steps 1-4
+      (see `terraform.tfvars.example`)
+- [ ] `terraform init && terraform plan` from `infra/terraform/`. Read the plan in
+      full, and **do not apply one that shows anything under "destroy"**
+- [ ] `terraform apply` — creates both Supabase projects, all four Vercel projects
+      (`dorafi-admin`, `dorafi-staff`, `dorafi-widget`, `logafi`) with per-environment
+      variables, their domains, and the GitHub Actions environments, variables and
+      secrets the deploy pipeline reads
+- [ ] Adopting infrastructure that already exists? `infra/terraform/README.md` and
+      `imports.tf.example` set out how to stage it. The first apply against a live site
+      is otherwise five simultaneous changes
+- [ ] Point DNS at Vercel: the production domains and
+      `preview.dorafi.logafi.com` / `preview.logafi.com`.
+      `terraform output domain_verification` lists what is still outstanding
 - [ ] Check each project's **Root Directory**: `dorafi/admin`, `dorafi/staff`,
-      `dorafi/widget`, `logafi`. `dorafi-admin` pointed anywhere else ships an
-      SPA with no API — Vercel only reads `<root directory>/api/**`
-- [ ] Point real domains at `dorafi-admin` (`dorafi.logafi.com`) and `logafi`
-      (`logafi.com`); never at `dorafi-staff` — that one stays unlisted/internal-only
-- [ ] Deploy: `vercel --prod` from `dorafi/admin/`, `dorafi/staff/`,
-      `dorafi/widget/` and `logafi/`
+      `dorafi/widget`, `logafi`. `dorafi-admin` pointed anywhere else ships an SPA with
+      no API — Vercel only reads `<root directory>/api/**`
+- [ ] Set `deploy_pipeline_enabled = true` and `vercel_git_auto_deploy = false`, in that
+      order, once a pipeline run has gone green end to end
 
 ## 6. First real smoke test
 - [ ] Open the deployed admin app, complete onboarding for a real URL, confirm a chat
@@ -65,13 +72,16 @@ DNS, business verification).
       the fix is deployed before trusting this step)
 - [ ] Sign into `dorafi-staff` with a staff account, confirm the tenant you
       just created shows up in the list
+- [ ] Push a trivial commit and watch the pipeline: it should deploy preview, smoke-test
+      it, and then stop and wait for your approval before touching production
+      (`docs/DEPLOYMENT.md`)
 
 ## Local development
 
 `npm install` at repo root, then:
 ```bash
-npm run build --workspace=@b2b-ai-chatbot/shared   # packages/shared's dist/ isn't committed
-npm run dev                                         # runs every app's dev server
+npm run dev    # runs every app's dev server
+npm test       # the nine unit suites
 ```
-`npm test` needs that shared build to exist first (`test-schemas.js` imports from
-`packages/shared/dist`) — if you see `ERR_MODULE_NOT_FOUND` for that path, that's why.
+`packages/shared`'s `dist/` isn't committed, but its `prepare` script builds it during
+`npm install`, so there is nothing to remember.

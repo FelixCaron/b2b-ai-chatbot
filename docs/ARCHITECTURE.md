@@ -25,12 +25,14 @@ packages/contracts/
 │   ├── endpoint.js        defineEndpoint() / registry() / AUTH
 │   ├── client.js          createApiClient() — the shared browser transport
 │   ├── endpoints/
-│   │   ├── chat.js        chat.send · chat.init · chat.theme · chat.proxy
+│   │   ├── chat.js        chat.send · chat.init · chat.theme
 │   │   ├── crawler.js     crawler.discover · scan · update · summarize · deleteSite
 │   │   ├── sites.js       sites.claim
 │   │   ├── billing.js     billing.checkout · portal · webhook
-│   │   ├── ops.js         cron.cleanup
 │   │   └── staff.js       staff.* (dorafi/staff's own Vercel project)
+│   ├── plans.js           the plan catalogue (slugs, limits, display names)
+│   ├── widget-status.js   the shared "is this widget actually live" rule
+│   ├── niches.js          the segment landing pages, as a registry
 │   └── index.js           the registry, grouped as `contracts.<family>.<product>`
 ```
 
@@ -59,7 +61,7 @@ export const crawlerScan = defineEndpoint({
 handler remembering to: `public` · `user` · `tenant` · `staff` · `webhook` ·
 `cron`.
 
-### The server end — `api/lib/http.js`
+### The server end — `dorafi/admin/api/lib/http.js`
 
 `edgeRoute(endpoint, handler)` and `nodeRoute(endpoint, handler)` wrap a handler
 in its contract and do, once, what every route used to repeat: the `OPTIONS`
@@ -212,8 +214,6 @@ hooks; what is shared across sections stays in `Dashboard.jsx`.
 The same shape, smaller: `components/layout/{AppShell,Header,Footer}.jsx`,
 `lib/api/` built on the same `createApiClient`, and an `App.jsx` left holding
 the staff gate and the tab state.
-
----
 
 ---
 

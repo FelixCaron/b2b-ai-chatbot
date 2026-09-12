@@ -1,7 +1,7 @@
 # Resend setup
 
 Resend sends the two transactional emails this product generates: new-lead notifications
-to a tenant, and internal bug-alert emails (`api/lib/email.js`).
+to a tenant, and internal bug-alert emails (`dorafi/admin/api/lib/email.js`).
 
 ## Manual (no scriptable resource creation needed beyond DNS, which is inherently manual)
 

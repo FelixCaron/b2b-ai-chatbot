@@ -13,9 +13,10 @@ One directory per deployable, and the directory names are the Vercel project nam
 - `/packages/contracts`: Request/response contracts shared by the handlers and the browser clients.
 - `/packages/shared`: Shared Zod schemas & TypeScript types.
 - `/supabase/migrations`: Raw SQL migrations (pgvector, FTS, RLS, usage RPCs).
-- `/scripts`: `scripts/tests` is exactly what `npm test` runs — nothing else lives there. `scripts/dev` (local servers), `scripts/ops` (setup//check tooling), `scripts/live` (scripts that need real credentials and a real database, never run in CI).
+- `/scripts`: `scripts/tests` is exactly what `npm test` runs — nothing else lives there. `scripts/dev` (local servers), `scripts/ops` (setup, seeding and smoke-check tooling), `scripts/live` (scripts that need real credentials and a real database, never run in CI).
 - `/tests/e2e`: Playwright suite, covering both the Dorafi app and the logafi site.
-- `/infra/terraform/vercel`: The four Vercel projects as code.
+- `/infra/terraform`: Both environments as code — the Supabase projects, the four Vercel projects, and the GitHub Actions variables and secrets the deploy pipeline reads.
+- `/docs`: `DEPLOYMENT.md` (environments and the pipeline), `ARCHITECTURE.md` (components and API contracts), `SETUP_CHECKLIST.md` and `setup/` (standing one up from scratch).
 
 The repository root holds no deployable of its own: no `api/`, no `vercel.json`. Everything shipped lives in the directory of the project that ships it.
 
@@ -45,15 +46,35 @@ Every handler's request/response shape comes from `packages/contracts`, which bo
 - Frontend uses `VITE_SUPABASE_PUBLISHABLE_KEY` only (via `import.meta.env`).
 - Use Supabase's new-format API keys (`sb_publishable_...` / `sb_secret_...`, Project Settings → API Keys), not the legacy anon/service_role JWTs.
 
-## Environment Variables
-- `VITE_SUPABASE_URL` — Supabase project URL. Not a secret — one var, read both
-  server-side (`process.env`, `api/` routes) and client-side (`import.meta.env`,
-  `dorafi/admin`/`dorafi/staff`); no separate server-only name for it.
-- `SUPABASE_SECRET_KEY` — Secret key, new format `sb_secret_...`. Server-side only
-  (never exposed to the frontend).
-- `VITE_SUPABASE_PUBLISHABLE_KEY` — Publishable key, new format `sb_publishable_...`.
-  Client-side, safe to expose in the Vite bundle.
-- `OPENROUTER_API_KEY` — OpenRouter API key (server-side only).
+## Environments
+Two, and they share only the code: **production** (`dorafi.logafi.com`,
+`logafi.com`) and **preview** (`preview.dorafi.logafi.com`,
+`preview.logafi.com`). Each has its own Supabase project, its own Stripe mode
+and its own captcha keys. Both are declared in `infra/terraform/` — including
+the GitHub Actions variables and secrets the pipeline reads — so no value is
+ever copied by hand from one dashboard into another.
+
+Rules that follow from that, and that are easy to break by accident:
+- **A deployment must never reach another environment.** Nothing in shipped code
+  may hardcode a domain, a database URL or a tenant key. Derive it: from the
+  origin that served the script (the widget does this), from the request, or
+  from an environment variable with a production fallback. `tests/e2e/widget-origin.spec.js`
+  pins the widget's half of this.
+- **Environment variables are scoped to one Vercel target**, never to both at
+  once. A value on `["production", "preview"]` means preview writes to the
+  production database.
+- **Don't edit Supabase auth settings in the dashboard.** `supabase_settings` in
+  Terraform owns Site URL, the redirect allow-list, the email rate limit, the
+  email-change behaviour and the three branded templates. `supabase db push`
+  does not apply any of it, and `supabase config push` would overwrite Terraform
+  — don't run it.
+
+`.env.example` lists every variable the code actually reads. The ones worth
+knowing about here: `VITE_SUPABASE_URL` is not a secret and is read both
+server-side (`process.env`) and client-side (`import.meta.env`) — one var, no
+separate server-only name; `SUPABASE_SECRET_KEY` is server-side only, never
+behind a `VITE_` prefix; `VITE_APP_URL` is how a deployment knows its own public
+address.
 
 ## ⚠️ Core Engineering & Bug Fixing Guidelines
 1. **General Solutions Only**: When addressing bugs, ALWAYS fix the underlying system architecture. NEVER write one-off scripts to populate specific domains or create domain-specific hardcoded fallbacks.
@@ -62,14 +83,31 @@ Every handler's request/response shape comes from `packages/contracts`, which bo
 4. **API next to the app that deploys it**: serverless functions MUST live in `dorafi/admin/api/` (or `dorafi/staff/api/` for the staff console), because Vercel only turns `<project root directory>/api/**` into functions. Never put API routes at the monorepo root — the root is not a deployable.
 
 ## Deployment
-Four Vercel projects, one per deployable directory — each deployed with `vercel --prod` from that directory, and each declared in `infra/terraform/vercel/main.tf`:
+Four Vercel projects, one per deployable directory, each declared in
+`infra/terraform/`:
 
 | Vercel project | Root directory | Build | Serves |
 |---|---|---|---|
-| `dorafi-admin` | `dorafi/admin` | `vite build` | `dorafi.logafi.com` — the SPA and `api/**` |
+| `dorafi-admin` | `dorafi/admin` | `vite build` | the SPA and `api/**` |
 | `dorafi-staff` | `dorafi/staff` | `vite build` | staff-only console, plus its own `api/**` |
 | `dorafi-widget` | `dorafi/widget` | `vite build` | `widget.iife.js` as a CDN asset |
-| `logafi` | `logafi` | none | `logafi.com` — the directory, served as-is |
+| `logafi` | `logafi` | none | the directory, served as committed |
 
-- The widget bundle the admin app serves is the **committed** `dorafi/admin/public/widget.iife.js`. Deploying the admin app does not rebuild it; CI fails instead if the committed copy differs from a fresh build. Rebuild it with `npm run build:widget` and commit the result.
-- **CI/CD**: `.github/workflows/ci.yml` runs the tests and builds every app on push/PR. Deployment itself stays manual, per project.
+**GitHub Actions is the only way anything deploys.** A push to `main` runs the
+tests, applies migrations to the preview database, deploys preview, smoke-tests
+it, and then waits for an approval before touching production. Vercel's own git
+integration is off: it deployed on push whether or not CI passed. See
+`docs/DEPLOYMENT.md` for the pipeline, the limits of the preview environment,
+and how to roll back.
+
+- **Root Directory is load-bearing.** Vercel turns `<root directory>/api/**`
+  into functions and nothing else, so `dorafi-admin` pointed anywhere else
+  deploys an SPA with no API behind it. The pipeline counts the functions it
+  built against the route files on disk and refuses to ship a mismatch.
+- The widget bundle the admin app serves is the **committed**
+  `dorafi/admin/public/widget.iife.js`. Deploying does not rebuild it; CI fails
+  if the committed copy differs from a fresh build. Rebuild with
+  `npm run build:widget` and commit the result.
+- `vercel.json`'s `buildCommand` says `vite build`, not `npm run build` — the
+  latter means two different things depending on which directory resolves it,
+  and one of them rewrites the committed widget bundle mid-deploy.

@@ -1,8 +1,17 @@
 # Stripe setup
 
-Stripe handles the three subscription plans (Basic/Pro/Premium — see `ADR.md`'s pricing
-note) via Checkout + the Billing Portal. `api/billing/checkout.js`, `portal.js`, and
-`webhook.js` are the three integration points.
+Stripe handles the three subscription plans via Checkout + the Billing Portal.
+`dorafi/admin/api/billing/checkout.js`, `portal.js` and `webhook.js` are the three
+integration points.
+
+The plan *slugs* are `basic`/`pro`/`premium` and appear all over the code and the
+database; what customers see is Starter / Business / Pro, renamed by ADR 058 without
+touching the slugs. Both names refer to the same three things.
+
+**Run this once per Stripe mode.** Test-mode prices are different objects from
+live-mode prices, not the same ids with a different prefix, and each environment
+registers its own webhook endpoint against its own domain and so has its own signing
+secret. `infra/terraform/terraform.tfvars` wants a complete set for each.
 
 ## Scripted (preferred)
 
@@ -23,7 +32,7 @@ The `PLANS` constant at the top of the script must match your actual Stripe prod
 name/amount/currency/interval, or the lookup misses and it creates duplicates instead of
 reusing them — verified 2026-09-05 against the real test-mode account, where the products
 already existed as "Chatbot basic/Pro/Premium" in CAD (pre-rebrand naming), not
-"Repondo ..." in USD as an earlier version of this file assumed. If you rename the
+"Repondo ..." in USD as an earlier version of this file assumed (the brand at the time). If you rename the
 products to the current branding, update `PLANS` to match.
 
 **The webhook signing secret is only ever shown once, at creation.** If you lose it,
