@@ -4,7 +4,7 @@
 vercel_api_token = "your-vercel-api-token"
 vercel_team_id   = null # or "team_xxxxxxxx" / "your-team-slug"
 github_repo      = "FelixCaron/b2b-ai-chatbot"
-project_prefix   = "repondo"
+project_prefix   = "dorafi"
 
 # VITE_SUPABASE_URL is the project URL — not a secret, used server- and
 # client-side alike, so there's just the one var, no separate server-only
@@ -28,7 +28,7 @@ admin_env = {
   PREMIUM_MODEL                 = "anthropic/claude-3.5-sonnet"
 }
 
-internal_admin_env = {
+staff_env = {
   VITE_SUPABASE_URL             = "https://your-project.supabase.co"
   SUPABASE_SECRET_KEY           = "sb_secret_your-secret-key"
   VITE_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_your-publishable-key"

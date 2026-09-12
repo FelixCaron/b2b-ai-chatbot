@@ -39,10 +39,10 @@ export default defineConfig({
     video: 'retain-on-failure',
   },
   // Two servers: the admin app under test, and the logafi site — a separate
-  // Vercel project (apps/logafi) with no build step, so it is served straight
+  // Vercel project (logafi) with no build step, so it is served straight
   // from its directory, the way Vercel serves it.
   webServer: [{
-    command: `node scripts/dev/serve-static.mjs apps/logafi ${LOGAFI_PORT}`,
+    command: `node scripts/dev/serve-static.mjs logafi ${LOGAFI_PORT}`,
     url: LOGAFI_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 30_000,
@@ -54,7 +54,7 @@ export default defineConfig({
     env: {
       VITE_SUPABASE_URL: MOCK_SUPABASE_URL,
       VITE_SUPABASE_PUBLISHABLE_KEY: MOCK_ANON_KEY,
-      // apps/admin's Vite dev plugin executes the real /api/** handlers as a
+      // dorafi/admin's Vite dev plugin executes the real /api/** handlers as a
       // dev convenience; our tests intercept those requests in-browser
       // before they ever reach it, but give it a harmless placeholder server
       // secret anyway so it doesn't log a scary (and here, irrelevant)

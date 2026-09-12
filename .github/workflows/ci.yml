@@ -33,13 +33,29 @@ jobs:
         run: npm run build --prefix packages/shared
 
       - name: Build Vanilla JS Widget Bundle (@b2b-ai-chatbot/widget)
-        run: npm run build --prefix apps/widget
+        run: npm run build --prefix dorafi/widget
 
       - name: Sync Widget to Admin Static Assets
-        run: cp apps/widget/dist/widget.iife.js apps/admin/public/widget.iife.js
+        run: cp dorafi/widget/dist/widget.iife.js dorafi/admin/public/widget.iife.js
+
+      # The committed bundle IS what production serves: dorafi-admin deploys
+      # from dorafi/admin and only runs `vite build`, so nothing rebuilds the
+      # widget at deploy time. It used to, back when this app deployed from
+      # the repository root and the root build chained widget -> copy -> admin.
+      # That guarantee now lives here instead: if the freshly built bundle
+      # differs from the one in git, the commit is shipping a stale widget.
+      - name: Committed Widget Bundle Is Up To Date
+        run: |
+          if ! git diff --quiet -- dorafi/admin/public/widget.iife.js; then
+            echo "::error::dorafi/admin/public/widget.iife.js is stale."
+            echo "The widget source changed without the built bundle being rebuilt."
+            echo "Run 'npm run build:widget' and commit the result."
+            git diff --stat -- dorafi/admin/public/widget.iife.js
+            exit 1
+          fi
 
       - name: Build Admin Single Page App (@b2b-ai-chatbot/admin)
-        run: npm run build --prefix apps/admin
+        run: npm run build --prefix dorafi/admin
         env:
           # Not secrets: placeholders that keep supabaseConfigurationError from
           # folding to a constant at build time. Without them Rollup shakes the
@@ -48,8 +64,8 @@ jobs:
           VITE_SUPABASE_URL: https://placeholder.supabase.co
           VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
 
-      - name: Build Internal Staff Console (@b2b-ai-chatbot/internal-admin)
-        run: npm run build --prefix apps/internal-admin
+      - name: Build Staff Console (@b2b-ai-chatbot/staff)
+        run: npm run build --prefix dorafi/staff
         env:
           # Not secrets: placeholders that keep supabaseConfigurationError from
           # folding to a constant at build time. Without them Rollup shakes the

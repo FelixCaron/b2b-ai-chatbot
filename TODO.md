@@ -30,7 +30,7 @@ Ajouté le 2026-09-08 : un déploiement a échoué (`exceeded_serverless_functio
 
 ## Priorités issues de la revue — P1
 
-- [x] Réparer le contrat de prévisualisation : `apps/admin/public/preview.html` attend `{ canFrame }`, mais `api/preview-proxy.js` renvoie du HTML. Le proxy est actuellement contourné par le fallback. *(2026-09-08 — devenu sans objet, le proxy entier a été supprimé, voir item P0 ci-dessus.)*
+- [x] Réparer le contrat de prévisualisation : `dorafi/admin/public/preview.html` attend `{ canFrame }`, mais `api/preview-proxy.js` renvoie du HTML. Le proxy est actuellement contourné par le fallback. *(2026-09-08 — devenu sans objet, le proxy entier a été supprimé, voir item P0 ci-dessus.)*
 - [ ] Remplacer la vérification d’origine du chat fondée sur `includes()` par une comparaison stricte de `URL.origin`/hostname et une liste explicite des origines admin autorisées.
 - [ ] Mettre une limite distribuée par tenant/IP sur le chat, le crawl et les scans : le `Map` en mémoire Edge ne protège pas entre instances.
 - [x] Ajouter `npm run test:secrets` à la CI, afin de bloquer toute nouvelle clé versionnée. *(2026-08-25 — la CI ne tournait plus du tout depuis ~30 commits à cause d'un chemin de script cassé, ce qui faisait aussi sauter silencieusement cette étape ; les deux sont corrigés.)*
@@ -42,12 +42,12 @@ Ajouté le 2026-09-08 : un déploiement a échoué (`exceeded_serverless_functio
 
 ## Administratif — avant d'accepter de vrais clients payants
 
-Ajouté le 2026-08-25 suite à la création des pages `Privacy Policy` / `Terms of Service` (`apps/admin/src/components/LegalPages.jsx`) : ces pages contiennent des placeholders `[entre crochets]` tant que ce qui suit n'est pas réglé.
+Ajouté le 2026-08-25 suite à la création des pages `Privacy Policy` / `Terms of Service` (`dorafi/admin/src/components/LegalPages.jsx`) : ces pages contiennent des placeholders `[entre crochets]` tant que ce qui suit n'est pas réglé.
 
 - [x] Choisir un nom de produit/marque définitif. *(2026-08-25 — « Repondo » retenu et appliqué partout dans le produit : titre, favicon, en-têtes, pages légales, badge « Powered by » du widget, en-tête `X-Title` OpenRouter, Copilot admin. Voir le board d'identité de marque et ADR 041. Reste : vérifier l'absence de conflit par une vraie recherche de marque formelle avant d'enregistrer un domaine ou une entité légale — une recherche rapide en ligne n'a rien trouvé de direct.)*
 - [x] Rebrand vers « Dorafi ». *(2026-09-06 — nouvelle identité (nom + logo mark) adoptée, thème de l'UI passé de sombre à clair pour s'harmoniser avec le nouveau mark monochrome encre-sur-blanc. « Repondo » remplacé partout : titre, favicon, en-têtes, pages légales, badge « Powered by » du widget, en-tête `X-Title` OpenRouter, Copilot admin, emails transactionnels. Repart à zéro sur la recherche de marque formelle avant tout enregistrement de domaine/entité sous ce nouveau nom.)*
 - [ ] Enregistrer une entité légale (entreprise individuelle ou société) sous le nom « Dorafi » (ou confirmer le nom après la recherche de marque), et mettre à jour le nom légal dans `LegalPages.jsx` (recherche `[Legal entity name`).
-- [x] Réserver un nom de domaine définitif et migrer hors de l'URL Vercel temporaire (`admin-seven-alpha-37.vercel.app`). *(2026-09-07 — domaine `https://dorafi.logafi.com` en place. Mis à jour dans le code : URL de repli du widget et « Powered by » (`apps/widget/src/main.js`, rebuild de `apps/admin/public/widget.iife.js`), en-tête `HTTP-Referer` OpenRouter (`api/lib/llm.js`), adresse d'expédition transactionnelle (`api/lib/email.js`), et les exemples `.env.example`. Reste à faire hors dépôt : pointer le DNS de `dorafi.logafi.com` vers le déploiement Vercel, ajouter le domaine aux Redirect URLs Supabase Auth (`docs/setup/supabase.md`), et vérifier le domaine dans Resend pour que `noreply@dorafi.logafi.com` délivre réellement.)*
+- [x] Réserver un nom de domaine définitif et migrer hors de l'URL Vercel temporaire (`admin-seven-alpha-37.vercel.app`). *(2026-09-07 — domaine `https://dorafi.logafi.com` en place. Mis à jour dans le code : URL de repli du widget et « Powered by » (`dorafi/widget/src/main.js`, rebuild de `dorafi/admin/public/widget.iife.js`), en-tête `HTTP-Referer` OpenRouter (`api/lib/llm.js`), adresse d'expédition transactionnelle (`api/lib/email.js`), et les exemples `.env.example`. Reste à faire hors dépôt : pointer le DNS de `dorafi.logafi.com` vers le déploiement Vercel, ajouter le domaine aux Redirect URLs Supabase Auth (`docs/setup/supabase.md`), et vérifier le domaine dans Resend pour que `noreply@dorafi.logafi.com` délivre réellement.)*
 - [ ] Mettre en place des adresses email dédiées (actuellement des placeholders `hello@your-domain.com` / `privacy@your-domain.com` dans `Pricing.jsx` et `LegalPages.jsx`).
 - [ ] Désigner nommément la personne responsable de la protection des renseignements personnels, tel qu'exigé par la Loi 25 (Québec) — actuellement un placeholder dans `LegalPages.jsx`.
 - [ ] Faire réviser `Privacy Policy` et `Terms of Service` par un·e avocat·e avant le premier vrai client payant — le contenu actuel reflète fidèlement les pratiques techniques réelles du produit (sous-traitants, rétention, etc.) mais n'a pas de valeur juridique certifiée.
@@ -55,19 +55,29 @@ Ajouté le 2026-08-25 suite à la création des pages `Privacy Policy` / `Terms 
 - [ ] Basculer Stripe du mode sandbox/test vers le mode live une fois la vérification d'entreprise complétée côté Stripe, et confirmer que `STRIPE_WEBHOOK_SECRET` en prod correspond bien à l'endpoint live.
 - [ ] Définir une politique de remboursement explicite (les CGU actuelles disent « non remboursable sauf obligation légale » par défaut).
 
+## Réorganisation de l'arborescence (2026-09-12)
+
+Voir l'ADR « Une arborescence qui dit la vérité ». Un dossier par déployable : `dorafi/{admin,staff,widget}` et `logafi/`. **À faire dans Vercel avant le prochain déploiement, sinon rien ne se déploie :**
+
+- [ ] `dorafi-admin` : répertoire racine `.` → `dorafi/admin` (Settings → General). Sans ça, la construction échoue — et surtout, c'est ce réglage qui décide si `api/**` devient des fonctions serverless.
+- [ ] `dorafi-staff` : `apps/internal-admin` → `dorafi/staff`.
+- [ ] `dorafi-widget` : `apps/widget` → `dorafi/widget`.
+- [ ] Si les déploiements passent par la CLI : refaire `vercel link` depuis chacun des quatre dossiers.
+- [ ] Avant le premier `terraform apply` : `terraform import` les quatre projets (ils ont été créés à la main, Terraform tenterait de les recréer). Commandes en tête de `infra/terraform/vercel/main.tf`.
+
 ## Société mère — site `logafi`
 
-Ajouté le 2026-09-12 (voir les deux ADR « société mère `logafi` ») : `apps/logafi/`, projet Vercel distinct (`logafi`), sans build. Ce qui reste hors du dépôt :
+Ajouté le 2026-09-12 (voir les deux ADR « société mère `logafi` ») : `logafi/`, projet Vercel distinct (`logafi`), sans build. Ce qui reste hors du dépôt :
 
-- [ ] Créer le projet Vercel `logafi` à partir de `apps/logafi/` (`cd apps/logafi && vercel --prod`), puis y rattacher `logafi.com` et `www.logafi.com`. Ne rien changer sur le projet du produit : `dorafi.logafi.com` reste servi par `dorafi-admin`.
-- [ ] Renommer au passage les projets Vercel existants pour coller au découpage retenu : `dorafi-admin` (racine du dépôt), `dorafi-staff` (`apps/internal-admin/`), `dorafi-widget` (`apps/widget/`).
+- [ ] Créer le projet Vercel `logafi` à partir de `logafi/` (`cd logafi && vercel --prod`), puis y rattacher `logafi.com` et `www.logafi.com`. Ne rien changer sur le projet du produit : `dorafi.logafi.com` reste servi par `dorafi-admin`.
+- [ ] Renommer au passage les projets Vercel existants pour coller au découpage retenu : `dorafi-admin` (racine du dépôt), `dorafi-staff` (`dorafi/staff/`), `dorafi-widget` (`dorafi/widget/`).
 - [ ] Créer la boîte `hello@logafi.com` (MX du domaine) — l'adresse est déjà affichée sur la page et dans son JSON-LD ; sans boîte, les courriels des prospects rebondissent.
 - [ ] Relire le contenu de la page : services offerts, formulation de la certification *SnowPro Advanced: Architect*, et décider si l'entité légale (`18219184 Canada Inc.`, cf. `LegalPages.jsx`) doit y figurer.
 - [ ] Décider si le widget Dorafi est installé sur le site logafi (dogfooding) — il faudrait d'abord un tenant/site dédié à `logafi.com`, sinon l'assistant répondrait à partir du contenu de Dorafi.
 
 ## Go-to-market — landing pages par niche
 
-Ajouté le 2026-08-25 suite à la création de la première landing page niche (ostéopathes, `/solutions/osteopathes`, `apps/admin/src/components/OsteopathyLanding.jsx`). Voir ADR 040.
+Ajouté le 2026-08-25 suite à la création de la première landing page niche (ostéopathes, `/solutions/osteopathes`, `dorafi/admin/src/components/OsteopathyLanding.jsx`). Voir ADR 040.
 
 - [ ] Faire tourner l'onboarding réel (coller une vraie URL de clinique dans le flow live) pour obtenir un premier tenant de démo réel et valider la qualité du RAG sur un site réel et connu — je n'ai pas pu l'exécuter moi-même depuis ce sandbox (proxy sortant qui bloque Chromium en prod, Turnstile qui bloque l'appel API direct, aucune clé locale). À faire côté utilisateur, ou en me fournissant des clés de test jetables.
 - [ ] Une fois ce tenant de démo réel créé, remplacer l'aperçu de conversation statique de `OsteopathyLanding.jsx` par un vrai embed du widget pointé sur son `public_key` (avec l'accord explicite du·de la propriétaire du site utilisé, avant de publier son nom/site sur une page marketing publique).

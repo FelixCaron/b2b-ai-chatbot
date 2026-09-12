@@ -44,7 +44,7 @@ function stubResend(status, body) {
   };
 }
 
-const { sendSupportTicketEmail, sendLeadEmail } = await import('../../api/lib/email.js');
+const { sendSupportTicketEmail, sendLeadEmail } = await import('../../dorafi/admin/api/lib/email.js');
 
 const site = { id: 'site-1', domain: 'acme.example.com', support_email: 'help@acme.example.com' };
 const ticket = { name: 'Jane', email: 'jane@example.com', message: 'My order never arrived.' };

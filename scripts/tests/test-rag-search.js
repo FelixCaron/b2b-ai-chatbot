@@ -148,7 +148,7 @@ if (!process.env.JINA_API_KEY) {
   try {
     const { readFileSync } = await import('fs');
     const { resolve } = await import('path');
-    const envContent = readFileSync(resolve("apps/admin/.env.local"), "utf-8");
+    const envContent = readFileSync(resolve("dorafi/admin/.env.local"), "utf-8");
     for (const line of envContent.split("\n")) {
       const [key, ...vals] = line.trim().split("=");
       if (key && !key.startsWith("#")) process.env[key.trim()] = vals.join("=").trim();

@@ -1,5 +1,5 @@
 import { test, expect, trackConsoleErrors } from './support/test.js';
-import { NICHES } from '../../apps/admin/src/content/niches.js';
+import { NICHES } from '../../dorafi/admin/src/content/niches.js';
 
 // The /solutions/<slug> pages are static, zero-backend-dependency outreach
 // pages: each must load directly (as a prospect following a link would hit

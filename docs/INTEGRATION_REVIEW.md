@@ -7,7 +7,7 @@ duplicating what's already tracked there.
 
 ## Stripe billing
 
-Flow: `apps/admin`'s Pricing page → `POST /api/billing/checkout` (creates/reuses a Stripe
+Flow: `dorafi/admin`'s Pricing page → `POST /api/billing/checkout` (creates/reuses a Stripe
 customer for the tenant, starts a Checkout Session) → Stripe-hosted checkout → webhook
 (`POST /api/billing/webhook`) updates the tenant's `plan`/`plan_status` → `POST
 /api/billing/portal` lets a customer manage/cancel from Stripe's own billing portal.
@@ -45,7 +45,7 @@ through 2026-08-25) are replaced with one final-state migration,
 "Migration consolidation" below.
 
 **New in this pass:** an `internal` Postgres schema for the staff dashboard
-(`apps/internal-admin`), holding `internal.staff_admins`. This schema is deliberately
+(`dorafi/staff`), holding `internal.staff_admins`. This schema is deliberately
 **not** in `supabase/config.toml`'s `[api].schemas` (which stays `["public",
 "graphql_public"]`), so PostgREST has no route to it at all — not via anon key, not via an
 authenticated user's JWT, regardless of grants or RLS. That's a stronger isolation
@@ -53,7 +53,7 @@ guarantee than "RLS in `public`, hope the policy is right": a bug in the tenant-
 policies above has literally no path to this data, because the access mechanism is
 different. A `SECURITY DEFINER` bridge function, `public.is_staff_admin(uuid)`, restricted
 to `service_role` only, is the one way server code can check staff membership — see
-`apps/internal-admin/api/lib/server-config.js`.
+`dorafi/staff/api/lib/server-config.js`.
 
 **Fixed in this pass — plan limits were a UI suggestion, not a boundary.** Sites are inserted
 client-side through RLS (`App.jsx`'s `handleAddSite`), and the only thing standing between a
@@ -104,7 +104,7 @@ what to delete by matching that same stale name pattern — so a guest who conve
 than 24h after their first tenant was created kept a tenant that still looked unclaimed to
 that job, and the next run would have deleted it (and every site/document/lead under it)
 for a real, registered customer. Fixed by (1) renaming a tenant to its owner's real email
-the moment `apps/admin` sees a confirmed, non-anonymous session for it, and (2) having the
+the moment `dorafi/admin` sees a confirmed, non-anonymous session for it, and (2) having the
 cleanup job independently confirm via the Auth admin API that a candidate tenant's owner
 is still actually anonymous before deleting, regardless of what the name says. Also added
 the cleanup that was actually asked for: anonymous accounts that never provide an email,
@@ -138,11 +138,12 @@ anywhere in `api/` — leftover from the not-yet-done work (also in `TODO.md`) t
 the chat origin check's `.includes()` with a strict origin allowlist. Left as-is rather
 than removed, since it documents the intended shape of that future fix.
 
-**Documentation drift, not a runtime bug:** `CLAUDE.md`'s Core Engineering Guidelines say
-API routes must live in `apps/admin/api/`, but the actual, deployed API lives at repo-root
-`/api` (confirmed by the file layout and by the same file's own Deployment section, which
-says the admin SPA + API deploy together via `vercel --prod` from the repository root).
-Worth fixing that line in a follow-up; not a functional issue so left alone here.
+**Documentation drift, since resolved:** this review found `CLAUDE.md`'s Core Engineering
+Guidelines saying API routes must live in `apps/admin/api/` while the deployed API actually
+lived at repo-root `/api`. The repository reorganisation of 2026-09-12 settled it in favour
+of the documentation rather than the other way round: the functions now live in
+`dorafi/admin/api/`, beside the app that deploys them, and the repository root holds no
+deployable at all.
 
 ## Migration consolidation
 
@@ -174,7 +175,7 @@ also asks for:
 
 - **Audit logging.** Nothing beyond `console.log` today — no record of who changed a
   tenant's plan, deleted a site, or accessed what, and no durable log storage. Matters
-  most once staff (via `apps/internal-admin`) or more than one person per tenant have
+  most once staff (via `dorafi/staff`) or more than one person per tenant have
   access to sensitive actions.
 - **Data retention & deletion policy, written down.** `delete_site_cascade` does a real
   cascade delete technically, but there's no documented answer to "how long do we keep a
@@ -199,7 +200,7 @@ also asks for:
   signup/login attempts the same day: Site URL defaults to `http://localhost:3000`, so any
   magic link requested from a domain not yet in Redirect URLs silently redirects there
   instead — not a code bug, but blocks login from any newly-deployed app (like
-  `apps/internal-admin`) until its domain is added. The default email sender rate-limits
+  `dorafi/staff`) until its domain is added. The default email sender rate-limits
   after a handful of sign-ins/hour, fine for initial testing but not actual usage — needs
   custom SMTP (this project already has a Resend account for other transactional email;
   reuse it). Even with custom SMTP working, `rate_limit_email_sent` — a separate

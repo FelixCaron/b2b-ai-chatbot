@@ -2,7 +2,7 @@ import { test, expect } from './support/test.js';
 
 // Dedicated regression coverage for the bug fixed in widget.css:
 // #b2b-chatbot-container (the admin's own embedded Copilot widget, loaded
-// unconditionally by apps/admin/index.html — the exact same widget.css every
+// unconditionally by dorafi/admin/index.html — the exact same widget.css every
 // customer site embeds) is `position: fixed` with only bottom/right set, so
 // its box sizes itself to its flex content. Because the closed chat panel
 // stays in flex layout (hidden only via opacity), the "closed" container's

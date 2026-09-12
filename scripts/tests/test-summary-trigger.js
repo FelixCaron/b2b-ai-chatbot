@@ -6,7 +6,7 @@ globalThis.WebSocket = WebSocket;
 
 if (!process.env.VITE_SUPABASE_URL || !process.env.SUPABASE_SECRET_KEY) {
   try {
-    const envContent = readFileSync(resolve("apps/admin/.env.local"), "utf-8");
+    const envContent = readFileSync(resolve("dorafi/admin/.env.local"), "utf-8");
     for (const line of envContent.split("\n")) {
       const [key, ...vals] = line.trim().split("=");
       if (key && !key.startsWith("#")) process.env[key.trim()] = vals.join("=").trim();
@@ -16,7 +16,7 @@ if (!process.env.VITE_SUPABASE_URL || !process.env.SUPABASE_SECRET_KEY) {
 
 if (!process.env.VITE_SUPABASE_URL || !process.env.SUPABASE_SECRET_KEY) throw new Error('VITE_SUPABASE_URL and SUPABASE_SECRET_KEY are required');
 
-import generateSummaryHandler from '../../api/generate-summary.js';
+import generateSummaryHandler from '../../dorafi/admin/api/generate-summary.js';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SECRET_KEY);

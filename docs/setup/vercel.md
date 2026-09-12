@@ -1,12 +1,20 @@
 # Vercel setup
 
-Three separate Vercel projects, matching the monorepo's three deployable apps:
+Four separate Vercel projects, one per deployable directory — the directory names and the
+project names are deliberately the same:
 
 | Project | Root directory | What it serves |
 |---|---|---|
-| `repondo-admin` | `.` (repo root) | Admin SPA (`apps/admin`) + root `/api` serverless functions |
-| `repondo-widget` | `apps/widget` | The embeddable chat widget, as a CDN-style static bundle |
-| `repondo-internal-admin` | `apps/internal-admin` | Staff-only cross-tenant dashboard — **never link this anywhere in the public product** |
+| `dorafi-admin` | `dorafi/admin` | The customer-facing SPA **and** its serverless functions (`dorafi/admin/api/**`) |
+| `dorafi-staff` | `dorafi/staff` | Staff-only cross-tenant dashboard — **never link this anywhere in the public product** |
+| `dorafi-widget` | `dorafi/widget` | The embeddable chat widget, as a CDN-style static bundle |
+| `logafi` | `logafi` | The parent company's site. No build step: the directory is served as committed |
+
+⚠️ **Root Directory is not optional here.** Vercel only turns `<root directory>/api/**` into
+serverless functions, so `dorafi-admin` pointed anywhere but `dorafi/admin` deploys an SPA
+with no API behind it. If you are updating a project created before the repository was
+reorganised (when the admin app deployed from `.`), change its Root Directory in
+Settings → General before the next deploy.
 
 ## Scripted (preferred) — Terraform
 
@@ -55,11 +63,12 @@ Directory to the value in the table above → Environment Variables → paste ea
 Manual deploys (`CLAUDE.md`'s Deployment section):
 
 ```bash
-vercel --prod                        # from repo root — admin + API
-cd apps/widget && vercel --prod      # widget
-cd apps/internal-admin && vercel --prod  # staff console
+cd dorafi/admin  && vercel --prod   # the product: SPA + API
+cd dorafi/staff  && vercel --prod   # staff console
+cd dorafi/widget && vercel --prod   # widget bundle
+cd logafi        && vercel --prod   # parent company site
 ```
 
-CI (`.github/workflows/deploy.yml`) runs tests/builds and deploys the first two; wire the
-internal-admin project into that workflow once it exists in Vercel, or keep deploying it
-manually — it changes rarely.
+CI (`.github/workflows/ci.yml`) runs the tests and builds every app on push and pull
+request, but deploys nothing — each project above is deployed manually, from its own
+directory.

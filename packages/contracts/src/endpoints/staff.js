@@ -1,4 +1,4 @@
-// The internal-admin products (apps/internal-admin), deployed as their own
+// The internal-admin products (dorafi/staff), deployed as their own
 // Vercel project. Staff-only: requireStaff() is the whole security model.
 import { defineEndpoint, AUTH } from '../endpoint.js';
 import { f, optional } from '../schema.js';

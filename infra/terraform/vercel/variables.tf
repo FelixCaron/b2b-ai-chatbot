@@ -16,9 +16,15 @@ variable "github_repo" {
 }
 
 variable "project_prefix" {
-  description = "Prefix for the three Vercel project names, so this can be re-applied for a staging/prod pair without name collisions."
+  description = "Prefix for the three Dorafi Vercel project names (admin/staff/widget), so this can be re-applied for a staging/prod pair without name collisions. The logafi project is named separately — see logafi_project_name."
   type        = string
-  default     = "repondo"
+  default     = "dorafi"
+}
+
+variable "logafi_project_name" {
+  description = "Name of the parent company's Vercel project. Deliberately outside project_prefix: logafi is a different company from Dorafi, not one of its surfaces."
+  type        = string
+  default     = "logafi"
 }
 
 variable "admin_env" {
@@ -32,9 +38,9 @@ variable "admin_env" {
   default     = {}
 }
 
-variable "internal_admin_env" {
+variable "staff_env" {
   description = <<-EOT
-    Env vars for the internal staff-admin project — same Supabase project as
+    Env vars for the staff console project (dorafi-staff) — same Supabase project as
     admin_env (VITE_SUPABASE_URL / SUPABASE_SECRET_KEY / VITE_SUPABASE_PUBLISHABLE_KEY),
     no Stripe/OpenRouter/Resend keys needed here since this app only ever reads
     tenant metadata, never calls those integrations.

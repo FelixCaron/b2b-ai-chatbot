@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 // ---------------------------------------------------------------------------
 // A static file server, for directories that have no build step — today that
-// is apps/logafi, which Vercel also serves as-is.
+// is logafi, which Vercel also serves as-is.
 //
-// Used two ways: `node scripts/dev/serve-static.mjs apps/logafi 5174` to look
+// Used two ways: `node scripts/dev/serve-static.mjs logafi 5174` to look
 // at the page locally, and by playwright.config.js as the second webServer so
 // tests/e2e/logafi-page.spec.js exercises the real thing over HTTP rather than
 // a file:// URL.

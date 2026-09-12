@@ -32,9 +32,9 @@ function assert(condition, message) {
 }
 
 // --- 1. Every endpoint has a handler on disk -------------------------------
-// The staff routes are deployed from apps/internal-admin's own Vercel project;
+// The staff routes are deployed from dorafi/staff's own Vercel project;
 // everything else from the root /api.
-const HANDLER_ROOTS = [path.join(ROOT, 'api'), path.join(ROOT, 'apps/internal-admin/api')];
+const HANDLER_ROOTS = [path.join(ROOT, 'dorafi/admin/api'), path.join(ROOT, 'dorafi/staff/api')];
 
 function handlerExists(endpointPath) {
   const relative = endpointPath.split('?')[0].replace(/^\/api\/?/, '');

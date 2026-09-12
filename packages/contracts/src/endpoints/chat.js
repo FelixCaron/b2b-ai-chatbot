@@ -44,7 +44,7 @@ export const chatInit = defineEndpoint({
   request: {
     tenant_public_key: f.uuid(),
     // The widget's persisted session id (see ChatManager.getOrCreateSessionId
-    // in apps/widget/src/chat.js). Optional — an older cached embed bundle
+    // in dorafi/widget/src/chat.js). Optional — an older cached embed bundle
     // that predates this field simply never gets the conversation_limit_reached
     // check below; everything else in the response still works.
     session_id: optional(f.string({ min: 1, max: 128 }))
@@ -62,7 +62,7 @@ export const chatInit = defineEndpoint({
     // TRUE when this session_id has no conversation slot yet and the plan's
     // monthly conversation quota is already spent — the widget hides itself
     // entirely rather than show a launcher that can't start a conversation
-    // (apps/widget/src/main.js). A session already mid-conversation never
+    // (dorafi/widget/src/main.js). A session already mid-conversation never
     // gets this — see conversation_quota_reached() in migration
     // 20260909010000.
     conversation_limit_reached: optional(f.boolean()),

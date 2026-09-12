@@ -5,12 +5,12 @@
   "type": "module",
   "description": "Multi-tenant B2B AI Chatbot SaaS Monorepo",
   "workspaces": [
-    "apps/*",
+    "dorafi/*",
     "packages/*"
   ],
   "scripts": {
-    "build:widget": "npm run build --workspace=@b2b-ai-chatbot/widget && node -e \"import('fs').then(fs=>fs.copyFileSync('apps/widget/dist/widget.iife.js','apps/admin/public/widget.iife.js'))\"",
-    "build": "npm run build --workspace=@b2b-ai-chatbot/widget && node -e \"import('fs').then(fs=>fs.copyFileSync('apps/widget/dist/widget.iife.js','apps/admin/public/widget.iife.js'))\" && npm run build --workspace=@b2b-ai-chatbot/admin",
+    "build:widget": "npm run build --workspace=@b2b-ai-chatbot/widget && node -e \"import('fs').then(fs=>fs.copyFileSync('dorafi/widget/dist/widget.iife.js','dorafi/admin/public/widget.iife.js'))\"",
+    "build": "npm run build --workspace=@b2b-ai-chatbot/widget && node -e \"import('fs').then(fs=>fs.copyFileSync('dorafi/widget/dist/widget.iife.js','dorafi/admin/public/widget.iife.js'))\" && npm run build --workspace=@b2b-ai-chatbot/admin",
     "dev": "npm run dev --workspaces --if-present",
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",

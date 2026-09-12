@@ -30,7 +30,7 @@ packages/contracts/
 │   │   ├── sites.js       sites.claim
 │   │   ├── billing.js     billing.checkout · portal · webhook
 │   │   ├── ops.js         cron.cleanup
-│   │   └── staff.js       staff.* (apps/internal-admin's own Vercel project)
+│   │   └── staff.js       staff.* (dorafi/staff's own Vercel project)
 │   └── index.js           the registry, grouped as `contracts.<family>.<product>`
 ```
 
@@ -79,11 +79,11 @@ What is left in a route file is the part that is actually about that product.
 One transport, in the package, bound per app to that app's Supabase session:
 
 ```js
-// apps/admin/src/lib/api/client.js
+// dorafi/admin/src/lib/api/client.js
 const client = createApiClient({ getAuthHeaders: authenticatedHeaders });
 ```
 
-and one grouped surface per app (`apps/*/src/lib/api/index.js`):
+and one grouped surface per app (`dorafi/*/src/lib/api/index.js`):
 
 ```js
 const result = await api.crawler.scan({ site_id, tenant_id, url });
@@ -115,7 +115,7 @@ the wire the way its contract says (URL, method, bearer token, query/body split)
 
 ---
 
-## 2. The admin SPA — `apps/admin/src`
+## 2. The admin SPA — `dorafi/admin/src`
 
 ```
 src/
@@ -168,7 +168,7 @@ the anonymous session can still prove it owns the guest tenant — so `App` pass
 
 ---
 
-## 3. The dashboard — `apps/admin/src/features/dashboard`
+## 3. The dashboard — `dorafi/admin/src/features/dashboard`
 
 The dashboard was one 2,736-line component. It is now a composition root of
 ~420 lines that wires four hooks and renders the sections:
@@ -207,7 +207,7 @@ hooks; what is shared across sections stays in `Dashboard.jsx`.
 
 ---
 
-## 4. The staff console — `apps/internal-admin/src`
+## 4. The staff console — `dorafi/staff/src`
 
 The same shape, smaller: `components/layout/{AppShell,Header,Footer}.jsx`,
 `lib/api/` built on the same `createApiClient`, and an `App.jsx` left holding

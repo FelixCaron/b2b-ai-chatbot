@@ -2542,3 +2542,39 @@ Ce que l'arrangement précédent coûtait réellement : la page de la société 
 - Rattacher `logafi.com` se fait sur le projet `logafi`, pas sur celui du produit. Le canonique de la page (`https://logafi.com/`) correspond enfin à son adresse réelle au lieu d'anticiper une réécriture.
 - Le site n'a aucun moyen de casser le produit : plus de règle partagée, plus de comparaison d'hôte à ancrer, plus de fichier de la société mère dans `public/` de l'admin.
 - Coût assumé : un projet Vercel de plus à créer et à surveiller, et un déploiement manuel de plus. Pour un site d'un seul fichier sans build, c'est quelques secondes.
+
+## ADR : Une arborescence qui dit la vérité — `dorafi/` et `logafi/`
+**Date:** 12 Septembre 2026
+**Statut:** Accepté
+
+### Contexte
+Le dépôt disait deux choses contradictoires sur l'endroit où vit le produit. `CLAUDE.md` affirmait, en règle d'ingénierie n° 4, que toutes les fonctions serverless doivent vivre dans `apps/admin/api/` et « jamais à la racine du monorepo » ; la réalité déployée était exactement l'inverse — `/api` à la racine, `vercel.json` à la racine, `outputDirectory: "apps/admin/dist"`, et le projet Vercel `dorafi-admin` avec `.` comme répertoire racine. `docs/INTEGRATION_REVIEW.md` avait relevé la contradiction et l'avait classée « dérive documentaire, à corriger plus tard ».
+
+Le résultat concret : la racine du dépôt était elle-même un déployable. On ne pouvait pas regarder l'arborescence et dire ce que contenait le produit Dorafi — l'application était dans `apps/admin`, ses fonctions ailleurs, sa configuration de déploiement ailleurs encore. Le site logafi, ajouté le matin même dans son propre dossier avec son propre `vercel.json`, rendait le contraste visible : lui, on pouvait le pointer du doigt.
+
+Trois incohérences mineures s'étaient accumulées derrière la même cause : les noms de dossiers ne correspondaient à aucun des quatre projets Vercel, le paquet `@b2b-ai-chatbot/internal-admin` s'appelait autrement que son projet (`dorafi-staff`), et le Terraform ne connaissait que trois projets, sous un préfixe `repondo` abandonné depuis deux rebrands.
+
+### Décision
+**Un dossier par déployable, et le nom du dossier est le nom du projet Vercel.**
+
+```
+dorafi/admin    → dorafi-admin    (SPA + api/, ex-racine)
+dorafi/staff    → dorafi-staff    (ex-apps/internal-admin)
+dorafi/widget   → dorafi-widget   (ex-apps/widget)
+logafi          → logafi          (ex-apps/logafi)
+```
+
+- **`/api` descend dans `dorafi/admin/api/`** et la `vercel.json` de la racine disparaît. C'est la règle n° 4 de `CLAUDE.md` appliquée au code plutôt que retirée du document : Vercel ne transforme en fonctions que `<répertoire racine>/api/**`, donc mettre l'API à côté de l'app qui la déploie est la seule disposition où l'arborescence et le déploiement disent la même chose. `dorafi/admin` a désormais exactement la même forme que `dorafi/staff`, qui fonctionnait déjà ainsi.
+- **La racine n'est plus un déployable** : plus de `api/`, plus de `vercel.json`, plus de `outputDirectory` qui pointe dans un sous-dossier. Elle ne garde que ce qui est commun — `packages/`, `supabase/`, `scripts/`, `tests/`, `infra/`, la documentation et la configuration des workspaces (`dorafi/*` + `packages/*` ; `logafi/` n'en est pas un, il n'a pas de `package.json`).
+- **Le paquet du console interne devient `@b2b-ai-chatbot/staff`**, et `infra/terraform/vercel` décrit les quatre projets réels (préfixe `dorafi`, `logafi` hors préfixe parce que c'est une autre société), avec des blocs `moved` pour que le renommage de la ressource `internal_admin` → `staff` ne détruise pas le projet et ses domaines.
+- **La garantie que le widget déployé est à jour change de main.** Elle reposait sur un effet de bord : déployer depuis la racine exécutait `npm run build`, qui reconstruisait le widget et le recopiait dans `public/` avant de bâtir l'app. Déployer depuis `dorafi/admin` n'exécute plus que `vite build`. Plutôt que de faire dépendre le déploiement d'un dossier voisin (ce qui n'est vrai chez Vercel que si « inclure les fichiers hors du répertoire racine » est activé — une case à cocher, pas une garantie), la CI refuse maintenant un commit où `dorafi/admin/public/widget.iife.js` diffère d'une reconstruction fraîche. Vérifié : le bundle versionné est aujourd'hui identique octet pour octet à une reconstruction, donc la nouvelle étape est verte sans rien retoucher.
+- **Ménage pris en passant** : les `package-lock.json` internes de `dorafi/admin` et `dorafi/widget` sont supprimés. npm les ignore dans un monorepo à workspaces, mais Vercel, lui, peut les prendre au sérieux depuis un répertoire racine — et celui de l'admin ne contenait ni `resend` ni `ws`, que ses fonctions importent désormais. `dorafi/staff` déploie sans verrou interne depuis toujours : c'est le modèle qui marche. Les dépendances d'exécution des fonctions (`resend`, `ws`) sont déclarées dans `dorafi/admin/package.json` au lieu d'être empruntées par hoisting à la racine. Le script de débogage `test_supabase.cjs`, posé à la racine de l'app, part dans `scripts/adhoc/`.
+
+**Ce qui n'a délibérément pas été réécrit** : `ADR.md`, `HANDOFF.md` et les migrations Supabase déjà appliquées. Ce sont des journaux — ils décrivent l'état du dépôt au moment où ils ont été écrits, et réécrire `apps/admin` en `dorafi/admin` dans une décision de la semaine dernière ou dans un commentaire SQL déjà joué falsifierait le compte rendu au lieu de le mettre à jour. Les chemins qu'ils citent sont historiquement exacts ; le présent ADR est le pont.
+
+### Conséquences
+- **Rien ne se déploie tant que le répertoire racine du projet `dorafi-admin` n'est pas changé de `.` à `dorafi/admin` dans Vercel** (Settings → General). C'est le coût assumé de la réorganisation, et il est bruyant plutôt que silencieux : avec l'ancien réglage, la construction échoue immédiatement (`apps/admin/dist` n'existe plus) au lieu de livrer une application sans API. Même changement pour `dorafi-staff` (`apps/internal-admin` → `dorafi/staff`) et `dorafi-widget` (`apps/widget` → `dorafi/widget`). Si les projets sont déployés en CLI, `vercel link` est à refaire depuis chaque nouveau dossier.
+- Le Terraform décrit enfin les projets qui existent vraiment, mais il n'a jamais été appliqué (son préfixe par défaut était encore `repondo`) : il faudra `terraform import` une fois par projet avant le premier `apply`, sinon il tentera de les créer et butera sur les noms déjà pris. Le fichier le dit, en tête.
+- Les 202 références aux anciens chemins ont été réécrites dans les fichiers vivants — code, tests, scripts, CI, Terraform, docs de déploiement. `docs/INTEGRATION_REVIEW.md` ne signale plus une dérive à corriger : il raconte comment elle a été tranchée.
+- Vérifié après la réorganisation : build complet, les 8 suites unitaires, les 136 tests E2E (dont ceux du site logafi, servi depuis son nouveau chemin) et le scan de secrets. Aucune régression.
+- Reste un point non vérifié par machine : `terraform validate` n'a pas pu être exécuté (Terraform n'est pas installé dans l'environnement de travail). Le HCL est relu à la main.

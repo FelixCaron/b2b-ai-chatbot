@@ -16,7 +16,7 @@ function walk(dir) {
   return results;
 }
 
-const files = walk('./apps/admin/src').concat(walk('./api'));
+const files = walk('./dorafi/admin/src').concat(walk('./dorafi/admin/api'));
 
 let totalFixed = 0;
 files.forEach(file => {

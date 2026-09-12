@@ -1142,11 +1142,11 @@ stateDiagram-v2
     <code>supabase/migrations/20260905030000_site_limits_and_guest_claims.sql</code>. The claim
     protocol: <code>api/sites/claim.js</code>. The rationale for every decision above:
     <code>ADR.md</code>, ADR 057. Everything marked <em>implemented</em> was verified against
-    <code>apps/admin/src/App.jsx</code>,
-    <code>apps/admin/src/features/dashboard/Dashboard.jsx</code>,
-    <code>apps/admin/src/components/Pricing.jsx</code>,
-    <code>apps/admin/src/components/LoginModal.jsx</code>,
-    <code>apps/admin/src/components/WorkspaceTransfer.jsx</code>, <code>api/chat/</code>,
+    <code>dorafi/admin/src/App.jsx</code>,
+    <code>dorafi/admin/src/features/dashboard/Dashboard.jsx</code>,
+    <code>dorafi/admin/src/components/Pricing.jsx</code>,
+    <code>dorafi/admin/src/components/LoginModal.jsx</code>,
+    <code>dorafi/admin/src/components/WorkspaceTransfer.jsx</code>, <code>api/chat/</code>,
     <code>api/billing/webhook.js</code> and <code>api/cron/cleanup.js</code> rather than assumed
     from the ADR. This revision re-checked every row the site-limit/chooser/transfer/routing work
     (<code>815fbb3</code>, <code>3e2d0a5</code>) could have touched, rather than trusting the

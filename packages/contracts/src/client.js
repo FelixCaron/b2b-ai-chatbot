@@ -98,7 +98,7 @@ export function createApiClient({ getAuthHeaders, getOrigin, checkResponses = fa
     // A GET/DELETE carries its whole payload in the URL. A POST/PATCH on a
     // query-addressed route (PATCH /api/staff/tenants?id=<uuid>) carries only
     // the addressing keys there and the rest in the JSON body — exactly the
-    // split apps/internal-admin/api/staff/tenants.js reads back.
+    // split dorafi/staff/api/staff/tenants.js reads back.
     const inUrl = addressKeys(endpoint);
     const carriesBody = endpoint.method !== 'GET' && endpoint.method !== 'DELETE';
     const query = carriesBody ? pick(payload, inUrl) : payload;

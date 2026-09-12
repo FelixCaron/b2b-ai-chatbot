@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 const MOCK_SUPABASE_URL = 'https://mock.supabase.test';
 const MOCK_ANON_KEY = 'mock-anon-key-for-e2e-tests';
 
-// apps/admin/index.html unconditionally embeds Dorafi's own production
+// dorafi/admin/index.html unconditionally embeds Dorafi's own production
 // widget snippet (dogfooding — see 43be108) pointed at a real, absolute
 // dorafi.logafi.com URL rather than a same-origin path, so every page load
 // in these tests fires two real, unmocked cross-origin requests regardless
@@ -24,7 +24,7 @@ const MOCK_ANON_KEY = 'mock-anon-key-for-e2e-tests';
 // hardcoded) so this also covers the widget being embedded against any
 // other absolute host later, exactly like the `/api/chat` and
 // `/api/chat/theme` mocks above already do.
-const WIDGET_BUNDLE_PATH = fileURLToPath(new URL('../../../apps/admin/public/widget.iife.js', import.meta.url));
+const WIDGET_BUNDLE_PATH = fileURLToPath(new URL('../../../dorafi/admin/public/widget.iife.js', import.meta.url));
 
 /** A timestamp `h` hours in the past, ISO-8601 like Postgres returns. */
 function hoursAgo(h) {

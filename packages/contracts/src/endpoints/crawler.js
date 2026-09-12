@@ -9,7 +9,7 @@ import { f, optional } from '../schema.js';
 // worst case: without it, a 100,000-page site would make api/crawler/crawl.js
 // build a Set (and a JSON response) with one entry per page, and would hand
 // the admin UI's page-selection modal an array large enough to crash the
-// browser tab rendering it (apps/admin's PageSelectionModal). Both sides of
+// browser tab rendering it (dorafi/admin's PageSelectionModal). Both sides of
 // the pipeline share this one number so they can't drift apart.
 export const MAX_DISCOVERABLE_PAGES = 20_000;
 

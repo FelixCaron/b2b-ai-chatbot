@@ -1,4 +1,4 @@
-﻿import crawlSiteHandler from '../../api/crawl-site.js';
+﻿import crawlSiteHandler from '../../dorafi/admin/api/crawl-site.js';
 
 async function testCrawlKeenHotteok() {
   console.log("=== TESTING API/CRAWL-SITE FOR KEEN-HOTTEOK ===");

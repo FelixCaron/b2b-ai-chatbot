@@ -10,7 +10,7 @@ import {
   isUsableBrandColor,
   brandColorFromHtml,
   mostUsedBrandColorInHtml
-} from '../../api/chat/theme.js';
+} from '../../dorafi/admin/api/chat/theme.js';
 
 let passed = 0;
 let failed = 0;

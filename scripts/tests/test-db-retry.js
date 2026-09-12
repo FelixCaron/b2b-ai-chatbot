@@ -5,7 +5,7 @@
 // added column returns nothing at all where its migration hasn't landed. That
 // is what made the Additional Information box tell every customer to "check
 // your connection", permanently, on a perfectly good connection.
-import { withMissingColumnFallback, UNDEFINED_COLUMN } from '../../apps/admin/src/lib/db-retry.js';
+import { withMissingColumnFallback, UNDEFINED_COLUMN } from '../../dorafi/admin/src/lib/db-retry.js';
 
 let passed = 0;
 let failed = 0;

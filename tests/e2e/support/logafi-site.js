@@ -1,4 +1,4 @@
-// apps/logafi is a separate Vercel project with no build step, so the E2E run
+// logafi is a separate Vercel project with no build step, so the E2E run
 // serves the directory itself (playwright.config.js starts a second webServer
 // on this port). Kept here rather than in either file so the config and the
 // spec cannot drift apart.

@@ -1,6 +1,6 @@
 # E2E tests (Playwright)
 
-Frontend end-to-end tests for `apps/admin`. They run against a real `vite
+Frontend end-to-end tests for `dorafi/admin`. They run against a real `vite
 dev` server but a **fully mocked backend** — see `support/mock-backend.js` —
 because there's no live Supabase project wired into CI/most dev machines,
 and `vite dev` never executes the real `/api/**` Vercel functions anyway.

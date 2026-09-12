@@ -46,12 +46,15 @@ DNS, business verification).
 - [ ] Fill in `infra/terraform/vercel/terraform.tfvars` with everything gathered in steps
       1-4 (see `terraform.tfvars.example`)
 - [ ] `terraform init && terraform plan && terraform apply` from
-      `infra/terraform/vercel/` — creates `repondo-admin`, `repondo-widget`,
-      `repondo-internal-admin` with their env vars set
-- [ ] Point real domains at `repondo-admin` and `repondo-widget` (never at
-      `repondo-internal-admin` — that one stays unlisted/internal-only)
-- [ ] Deploy: `vercel --prod` from repo root, `apps/widget/`, and
-      `apps/internal-admin/` (or let CI handle the first two)
+      `infra/terraform/vercel/` — creates `dorafi-admin`, `dorafi-staff`,
+      `dorafi-widget` and `logafi` with their env vars set
+- [ ] Check each project's **Root Directory**: `dorafi/admin`, `dorafi/staff`,
+      `dorafi/widget`, `logafi`. `dorafi-admin` pointed anywhere else ships an
+      SPA with no API — Vercel only reads `<root directory>/api/**`
+- [ ] Point real domains at `dorafi-admin` (`dorafi.logafi.com`) and `logafi`
+      (`logafi.com`); never at `dorafi-staff` — that one stays unlisted/internal-only
+- [ ] Deploy: `vercel --prod` from `dorafi/admin/`, `dorafi/staff/`,
+      `dorafi/widget/` and `logafi/`
 
 ## 6. First real smoke test
 - [ ] Open the deployed admin app, complete onboarding for a real URL, confirm a chat
@@ -60,7 +63,7 @@ DNS, business verification).
       `plan_status` actually updates after `checkout.session.completed` fires (this used
       to silently fail — see `docs/INTEGRATION_REVIEW.md`'s critical-bug note — confirm
       the fix is deployed before trusting this step)
-- [ ] Sign into `repondo-internal-admin` with a staff account, confirm the tenant you
+- [ ] Sign into `dorafi-staff` with a staff account, confirm the tenant you
       just created shows up in the list
 
 ## Local development

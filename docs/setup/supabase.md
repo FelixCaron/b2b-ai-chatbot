@@ -59,10 +59,10 @@ Nothing here is scriptable via the Management API yet:
      allowlist below. Set it to your main production domain. Left on its default
      (`http://localhost:3000`), every magic link silently redirects there instead of
      wherever the user actually requested it from — confirmed live 2026-09-05: a login
-     attempt from the deployed `apps/internal-admin` console still emailed a
+     attempt from the deployed `dorafi/staff` console still emailed a
      `localhost:3000` link, because that domain wasn't in Redirect URLs yet.
-   - **Redirect URLs** — add every real domain that calls `signInWithOtp`: `apps/admin`'s
-     domain, `apps/internal-admin`'s domain, and `http://localhost:3000` /
+   - **Redirect URLs** — add every real domain that calls `signInWithOtp`: `dorafi/admin`'s
+     domain, `dorafi/staff`'s domain, and `http://localhost:3000` /
      `http://localhost:3100` for local dev of each. Wildcards work
      (`https://*.vercel.app/**` covers preview deployments too).
 4. **Configure custom SMTP**, before relying on magic-link login for anything real.

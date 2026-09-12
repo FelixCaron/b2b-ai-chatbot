@@ -2,7 +2,7 @@ import { test, expect, trackConsoleErrors } from './support/test.js';
 import { LOGAFI_URL } from './support/logafi-site.js';
 
 // ─────────────────────────────────────────────────────────────────────────
-// apps/logafi — the parent company's site, its own Vercel project on its own
+// logafi — the parent company's site, its own Vercel project on its own
 // domain (logafi.com). It shares this repository with Dorafi and nothing
 // else: no build step, no framework, no backend call, so these tests run
 // against the directory served as-is, exactly what Vercel returns.
@@ -107,7 +107,7 @@ test.describe('logafi — parent company site', () => {
 });
 
 // A visitor whose browser is French gets French without touching the toggle —
-// same rule as the Dorafi app's i18n (apps/admin/src/i18n/LanguageContext.jsx).
+// same rule as the Dorafi app's i18n (dorafi/admin/src/i18n/LanguageContext.jsx).
 test.describe('logafi — parent company site (French browser)', () => {
   test.use({ locale: 'fr-CA' });
 

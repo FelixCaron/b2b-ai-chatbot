@@ -3,7 +3,7 @@
 //
 // Each endpoint is a *product*: an address, an auth posture, a request shape, a
 // response shape, and the errors a caller is expected to handle. The serverless
-// handler in /api and the browser client in apps/*/src/lib/api both import the
+// handler in /api and the browser client in dorafi/*/src/lib/api both import the
 // same definition, so neither side can drift from the other without the change
 // being visible in one file.
 //

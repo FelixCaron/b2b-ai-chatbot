@@ -7,7 +7,7 @@ const { createClient } = require('@supabase/supabase-js');
 // script makes it indistinguishable from a real leak at a glance, and trips
 // the repo's committed-secrets scanner (scripts/ops/check-no-secrets.cjs) on
 // every run. Set VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY (same
-// values apps/admin uses) before running this.
+// values dorafi/admin uses) before running this.
 const VITE_SUPABASE_URL = process.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 

@@ -8,7 +8,7 @@ import { test, expect } from './support/test.js';
 // setCurrentView never ran. The model still received a synthetic "tool"
 // result claiming success and truthfully narrated it to the user ("I've
 // opened our About Us page for you") - so the copilot lied about an action
-// that silently did nothing. Fixed in apps/widget/src/chat.js by
+// that silently did nothing. Fixed in dorafi/widget/src/chat.js by
 // normalizing the event shape before dispatching.
 test.describe('Admin Copilot — navigate_to tool call', () => {
   test('asking to see the About page actually navigates there, not just claims to', async ({ page, mock }) => {

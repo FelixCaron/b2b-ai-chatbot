@@ -1,17 +1,31 @@
-# Repondo — Vercel projects as code.
+# Dorafi + logafi — Vercel projects as code.
 #
-# Manages the three Vercel projects this monorepo deploys as (see CLAUDE.md's
-# Deployment section for the manual-deploy commands these projects run):
-#   1. admin   — root directory ".", the admin SPA + root /api serverless functions
-#   2. widget  — root directory "apps/widget", the embeddable chat widget
-#   3. internal-admin — root directory "apps/internal-admin", the staff-only
-#      cross-tenant dashboard (see docs/INTEGRATION_REVIEW.md for why this is
-#      a separate project rather than a route inside "admin")
+# One project per deployable directory, which is also how the repository is
+# laid out (see CLAUDE.md's Deployment section):
+#
+#   dorafi-admin   — root directory "dorafi/admin", the customer-facing SPA
+#                    *and* the serverless functions in dorafi/admin/api
+#   dorafi-staff   — root directory "dorafi/staff", the staff-only
+#                    cross-tenant dashboard (see docs/INTEGRATION_REVIEW.md
+#                    for why this is a separate project rather than a route
+#                    inside the admin app)
+#   dorafi-widget  — root directory "dorafi/widget", the embeddable chat widget
+#   logafi         — root directory "logafi", the parent company's site. No
+#                    prefix: it is a different company, not a Dorafi surface.
 #
 # This is idempotent by construction: `terraform apply` reconciles the
 # resources below against whatever already exists in Vercel, so re-running it
 # is a no-op once state matches. That guarantee depends on the state file
 # persisting between runs — see the backend note at the bottom of this file.
+#
+# ⚠️ If these projects were created by hand in the Vercel dashboard (they were,
+# before this file was updated), `terraform apply` will try to CREATE them and
+# fail on the name collision. Import them first, once each:
+#
+#   terraform import vercel_project.admin  <project-id-or-name>
+#   terraform import vercel_project.staff  <project-id-or-name>
+#   terraform import vercel_project.widget <project-id-or-name>
+#   terraform import vercel_project.logafi <project-id-or-name>
 #
 # One-time bootstrapping this can't do for you: creating the Vercel account/
 # team itself and minting the API token below. See docs/setup/vercel.md.
@@ -34,12 +48,12 @@ terraform {
   #
   # backend "remote" {                 # Terraform Cloud / HCP Terraform (free tier is enough)
   #   organization = "your-org"
-  #   workspaces { name = "repondo-vercel" }
+  #   workspaces { name = "dorafi-vercel" }
   # }
   #
   # backend "s3" {                     # Any S3-compatible bucket you already have
   #   bucket = "your-terraform-state-bucket"
-  #   key    = "repondo/vercel.tfstate"
+  #   key    = "dorafi/vercel.tfstate"
   #   region = "us-east-1"
   # }
 }
@@ -49,8 +63,25 @@ provider "vercel" {
   team      = var.vercel_team_id
 }
 
+# The staff console used to be `vercel_project.internal_admin` here, back when
+# its directory was apps/internal-admin. Renaming the resource without this
+# block would destroy the project (and its domains) and create a new one.
+moved {
+  from = vercel_project.internal_admin
+  to   = vercel_project.staff
+}
+
+moved {
+  from = vercel_project_environment_variables.internal_admin
+  to   = vercel_project_environment_variables.staff
+}
+
 # ---------------------------------------------------------------------------
-# Project 1 — Admin SPA + root API (deployed from repo root)
+# dorafi-admin — the product: SPA + serverless API (dorafi/admin)
+#
+# `npm run build` resolves to that workspace's own script (`vite build`); the
+# widget bundle it serves is the committed dorafi/admin/public/widget.iife.js,
+# which CI refuses to let go stale.
 # ---------------------------------------------------------------------------
 resource "vercel_project" "admin" {
   name      = "${var.project_prefix}-admin"
@@ -59,9 +90,9 @@ resource "vercel_project" "admin" {
     type = "github"
     repo = var.github_repo
   }
-  root_directory   = "."
+  root_directory   = "dorafi/admin"
   build_command    = "npm run build"
-  output_directory = "apps/admin/dist"
+  output_directory = "dist"
 }
 
 resource "vercel_project_environment_variables" "admin" {
@@ -77,7 +108,9 @@ resource "vercel_project_environment_variables" "admin" {
 }
 
 # ---------------------------------------------------------------------------
-# Project 2 — Widget (deployed from apps/widget)
+# dorafi-widget — the embeddable widget (dorafi/widget)
+# A static asset bundle with no server-side secrets: nothing to set here
+# beyond the project itself.
 # ---------------------------------------------------------------------------
 resource "vercel_project" "widget" {
   name      = "${var.project_prefix}-widget"
@@ -86,38 +119,54 @@ resource "vercel_project" "widget" {
     type = "github"
     repo = var.github_repo
   }
-  root_directory   = "apps/widget"
+  root_directory   = "dorafi/widget"
   build_command    = "npm run build"
   output_directory = "dist"
 }
 
-# Widget is a static asset bundle with no server-side secrets — nothing to
-# set here beyond the project itself.
-
 # ---------------------------------------------------------------------------
-# Project 3 — Internal staff admin dashboard (deployed from apps/internal-admin)
+# dorafi-staff — the internal cross-tenant console (dorafi/staff)
 # Deliberately never linked from the public product. Its own URL, own env.
 # ---------------------------------------------------------------------------
-resource "vercel_project" "internal_admin" {
-  name      = "${var.project_prefix}-internal-admin"
+resource "vercel_project" "staff" {
+  name      = "${var.project_prefix}-staff"
   framework = "vite"
   git_repository = {
     type = "github"
     repo = var.github_repo
   }
-  root_directory   = "apps/internal-admin"
+  root_directory   = "dorafi/staff"
   build_command    = "npm run build"
   output_directory = "dist"
 }
 
-resource "vercel_project_environment_variables" "internal_admin" {
-  project_id = vercel_project.internal_admin.id
+resource "vercel_project_environment_variables" "staff" {
+  project_id = vercel_project.staff.id
   variables = [
-    for key, value in var.internal_admin_env : {
+    for key, value in var.staff_env : {
       key       = key
       value     = value
       target    = ["production", "preview"]
       sensitive = true
     }
   ]
+}
+
+# ---------------------------------------------------------------------------
+# logafi — the parent company's site (logafi/)
+#
+# No framework, no build command, no environment: the directory is the site,
+# served exactly as committed. `null` on both fields is how Vercel is told
+# "there is nothing to build here" — it must match logafi/vercel.json.
+# ---------------------------------------------------------------------------
+resource "vercel_project" "logafi" {
+  name      = var.logafi_project_name
+  framework = null
+  git_repository = {
+    type = "github"
+    repo = var.github_repo
+  }
+  root_directory   = "logafi"
+  build_command    = null
+  output_directory = "."
 }

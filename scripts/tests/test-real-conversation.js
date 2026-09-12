@@ -3,7 +3,7 @@ import { resolve } from 'path';
 
 if (!process.env.VITE_SUPABASE_URL || !process.env.SUPABASE_SECRET_KEY) {
   try {
-    const envContent = readFileSync(resolve("apps/admin/.env.local"), "utf-8");
+    const envContent = readFileSync(resolve("dorafi/admin/.env.local"), "utf-8");
     for (const line of envContent.split("\n")) {
       const [key, ...vals] = line.trim().split("=");
       if (key && !key.startsWith("#")) process.env[key.trim()] = vals.join("=").trim();
@@ -65,7 +65,7 @@ async function runRealConversationTest() {
 
   if (!summaryCheck) {
     console.log("â„¹ï¸ GÃ©nÃ©ration initiale du rÃ©sumÃ© de site...");
-    const { generateWebsiteSummary } = await import('../../api/lib/llm.js');
+    const { generateWebsiteSummary } = await import('../../dorafi/admin/api/lib/llm.js');
     const { data: sampleDocs } = await supabase
       .from('documents')
       .select('content')
@@ -91,7 +91,7 @@ async function runRealConversationTest() {
   }
 
   // Import chat handler AFTER env vars are set
-  const handlerModule = await import('../../api/chat.js');
+  const handlerModule = await import('../../dorafi/admin/api/chat.js');
   const chatHandler = handlerModule.default;
 
   const sessionId = "real_conv_" + Date.now();

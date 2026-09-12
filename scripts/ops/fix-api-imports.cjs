@@ -16,7 +16,7 @@ function walk(dir) {
   return results;
 }
 
-const apiFiles = walk('./api');
+const apiFiles = walk('./dorafi/admin/api');
 apiFiles.forEach(file => {
   if (file.includes('api\\lib') || file.includes('api/lib')) return;
   let content = fs.readFileSync(file, 'utf8');

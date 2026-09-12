@@ -6,7 +6,7 @@
  * embeddings rÃ©els via Jina (jina-embeddings-v2-base-multilingual, 768 dims).
  *
  * Usage: node scripts/reingest-delafontaine.mjs
- * PrÃ©-requis: JINA_API_KEY dans l'env (ou dans apps/admin/.env.local)
+ * PrÃ©-requis: JINA_API_KEY dans l'env (ou dans dorafi/admin/.env.local)
  */
 
 import { createClient } from "@supabase/supabase-js";
@@ -19,7 +19,7 @@ globalThis.WebSocket = WebSocket;
 // Load JINA_API_KEY from .env.local if not set
 if (!process.env.JINA_API_KEY) {
   try {
-    const envPath = resolve("apps/admin/.env.local");
+    const envPath = resolve("dorafi/admin/.env.local");
     const envContent = readFileSync(envPath, "utf-8");
     for (const line of envContent.split("\n")) {
       const [key, ...vals] = line.trim().split("=");

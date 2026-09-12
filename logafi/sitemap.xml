@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  One page, one URL. logafi.com is a single-page site; the in-page anchors
+  (#services, #snowflake, #approche, #dorafi) are not separate documents and
+  do not belong here. Dorafi has its own sitemap on its own domain
+  (dorafi/admin/public/sitemap.xml) — this project must never list it.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://logafi.com/</loc></url>
+</urlset>

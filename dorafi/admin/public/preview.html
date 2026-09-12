@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Live Assistant Preview</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* Light-only, like the rest of the product. Declaring it stops a browser
+       in dark mode from force-darkening this page's controls and scrollbars. */
+    :root { color-scheme: light; }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    /* Palette mirrors dorafi/admin/tailwind.config.js: surface-100 ground,
+       dark-900 ink, brand-600 accent. */
+    html, body { height: 100%; width: 100%; font-family: 'Inter', system-ui, -apple-system, sans-serif; background: #f7f8fb; color: #0b0f19; overflow: hidden; }
+
+    /* Top Bar */
+    #top-bar {
+      height: 52px;
+      background: rgba(255, 255, 255, 0.75);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      z-index: 10000;
+      position: relative;
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      color: #047857;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 9999px;
+    }
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 8px #10b981;
+    }
+    .domain-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #0b0f19;
+      max-width: 200px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Actions (Right) */
+    .actions-section {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-action {
+      background: #eef0f5;
+      border: 1px solid rgba(15, 23, 42, 0.1);
+      color: #374151;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 5px 11px;
+      border-radius: 8px;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+    .btn-action:hover {
+      background: #e1e5ed;
+      color: #0b0f19;
+    }
+
+    /* Viewport Area */
+    #frame-container {
+      height: calc(100% - 52px);
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #eef0f5;
+      position: relative;
+      overflow: hidden;
+      padding: 0;
+    }
+    #frame-wrapper {
+      height: 100%;
+      width: 100%;
+      position: relative;
+      background: #fff;
+      background-size: cover;
+      background-position: top center;
+      background-repeat: no-repeat;
+      overflow: auto;
+      transform: translateZ(0);
+    }
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      display: block;
+      background: transparent;
+      transition: opacity 0.3s ease, transform 0.15s ease, width 0.15s ease, height 0.15s ease;
+    }
+
+    /* Loading Overlay */
+    #loading-overlay {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 5;
+      color: #64748b;
+      font-size: 14px;
+      font-weight: 500;
+      transition: opacity 0.3s ease;
+    }
+    .spinner {
+      border: 3px solid rgba(41, 63, 104, 0.2);
+      border-top-color: #293f68;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      animation: spin 1s linear infinite;
+      margin-right: 10px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* The target container for the widget. Covers the iframe completely, passing pointer events down except for widget contents */
+    #b2b-chatbot-injection-target {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      pointer-events: none; /* Let user interact with the iframe underneath */
+      z-index: 10;
+    }
+    
+    /* Ensure widget components capture pointer events */
+    #b2b-chatbot-injection-target > div {
+      pointer-events: auto;
+    }
+
+    /* Embedded in the dashboard's preview modal, which draws its own header.
+       Standalone (opened directly) the bar stays. */
+    body.embedded #top-bar { display: none; }
+    body.embedded #frame-container { height: 100%; }
+  </style>
+</head>
+<body>
+
+  <!-- Top Bar -->
+  <div id="top-bar">
+    <div class="brand-section">
+      <span class="domain-title" id="site-name">Website Preview</span>
+      <span class="status-badge">
+        <span class="status-dot"></span> Live Assistant
+      </span>
+    </div>
+
+    <!-- Actions -->
+    <div class="actions-section">
+      <button type="button" class="btn-action" onclick="reloadFrame()" title="Reload preview">
+        🔄 Refresh
+      </button>
+      <a id="external-link" href="#" target="_blank" rel="noopener noreferrer" class="btn-action" title="Open live site in fresh tab">
+        ↗ Live Site
+      </a>
+    </div>
+  </div>
+
+  <!-- Viewport Frame -->
+  <div id="frame-container">
+    <div id="frame-wrapper">
+      <div id="loading-overlay">
+        <div class="spinner"></div> Loading your website...
+      </div>
+      <iframe id="preview-iframe" src="" allow="clipboard-read; clipboard-write; microphone"></iframe>
+      
+      <!-- Widget Injection Target -->
+      <div id="b2b-chatbot-injection-target"></div>
+    </div>
+  </div>
+
+  <script>
+    function qs(key) {
+      const p = new URLSearchParams(window.location.search);
+      return p.get(key);
+    }
+
+    const domain = qs('domain') || '';
+    const tenantKey = qs('tenant_key') || '';
+    const apiUrl = qs('api_url') || `${window.location.origin}/api/chat`;
+    const themeColor = qs('theme_color') || '';
+
+    // Normalized direct URL
+    const rawTargetUrl = (domain.startsWith('http://') || domain.startsWith('https://')) ? domain : `https://${domain}`;
+    
+    // Update site name and external link
+    document.getElementById('site-name').textContent = domain.replace(/^https?:\/\//, '').replace(/\/$/, '') || 'Website Preview';
+    document.getElementById('external-link').href = rawTargetUrl;
+
+    async function loadPreview() {
+      const iframe = document.getElementById('preview-iframe');
+      const wrapper = document.getElementById('frame-wrapper');
+      const loading = document.getElementById('loading-overlay');
+      
+      if (!domain) {
+        iframe.src = 'about:blank';
+        loading.style.opacity = '0';
+        setTimeout(() => loading.style.display = 'none', 300);
+        return;
+      }
+
+      loading.style.display = 'flex';
+      loading.style.opacity = '1';
+      iframe.style.opacity = '0';
+
+      // This used to ask /api/preview-proxy whether the site allowed framing,
+      // and fall back to a thum.io screenshot when it didn't. That endpoint
+      // has never existed in this repo, so the fetch always landed on the
+      // SPA's HTML rewrite, `res.json()` always threw, and every preview took
+      // the catch branch below. The screenshot path was unreachable; what
+      // remains is the branch that was actually running all along.
+      iframe.src = rawTargetUrl;
+      iframe.onload = () => {
+        iframe.style.opacity = '1';
+        loading.style.opacity = '0';
+        setTimeout(() => loading.style.display = 'none', 300);
+      };
+    }
+
+    function reloadFrame() {
+      loadPreview();
+    }
+
+    // Automatically calculate ideal viewport scale so ANY website fits 100% horizontally without clipping
+    function autoScaleFrame() {
+      const container = document.getElementById('frame-container');
+      const iframe = document.getElementById('preview-iframe');
+      if (!container || !iframe) return;
+      const width = container.clientWidth;
+      if (width && width < 1280) {
+        const scale = width / 1280;
+        iframe.style.width = (100 / scale) + '%';
+        iframe.style.height = (100 / scale) + '%';
+        iframe.style.transform = 'scale(' + scale + ')';
+        iframe.style.transformOrigin = 'top left';
+      } else {
+        iframe.style.width = '100%';
+        iframe.style.height = '100%';
+        iframe.style.transform = 'none';
+      }
+    }
+
+    const ro = new ResizeObserver(autoScaleFrame);
+    ro.observe(document.getElementById('frame-container'));
+    window.addEventListener('resize', autoScaleFrame);
+
+    // Initial frame load and scale
+    autoScaleFrame();
+    loadPreview();
+
+    // Inject the real Dorafi widget — the same bundle a customer pastes onto
+    // their own site. There is deliberately no second chat implementation
+    // here: whatever the owner sees in this preview is byte-for-byte what
+    // their visitors get.
+    //
+    // One wrinkle: api/chat/index.js locks a site to its own registered
+    // domain, and this page runs on the admin's origin. A request from here
+    // is only authorized if it carries the tenant owner's bearer token, so
+    // when the dashboard embeds this page it posts that token in and we hand
+    // it to the widget. Opened standalone there is no token and no parent to
+    // ask, so the assistant would 403 — hence the modal is the only entry
+    // point, and this page says so plainly rather than looking broken.
+    const embedded = window.parent !== window;
+    if (embedded) document.body.classList.add('embedded');
+
+    function injectWidget(authToken) {
+      const s = document.createElement('script');
+      s.src = `${window.location.origin.replace(/\/$/, '')}/widget.iife.js`;
+      s.defer = true;
+      if (tenantKey) s.setAttribute('data-tenant-key', tenantKey);
+      if (apiUrl) s.setAttribute('data-api-url', apiUrl);
+      if (themeColor) s.setAttribute('data-theme-color', themeColor);
+      if (authToken) s.setAttribute('data-auth-token', authToken);
+      s.setAttribute('data-auto-open', 'true');
+      document.body.appendChild(s);
+    }
+
+    if (embedded) {
+      // Same-origin handshake with the dashboard. Both sides pin the origin;
+      // an access token must never be readable by the customer site rendered
+      // in the nested iframe.
+      let injected = false;
+      window.addEventListener('message', (event) => {
+        if (event.origin !== window.location.origin) return;
+        if (event.data?.type !== 'dorafi:preview-auth' || injected) return;
+        injected = true;
+        injectWidget(event.data.token || null);
+      });
+      window.parent.postMessage({ type: 'dorafi:preview-ready' }, window.location.origin);
+      // If the dashboard never answers, still show the widget rather than
+      // nothing — it will report the 403 through its own error path.
+      setTimeout(() => { if (!injected) { injected = true; injectWidget(null); } }, 4000);
+    } else {
+      injectWidget(null);
+    }
+  </script>
+</body>
+</html>
