@@ -14,8 +14,13 @@
     <script type="module" src="/src/main.jsx"></script>
     <!-- Dogfooding: same minimal snippet Dashboard.jsx hands out to customers
          (see buildWidgetSnippet) — api-url/theme-color/hide-branding are all
-         resolved by the widget itself now, from its own production default
-         and a live /chat/init read, not baked in here. -->
-    <script src="https://dorafi.logafi.com/widget.iife.js" data-tenant-key="75b897f8-9559-462a-955e-6e193acf51bb"></script>
+         resolved by the widget itself, from the origin that served it and a
+         live /chat/init read, not baked in here.
+
+         The src is origin-relative on purpose. Absolute, it made every
+         deployment — preview included — load production's bundle and talk to
+         production's API. The tenant key is the same in every environment;
+         each environment's database holds its own site row for it. -->
+    <script src="/widget.iife.js" data-tenant-key="75b897f8-9559-462a-955e-6e193acf51bb"></script>
   </body>
 </html>

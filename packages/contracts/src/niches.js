@@ -16,8 +16,9 @@
 // stays in dorafi/admin/src/content/niches.js, keyed by `view`.
 // ---------------------------------------------------------------------------
 
-/** Where the customer-facing app is served. Landing page URLs are built from
- *  this, so the staff console can show a link that is ready to paste. */
+/** Where the customer-facing app is served, when the caller doesn't say.
+ *  Landing page URLs are built from this, so the staff console can show a link
+ *  that is ready to paste. */
 export const PUBLIC_APP_URL = 'https://dorafi.logafi.com';
 
 export const NICHE_REGISTRY = [
@@ -44,9 +45,15 @@ export const NICHE_REGISTRY = [
   },
 ];
 
-/** The full link to send a prospect, ready to paste. */
-export function nicheUrl(niche) {
-  return `${PUBLIC_APP_URL}${niche.path}`;
+/** The full link to send a prospect, ready to paste.
+ *
+ *  `baseUrl` is the app the link should point at. It is a parameter rather than
+ *  a constant because this package is imported by both apps and by plain-node
+ *  scripts, which have no shared way to read an environment variable — so the
+ *  caller, which does, passes it in. A preview staff console handing out
+ *  production links is the bug this prevents. */
+export function nicheUrl(niche, baseUrl = PUBLIC_APP_URL) {
+  return `${String(baseUrl).replace(/\/+$/, '')}${niche.path}`;
 }
 
 /** Registry entry for a view key, or undefined. */

@@ -2,7 +2,10 @@ import { Resend } from 'resend';
 
 const resendApiKey = process.env.RESEND_API_KEY;
 const adminEmail = process.env.ADMIN_EMAIL || 'admin@example.com';
-const systemEmail = 'noreply@dorafi.logafi.com'; // Requires this domain to be verified in Resend before sending will actually deliver
+// The From: address. Per environment, so a preview deployment does not send
+// mail that claims to be production. The domain must be verified in Resend
+// before anything actually delivers.
+const systemEmail = process.env.SYSTEM_EMAIL_FROM || 'noreply@dorafi.logafi.com';
 
 const resend = resendApiKey ? new Resend(resendApiKey) : null;
 

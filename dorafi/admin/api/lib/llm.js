@@ -1,7 +1,14 @@
+
 // LLM Abstraction Layer
 // OpenRouter Provider Integration
 
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1/chat/completions';
+
+// Sent as OpenRouter's attribution header. Reads the deployment's own public
+// URL, so preview traffic is distinguishable from production in OpenRouter's
+// dashboard instead of reporting itself as production.
+const APP_URL = process.env.VITE_APP_URL || 'https://dorafi.logafi.com';
+
 const DEFAULT_OPENROUTER_MODEL = 'openai/gpt-5.6-luna';
 
 // Jina Embeddings — jina-embeddings-v3
@@ -199,7 +206,7 @@ export async function generateChatResponse({ systemPrompt, messagesHistory, apiK
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${openRouterKey}`,
-        'HTTP-Referer': 'https://dorafi.logafi.com',
+        'HTTP-Referer': APP_URL,
         'X-Title': 'Dorafi',
         'Content-Type': 'application/json'
       },
@@ -256,7 +263,7 @@ Respond STRICTLY in raw JSON format, without backticks, without markdown:
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${openRouterKey}`,
-        'HTTP-Referer': 'https://dorafi.logafi.com',
+        'HTTP-Referer': APP_URL,
         'X-Title': 'Dorafi',
         'Content-Type': 'application/json'
       },
@@ -310,7 +317,7 @@ Respond strictly in raw JSON format, without markdown or backticks:
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${openRouterKey}`,
-        'HTTP-Referer': 'https://dorafi.logafi.com',
+        'HTTP-Referer': APP_URL,
         'X-Title': 'Dorafi',
         'Content-Type': 'application/json'
       },
@@ -359,7 +366,7 @@ STRICT INSTRUCTION: Be factual and direct. Do NOT add any preamble or system met
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${openRouterKey}`,
-        'HTTP-Referer': 'https://dorafi.logafi.com',
+        'HTTP-Referer': APP_URL,
         'X-Title': 'Dorafi',
         'Content-Type': 'application/json'
       },
@@ -460,7 +467,7 @@ Respond strictly in raw JSON, no markdown or backticks:
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${openRouterKey}`,
-        'HTTP-Referer': 'https://dorafi.logafi.com',
+        'HTTP-Referer': APP_URL,
         'X-Title': 'Dorafi',
         'Content-Type': 'application/json'
       },

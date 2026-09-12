@@ -16,11 +16,17 @@ import { NICHE_REGISTRY, nicheUrl } from '@b2b-ai-chatbot/contracts';
  * contracts the identity), so it ships with a deploy — there is nothing here
  * that could be edited at runtime without inventing a CMS to edit it with.
  */
+// Which deployment of the customer-facing app these links point at. The staff
+// console and the product are separate Vercel projects, so the staff console
+// cannot infer it from its own origin — a preview staff console would
+// otherwise hand out production links.
+const APP_URL = import.meta.env.VITE_PUBLIC_APP_URL || undefined;
+
 export default function NicheDirectory() {
   const [copied, setCopied] = useState(null);
 
   const copy = async (niche) => {
-    const url = nicheUrl(niche);
+    const url = nicheUrl(niche, APP_URL);
     try {
       await navigator.clipboard.writeText(url);
     } catch {
@@ -50,7 +56,7 @@ export default function NicheDirectory() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         {NICHE_REGISTRY.map((niche) => {
-          const url = nicheUrl(niche);
+          const url = nicheUrl(niche, APP_URL);
           return (
             <article
               key={niche.view}

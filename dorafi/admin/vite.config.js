@@ -68,6 +68,10 @@ export default defineConfig(({ mode, command }) => {
                     }
                   }
 
+                  // Vercel parses the query string for Node-style handlers;
+                  // Vite doesn't, so req.query would be undefined here.
+                  req.query = Object.fromEntries(urlObj.searchParams);
+
                   // Add Vercel response helper methods if missing
                   res.status = function (statusCode) {
                     res.statusCode = statusCode;
@@ -82,7 +86,39 @@ export default defineConfig(({ mode, command }) => {
                   // Load and run API handler via Vite's SSR loader
                   const module = await server.ssrLoadModule(targetPath);
                   const handler = module.default || module;
-                  await handler(req, res);
+
+                  // Two function signatures live side by side in api/**: most
+                  // routes are Edge handlers taking a Request and returning a
+                  // Response (edgeRoute), while billing/webhook.js is a Node
+                  // handler taking (req, res) (nodeRoute). Handing a Node
+                  // request to an Edge handler is what made every /api/** call
+                  // in dev fail with "req.headers.get is not a function".
+                  // edgeRoute's wrapper declares one parameter, nodeRoute's
+                  // two — which is the only distinction available here, and
+                  // the one the two factories in api/lib/http.js guarantee.
+                  if (handler.length >= 2) {
+                    await handler(req, res);
+                    return;
+                  }
+
+                  const headers = new Headers();
+                  for (const [key, value] of Object.entries(req.headers)) {
+                    if (Array.isArray(value)) value.forEach((v) => headers.append(key, v));
+                    else if (value != null) headers.set(key, value);
+                  }
+                  const response = await handler(new Request(urlObj, {
+                    method: req.method,
+                    headers,
+                    body: ['GET', 'HEAD'].includes(req.method) ? undefined : req.rawBody,
+                  }));
+                  res.statusCode = response.status;
+                  response.headers.forEach((value, key) => res.setHeader(key, value));
+                  if (response.body) {
+                    // Piped rather than buffered so /api/chat's SSE stream
+                    // arrives token by token in dev, as it does in production.
+                    for await (const chunk of response.body) res.write(chunk);
+                  }
+                  res.end();
                   return;
                 } catch (err) {
                   console.error(`[API Dev Error] Handler failed for ${apiName}:`, err);

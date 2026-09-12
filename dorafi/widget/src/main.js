@@ -43,12 +43,28 @@ import { parseMarkdown } from "./markdown.js";
     function buildWidget() {
       const tenantPublicKey = scriptTag?.getAttribute("data-tenant-key") || "8d0d146d-2d1f-43e7-aab4-85e8663e0956";
   
-      // Default API endpoint fallback to the production domain's Edge API route.
-      // Vercel preview deployments (*.vercel.app) don't share that domain, so
-      // they fall back to their own origin instead.
+      // Which API to call, when the embed snippet doesn't say (it usually
+      // doesn't — the snippet we hand customers carries only data-tenant-key).
+      //
+      // The answer is: whichever deployment served THIS script. A customer's
+      // snippet loads the bundle from https://dorafi.logafi.com, so that is
+      // production, unchanged. The same bundle served from
+      // preview.dorafi.logafi.com or a *.vercel.app deployment then talks to
+      // that deployment's own API instead of reaching across into production —
+      // which is the whole point of having a preview environment, and what the
+      // previous hostname.includes("vercel.app") special case only managed for
+      // one of the two cases.
+      //
+      // The constant stays as the last resort, for the case where the script
+      // element can't be found at all. data-api-url still overrides everything,
+      // for anyone re-hosting the bundle on their own origin.
       let defaultApiUrl = "https://dorafi.logafi.com/api/chat";
-      if (typeof window !== "undefined" && window.location.hostname.includes("vercel.app")) {
-        defaultApiUrl = `${window.location.origin}/api/chat`;
+      try {
+        if (scriptTag?.src) {
+          defaultApiUrl = `${new URL(scriptTag.src, window.location.href).origin}/api/chat`;
+        }
+      } catch (e) {
+        // keep the constant above
       }
   
       const apiEndpoint = scriptTag?.getAttribute("data-api-url") || defaultApiUrl;
