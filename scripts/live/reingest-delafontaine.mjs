@@ -1,12 +1,12 @@
 ﻿/**
  * reingest-delafontaine.mjs
  *
- * Script de rÃ©-ingestion complet pour delafontaine.ca
+ * Script de ré-ingestion complet pour delafontaine.ca
  * Utilise directement la logique de start-scan.js (cleanAndChunk) +
- * embeddings rÃ©els via Jina (jina-embeddings-v2-base-multilingual, 768 dims).
+ * embeddings réels via Jina (jina-embeddings-v2-base-multilingual, 768 dims).
  *
- * Usage: node scripts/reingest-delafontaine.mjs
- * PrÃ©-requis: JINA_API_KEY dans l'env (ou dans dorafi/admin/.env.local)
+ * Usage: node scripts/live/reingest-delafontaine.mjs
+ * Pré-requis: JINA_API_KEY dans l'env (ou dans dorafi/admin/.env.local)
  */
 
 import { createClient } from "@supabase/supabase-js";
@@ -55,19 +55,19 @@ const PAGES_TO_INGEST = [
   "https://delafontaine.ca/portfolio/",
 ];
 
-// â”€â”€ Noise filter + chunker (same as api/start-scan.js) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Noise filter + chunker (same as api/start-scan.js) ──────────────────────
 function cleanAndChunk(text, targetUrl = '', maxChunkLength = 800) {
   let cleanText = text
-    .replace(/Nous respectons votre vie privÃ©e[\s\S]*?Enregistrer mes prÃ©fÃ©rences[^\n]*/gi, '')
+    .replace(/Nous respectons votre vie privée[\s\S]*?Enregistrer mes préférences[^\n]*/gi, '')
     .replace(/Les cookies [\s\S]*?visiteurs uniques\./gi, '')
-    .replace(/Cookieyes place ce tÃ©moin[\s\S]*?visiteurs uniques\./gi, '');
+    .replace(/Cookieyes place ce témoin[\s\S]*?visiteurs uniques\./gi, '');
 
   const NOISE_PATTERNS = [
     /cookie/i, /cookieyes/i, /Duration\s+\d+/i, /_ga[t_]/i, /VISITOR_INFO/i,
     /yt-remote/i, /innertube/i, /localStorage/i, /sessionStorage/i, /\bGTM-/i,
     /Google Analytics/i, /Google Tag Manager/i, /Reject All/i, /Accept All/i,
     /Save My Preferences/i, /Powered by.*Cookie/i, /Privacy Policy/i, /Terms of Service/i,
-    /Copyright/i, /Tous droits rÃ©servÃ©s/i, /Personnaliser Tout rejeter/i
+    /Copyright/i, /Tous droits réservés/i, /Personnaliser Tout rejeter/i
   ];
 
   const rawParagraphs = cleanText.split(/\n{2,}|\n(?=#{1,3} )/);
@@ -105,7 +105,7 @@ function cleanAndChunk(text, targetUrl = '', maxChunkLength = 800) {
   return chunks.map(chunk => targetUrl ? `[Source URL: ${targetUrl}]\n${chunk}` : chunk);
 }
 
-// â”€â”€ Jina Embeddings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Jina Embeddings ──────────────────────────────────────────────────────────
 const FALLBACK_EMBEDDING = Array(768).fill(0).map((_, i) => (i % 2 === 0 ? 0.05 : -0.05));
 
 async function generateEmbeddings(texts, task = 'retrieval.passage') {
@@ -128,7 +128,7 @@ async function generateEmbeddings(texts, task = 'retrieval.passage') {
   }
 }
 
-// â”€â”€ Page ingestion â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Page ingestion ────────────────────────────────────────────────────────────
 async function ingestPage(url) {
   process.stdout.write(`  Fetching ${url.replace('https://delafontaine.ca', '')} ... `);
 
@@ -145,7 +145,7 @@ async function ingestPage(url) {
   const chunkSlice = chunks.slice(0, 20);
 
   if (chunkSlice.length === 0) {
-    console.log('âš ï¸  0 chunks utiles (page trop lÃ©gÃ¨re)');
+    console.log('⚠️  0 chunks utiles (page trop légère)');
     return { success: true, chunks: 0 };
   }
 
@@ -167,11 +167,11 @@ async function ingestPage(url) {
   const { error: insertErr } = await supabase.from('documents').insert(records);
   if (insertErr) { console.log(`âŒ Insert: ${insertErr.message}`); return { success: false, chunks: 0 }; }
 
-  console.log(`âœ“  ${records.length} chunks [${embeddingMode}]`);
+  console.log(`✓  ${records.length} chunks [${embeddingMode}]`);
   return { success: true, chunks: records.length };
 }
 
-// â”€â”€ Main â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Main ──────────────────────────────────────────────────────────────────────
 async function run() {
   console.log("â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•");
   console.log("  RE-INGESTION: delafontaine.ca");
@@ -200,8 +200,8 @@ async function run() {
     .from('documents').select('url').eq('tenant_id', TENANT_ID);
   const uniqueUrls = [...new Set(urls?.map(d => d.url) || [])];
 
-  console.log(`âœ“ Verified: ${count} total chunks across ${uniqueUrls.length} URLs`);
-  uniqueUrls.forEach(u => console.log(`  â€¢ ${u}`));
+  console.log(`✓ Verified: ${count} total chunks across ${uniqueUrls.length} URLs`);
+  uniqueUrls.forEach(u => console.log(`  • ${u}`));
 }
 
 run().catch(console.error);

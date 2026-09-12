@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Repondo — User-Flow Automaton</title>
+<title>Dorafi — User-Flow Automaton</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
@@ -328,7 +328,7 @@ footer {
   <div class="masthead">
     <div class="mark">R</div>
     <div class="masthead-text">
-      <div class="name">Repondo</div>
+      <div class="name">Dorafi</div>
       <div class="tag">AI chatbots for B2B websites</div>
     </div>
   </div>
@@ -783,7 +783,7 @@ stateDiagram-v2
           </thead>
           <tbody>
             <tr><td class="num">94</td><td class="from">LOGIN_MODAL</td><td class="ev">Submit email</td><td>Anonymous session, address not yet registered</td><td class="to">LINK_SENT <span class="sub"><code>updateUser({email})</code>; the workspace stays on the same user id.</span></td><td class="status"><span class="st imp">implemented</span></td></tr>
-            <tr><td class="num">95</td><td class="from">LOGIN_MODAL</td><td class="ev">Submit email</td><td>Anonymous session, address already has an account</td><td class="to">LINK_SENT + claim recorded <span class="sub"><code>handleLogin</code> probes with <code>signInWithOtp({shouldCreateUser:false})</code> first; when that succeeds (an account exists) it calls <code>createGuestSiteClaim</code> — <code>POST /api/sites/claim {action:'create'}</code> — before telling the user a link is on its way, and a local note (<code>repondo.pending_site_claim</code>) lets the return trip name the domain in the confirm prompt.</span></td><td class="status"><span class="st imp">implemented</span></td></tr>
+            <tr><td class="num">95</td><td class="from">LOGIN_MODAL</td><td class="ev">Submit email</td><td>Anonymous session, address already has an account</td><td class="to">LINK_SENT + claim recorded <span class="sub"><code>handleLogin</code> probes with <code>signInWithOtp({shouldCreateUser:false})</code> first; when that succeeds (an account exists) it calls <code>createGuestSiteClaim</code> — <code>POST /api/sites/claim {action:'create'}</code> — before telling the user a link is on its way, and a local note (<code>dorafi.pending_site_claim</code>) lets the return trip name the domain in the confirm prompt.</span></td><td class="status"><span class="st imp">implemented</span></td></tr>
             <tr><td class="num">96</td><td class="from">LOGIN_MODAL</td><td class="ev">Submit email</td><td>Non-anonymous session (ordinary sign-in)</td><td class="to">LINK_SENT <span class="sub"><code>signInWithOtp</code> with <code>emailRedirectTo: window.location.origin</code>.</span></td><td class="status"><span class="st imp">implemented</span></td></tr>
             <tr><td class="num">97</td><td class="from">LOGIN_MODAL</td><td class="ev">Submit email</td><td>Guest session has no site yet — nothing to claim</td><td class="to">LINK_SENT, no claim created <span class="sub">A claim needs a <code>site_id</code>; the create endpoint rejects a request without one.</span></td><td class="status"><span class="st imp">implemented</span></td></tr>
             <tr><td class="num">98</td><td class="from">LOGIN_MODAL</td><td class="ev">Submit malformed email</td><td>Browser validation, plus a permissive server-side regex on the claim route</td><td class="to">LOGIN_MODAL unchanged <span class="sub">Deliberately permissive server-side: the magic link is the real verification, since an address that is not yours never produces a session.</span></td><td class="status"><span class="st imp">implemented</span></td></tr>
@@ -805,7 +805,7 @@ stateDiagram-v2
             <tr><td class="num">114</td><td class="from">LINK_RETURN</td><td class="ev">Redeem</td><td>Signed in but owns no tenant → <code>no_tenant</code></td><td class="to">REGISTERED · INPUT <span class="sub">Not a distinct branch in <code>App.jsx</code>'s redeem switch — falls into <code>default</code> alongside <code>not_found</code>/<code>expired</code>/<code>stale</code>, so the outcome (land signed-in, nothing to say) is right, but only incidentally.</span></td><td class="status"><span class="st part">partial</span></td></tr>
             <tr><td class="num">115</td><td class="from">TRANSFER_PROMPT</td><td class="ev">Confirm</td><td>RPC returns <code>transferred</code></td><td class="to">REGISTERED · READY on the moved site <span class="sub">Site becomes <code>is_active = true</code> on arrival. <code>landOnSite</code> re-pulls the tenant, sites and leads and navigates to the dashboard.</span></td><td class="status"><span class="st imp">implemented</span></td></tr>
             <tr><td class="num">116</td><td class="from">TRANSFER_PROMPT</td><td class="ev">Decline</td><td>—</td><td class="to">REGISTERED · DASHBOARD <span class="sub">The guest workspace is left alone; its claim lapses at 12h and the workspace is swept at 24h. Nothing is deleted early on a decline.</span></td><td class="status"><span class="st imp">implemented</span></td></tr>
-            <tr><td class="num">117</td><td class="from">TRANSFER_PROMPT</td><td class="ev">Refresh / navigate away</td><td>Claim is still open</td><td class="to">TRANSFER_PROMPT on the next load <span class="sub">Only half true: the prompt shown here is driven by a <em>local</em> note (<code>repondo.pending_site_claim</code>) matched against the signed-in email, not read back from the server. Refreshing in the <em>same</em> browser that requested the link survives (the note is still there); redeeming the link in a <em>different</em> browser has no note to show and calls redeem directly, skipping the confirm prompt entirely for that case.</span></td><td class="status"><span class="st part">partial</span></td></tr>
+            <tr><td class="num">117</td><td class="from">TRANSFER_PROMPT</td><td class="ev">Refresh / navigate away</td><td>Claim is still open</td><td class="to">TRANSFER_PROMPT on the next load <span class="sub">Only half true: the prompt shown here is driven by a <em>local</em> note (<code>dorafi.pending_site_claim</code>) matched against the signed-in email, not read back from the server. Refreshing in the <em>same</em> browser that requested the link survives (the note is still there); redeeming the link in a <em>different</em> browser has no note to show and calls redeem directly, skipping the confirm prompt entirely for that case.</span></td><td class="status"><span class="st part">partial</span></td></tr>
             <tr><td class="num">118</td><td class="from">TRANSFER_PROMPT</td><td class="ev">Confirm, but the site vanished</td><td>Guest workspace swept between prompt and confirm → <code>stale</code></td><td class="to">REGISTERED · DASHBOARD with an explanation <span class="sub">The RPC's <code>stale</code> status is handled by the same silent <code>default</code> branch as #114 — reaches DASHBOARD, but without an explanation of what happened to the prompt the user had just seen.</span></td><td class="status"><span class="st part">partial</span></td></tr>
             <tr><td class="num">119</td><td class="from">TRANSFER_AT_LIMIT</td><td class="ev">Upgrade (lead CTA)</td><td>—</td><td class="to">CHECKOUT → webhook raises the plan → retry redeem → TRANSFER_PROMPT <span class="sub">The lead button in <code>&lt;WorkspaceTransfer&gt;</code> calls <code>onUpgrade</code> straight into Pricing/Checkout; nothing yet re-fires <code>redeemGuestSiteClaim</code> automatically once the webhook lands, so the retry needs the user to come back and trigger the auth-state effect again (e.g. a reload) rather than resuming in place.</span></td><td class="status"><span class="st part">partial</span></td></tr>
             <tr><td class="num">120</td><td class="from">TRANSFER_AT_LIMIT</td><td class="ev">Replace an existing site (secondary)</td><td>Behind a destructive confirm naming the domain, its pages and its leads</td><td class="to">DELETE_CONFIRM → retry redeem → TRANSFER_PROMPT <span class="sub"><code>&lt;WorkspaceTransfer&gt;</code> lists the account's own sites as radio choices, requires a second explicit confirm naming what is destroyed, and <code>handleReplaceSiteForTransfer</code> deletes it then calls <code>redeemGuestSiteClaim</code> again in the same handler — the retry here <em>is</em> automatic, unlike #119.</span></td><td class="status"><span class="st imp">implemented</span></td></tr>
@@ -1156,7 +1156,7 @@ stateDiagram-v2
   </div>
 
   <footer>
-    <span>Repondo — user-flow automaton · 168 transitions across 31 states</span>
+    <span>Dorafi — user-flow automaton · 168 transitions across 31 states</span>
     <span>Re-verified row by row against the working tree 2026-09-06</span>
   </footer>
 

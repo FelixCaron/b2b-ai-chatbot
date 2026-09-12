@@ -44,7 +44,7 @@ async function runE2ETests() {
     siteId = site.id;
     publicKey = site.public_key;
 
-    console.log(`âœ“ E2E Site registered. Domain: e2e-demo.com | Public Key: ${publicKey}`);
+    console.log(`✓ E2E Site registered. Domain: e2e-demo.com | Public Key: ${publicKey}`);
     passed++;
   } catch (err) {
     console.error("âŒ E2E Setup FAILED:", err);
@@ -67,12 +67,12 @@ async function runE2ETests() {
       .single();
 
     if (lErr) throw lErr;
-    console.log(`âœ“ Lead captured successfully in database (ID: ${lead.id}, Email: ${lead.email})`);
+    console.log(`✓ Lead captured successfully in database (ID: ${lead.id}, Email: ${lead.email})`);
 
     // Increment lead usage
     await supabase.rpc("increment_lead_usage", { target_tenant_id: tenantId });
     const { data: usageData } = await supabase.from("usage").select("*").eq("tenant_id", tenantId).single();
-    console.log(`âœ“ Updated Tenant Usage (Leads Count: ${usageData.leads_count})`);
+    console.log(`✓ Updated Tenant Usage (Leads Count: ${usageData.leads_count})`);
 
     passed++;
   } catch (err) {
@@ -94,14 +94,14 @@ async function runE2ETests() {
       tenant_id: tenantId,
       session_id: sessionId,
       role: "assistant",
-      content: "Nos forfaits Entreprise sont sur-mesure. Souhaitez-vous laisser vos coordonnÃ©es?"
+      content: "Nos forfaits Entreprise sont sur-mesure. Souhaitez-vous laisser vos coordonnées?"
     });
 
     await supabase.rpc("increment_usage", { target_tenant_id: tenantId });
 
     const { data: finalUsage } = await supabase.from("usage").select("*").eq("tenant_id", tenantId).single();
-    console.log(`âœ“ Conversation recorded for session ${sessionId}`);
-    console.log(`âœ“ Tenant Usage incremented (Messages Count: ${finalUsage.messages_count})`);
+    console.log(`✓ Conversation recorded for session ${sessionId}`);
+    console.log(`✓ Tenant Usage incremented (Messages Count: ${finalUsage.messages_count})`);
 
     passed++;
   } catch (err) {

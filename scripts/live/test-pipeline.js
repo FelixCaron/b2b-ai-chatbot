@@ -36,7 +36,7 @@ async function runTests() {
       email: "jean@example.com",
       phone: "+33612345678"
     });
-    console.log("âœ“ Shared Zod Schemas validation PASSED");
+    console.log("✓ Shared Zod Schemas validation PASSED");
     passed++;
   } catch (err) {
     console.error("âŒ Shared Zod Schemas FAILED:", err);
@@ -71,8 +71,8 @@ async function runTests() {
     siteId = site.id;
     publicKey = site.public_key;
 
-    console.log(`âœ“ Tenant created (ID: ${tenantId})`);
-    console.log(`âœ“ Site created (ID: ${siteId}, Public Key: ${publicKey})`);
+    console.log(`✓ Tenant created (ID: ${tenantId})`);
+    console.log(`✓ Site created (ID: ${siteId}, Public Key: ${publicKey})`);
     passed++;
   } catch (err) {
     console.error("âŒ Database Tenant/Site insertion FAILED:", err);
@@ -92,7 +92,7 @@ async function runTests() {
         tenant_id: tenantId,
         site_id: siteId,
         url: "https://example.com/pricing",
-        content: "Nos services SaaS dÃ©marrent Ã  49â‚¬ par mois. Contactez notre Ã©quipe commerciale pour un devis personnalisÃ©.",
+        content: "Nos services SaaS démarrent à 49€ par mois. Contactez notre équipe commerciale pour un devis personnalisé.",
         embedding: mockEmbedding
       })
       .select()
@@ -100,7 +100,7 @@ async function runTests() {
 
     if (dErr) throw dErr;
     docId = doc.id;
-    console.log(`âœ“ Document inserted successfully (ID: ${docId})`);
+    console.log(`✓ Document inserted successfully (ID: ${docId})`);
     passed++;
   } catch (err) {
     console.error("âŒ Document Insertion FAILED:", err);
@@ -121,7 +121,7 @@ async function runTests() {
 
     if (rrfErr) throw rrfErr;
 
-    console.log(`âœ“ Hybrid Search RPC returned ${rrfResults.length} matching document(s):`);
+    console.log(`✓ Hybrid Search RPC returned ${rrfResults.length} matching document(s):`);
     rrfResults.forEach((r, idx) => {
       console.log(`   [Result ${idx + 1}] ID: ${r.id} | URL: ${r.url} | Content: ${r.content.substring(0, 60)}...`);
     });
@@ -145,7 +145,7 @@ async function runTests() {
     });
 
     if (sendErr) throw sendErr;
-    console.log(`âœ“ Enqueued test task into PGMQ (msg_id: ${sendRes})`);
+    console.log(`✓ Enqueued test task into PGMQ (msg_id: ${sendRes})`);
 
     const { data: readRes, error: readErr } = await supabase.rpc("pgmq_read", {
       queue_name: "ingestion_queue",
@@ -154,14 +154,14 @@ async function runTests() {
     });
 
     if (readErr) throw readErr;
-    console.log(`âœ“ Read message from PGMQ ingestion_queue successfully:`, readRes[0]?.message);
+    console.log(`✓ Read message from PGMQ ingestion_queue successfully:`, readRes[0]?.message);
 
     if (readRes[0]?.msg_id) {
       await supabase.rpc("pgmq_delete", {
         queue_name: "ingestion_queue",
         msg_id: readRes[0].msg_id
       });
-      console.log(`âœ“ Deleted test message from PGMQ`);
+      console.log(`✓ Deleted test message from PGMQ`);
     }
 
     passed++;

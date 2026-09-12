@@ -1,17 +1,17 @@
 ﻿/**
  * test-rag-search.js
  *
- * Jeu de tests pour la fonction search_knowledge_base (RAG) basÃ© sur delafontaine.ca.
- * Teste la qualitÃ© et la pertinence des rÃ©sultats de recherche dans Supabase.
+ * Jeu de tests pour la fonction search_knowledge_base (RAG) basé sur delafontaine.ca.
+ * Teste la qualité et la pertinence des résultats de recherche dans Supabase.
  *
- * Usage: node scripts/test-rag-search.js
+ * Usage: node scripts/live/test-rag-search.js
  *
- * PrÃ©-requis: node scripts/reingest-delafontaine.mjs doit avoir Ã©tÃ© exÃ©cutÃ©.
+ * Pré-requis: node scripts/live/reingest-delafontaine.mjs doit avoir été exécuté.
  *
- * Contenu indexÃ© (9 URLs, 23 chunks):
+ * Contenu indexé (9 URLs, 23 chunks):
  *   / | /about-us/ | /products/doors/ | /products/frames/
  *   /products/speciality-products/ | /offer/ | /sustainability/ | /career/ | /portfolio/
- *   NOTE: /locations/, /contact/, /products/ â†’ 0 chunks (pages trop lÃ©gÃ¨res cÃ´tÃ© Jina)
+ *   NOTE: /locations/, /contact/, /products/ → 0 chunks (pages trop légères côté Jina)
  */
 
 import { createClient } from "@supabase/supabase-js";
@@ -31,7 +31,7 @@ const TENANT_ID = "0610bdac-96ec-48b2-99f5-f743d203dacd";
 // Test Suite
 // -------------------------------------------------------
 const TEST_CASES = [
-  // â”€â”€ GROUP A: Happy Path â€” contenu confirmÃ© dans les chunks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── GROUP A: Happy Path — contenu confirmé dans les chunks ────────────────────
   {
     label: "[A1] Portes acier (steel doors)",
     query: "steel doors",
@@ -45,97 +45,97 @@ const TEST_CASES = [
     expectContent: "frame",
   },
   {
-    label: "[A3] Portes rÃ©sistantes au feu",
+    label: "[A3] Portes résistantes au feu",
     query: "fire-rated",
     expectHits: 1,
     expectContent: "fire",
   },
   {
-    label: "[A4] Ã€ propos â€” famille / histoire",
+    label: "[A4] À propos — famille / histoire",
     query: "family business",
     expectHits: 1,
     expectContent: "family",
   },
   {
-    label: "[A5] FondÃ© Ã  Sherbrooke, prÃ©sence mondiale",
+    label: "[A5] Fondé à Sherbrooke, présence mondiale",
     query: "Brodeur Street frames steel",
     expectHits: 1,
     expectContent: "Brodeur",
     expectUrl: "/about-us/",
   },
   {
-    label: "[A6] DÃ©lais de livraison (leadtime)",
+    label: "[A6] Délais de livraison (leadtime)",
     query: "leadtime",
     expectHits: 1,
     expectContent: "leadtime",
     expectUrl: "/offer/",
   },
   {
-    label: "[A7] QualitÃ© / assurance qualitÃ©",
+    label: "[A7] Qualité / assurance qualité",
     query: "quality",
     expectHits: 1,
     expectContent: "quality",
   },
   {
-    label: "[A8] Produits spÃ©ciaux â€” portes isolantes (polystyrÃ¨ne/urÃ©thane)",
+    label: "[A8] Produits spéciaux — portes isolantes (polystyrène/uréthane)",
     query: "polystyrene",
     expectHits: 1,
     expectUrl: "/products/speciality-products/",
   },
   {
-    label: "[A9] DurabilitÃ© / dÃ©veloppement durable",
+    label: "[A9] Durabilité / développement durable",
     query: "sustainability environmental",
     expectHits: 1,
     expectContent: "sustain",
     expectUrl: "/steel-doors-and-frames-sustainability/",
   },
   {
-    label: "[A10] CarriÃ¨re / emploi",
+    label: "[A10] Carrière / emploi",
     query: "tailor-made innovation values",
     expectHits: 1,
     expectUrl: "/career/",
   },
 
-  // â”€â”€ GROUP B: Bilingue Cross-Lingual FR â†’ EN (Semantic Vector Search) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── GROUP B: Bilingue Cross-Lingual FR → EN (Semantic Vector Search) ──────────
   {
-    label: "[B1] FR â†’ EN: entreprise familiale (matchs sÃ©mantiques 'family business')",
+    label: "[B1] FR → EN: entreprise familiale (matchs sémantiques 'family business')",
     query: "entreprise familiale",
     expectHits: 1,
     expectUrl: "/about-us/",
   },
   {
-    label: "[B2] FR â†’ EN: portes acier coupe-feu (matchs sÃ©mantiques 'steel doors')",
+    label: "[B2] FR → EN: portes acier coupe-feu (matchs sémantiques 'steel doors')",
     query: "portes acier coupe-feu",
     expectHits: 1,
     expectUrl: "/products/doors/",
   },
 
-  // â”€â”€ GROUP C: NÃ©gatifs stricts â€” PropretÃ© du contexte RAG â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── GROUP C: Négatifs stricts — Propreté du contexte RAG ─────────────────────
   {
     label: "[C1] Hors-sujet: prix / tarifs (aucun tarif/devis dans le contexte)",
     query: "prix tarifs devis",
     expectNoContent: ["tarifs", "pricing", "devis"],
   },
   {
-    label: "[C2] QualitÃ© chunks: zÃ©ro contenu RGPD/cookies dans le contexte",
+    label: "[C2] Qualité chunks: zéro contenu RGPD/cookies dans le contexte",
     query: "Google Analytics cookie duration",
     expectNoContent: ["cookie", "cookieyes", "Duration", "VISITOR_INFO", "_gat"],
   },
   {
     label: "[C3] Hors-sujet total: pizza / restaurant (aucun bruit dans le contexte)",
-    query: "pizza restaurant rÃ©servation table",
-    expectNoContent: ["pizza", "restaurant", "rÃ©servation", "table"],
+    query: "pizza restaurant réservation table",
+    expectNoContent: ["pizza", "restaurant", "réservation", "table"],
   },
 
-  // â”€â”€ GROUP D: QualitÃ© des rÃ©sultats â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── GROUP D: Qualité des résultats ────────────────────────────────────────────
   {
-    label: "[D1] Pas de bruit RGPD dans les rÃ©sultats retournÃ©s",
+    label: "[D1] Pas de bruit RGPD dans les résultats retournés",
     query: "steel doors products",
     expectHits: 1,
     expectNoContent: ["cookie", "cookieyes", "Duration", "VISITOR_INFO", "_gat"],
   },
   {
-    label: "[D2] Pertinence â€” standards fabrication portes acier creux",
+    label: "[D2] Pertinence — standards fabrication portes acier creux",
     query: "exceed hollow standards metal doors frames",
     expectHits: 1,
     expectUrl: "/offer/",
@@ -175,7 +175,7 @@ async function generateQueryEmbedding(text) {
 }
 
 // -------------------------------------------------------
-// Search â€” mirrors chat.js exactly (Hybrid Vector + FTS)
+// Search — mirrors chat.js exactly (Hybrid Vector + FTS)
 // -------------------------------------------------------
 async function searchKnowledgeBase(query) {
   const start = Date.now();
@@ -193,7 +193,7 @@ async function searchKnowledgeBase(query) {
     });
     if (!hybridErr && hybridDocs) {
       docs = hybridDocs;
-      method = 'match_documents_hybrid (Semantic Vector 768d + FTS) âœ¦';
+      method = 'match_documents_hybrid (Semantic Vector 768d + FTS) ✦';
     }
   }
 
@@ -217,7 +217,7 @@ async function searchKnowledgeBase(query) {
 // -------------------------------------------------------
 async function runTests() {
   console.log("â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•");
-  console.log("  RAG SEARCH TEST SUITE â€” DE LA FONTAINE INC.");
+  console.log("  RAG SEARCH TEST SUITE — DE LA FONTAINE INC.");
   console.log(`  Tenant: ${TENANT_ID}`);
   console.log("â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•\n");
 
@@ -227,8 +227,8 @@ async function runTests() {
     .from('documents').select('url').eq('tenant_id', TENANT_ID);
   const uniqueUrls = [...new Set(urlRows?.map(d => d.url) || [])];
 
-  console.log(`ðŸ“¦ Base: ${totalDocs} chunks | ${uniqueUrls.length} URLs indexÃ©es`);
-  uniqueUrls.forEach(u => console.log(`   â€¢ ${u}`));
+  console.log(`📦 Base: ${totalDocs} chunks | ${uniqueUrls.length} URLs indexées`);
+  uniqueUrls.forEach(u => console.log(`   • ${u}`));
   console.log();
 
   let passed = 0, failed = 0;
@@ -242,16 +242,16 @@ async function runTests() {
 
     if (!tc.expectNone && tc.expectHits > 0 && docs.length < tc.expectHits) {
       ok = false;
-      reasons.push(`attendu â‰¥ ${tc.expectHits} rÃ©sultat(s), obtenu ${docs.length}`);
+      reasons.push(`attendu ≥ ${tc.expectHits} résultat(s), obtenu ${docs.length}`);
     }
     if (tc.expectNone && docs.length > 0) {
       ok = false;
-      reasons.push(`attendu 0 rÃ©sultats, obtenu ${docs.length}`);
+      reasons.push(`attendu 0 résultats, obtenu ${docs.length}`);
     }
     if (tc.expectUrl && docs.length > 0) {
       if (!docs.some(d => d.url?.includes(tc.expectUrl))) {
         ok = false;
-        reasons.push(`aucun rÃ©sultat de l'URL '${tc.expectUrl}' (reÃ§u: ${docs.map(d => d.url?.split('/').filter(Boolean).pop()).join(', ')})`);
+        reasons.push(`aucun résultat de l'URL '${tc.expectUrl}' (reçu: ${docs.map(d => d.url?.split('/').filter(Boolean).pop()).join(', ')})`);
       }
     }
     if (tc.expectContent && docs.length > 0) {
@@ -271,15 +271,15 @@ async function runTests() {
 
     const status = ok ? "âœ… PASS" : "âŒ FAIL";
     const hits = docs.length > 0
-      ? `${docs.length} rÃ©sultat(s) [${docs[0].url?.split('/').filter(Boolean).pop() || 'root'}]`
-      : `0 rÃ©sultat(s)`;
+      ? `${docs.length} résultat(s) [${docs[0].url?.split('/').filter(Boolean).pop() || 'root'}]`
+      : `0 résultat(s)`;
 
     console.log(`${status} ${tc.label}`);
-    console.log(`       "${tc.query}" â†’ ${hits} | ${elapsed}ms | ${method}`);
+    console.log(`       "${tc.query}" → ${hits} | ${elapsed}ms | ${method}`);
     if (tc.note) console.log(`       â„¹ï¸  ${tc.note}`);
     if (reasons.length) reasons.forEach(r => console.log(`       âš ï¸  ${r}`));
     if (docs.length > 0 && ok && !tc.expectNone)
-      console.log(`       â””â”€ "${docs[0].content.substring(0, 90).replace(/\n/g, ' ')}..."`);
+      console.log(`       └─ "${docs[0].content.substring(0, 90).replace(/\n/g, ' ')}..."`);
     console.log();
 
     ok ? passed++ : failed++;
@@ -291,14 +291,14 @@ async function runTests() {
   console.log("â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•");
   const total = TEST_CASES.length;
   const pct = Math.round((passed / total) * 100);
-  console.log(`  RÃ‰SULTATS: ${passed}/${total} tests passÃ©s (${pct}%)`);
+  console.log(`  RÉSULTATS: ${passed}/${total} tests passés (${pct}%)`);
   if (passed === total) {
-    console.log("  ðŸŽ‰ TOUS LES TESTS PASSENT !");
+    console.log("  🎉 TOUS LES TESTS PASSENT !");
   } else {
-    console.log(`  ${failed} Ã‰CHEC(S):`);
+    console.log(`  ${failed} ÉCHEC(S):`);
     failures.forEach(f => {
-      console.log(`    â€¢ ${f.label}`);
-      f.reasons.forEach(r => console.log(`      â†’ ${r}`));
+      console.log(`    • ${f.label}`);
+      f.reasons.forEach(r => console.log(`      → ${r}`));
     });
   }
   console.log("â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•\n");

@@ -244,14 +244,14 @@ otp_expiry = 3600
 # sender_name = "Admin"
 
 # Staff-invite email sent by supabase.auth.admin.inviteUserByEmail() (see
-# apps/internal-admin/api/staff/admins.js) when a teammate is granted staff
+# dorafi/staff/api/staff/admins.js) when a teammate is granted staff
 # access and has no account yet.
 [auth.email.template.invite]
 subject = "You've been invited to the Dorafi staff console"
 content_path = "./supabase/templates/invite.html"
 
 # Sign-in email sent by supabase.auth.signInWithOtp() (see
-# apps/admin/src/hooks/useAuthSession.js) — covers both the "sign in to an
+# dorafi/admin/src/hooks/useAuthSession.js) — covers both the "sign in to an
 # existing account" and "confirm this new address" flows.
 [auth.email.template.magic_link]
 subject = "Your Dorafi sign-in link"

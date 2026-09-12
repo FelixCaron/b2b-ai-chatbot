@@ -16,7 +16,7 @@ export SUPABASE_ACCESS_TOKEN=sbp_...
 export SUPABASE_ORG_ID=...
 export SUPABASE_DB_PASSWORD='a-strong-password'   # only read if the named project doesn't exist yet
 
-npm run setup:supabase              # creates "repondo" in us-east-1 (or reuses it if it exists)
+npm run setup:supabase              # creates "dorafi" in us-east-1 (or reuses it if it exists)
 # or: node scripts/ops/setup-supabase.mjs my-project-name us-west-1
 ```
 
@@ -77,7 +77,7 @@ Nothing here is scriptable via the Management API yet:
    Username: resend
    Password: <your Resend API key>
    Sender email: an address on your verified Resend domain
-   Sender name: Repondo
+   Sender name: Dorafi
    ```
    Same fix is reachable via the Management API's `PATCH /v1/projects/<ref>/config/auth`
    (`smtp_host`/`smtp_port`/`smtp_user`/`smtp_pass`/`smtp_sender_name`/`smtp_admin_email`) —

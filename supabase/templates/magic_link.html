@@ -2,7 +2,7 @@
   Dorafi — Sign-in (Magic Link) email template.
 
   Where this is used: `supabase.auth.signInWithOtp()` in
-  apps/admin/src/hooks/useAuthSession.js sends both the "sign in to an
+  dorafi/admin/src/hooks/useAuthSession.js sends both the "sign in to an
   existing account" and the "confirm this new address" emails through
   Supabase's Magic Link template — there's no separate confirmation
   template for that flow. Keep the copy generic enough to cover both.

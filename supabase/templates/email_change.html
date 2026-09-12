@@ -2,7 +2,7 @@
   Dorafi — Email Change / Guest Conversion email template.
 
   Where this is used: `supabase.auth.updateUser({ email })` in
-  apps/admin/src/hooks/useAuthSession.js's login() — the one place this app
+  dorafi/admin/src/hooks/useAuthSession.js's login() — the one place this app
   calls it. A first-time visitor gets an anonymous session automatically
   (see initSession()); typing an email that has no account yet attaches that
   email to the anonymous identity in place, which Supabase routes through

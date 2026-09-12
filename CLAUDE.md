@@ -13,7 +13,7 @@ One directory per deployable, and the directory names are the Vercel project nam
 - `/packages/contracts`: Request/response contracts shared by the handlers and the browser clients.
 - `/packages/shared`: Shared Zod schemas & TypeScript types.
 - `/supabase/migrations`: Raw SQL migrations (pgvector, FTS, RLS, usage RPCs).
-- `/scripts`: Dev, ops and test tooling (`scripts/dev`, `scripts/ops`, `scripts/tests`, `scripts/adhoc`).
+- `/scripts`: `scripts/tests` is exactly what `npm test` runs — nothing else lives there. `scripts/dev` (local servers), `scripts/ops` (setup//check tooling), `scripts/live` (scripts that need real credentials and a real database, never run in CI).
 - `/tests/e2e`: Playwright suite, covering both the Dorafi app and the logafi site.
 - `/infra/terraform/vercel`: The four Vercel projects as code.
 

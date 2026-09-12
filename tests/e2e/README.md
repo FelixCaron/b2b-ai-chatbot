@@ -7,7 +7,7 @@ and `vite dev` never executes the real `/api/**` Vercel functions anyway.
 That means these tests prove the UI renders, transitions, and error-handles
 correctly against realistic responses; they do **not** verify server-side
 logic (RLS policies, the `delete_site_cascade` SQL function, etc.) — that
-needs a live project (see `scripts/tests/test-e2e-chat.js` for that side).
+needs a live project (see `scripts/live/test-e2e-chat.js` for that side).
 
 ## Running
 

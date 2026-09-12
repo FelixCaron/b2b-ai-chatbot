@@ -44,7 +44,7 @@ const MIGRATION_FILE = path.resolve(__dirname, '../../supabase/migrations/202609
 const ACCESS_TOKEN = process.env.SUPABASE_ACCESS_TOKEN;
 const ORG_ID = process.env.SUPABASE_ORG_ID;
 const DB_PASSWORD = process.env.SUPABASE_DB_PASSWORD;
-const PROJECT_NAME = process.argv[2] || process.env.SUPABASE_PROJECT_NAME || 'repondo';
+const PROJECT_NAME = process.argv[2] || process.env.SUPABASE_PROJECT_NAME || 'dorafi';
 const REGION = process.argv[3] || process.env.SUPABASE_REGION || 'us-east-1';
 
 if (!ACCESS_TOKEN || !ORG_ID) {
