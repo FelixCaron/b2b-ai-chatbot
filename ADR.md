@@ -11,7 +11,7 @@ où elle a été prise, et n'est pas mise à jour quand la réalité change ensu
 Une décision plus récente qui en contredit une plus ancienne ne la corrige pas,
 elle la remplace — c'est la dernière qui fait foi.
 
-- **Ordre** — les entrées ne sont pas triées. Le fichier descend de l'ADR 058
+- **Ordre** — les entrées ne sont pas triées. Le fichier descend de l'ADR 059
   jusqu'à l'ADR 018, redescend de 008b à 001, remonte jusqu'à 017, puis se
   termine par 34 entrées non numérotées (20 août 2026 et après), dont la date
   est le seul repère.
@@ -24,6 +24,95 @@ elle la remplace — c'est la dernière qui fait foi.
   réorganisation du dépôt. Ils sont laissés tels quels : réécrire le chemin
   dans une décision déjà prise ferait mentir le compte rendu. Voir `CLAUDE.md`
   pour l'arborescence actuelle.
+
+---
+
+## ADR 059 : Deux environnements, et un pipeline qui est le seul chemin vers la production
+
+**Date :** 2026-09-12
+**Statut :** Accepté
+
+### Contexte
+
+Il n'y avait qu'un environnement. Une base Supabase, un jeu de domaines : toute
+migration, tout changement de schéma, tout déploiement s'essayait directement
+sur les données réelles.
+
+Et rien ne gardait la production. Les quatre projets Vercel étaient connectés au
+dépôt, donc un `git push` déployait immédiatement — **que la CI soit verte ou
+non**. La CI et le déploiement étaient deux chemins parallèles qui ne se
+parlaient pas, ce qui rendait la suite de tests consultative. Une migration
+fusionnée dans `main` atteignait la base de production sans rien entre elle et
+l'unique copie des données.
+
+Trois obstacles rendaient un second environnement décoratif plutôt que réel, et
+aucun n'était visible avant de chercher :
+
+- le widget choisissait son API par constante codée en dur, avec pour seule
+  échappatoire un hostname contenant `vercel.app` — un bundle servi ailleurs
+  appelait la production depuis n'importe où ;
+- l'admin chargeait son propre widget depuis une URL de production absolue, avec
+  une clé de tenant identique partout : un déploiement preview aurait écrit dans
+  la base de production ;
+- le Terraform existant posait chaque variable sur `target = ["production",
+  "preview"]` à la fois, donc une valeur unique couvrait les deux.
+
+### Décision
+
+**Deux environnements complets**, `production` et `preview`, partageant le code
+et rien d'autre : base Postgres, domaines, mode Stripe et clés captcha propres à
+chacun. Tout est décrit dans `infra/terraform/` à partir d'une seule carte
+(`locals.environments`) — un troisième environnement est une entrée de plus, pas
+un nouveau jeu de fichiers.
+
+**GitHub Actions devient le seul chemin vers un déploiement.** Un push sur
+`main` : vérification, migrations sur la base preview, déploiement preview,
+smoke test, **approbation humaine**, migrations production, déploiement
+production. L'intégration git de Vercel est coupée ; deux chemins de
+déploiement se courent après, et celui de Vercel n'attend pas la CI.
+
+Trois choix moins évidents :
+
+1. **Le même commit est construit deux fois**, une fois par environnement. Les
+   variables `VITE_*` sont figées dans le bundle à la construction : un bundle
+   preview est physiquement un autre fichier. Le pipeline ne peut donc pas
+   promouvoir l'artefact qu'il a testé, et ce que preview prouve est que ce
+   commit *se construit et se câble* correctement — pas que ces octets-là
+   fonctionnent. C'est écrit noir sur blanc dans `docs/DEPLOYMENT.md` pour que
+   personne n'« optimise » plus tard vers une construction unique.
+2. **Le widget déduit son API de l'origine qui a servi son propre script.**
+   C'est la seule règle qui soit juste dans les deux environnements sans cas
+   particulier, et elle est rétrocompatible : le snippet d'un client charge le
+   bundle depuis la production, donc la production ne bouge pas.
+3. **Terraform lit les clés Supabase et les injecte dans Vercel.** Plus aucune
+   valeur recopiée d'un tableau de bord vers un autre — c'est ce qui rend la
+   création d'un environnement reproductible au lieu d'être une liste à suivre
+   correctement. Au passage, les quatre réglages d'authentification décrits
+   jusqu'ici comme « à faire à la main » deviennent déclaratifs.
+
+**Livré dormant.** Tout le pipeline est conditionné à une variable de dépôt que
+Terraform pose, pour que les workflows puissent être fusionnés et relus avant
+que l'infrastructure existe.
+
+### Conséquences
+
+- Un déploiement raté en production demande désormais qu'une approbation ait été
+  donnée sur un commit dont la preview était verte. C'est plus lent d'un clic.
+- La base preview est presque vide : construite depuis les migrations puis
+  ensemencée d'un tenant et d'un site. Elle vérifie la déployabilité et le
+  câblage, pas le comportement — celui-ci reste la charge de la suite E2E, qui
+  bouchonne tout le backend et ne dit donc rien d'un déploiement.
+- Deux pannes silencieuses deviennent bruyantes : un répertoire racine Vercel
+  erroné (le pipeline compte les fonctions construites contre les fichiers de
+  route) et un bundle construit avec les mauvaises variables Supabase (le smoke
+  test lit la base inscrite dans le bundle servi).
+- Le plan gratuit Supabase autorise deux projets actifs par organisation : c'est
+  exactement ce que nous consommons. Un troisième environnement demandera un
+  plan payant, comme les *Custom Environments* de Vercel, plus propres que
+  l'alias de preview retenu ici.
+- Le premier `terraform apply` adopte des ressources créées à la main sur un
+  site vivant. Il est explicitement découpé en étapes dans
+  `infra/terraform/README.md` ; ce n'est pas une commande à lancer d'un trait.
 
 ---
 
