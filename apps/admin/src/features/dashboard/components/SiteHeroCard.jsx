@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { Globe, Eye, RefreshCw, Code, Settings2, Power } from 'lucide-react';
-import useWidgetLiveStatus from '../hooks/useWidgetLiveStatus';
 import { useT } from '../../../i18n/LanguageContext';
 
 /** The active website's identity card and its action row. The parked banner
@@ -20,14 +19,24 @@ export default function SiteHeroCard({
   // an inactive workspace renders nothing, so the card has to say so rather
   // than let an owner believe a pasted snippet is enough.
   isPlanActive = true,
+  // Whether the snippet has ever loaded from this domain, and whether it was
+  // seen in the last few minutes. Read once in the Dashboard and handed to
+  // both this card and the guided roadmap, so the two can't offer the owner
+  // two different "next steps" at the same time.
+  isInstalled = false,
+  isLive = false,
   onActivate,
   onOpenSettings,
+  // Live narration of the crawl. It used to exist only inside the completion
+  // modal — which appears when the work is already over — so the minutes an
+  // owner actually spends waiting were a spinner and the word "Learning...".
+  crawlProgress = 0,
+  crawlProgressMsg = '',
   children
 }) {
   const { t } = useT();
   // Whether the widget has actually loaded on the live site recently — only
   // worth checking once the assistant is built and not mid-crawl.
-  const { isInstalled, isLive } = useWidgetLiveStatus(activeSite?.id, isActive && !isCrawling);
 
   // Exactly one primary action, and it is whatever this owner's assistant is
   // actually waiting on. The order is the order the funnel runs in: get the
@@ -246,6 +255,30 @@ export default function SiteHeroCard({
           </div>
         </div>
       </div>
+
+      {/* What is happening right now, while it happens. Only during the
+          crawl: the rest of the time there is nothing to narrate, and a
+          progress bar sitting at 100% forever is just furniture. */}
+      {isCrawling && (
+        <div className="mt-6 pt-5 border-t border-dark-900/5">
+          <div className="flex items-center justify-between gap-3 text-xs font-semibold mb-2">
+            <span className="text-gray-600 flex items-center gap-2 min-w-0">
+              <RefreshCw className="w-3.5 h-3.5 animate-spin text-brand-600 shrink-0" />
+              <span className="truncate">{crawlProgressMsg || t('Reading your website...')}</span>
+            </span>
+            <span className="text-brand-700 font-mono shrink-0">{Math.round(crawlProgress)}%</span>
+          </div>
+          <div className="w-full h-2.5 bg-surface-200 rounded-full overflow-hidden border border-dark-900/10 p-0.5">
+            <div
+              className="h-full bg-gradient-to-r from-brand-600 via-brand-400 to-emerald-400 rounded-full transition-all duration-500"
+              style={{ width: `${Math.max(2, Math.min(100, crawlProgress))}%` }}
+            />
+          </div>
+          <p className="text-[11px] text-gray-500 mt-2">
+            {t('Everything it reads is something your assistant will be able to answer. You can keep using the dashboard while it works.')}
+          </p>
+        </div>
+      )}
 
       {children}
     </div>

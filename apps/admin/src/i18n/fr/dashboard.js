@@ -88,6 +88,40 @@ export default {
   'Your assistant does not appear on your website yet — activate it to put it in front of visitors':
     "Votre assistant n'apparaît pas encore sur votre site web — activez-le pour le mettre devant vos visiteurs",
   'Activate on my website': 'Activer sur mon site web',
+
+  // GuidedRoadmap step 3 — mirrors the hero card's primary action
+  'Add it to your website': "L'ajouter à votre site web",
+  "One line to paste — we'll show you exactly where": 'Une ligne à coller — on vous montre exactement où',
+  'Activate it on your website': "L'activer sur votre site web",
+  "It's on your website, but still invisible until you activate it":
+    "Il est sur votre site web, mais invisible tant que vous ne l'activez pas",
+  'Your visitors can talk to it right now': 'Vos visiteurs peuvent lui parler dès maintenant',
+
+  // OnboardingHero — what happens after the button is pressed
+  'We read your website': 'Nous lisons votre site web',
+  'Every page we can reach — services, pricing, FAQ, about. It takes a couple of minutes.':
+    'Chaque page accessible — services, tarifs, FAQ, à propos. Ça prend deux ou trois minutes.',
+  'You test it yourself': 'Vous le testez vous-même',
+  'Ask it anything a visitor would ask, and correct what it gets wrong.':
+    "Posez-lui tout ce qu'un visiteur demanderait, et corrigez ce qu'il rate.",
+  'You add it to your website': "Vous l'ajoutez à votre site web",
+  'One line to paste. Then it answers your visitors, day and night.':
+    'Une ligne à coller. Ensuite il répond à vos visiteurs, jour et nuit.',
+  'Free while you build and test it. No credit card.':
+    'Gratuit pendant que vous le construisez et le testez. Sans carte de crédit.',
+
+  // Live crawl narration (useCrawlPipeline + the hero card's progress strip)
+  'Finding the pages on your website...': 'Recherche des pages de votre site web...',
+  'Reading page {done} of {total}': 'Lecture de la page {done} sur {total}',
+  'Working out what your business does...': 'Analyse de ce que fait votre entreprise...',
+  '{n} pages read — your assistant can answer questions about all of them.':
+    '{n} pages lues — votre assistant peut répondre à des questions sur chacune.',
+  "{n} pages read — your assistant can answer from them. {failed} couldn't be reached; you can retry those below.":
+    "{n} pages lues — votre assistant peut s'appuyer dessus. {failed} n'ont pas pu être atteintes ; vous pouvez les relancer ci-dessous.",
+  'Clearing what your assistant learned before...':
+    'Effacement de ce que votre assistant avait appris...',
+  'Everything it reads is something your assistant will be able to answer. You can keep using the dashboard while it works.':
+    'Tout ce qu’il lit est une chose de plus que votre assistant saura répondre. Vous pouvez continuer à utiliser le tableau de bord pendant ce temps.',
   'One line to paste — then activate it to go live': "Une ligne à coller — puis activez-le pour le mettre en ligne",
   'Nothing is available to your assistant yet': "Rien n'est encore disponible pour votre assistant",
   'Nothing was deleted: everything your assistant learned, and every lead it captured, for {domain} is still here, exactly as you left it. Upgrade your plan and it comes straight back online.': "Rien n'a été supprimé : tout ce que votre assistant a appris, et tous les prospects qu'il a capturés, pour {domain} sont toujours là, exactement comme vous les avez laissés. Mettez votre forfait à niveau et il revient en ligne immédiatement.",

@@ -42,14 +42,24 @@ export default function LearningProgressModal({
         <h3 className="text-2xl font-bold text-dark-900 mb-2">
           {learningStep === 4 ? t('🎉 Your assistant is ready!') : t('Learning {domain}', { domain: learningDomain || t('your website') })}
         </h3>
-        <p className="text-sm text-gray-500 mb-8 max-w-md mx-auto">
+        <p className="text-sm text-gray-500 mb-6 max-w-md mx-auto">
           {learningStep === 4
-            ? t("We've read your website and your assistant is ready to answer questions about it.")
+            ? t("Ask it something one of your visitors would ask — that is the fastest way to see what it knows, and to spot anything worth correcting before it goes on your website.")
             : t("We're reading your pages and learning what your business does, so your assistant can answer visitors around the clock.")}
         </p>
 
-        {/* Progress Bar */}
-        <div className="space-y-2 mb-8 text-left">
+        {/* The concrete result, in the owner's terms: how many pages the
+            assistant can now answer from. Worth its own line — it is the
+            thing they just waited for. */}
+        {learningStep === 4 && crawlProgressMsg && (
+          <div className="mb-8 inline-flex items-start gap-2 text-xs font-semibold text-emerald-700 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-4 py-2.5 text-left">
+            <Check className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>{crawlProgressMsg}</span>
+          </div>
+        )}
+
+        {/* Progress Bar — only while there is progress to show. */}
+        <div className={`space-y-2 mb-8 text-left ${learningStep === 4 ? 'hidden' : ''}`}>
           <div className="flex items-center justify-between text-xs font-semibold">
             <span className="text-gray-600 flex items-center gap-2">
               {learningStep < 4 && <RefreshCw className="w-3.5 h-3.5 animate-spin text-brand-600" />}
@@ -65,14 +75,15 @@ export default function LearningProgressModal({
           </div>
         </div>
 
-        {/* Step Checklist */}
-        <div className="bg-surface-100 p-4 rounded-2xl border border-dark-900/5 text-left space-y-3 mb-8">
+        {/* Step Checklist — says what each step gets them, not what it runs. */}
+        <div className={`bg-surface-100 p-4 rounded-2xl border border-dark-900/5 text-left space-y-3 mb-8 ${learningStep === 4 ? 'hidden' : ''}`}>
           <div className="flex items-center gap-3 text-xs">
             <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${learningStep >= 2 ? 'bg-emerald-500/20 text-emerald-700' : 'bg-brand-500/20 text-brand-700 animate-pulse'}`}>
               {learningStep >= 2 ? <Check className="w-3 h-3" /> : '1'}
             </div>
             <span className={learningStep >= 2 ? 'text-gray-600 font-medium' : 'text-dark-900 font-semibold'}>
               {t('Finding your pages')}
+              <span className="block text-[11px] font-normal text-gray-500">{t('So nothing your visitors ask about is missing')}</span>
             </span>
           </div>
 
@@ -82,6 +93,7 @@ export default function LearningProgressModal({
             </div>
             <span className={learningStep >= 3 ? 'text-gray-600 font-medium' : learningStep === 2 ? 'text-dark-900 font-semibold' : 'text-gray-500'}>
               {t('Reading what each page says')}
+              <span className="block text-[11px] font-normal text-gray-500">{t('Services, prices, hours, policies — in your own words')}</span>
             </span>
           </div>
 
@@ -91,6 +103,7 @@ export default function LearningProgressModal({
             </div>
             <span className={learningStep >= 4 ? 'text-gray-600 font-medium' : learningStep === 3 ? 'text-dark-900 font-semibold' : 'text-gray-500'}>
               {t('Learning what your business does')}
+              <span className="block text-[11px] font-normal text-gray-500">{t('So its answers sound like your business, not a generic bot')}</span>
             </span>
           </div>
         </div>

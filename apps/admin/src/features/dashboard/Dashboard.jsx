@@ -10,6 +10,7 @@ import useCrawlPipeline from './hooks/useCrawlPipeline';
 import usePreview from './hooks/usePreview';
 import useAssistantHealth from './hooks/useAssistantHealth';
 import useSiteLifecycle from './hooks/useSiteLifecycle';
+import useWidgetLiveStatus from './hooks/useWidgetLiveStatus';
 import OnboardingHero from './components/OnboardingHero';
 import SiteTabs from './components/SiteTabs';
 import SiteHeroCard from './components/SiteHeroCard';
@@ -66,7 +67,12 @@ export default function Dashboard({
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [detectedTheme, setDetectedTheme] = useState(null);
   const [step, setStep] = useState(activeSite ? 'dashboard' : 'input');
-  const [statusMsg, setStatusMsg] = useState('');
+  // Two different things that used to share one state and end up on screen at
+  // the same time: what step the setup is on (the submit button says it, and
+  // it is the only place that says it), and what went wrong (a message that
+  // only ever appears when something did).
+  const [setupStepMsg, setSetupStepMsg] = useState('');
+  const [setupErrorMsg, setSetupErrorMsg] = useState('');
 
   // View state shared by several sections
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
@@ -154,7 +160,8 @@ export default function Dashboard({
     }
 
     setIsAnalyzing(true);
-    setStatusMsg(t('Analyzing your website...'));
+    setSetupErrorMsg('');
+    setSetupStepMsg(t('Reading your website...'));
 
     try {
       // Invisible silent captcha challenge
@@ -173,7 +180,7 @@ export default function Dashboard({
         console.warn('Theme extraction fallback:', themeErr);
       }
 
-      setStatusMsg(t('Building your assistant...'));
+      setSetupStepMsg(t('Building your assistant...'));
       const siteObj = await onAddSite(currentDomain, brandColor, faviconUrl);
 
       if (siteObj) {
@@ -182,12 +189,14 @@ export default function Dashboard({
 
         await pipeline.runSynchronousCrawlAndIndex(siteObj, formattedUrl);
       } else {
-        setStatusMsg(t('Error: could not add this site. Check that your Supabase session is active.'));
+        setSetupErrorMsg(t('Error: could not add this site. Check that your Supabase session is active.'));
+        setSetupStepMsg('');
         setIsAnalyzing(false);
       }
     } catch (err) {
       console.error('Onboarding error:', err);
-      setStatusMsg(t('Error: {message}', { message: err.message }));
+      setSetupErrorMsg(t('Error: {message}', { message: err.message }));
+      setSetupStepMsg('');
       setIsAnalyzing(false);
     }
   };
@@ -248,6 +257,12 @@ export default function Dashboard({
   const openIntegrationModal = () => setShowIntegrationModal(true);
   const openActivation = () => setShowActivationRequiredModal(true);
   const planActive = isAssistantActive(selectedTenant);
+  // One read of "is it on their website", shared by the hero card and the
+  // roadmap below it.
+  const widgetStatus = useWidgetLiveStatus(
+    activeSite?.id,
+    Boolean(activeSite) && lifecycle.isSiteActive(activeSite) && !pipeline.isCrawling
+  );
   const openPreviewModal = () => preview.setShowPreviewModal(true);
   const openAdvancedSettings = () => {
     setShowAdvancedSettings(true);
@@ -264,7 +279,8 @@ export default function Dashboard({
           siteUrl={siteUrl}
           setSiteUrl={setSiteUrl}
           isAnalyzing={isAnalyzing}
-          statusMsg={statusMsg}
+          stepMsg={setupStepMsg}
+          errorMsg={setupErrorMsg}
           onSubmit={handleAnalyzeSite}
           // An authenticated user with zero sites still gets the full header
           // (see Header.jsx) — only a guest needs this narrower way back into
@@ -309,8 +325,12 @@ export default function Dashboard({
             onOpenPreview={openPreviewModal}
             onOpenIntegration={openIntegrationModal}
             isPlanActive={planActive}
+            isInstalled={widgetStatus.isInstalled}
+            isLive={widgetStatus.isLive}
             onActivate={openActivation}
             onOpenSettings={openAdvancedSettings}
+            crawlProgress={pipeline.learningProgress}
+            crawlProgressMsg={pipeline.crawlProgressMsg}
           >
             {(trial.trialActive || trial.trialExpired) && (
               <TrialBanner
@@ -377,6 +397,8 @@ export default function Dashboard({
                 onOpenPreview={openPreviewModal}
                 onOpenIntegration={openIntegrationModal}
                 isPlanActive={planActive}
+                isInstalled={widgetStatus.isInstalled}
+                onActivate={openActivation}
               />
             )}
           </SiteHeroCard>

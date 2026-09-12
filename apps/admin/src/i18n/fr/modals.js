@@ -95,6 +95,12 @@ export default {
   "We're reading your pages and learning what your business does, so your assistant can answer visitors around the clock.":
     'Nous parcourons vos pages et apprenons ce que fait votre entreprise, afin que votre assistant puisse répondre aux visiteurs en tout temps.',
   'Reading your website...': 'Lecture de votre site Web...',
+  'Ask it something one of your visitors would ask — that is the fastest way to see what it knows, and to spot anything worth correcting before it goes on your website.':
+    "Posez-lui une question qu'un de vos visiteurs poserait — c'est le moyen le plus rapide de voir ce qu'il sait, et de repérer ce qui mérite d'être corrigé avant qu'il n'arrive sur votre site web.",
+  'So nothing your visitors ask about is missing': "Pour qu'il ne manque rien de ce que vos visiteurs demandent",
+  'Services, prices, hours, policies — in your own words': 'Services, prix, horaires, politiques — dans vos propres mots',
+  'So its answers sound like your business, not a generic bot':
+    "Pour que ses réponses ressemblent à votre entreprise, pas à un robot générique",
   'Finding your pages': 'Recherche de vos pages',
   'Reading what each page says': 'Lecture du contenu de chaque page',
   'Learning what your business does': 'Apprentissage de ce que fait votre entreprise',

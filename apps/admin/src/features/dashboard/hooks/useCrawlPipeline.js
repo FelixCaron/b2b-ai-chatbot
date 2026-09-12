@@ -6,6 +6,7 @@ import { normalizePageUrl, rootUrlForDomain, stripProtocol, titleForPageUrl } fr
 import { isAdditionalInfoUrl, stripSourcePrefix } from '../../../lib/knowledge-notes';
 import { executeTurnstileCaptcha } from '../lib/turnstile';
 import { fetchBrandTheme } from '../lib/brand-theme';
+import { useT } from '../../../i18n/LanguageContext';
 
 /**
  * A page's real outcome, from the scan call's own envelope — never guessed
@@ -63,6 +64,12 @@ export default function useCrawlPipeline({
   setIsRegeneratingSummary,
   refreshSiteSummary
 }) {
+  // Every progress line this hook sets is read by a site owner, live, while
+  // they wait — so they go through t() like any other copy (they used to be
+  // English string literals shown to French customers) and they say what the
+  // step gets them, not which function is running.
+  const { t } = useT();
+
   // Page Management & Selection State
   const [discoveredPages, setDiscoveredPages] = useState([]);
   const [selectedUrls, setSelectedUrls] = useState(new Set());
@@ -163,7 +170,9 @@ export default function useCrawlPipeline({
         completedPagesCount++;
         const pct = Math.round(20 + ((completedPagesCount / pagesToScan.length) * 60));
         setLearningProgress(Math.min(pct, 85));
-        setCrawlProgressMsg(`Indexing page ${completedPagesCount}/${pagesToScan.length} (${Math.round((completedPagesCount / pagesToScan.length) * 100)}%)`);
+        setCrawlProgressMsg(
+          t('Reading page {done} of {total}', { done: completedPagesCount, total: pagesToScan.length })
+        );
       }));
     }
 
@@ -171,7 +180,7 @@ export default function useCrawlPipeline({
     setLearningStep(3);
     setLearningProgress(90);
     setIsRegeneratingSummary(true);
-    setCrawlProgressMsg('Generating AI Business Summary...');
+    setCrawlProgressMsg(t('Working out what your business does...'));
 
     try {
       const summaryRes = await api.crawler.summarize({
@@ -201,8 +210,8 @@ export default function useCrawlPipeline({
     setLearningProgress(100);
     setCrawlProgressMsg(
       failedCount > 0
-        ? `✓ Scan finished! ${loadedCount} page(s) indexed, ${failedCount} couldn't be reached — you can retry them below.`
-        : `✓ Scan finished! ${loadedCount} page(s) indexed.`
+        ? t("{n} pages read — your assistant can answer from them. {failed} couldn't be reached; you can retry those below.", { n: loadedCount, failed: failedCount })
+        : t('{n} pages read — your assistant can answer questions about all of them.', { n: loadedCount })
     );
     setIsCrawling(false);
     // The one moment this modal still appears: a real "done" to land on,
@@ -218,7 +227,7 @@ export default function useCrawlPipeline({
     setLearningStep(1);
     setLearningDomain(siteObj.domain || stripProtocol(targetUrl));
 
-    setCrawlProgressMsg('Discovering website pages...');
+    setCrawlProgressMsg(t('Finding the pages on your website...'));
 
     // 1. Discover ALL pages via /api/crawler/crawl without silent drops
     let pagesToScan = [{ url: targetUrl, title: 'Home Page', status: 'loading' }];
@@ -273,7 +282,7 @@ export default function useCrawlPipeline({
   const handleRecrawlSite = async () => {
     if (!activeSite || isCrawling) return;
     setIsCrawling(true);
-    setCrawlProgressMsg('Resetting previous database chunks...');
+    setCrawlProgressMsg(t('Clearing what your assistant learned before...'));
 
     try {
       await supabase.from('documents').delete().eq('site_id', activeSite.id);

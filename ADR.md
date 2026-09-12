@@ -2388,3 +2388,29 @@ Deux problèmes sans rapport l'un avec l'autre, réglés ensemble parce qu'ils t
 - Si l'entreprise ferme : les sites clients ne montrent plus rien, ne ralentissent pas, ne lèvent pas d'erreur. Le pire cas est l'absence d'assistant — jamais un site cassé.
 - Les extraits déjà collés chez des clients restent synchrones (on ne peut pas les réécrire à distance) ; le reste des garanties, lui, s'applique à eux dès le prochain déploiement du bundle, puisqu'il est servi depuis notre CDN.
 - Deux tests E2E figent le comportement de repli (backend injoignable → widget retiré, aucune exception dans la page ; extrait collé deux fois → un seul widget), un troisième fige la disparition du bouton une fois installé. `npm test`, `npm run build` et les 122 tests E2E passent.
+
+## ADR : L'onboarding raconte ce qu'il fait, et une seule chose charge à la fois
+**Date:** 12 Septembre 2026
+**Statut:** Accepté
+
+### Contexte
+Le parcours d'onboarding demandait une adresse de site web et, à partir du clic, n'expliquait plus grand-chose :
+
+- **Deux chargements simultanés au premier clic.** Le bouton affichait « Setting up your assistant... » pendant qu'un encadré juste en dessous affichait « Analyzing your website... » — deux spinners, deux formulations, une seule opération. Un commentaire dans le code affirmait pourtant « One spinner, one message » ; ce n'était plus vrai.
+- **Le moment le plus long du parcours était le moins raconté.** Le crawl tourne en arrière-plan (le modal de progression n'apparaît qu'à la fin, comme célébration), donc pendant les minutes d'attente le client voyait « Apprentissage... » et rien d'autre : ni combien de pages, ni où on en est, ni pourquoi c'est utile. Les messages de progression détaillés existaient (`crawlProgressMsg`) mais n'étaient affichés que dans le modal — c'est-à-dire une fois le travail terminé.
+- **Ces messages étaient en anglais en dur** (`'Indexing page 3/12'`, `'Generating AI Business Summary...'`) dans une application FR/EN, et rédigés en vocabulaire technique interne.
+- **Rien ne disait ce qui allait se passer.** Le client donnait l'adresse de son site sans savoir ce qu'on allait en faire, combien de temps ça prend, ni ce que ça coûte.
+- **Deux « prochaines étapes » contradictoires.** La carte du site proposait une action principale (ajouter à votre site / activer / tester) pendant que la feuille de route juste en dessous disait toujours « Install on your website ».
+
+### Décision
+- **Un seul état de chargement** : le bouton porte l'étape en cours (« Lecture de votre site web... », puis « Construction de votre assistant... ») ; l'encadré en dessous ne sert plus qu'aux erreurs. Côté état, `statusMsg` — qui mélangeait progression et erreur — devient `setupStepMsg` et `setupErrorMsg`.
+- **Ce qui va se passer, avant de cliquer** : trois lignes sous le formulaire (on lit votre site → vous le testez → vous l'ajoutez à votre site), chacune formulée en bénéfice, plus « Gratuit pendant que vous le construisez et le testez. Sans carte de crédit. ». Masquées dès que le travail démarre : à ce moment-là c'est le bouton qui raconte.
+- **La progression est visible là où le client attend** : barre de progression + étape en cours directement sur la carte du site pendant le crawl, avec la raison d'être (« Tout ce qu'il lit est une chose de plus que votre assistant saura répondre »).
+- **Les messages de progression passent par `t()`** et parlent en bénéfice : « Lecture de la page 3 sur 12 », « Analyse de ce que fait votre entreprise... », « 12 pages lues — votre assistant peut répondre à des questions sur chacune. »
+- **Le modal de fin annonce le résultat** (le nombre de pages lues, mis en évidence) et dit quoi faire ensuite ; la barre et la liste d'étapes, sans objet une fois à 100 %, disparaissent. Chaque étape de la liste gagne une ligne « à quoi ça sert ».
+- **Une seule prochaine étape à l'écran** : la feuille de route lit le même état que la carte du site (`isInstalled`, `isPlanActive`, remontés du hook `useWidgetLiveStatus` au Dashboard) et affiche « L'ajouter à votre site web » → « L'activer sur votre site web » → « En ligne sur votre site web » ✓.
+
+### Conséquences
+- Le client sait, à chaque instant : ce qui va se passer, ce qui se passe, ce que ça lui apporte, et ce qu'il lui reste à faire — dans sa langue.
+- Un test E2E fige la règle « un seul chargement au premier clic » (le texte d'étape apparaît une fois, un seul spinner dans la carte).
+- `npm test`, `npm run build` et les 124 tests E2E passent.

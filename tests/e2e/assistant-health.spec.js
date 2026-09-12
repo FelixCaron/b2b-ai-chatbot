@@ -13,7 +13,10 @@ test.describe('Assistant health', () => {
       await page.goto('/');
       await expect(page.getByRole('heading', { name: 'acme.example.com' })).toBeVisible();
 
-      await expect(page.getByText(/Install on your website/i)).toBeVisible();
+      // Step 3 names whatever is actually left to do — this fixture has
+      // never been seen on its own domain, so it is "add it to your website"
+      // (the same thing the hero card's primary button offers).
+      await expect(page.getByText('Add it to your website', { exact: true })).toBeVisible();
       await expect(page.getByText(/conversations this week/i)).toHaveCount(0);
     });
   });
