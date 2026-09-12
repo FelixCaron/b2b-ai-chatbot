@@ -3,7 +3,7 @@ import { supabase } from '../../../lib/supabase';
 import api from '../../../lib/api';
 import { getMaxPagesForPlan } from '../lib/plan-limits';
 import { normalizePageUrl, rootUrlForDomain, stripProtocol, titleForPageUrl } from '../lib/page-url';
-import { isAdditionalInfoUrl, stripSourcePrefix } from '../../../lib/knowledge-notes';
+import { isAdditionalInfoUrl, readDocumentText } from '../../../lib/knowledge-notes';
 import { executeTurnstileCaptcha } from '../lib/turnstile';
 import { fetchBrandTheme } from '../lib/brand-theme';
 import { useT } from '../../../i18n/LanguageContext';
@@ -529,30 +529,21 @@ export default function useCrawlPipeline({
 
   const handleEditPage = async (pageUrl, e) => {
     e.stopPropagation();
-    setEditingPage({ url: pageUrl, content: 'Loading content...', saving: false });
-    try {
-      // Ordered, not just fetched: a page is several chunk rows that all
-      // share one created_at, so an unordered read hands the editor the
-      // page's own paragraphs shuffled — and saving writes that shuffle
-      // back as the new truth. See migration 20260909060000.
-      const { data, error } = await supabase
-        .from('documents')
-        .select('content, chunk_index, created_at, id')
-        .eq('site_id', activeSite.id)
-        .eq('url', pageUrl)
-        .order('chunk_index', { ascending: true, nullsFirst: false })
-        .order('created_at', { ascending: true })
-        .order('id', { ascending: true });
-      if (error) throw error;
-      // Each stored chunk carries a '[Source URL: ...]' line that the indexer
-      // added, not the operator. Handing it back to the editor meant the next
-      // save re-prefixed the prefix, so it stacked a line deeper on every
-      // edit — and the operator was left deleting our bookkeeping by hand.
-      const fullContent = data ? data.map(d => stripSourcePrefix(d.content)).join('\n\n') : '';
-      setEditingPage({ url: pageUrl, content: fullContent, saving: false });
-    } catch (err) {
-      setEditingPage({ url: pageUrl, content: 'Error loading page content.', saving: false });
+    setEditingPage({ url: pageUrl, content: t('Loading content...'), saving: false });
+
+    // Ordered, not just fetched: a page is several chunk rows that all share
+    // one created_at, so an unordered read hands the editor the page's own
+    // paragraphs shuffled — and saving writes that shuffle back as the new
+    // truth (migration 20260909060000). readDocumentText owns that ordering,
+    // including the fallback for a database that hasn't got the column yet,
+    // and strips the '[Source URL: ...]' line the indexer adds so the next
+    // save doesn't prefix the prefix.
+    const result = await readDocumentText(activeSite.id, pageUrl);
+    if (!result.ok) {
+      setEditingPage({ url: pageUrl, content: t('Could not load this page — please try again in a moment.'), saving: false });
+      return;
     }
+    setEditingPage({ url: pageUrl, content: result.text, saving: false });
   };
 
   const handleSavePageContent = async () => {

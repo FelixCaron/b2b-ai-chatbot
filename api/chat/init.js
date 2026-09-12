@@ -164,9 +164,17 @@ export default edgeRoute(contracts.chat.init, async (req, { data, json }) => {
     // converting, or a subscription that was cancelled or never started. Two
     // codes rather than one so the dashboard can say "your trial ended" or
     // "choose a plan" without guessing.
+    // `tenantRow &&` matters as much as the gate itself: the 42703 fallback
+    // above reads the site WITHOUT its tenant (a database whose migrations are
+    // behind has no trial_ends_at column, and PostgREST fails the whole
+    // embedded select over it). resolveTenantPlan(null) answers "no plan",
+    // which would take every widget off every customer site over a schema
+    // mismatch on our side. Not knowing is not the same as knowing they
+    // haven't paid — when we can't read the plan, we serve.
+    //
     // `await` only on the unhappy path: a live workspace never pays for this
     // extra auth round-trip.
-    if (!widgetActive && !(await isOwnerPreview(req, site.tenant_id))) {
+    if (tenantRow && !widgetActive && !(await isOwnerPreview(req, site.tenant_id))) {
       if (inactiveReason === 'trial_ended') {
         return paused('trial_ended', {
           trial_ended: true,

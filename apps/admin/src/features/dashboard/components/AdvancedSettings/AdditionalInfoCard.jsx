@@ -42,7 +42,7 @@ export default function AdditionalInfoCard({ activeSite }) {
       // happened and keep the editor locked instead.
       if (!result.ok) {
         setLoadFailed(true);
-        setMessage({ text: result.error, isError: true });
+        setMessage({ text: t(result.error), isError: true });
         return;
       }
       setContent(result.text);
@@ -60,7 +60,7 @@ export default function AdditionalInfoCard({ activeSite }) {
     const result = await saveAdditionalInfo(activeSite, content);
     setIsSaving(false);
     if (!result.ok) {
-      setMessage({ text: result.error, isError: true });
+      setMessage({ text: t(result.error), isError: true });
       return;
     }
     setLoadedContent(content);

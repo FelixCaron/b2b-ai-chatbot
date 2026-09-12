@@ -201,7 +201,11 @@ export default edgeRoute(contracts.chat.send, async (req, { data, json }) => {
     // hides itself rather than showing our billing state to someone else's
     // visitors. Two codes so the owner's dashboard can say "trial ended" or
     // "choose a plan" without guessing.
-    if (!widgetActive && !isOwnerPreview) {
+    // `tenantRow &&`: the 42703 fallback above reads the site without its
+    // tenant row, and resolveTenantPlan(null) would answer "no plan" — cutting
+    // off every paying customer over a schema mismatch on our side. When we
+    // cannot read the plan, we serve (api/chat/init.js makes the same call).
+    if (tenantRow && !widgetActive && !isOwnerPreview) {
       return json(
         inactiveReason === 'trial_ended'
           ? {

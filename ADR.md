@@ -2414,3 +2414,28 @@ Le parcours d'onboarding demandait une adresse de site web et, à partir du clic
 - Le client sait, à chaque instant : ce qui va se passer, ce qui se passe, ce que ça lui apporte, et ce qu'il lui reste à faire — dans sa langue.
 - Un test E2E fige la règle « un seul chargement au premier clic » (le texte d'étape apparaît une fois, un seul spinner dans la carte).
 - `npm test`, `npm run build` et les 124 tests E2E passent.
+
+## ADR : Trois pannes silencieuses — un build vide, une colonne manquante, une couleur inventée
+**Date:** 12 Septembre 2026
+**Statut:** Accepté
+
+### Contexte
+Trois problèmes sans lien apparent, réunis par le même défaut : **le système ne disait pas qu'il avait échoué**.
+
+**1. Un build qui réussit en ne compilant presque rien.** `npm run build` sans `VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY` produit un bundle de 218 Ko qui ne contient que l'écran « Configuration requise » — contre 665 Ko pour le vrai. `supabaseConfigurationError` devient une constante quand `import.meta.env` est inliné au build, la première branche de `App.jsx` gagne, et Rollup élimine tout le produit derrière elle comme code mort. Le build affiche « ✓ built », et un déploiement de ce bundle ressemble à une release normale jusqu'à ce qu'un client l'ouvre.
+
+**2. « Renseignements additionnels » disait « vérifiez votre connexion » à tout le monde, tout le temps.** La lecture trie (et sélectionne) `documents.chunk_index`, ajoutée par la migration `20260909060000`. PostgREST ne dégrade pas dans ce cas : il fait échouer **toute** la requête avec `42703` là où la migration n'est pas appliquée. Or le workflow « Apply DB Migrations » n'a **jamais réussi** (`Authorization failed for the access token and project ref pair` — un problème de privilèges du jeton Supabase, côté compte). Le message d'erreur, lui, accusait le réseau du client : quelqu'un pouvait redémarrer son routeur pour un problème de schéma chez nous.
+
+**3. Les couleurs de marque « un peu étranges ».** L'extraction était un appel LLM sur les 8 premiers Ko du HTML, et **tout ce qui commençait par `#` était accepté** : aucune validation de forme ni de valeur. Trois conséquences visibles : 8 Ko d'une page moderne, c'est surtout le `<head>` et des scripts — la couleur était donc souvent devinée plutôt que lue ; une forme courte (`#fff`) était stockée telle quelle alors que tous les consommateurs construisent leurs variantes alpha par concaténation (`${color}66` dans le widget → `#fff66`, invalide) ; et le blanc ou quasi-blanc passait, alors que le widget peint du contenu blanc sur cette couleur — un lanceur invisible sur le site du client.
+
+### Décision
+- **Le build refuse de partir** sans ces deux variables (`apps/admin` et `apps/internal-admin`), avec le message qui explique le piège. La CI fournit déjà des valeurs bidon pour exactement cette raison.
+- **Lire passe avant trier** : `withMissingColumnFallback` (`apps/admin/src/lib/db-retry.js`) rejoue la requête sans la colonne quand — et seulement quand — l'erreur est `42703`. Toute autre erreur reste une erreur (une permission refusée ne doit surtout pas être « réessayée » en une boîte vide que le client écraserait en sauvegardant). L'éditeur de page passe par le même chemin. Et le message ne parle plus de la connexion de l'utilisateur.
+- **La couleur se lit d'abord, se devine ensuite, et se valide toujours** : `<meta name="theme-color">`, la couleur d'onglet épinglé Safari, la tuile Windows, puis les variables CSS que les thèmes déclarent (`--e-global-color-primary`, `--wp--preset--color--primary`, `--primary`…), sur **tout** le document et non 8 Ko. Le LLM ne décide plus que si la page ne déclare rien d'exploitable. Tout candidat est normalisé en hexadécimal 6 chiffres et doit offrir un contraste ≥ 3:1 avec le blanc (seuil WCAG pour les composants d'interface) — la barre est le contraste, pas le goût : une marque sombre ou sourde reste respectée. En dernier recours, la couleur la plus utilisée de la page (jamais un gris, un noir ou un blanc), et seulement si elle apparaît au moins deux fois.
+- **Correction attenante trouvée en chemin** : sur une base de données en retard, `api/chat/init.js` lisait le site sans son tenant (repli 42703) et `resolveTenantPlan(null)` répondait « aucun forfait » — ce qui, depuis l'ADR précédent, aurait **retiré le widget de tous les sites clients** à cause d'un décalage de schéma chez nous. Ne pas savoir n'est pas savoir qu'ils n'ont pas payé : sans ligne tenant lisible, on sert.
+
+### Conséquences
+- Un build sans configuration échoue bruyamment au lieu de livrer une coquille vide.
+- La zone « Renseignements additionnels » et l'éditeur de page fonctionnent même là où la migration n'est pas passée — mais **le vrai correctif reste à faire côté compte Supabase** : le jeton du workflow de migrations n'a pas les privilèges nécessaires, et tant qu'il en est ainsi, la base de production diverge du code.
+- Les couleurs proposées viennent maintenant de ce que le site déclare, et aucune ne peut rendre le widget invisible.
+- 14 nouveaux tests unitaires (couleur, repli de colonne) ; `npm test`, `npm run build` et les 124 tests E2E passent.

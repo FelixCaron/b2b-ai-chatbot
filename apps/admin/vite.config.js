@@ -3,10 +3,32 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 import fs from "fs";
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode, command }) => {
   // Load environment variables from .env.local into process.env
   const env = loadEnv(mode, process.cwd(), '');
   Object.assign(process.env, env);
+
+  // A production build with no Supabase credentials does not fail — it
+  // SUCCEEDS, and ships a bundle containing nothing but the "Configuration
+  // required" screen. `supabaseConfigurationError` (src/lib/supabase.js) is a
+  // constant once import.meta.env is inlined at build time, so the very first
+  // branch of App.jsx wins and Rollup tree-shakes the entire product away
+  // behind it: a 218 KB bundle where the real one is 665 KB. Nothing in the
+  // output says so, and a deploy of it looks like a working release until a
+  // customer opens it. Refuse to build instead.
+  if (command === 'build') {
+    const missing = ['VITE_SUPABASE_URL', 'VITE_SUPABASE_PUBLISHABLE_KEY'].filter(
+      (name) => !process.env[name]?.trim()
+    );
+    if (missing.length > 0) {
+      throw new Error(
+        `Cannot build the admin app: ${missing.join(' and ')} ${missing.length > 1 ? 'are' : 'is'} not set.\n` +
+        'Without them the build silently produces a bundle that only renders the ' +
+        '"Configuration required" screen. Set them in .env.local for a local build, ' +
+        'or in the deployment environment for a real one.'
+      );
+    }
+  }
 
   return {
     plugins: [

@@ -89,6 +89,15 @@ export default {
     "Votre assistant n'apparaît pas encore sur votre site web — activez-le pour le mettre devant vos visiteurs",
   'Activate on my website': 'Activer sur mon site web',
 
+  // Additional Information / page editor
+  'Could not read what you saved here. Please try again in a moment.':
+    "Impossible de lire ce que vous avez enregistré ici. Réessayez dans un instant.",
+  'Could not save your additional information.': "Impossible d'enregistrer vos renseignements additionnels.",
+  'No website selected.': 'Aucun site web sélectionné.',
+  'Loading content...': 'Chargement du contenu...',
+  'Could not load this page — please try again in a moment.':
+    'Impossible de charger cette page — réessayez dans un instant.',
+
   // GuidedRoadmap step 3 — mirrors the hero card's primary action
   'Add it to your website': "L'ajouter à votre site web",
   "One line to paste — we'll show you exactly where": 'Une ligne à coller — on vous montre exactement où',

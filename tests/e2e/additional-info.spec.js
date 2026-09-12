@@ -50,8 +50,9 @@ test.describe('Additional Information', () => {
 
     const card = await openCard(page);
 
-    await expect(card.getByText(/Could not read your existing information/i)).toBeVisible();
+    await expect(card.getByText(/Could not read what you saved here/i)).toBeVisible();
     await expect(card.locator('textarea')).toBeDisabled();
     await expect(card.getByRole('button', { name: /^Save$/ })).toBeDisabled();
   });
+
 });
