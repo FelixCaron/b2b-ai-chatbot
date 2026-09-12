@@ -74,4 +74,5 @@ export default {
   'Terms of Service': "Conditions d'utilisation",
   'and': 'et',
   'Privacy Policy': 'Politique de confidentialité',
+  'A logafi company': 'Une société logafi',
 };

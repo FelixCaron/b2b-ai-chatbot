@@ -2491,3 +2491,28 @@ Et le correctif précédent n'a rien changé, pour une raison qui mérite d'êtr
 - Deux diagnostics erronés en trois jours sur ce seul symptôme, tous deux plausibles et tous deux faux, parce que le message d'erreur ne disait rien. Le coût de ne pas afficher une erreur technique est exactement là.
 - La leçon générale, valable au-delà de ce cas : un repli qui suppose connaître la panne ne répare que la panne qu'on avait imaginée.
 - Reste à vérifier si d'autres tables déclarées par le schéma consolidé ont dérivé de la même façon — `sites` et `documents` ont toutes deux été touchées, ce n'est probablement pas une coïncidence.
+
+## ADR : Page de la société mère `logafi`, servie par le même déploiement que Dorafi
+**Date:** 12 Septembre 2026
+**Statut:** Accepté
+
+### Contexte
+`logafi` est la société mère : consultation en plateformes de données (Snowflake en particulier, certification *SnowPro Advanced: Architect*), et éditrice de Dorafi. Elle n'avait aucune présence web, alors que son nom est déjà dans l'adresse du produit — `dorafi.logafi.com` est un sous-domaine de `logafi.com`, et un visiteur qui remonte à la racine ne trouvait rien.
+
+Trois façons de la loger : une vue de plus dans le SPA admin, un troisième projet Vercel, ou un fichier statique dans le déploiement existant. La première est fausse sur le fond — c'est une autre société, pas un écran du produit ; elle hériterait de l'en-tête, du pied de page, de l'i18n et du widget de Dorafi, et son contenu serait rebâti à chaque chargement de l'application. La deuxième ajoute un projet, un pipeline et un domaine à gérer pour une page de brochure.
+
+### Décision
+- **`apps/admin/public/logafi.html`** — un fichier statique autonome (HTML + CSS + ~60 lignes de JS, zéro dépendance, zéro appel réseau vers notre backend). Vite le recopie tel quel dans `dist/`, et Vercel sert les fichiers réels avant d'appliquer les réécritures : c'est le mécanisme qui fait déjà fonctionner `sitemap.xml` et `preview.html` malgré le `"/(.*)" -> "/index.html"` du SPA.
+- **Deux réécritures dans `vercel.json`** (racine et `apps/admin/`), placées avant le fourre-tout :
+  - `/logafi` → `/logafi.html`, l'adresse propre sur le domaine actuel ;
+  - `/` → `/logafi.html` **conditionnée à l'hôte** `^(www\.)?logafi\.com$`, inerte tant que ce domaine n'est pas rattaché au projet, et qui en fait la page d'accueil de `logafi.com` le jour où il l'est — sans deuxième projet Vercel. L'expression est ancrée (`^…$`) exprès : si jamais Vercel comparait la valeur en sous-chaîne plutôt qu'en correspondance complète, `dorafi.logafi.com` correspondrait et la racine du produit servirait la page de la société mère. Ancrée, le pire cas est une règle qui ne s'applique jamais.
+- **Parité en développement** : le serveur de dev de Vite ne lit pas `vercel.json`, donc son repli SPA répondrait `/logafi` avec l'application. Trois lignes dans le plugin middleware de `apps/admin/vite.config.js` réécrivent `/logafi` en `/logafi.html`, pour que le lien se comporte pareil en dev, en E2E et en production.
+- **Le logo fourni devient deux PNG à fond transparent** (`logafi-logo.png`, encre `#0e1924` ; `logafi-logo-white.png` pour le pied de page sombre), plus `favicon-logafi.svg` où le monogramme est retracé en deux chemins — le fût arrondi et sa feuille, mesurés sur l'image d'origine. Les PNG sont en palette indexée où l'index *est* l'alpha : 20 Ko chacun au lieu de 79 Ko en RGBA, pour un rendu identique.
+- **Bilingue FR/EN sans framework** : le français est le balisage, l'anglais vit dans des attributs `data-en`, et le sélecteur échange `textContent`. Sans JavaScript la page reste lisible — en français, le défaut du marché québécois, exactement la règle de l'i18n de l'application (`apps/admin/src/i18n/LanguageContext.jsx`).
+- **Un lien discret dans le pied de page de Dorafi** (« Une société logafi » → `/logafi`) : c'est le seul endroit du produit qui mentionne la maison mère, et il ne coûte ni vue ni route.
+
+### Conséquences
+- Un seul projet Vercel, un seul pipeline, une seule commande de déploiement : la page suit le déploiement de l'admin sans rien ajouter au compte de fonctions serverless (limite Hobby de 12, voir TODO).
+- La page se déclare canonique sur `https://logafi.com/`. Tant que le domaine n'est pas rattaché, ce canonique pointe dans le vide pour un moteur de recherche — c'est assumé : l'adresse de référence de la société mère n'est pas un sous-chemin du produit. Rattacher le domaine est une opération de tableau de bord Vercel, sans changement de code.
+- L'adresse `hello@logafi.com` est écrite dans la page (et dans le JSON-LD) alors que seule `dorafi.logafi.com` est vérifiée chez Resend. Elle n'est utilisée qu'en `mailto:` — donc rien à voir avec Resend, mais la boîte doit exister côté MX de `logafi.com`, sinon les courriels des prospects rebondissent. Inscrit au TODO.
+- `tests/e2e/logafi-page.spec.js` vérifie ce qui casse en silence : que `/logafi` atteint bien le fichier statique et non le SPA (absence de `#root`), que le sélecteur de langue fonctionne dans les deux sens, que le navigateur francophone obtient le français, qu'il n'y a pas de débordement horizontal sur téléphone, et que le lien du pied de page de Dorafi pointe toujours au bon endroit.

@@ -38,7 +38,17 @@ export default defineConfig(({ mode, command }) => {
         configureServer(server) {
           server.middlewares.use(async (req, res, next) => {
             const urlObj = new URL(req.url, `http://${req.headers.host || 'localhost:3000'}`);
-            
+
+            // Dev parity with the "/logafi" -> "/logafi.html" rewrite in
+            // vercel.json: public/logafi.html is the logafi (parent company)
+            // page, a plain static file rather than a view of this SPA. Without
+            // this hop the dev server's SPA fallback answers /logafi with the
+            // Dorafi app, so the link only works in production.
+            if (urlObj.pathname === "/logafi" || urlObj.pathname === "/logafi/") {
+              req.url = "/logafi.html";
+              return next();
+            }
+
             if (urlObj.pathname.startsWith("/api/")) {
               const apiName = urlObj.pathname.replace("/api/", "").replace(/\.js$/, "");
               

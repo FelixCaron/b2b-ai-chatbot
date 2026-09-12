@@ -3,6 +3,8 @@
   "outputDirectory": "apps/admin/dist",
   "framework": "vite",
   "rewrites": [
+    { "source": "/logafi", "destination": "/logafi.html" },
+    { "source": "/", "has": [{ "type": "host", "value": "^(www\\.)?logafi\\.com$" }], "destination": "/logafi.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

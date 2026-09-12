@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 228 228" role="img" aria-label="logafi">
+  <!-- The logafi mark: the rounded "L" stem and its leaf, traced from the
+       supplied artwork (stem 88x228 with a full 44 top radius and a 60
+       bottom-left radius; leaf 106x71 with opposite corners rounded 41/63).
+       Monochrome on purpose — `fill: currentColor` is not used because this
+       file is also loaded as a favicon, where no colour is inherited. -->
+  <g transform="translate(12 0)" fill="#0e1924">
+    <path d="M0 44A44 44 0 0 1 88 44L88 228L60 228A60 60 0 0 1 0 168Z"/>
+    <path d="M98 198L98 228L141 228A63 63 0 0 0 204 165L204 157L139 157A41 41 0 0 0 98 198Z"/>
+  </g>
+</svg>

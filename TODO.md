@@ -55,6 +55,15 @@ Ajouté le 2026-08-25 suite à la création des pages `Privacy Policy` / `Terms 
 - [ ] Basculer Stripe du mode sandbox/test vers le mode live une fois la vérification d'entreprise complétée côté Stripe, et confirmer que `STRIPE_WEBHOOK_SECRET` en prod correspond bien à l'endpoint live.
 - [ ] Définir une politique de remboursement explicite (les CGU actuelles disent « non remboursable sauf obligation légale » par défaut).
 
+## Société mère — page `logafi`
+
+Ajoutée le 2026-09-12 (voir l'ADR « Page de la société mère `logafi` ») : `apps/admin/public/logafi.html`, servie à `/logafi` par le déploiement existant. Ce qui reste hors du dépôt :
+
+- [ ] Créer la boîte `hello@logafi.com` (MX du domaine) — l'adresse est déjà affichée sur la page et dans son JSON-LD ; sans boîte, les courriels des prospects rebondissent.
+- [ ] Rattacher `logafi.com` (et `www.logafi.com`) au projet Vercel : la réécriture conditionnée à l'hôte est déjà en place, la racine servira alors la page de la société mère sans second projet. Vérifier au passage que `dorafi.logafi.com/` sert toujours l'application (la règle est ancrée pour ça).
+- [ ] Relire le contenu de la page : services offerts, formulation de la certification *SnowPro Advanced: Architect*, et décider si l'entité légale (`18219184 Canada Inc.`, cf. `LegalPages.jsx`) doit y figurer.
+- [ ] Décider si le widget Dorafi est installé sur la page (dogfooding) — il faudrait d'abord un tenant/site dédié à `logafi.com`, sinon l'assistant répondrait à partir du contenu de Dorafi.
+
 ## Go-to-market — landing pages par niche
 
 Ajouté le 2026-08-25 suite à la création de la première landing page niche (ostéopathes, `/solutions/osteopathes`, `apps/admin/src/components/OsteopathyLanding.jsx`). Voir ADR 040.
