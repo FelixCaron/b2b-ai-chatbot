@@ -55,19 +55,6 @@ different. A `SECURITY DEFINER` bridge function, `public.is_staff_admin(uuid)`, 
 to `service_role` only, is the one way server code can check staff membership — see
 `apps/internal-admin/api/lib/server-config.js`.
 
-**Staff acting on a customer's behalf.** `requireTenantOwnership()` (root
-`api/lib/server-config.js`) accepts a caller who is *not* the tenant owner in exactly one
-case: they are on the staff allow-list. That branch exists so support can re-index a
-customer's page for them from the staff console (`apps/internal-admin`'s
-`api/staff/knowledge/reindex.js` forwards the staff member's own token to
-`/api/crawler/scan`) rather than asking for the customer's credentials or talking them
-through it. It is narrow by construction: membership is checked through
-`public.is_staff_admin()`, whose table PostgREST cannot route to; the check fails closed
-if it cannot answer; and the handler receives an `actingAsStaff` flag so the action is
-recorded in `internal.staff_audit`. The alternative designs were worse: minting a session
-as the customer (account takeover with extra steps) or adding a staff branch to every RLS
-policy on every table (a much wider surface, wrong once = cross-tenant leakage).
-
 **Fixed in this pass — plan limits were a UI suggestion, not a boundary.** Sites are inserted
 client-side through RLS (`App.jsx`'s `handleAddSite`), and the only thing standing between a
 tenant and unlimited sites was a JavaScript check in `Dashboard.jsx` that disagreed with both
@@ -185,14 +172,10 @@ live-mode switch, `preview-proxy`'s SSRF exposure, the legal-entity/ToS/Privacy-
 placeholders in `LegalPages.jsx`), an enterprise procurement/security review typically
 also asks for:
 
-- **Audit logging — now partly closed.** Staff actions taken inside a customer account
-  (plan overrides, site and tenant deletions, and the bot edits described below) are
-  recorded in `internal.staff_audit` with the actor, a before/after diff, and a reason —
-  see `supabase/migrations/20260912020000_staff_audit_log.sql`, written only through the
-  service-role-only `public.record_staff_action()` bridge, in the same PostgREST-unreachable
-  schema as `staff_admins`. Still missing: any record of tenant-side actions (what a
-  customer's own users did), access logging (who *read* what), and log shipping/retention
-  beyond the database itself.
+- **Audit logging.** Nothing beyond `console.log` today — no record of who changed a
+  tenant's plan, deleted a site, or accessed what, and no durable log storage. Matters
+  most once staff (via `apps/internal-admin`) or more than one person per tenant have
+  access to sensitive actions.
 - **Data retention & deletion policy, written down.** `delete_site_cascade` does a real
   cascade delete technically, but there's no documented answer to "how long do we keep a
   cancelled tenant's data" or "what's the process when a customer asks for full deletion

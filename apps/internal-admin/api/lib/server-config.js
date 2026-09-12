@@ -72,31 +72,3 @@ export async function requireStaff(req) {
 
   return { user, supabase };
 }
-
-/**
- * Record a staff action in internal.staff_audit (see
- * supabase/migrations/20260912020000_staff_audit_log.sql).
- *
- * Deliberately swallows its own failure: an audit write that throws must not
- * turn a support action that already succeeded into a 500 the staff member
- * retries, producing the change twice. A failed write is logged loudly
- * instead — the console line is exactly the record this table replaces, so
- * the information is never lost, only demoted.
- */
-export async function recordStaffAction(supabase, { actor, tenantId = null, siteId = null, action, details = {}, reason = null }) {
-  console.log(`[staff-audit] ${actor?.email} ${action}`, { tenantId, siteId, details, reason });
-  try {
-    const { error } = await supabase.rpc('record_staff_action', {
-      p_actor_email: actor?.email || 'unknown',
-      p_action: action,
-      p_actor_id: actor?.id || null,
-      p_tenant_id: tenantId,
-      p_site_id: siteId,
-      p_details: details,
-      p_reason: reason,
-    });
-    if (error) throw error;
-  } catch (err) {
-    console.error('[staff-audit] could not persist the entry above:', err.message);
-  }
-}

@@ -50,12 +50,8 @@ async function enforceAuth(endpoint, req, payload) {
   switch (endpoint.auth) {
     case 'tenant': {
       const tenantId = tenantIdFrom(payload);
-      // `actingAsStaff` flows through to the handler: a staff member may act
-      // for a tenant they do not own (see requireTenantOwnership), and a
-      // route that cares — anything worth recording in internal.staff_audit —
-      // can only know from here.
-      const { user, supabase, actingAsStaff } = await requireTenantOwnership(req, tenantId);
-      return { user, supabase, tenantId, actingAsStaff };
+      const { user, supabase } = await requireTenantOwnership(req, tenantId);
+      return { user, supabase, tenantId };
     }
     case 'user': {
       const { user, supabase } = await requireAuthentication(req);

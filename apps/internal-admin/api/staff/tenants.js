@@ -23,21 +23,7 @@
 // requireStaff() is the entire security model here — see
 // api/lib/server-config.js for why that's safe even with a service-role
 // client.
-import { requireStaff, recordStaffAction } from '../lib/server-config.js';
-
-/** Run a query whose table or function may not exist on this database yet.
- *  Returns `{ data, available }` instead of throwing, so one panel that is a
- *  migration behind cannot take the whole tenant page down with it. */
-async function softQuery(query) {
-  try {
-    const { data, error } = await query;
-    if (error) throw error;
-    return { data: data || [], available: true };
-  } catch (err) {
-    console.warn('[staff/tenants] optional panel unavailable:', err.message);
-    return { data: [], available: false };
-  }
-}
+import { requireStaff } from '../lib/server-config.js';
 
 const VALID_PLANS = ['free', 'basic', 'pro', 'premium'];
 const VALID_STATUSES = ['free', 'active', 'trialing', 'past_due', 'canceled'];
@@ -76,13 +62,7 @@ export default async function handler(req, res) {
       const { error: deleteError } = await supabase.from('tenants').delete().eq('id', tenantId);
       if (deleteError) throw deleteError;
 
-      await recordStaffAction(supabase, {
-        actor: user,
-        tenantId,
-        action: 'tenant.deleted',
-        details: { name: tenant.name },
-        reason: typeof req.query?.reason === 'string' ? req.query.reason.trim().slice(0, 500) || null : null,
-      });
+      console.log(`[staff/tenants] ${user.email} deleted tenant ${tenant.name} (${tenantId})`);
 
       return res.status(200).json({ tenant_id: tenant.id, name: tenant.name });
     } catch (err) {
@@ -114,14 +94,6 @@ export default async function handler(req, res) {
     }
 
     try {
-      // Read first so the audit entry can say what it changed from, not just
-      // what it changed to.
-      const { data: before } = await supabase
-        .from('tenants')
-        .select('plan, plan_status')
-        .eq('id', tenantId)
-        .maybeSingle();
-
       const { data, error } = await supabase
         .from('tenants')
         .update(patch)
@@ -131,15 +103,10 @@ export default async function handler(req, res) {
       if (error) throw error;
       if (!data) return res.status(404).json({ error: 'Tenant not found' });
 
-      await recordStaffAction(supabase, {
-        actor: user,
-        tenantId,
-        action: 'tenant.plan_overridden',
-        details: Object.fromEntries(
-          Object.entries(patch).map(([field, to]) => [field, { from: before?.[field] ?? null, to }])
-        ),
-        reason: typeof req.body?.reason === 'string' ? req.body.reason.trim().slice(0, 500) || null : null,
-      });
+      // Not a full audit log (see docs/INTEGRATION_REVIEW.md's gap list) — a
+      // console line is at least a durable-in-Vercel's-log-retention record
+      // of who overrode what, until real audit logging exists.
+      console.log(`[staff/tenants] ${user.email} set tenant ${tenantId} ->`, patch);
 
       return res.status(200).json({ tenant: data });
     } catch (err) {
@@ -163,11 +130,11 @@ export default async function handler(req, res) {
       if (tenantError) throw tenantError;
       if (!tenant) return res.status(404).json({ error: 'Tenant not found' });
 
-      const [{ data: sites, error: sitesError }, { data: usageCounters, error: usageCountersError }, { data: leadsCountRows, error: leadsError }, { data: scanJobs, error: scanJobsError }, { data: summaries, error: summariesError }, supportTickets, staffActions] =
+      const [{ data: sites, error: sitesError }, { data: usageCounters, error: usageCountersError }, { data: leadsCountRows, error: leadsError }, { data: scanJobs, error: scanJobsError }] =
         await Promise.all([
           supabase
             .from('sites')
-            .select('id, domain, public_key, bot_goal, bot_tone, theme_primary_color, support_email, calendar_link, enable_lead_capture, is_active, widget_last_seen_at, created_at')
+            .select('id, domain, public_key, enable_lead_capture, is_active, widget_last_seen_at, created_at')
             .eq('tenant_id', tenantId)
             .order('created_at', { ascending: false }),
           supabase
@@ -183,47 +150,19 @@ export default async function handler(req, res) {
             .eq('tenant_id', tenantId)
             .order('created_at', { ascending: false })
             .limit(20),
-          // The assistant's own words, per site: what it greets visitors
-          // with and the summary it answers from. Staff edit these through
-          // api/staff/sites.js (PATCH), so the console has to be able to
-          // show what is there now.
-          supabase
-            .from('site_summaries')
-            .select('site_id, summary, welcome_message, ui_status_title, ui_status_online, ui_input_placeholder, language, updated_at')
-            .eq('tenant_id', tenantId),
-          // Both of these are best-effort: a console that 500s because one
-          // optional panel's table or function isn't there yet is worse than
-          // one that renders without that panel. support_tickets arrived in
-          // 20260909040000 and list_staff_actions in 20260912020000 — a
-          // deployment that is mid-migration still gets a working page.
-          softQuery(
-            supabase
-              .from('support_tickets')
-              .select('id, site_id, name, email, message, delivered, delivery_error, created_at')
-              .eq('tenant_id', tenantId)
-              .order('created_at', { ascending: false })
-              .limit(25)
-          ),
-          softQuery(supabase.rpc('list_staff_actions', { p_tenant_id: tenantId, p_limit: 25 })),
         ]);
 
       if (sitesError) throw sitesError;
       if (usageCountersError) throw usageCountersError;
       if (leadsError) throw leadsError;
       if (scanJobsError) throw scanJobsError;
-      if (summariesError) throw summariesError;
 
       return res.status(200).json({
         tenant,
         sites: sites || [],
-        site_summaries: summaries || [],
         usage_counters: usageCounters || [],
         leads_count: (leadsCountRows || []).length,
         scan_jobs: scanJobs || [],
-        support_tickets: supportTickets.data || [],
-        support_tickets_available: supportTickets.available,
-        staff_actions: staffActions.data || [],
-        staff_actions_available: staffActions.available,
       });
     } catch (err) {
       console.error('[staff/tenants] detail error:', err);
