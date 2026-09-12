@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { X, Code, AlertTriangle, Sparkles, Check, Copy, RefreshCw, ChevronDown } from 'lucide-react';
+import { X, Code, AlertTriangle, Sparkles, Check, Copy, RefreshCw, ChevronDown, Power } from 'lucide-react';
 import { getMaxPagesForPlan, getPlanDisplayName } from '../../lib/plan-limits';
 import { supabase } from '../../../../lib/supabase';
 import { useT } from '../../../../i18n/LanguageContext';
@@ -72,7 +72,13 @@ export default function IntegrationModal({
   onCopy,
   onClose,
   onManagePages,
-  onShowPricing
+  onShowPricing,
+  // Whether the assistant may actually appear once this snippet is in place
+  // (plan-limits.js's isAssistantActive — the same predicate the widget is
+  // served under). The code is handed over either way; what an inactive
+  // workspace must not do is paste it and then wonder why nothing shows up.
+  isPlanActive = true,
+  onActivate
 }) {
   // Real signal, not a self-report: the widget itself calls api/chat/init on
   // load from the visitor's browser, and that route stamps
@@ -145,6 +151,41 @@ export default function IntegrationModal({
         <p className="text-sm text-gray-500 mb-6">
           {t('Copy this code snippet and paste it right before the closing')} <code className="text-brand-300 font-mono text-xs bg-dark-800 px-1 py-0.5 rounded">&lt;/body&gt;</code> {t('tag on any pages where you want the assistant to appear.')}
         </p>
+
+        {/* NOT ACTIVE YET — the snippet works, the assistant stays hidden.
+            Shown above the code rather than after it: someone about to paste
+            this into their website should know what it will (not) do before
+            they go do it, not after. */}
+        {!isPlanActive && (
+          <div className="mb-6 bg-brand-500/10 border border-brand-500/30 rounded-2xl p-4 text-left space-y-3 animate-in fade-in">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-xl bg-brand-500/20 text-brand-700 shrink-0 mt-0.5">
+                <Power className="w-5 h-5" />
+              </div>
+              <div className="flex-1 text-xs">
+                <h4 className="font-bold text-dark-900 text-sm mb-1">
+                  {t('Paste it now — activate when you are ready')}
+                </h4>
+                <p className="text-gray-600 leading-relaxed">
+                  {t('This code is yours to install right away. Your assistant stays invisible to your visitors until your workspace has an active plan — nothing else to change once it does.')}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-brand-500/20">
+              <button
+                onClick={() => {
+                  onClose();
+                  if (onActivate) onActivate();
+                  else if (onShowPricing) onShowPricing();
+                }}
+                className="w-full sm:w-auto px-5 py-2 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-brand-700 to-brand-500 hover:from-brand-600 hover:to-brand-400 shadow-md transition-all flex items-center justify-center gap-1.5"
+              >
+                <Sparkles className="w-3.5 h-3.5" /> {t('Activate my assistant →')}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* PLAN LIMIT WARNING BANNER */}
         {isOverPlanLimit && (

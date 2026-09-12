@@ -234,14 +234,25 @@ import { parseMarkdown } from "./markdown.js";
   // must never be hidden just because other visitors used up the plan's
   // quota (see api/chat/init.js's conversation_quota_reached check).
   if (chatManager.sessionId) initParams.set("session_id", chatManager.sessionId);
-  fetch(`${initEndpoint}?${initParams.toString()}`)
+  // In the dashboard's live preview the owner is testing their own assistant,
+  // which stays free — the token proves that to api/chat/init.js, which then
+  // serves the real labels instead of the "inactive" state a visitor would
+  // get. On a customer's real website there is no token and nothing changes.
+  const initHeaders = previewAuthToken ? { Authorization: `Bearer ${previewAuthToken}` } : undefined;
+  fetch(`${initEndpoint}?${initParams.toString()}`, { headers: initHeaders })
     .then((res) => (res.ok ? res.json() : null))
     .then((data) => {
       if (!data) return;
-      // The plan's monthly conversation quota is spent and this visitor has
-      // no conversation already underway: hide the widget entirely rather
-      // than show a launcher that can only fail to open a new conversation.
-      if (data.conversation_limit_reached) {
+      // The assistant can't actually answer right now — no active plan, a
+      // lapsed trial, a site the workspace's plan no longer covers, or a
+      // monthly conversation quota this visitor has no slot left in. Hide the
+      // widget entirely rather than show a launcher that opens onto an
+      // apology: what a plan buys is the assistant APPEARING on the site, and
+      // the owner's own dashboard is where the reason belongs, not their
+      // visitors' screens. `widget_hidden` is the single flag (api/chat/init.js);
+      // the older per-reason booleans are still read so a cached bundle from
+      // before this change keeps behaving.
+      if (data.widget_hidden || data.conversation_limit_reached || data.trial_ended || data.site_inactive) {
         host.style.display = "none";
         return;
       }

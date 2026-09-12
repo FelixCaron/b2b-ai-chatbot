@@ -4,7 +4,7 @@ import PlanBadge from '../PlanBadge';
 import LogoMark from '../LogoMark';
 import { navItemsWithBadges } from './navigation';
 import api from '../../lib/api';
-import { hasActivePlan as checkHasActivePlan } from '../../features/dashboard/lib/plan-limits';
+import { isAssistantActive } from '../../features/dashboard/lib/plan-limits';
 import { useT } from '../../i18n/LanguageContext';
 
 /**
@@ -36,8 +36,8 @@ export default function AppHeader({
   const plan = selectedTenant?.plan || 'free';
   const planStatus = selectedTenant?.plan_status || 'free';
   // Trialing counts as active — same definition used everywhere else this
-  // question is asked (see plan-limits.js's hasActivePlan for why).
-  const hasActivePlan = plan !== 'free' && checkHasActivePlan(selectedTenant);
+  // question is asked (see plan-limits.js's isAssistantActive for why).
+  const hasActivePlan = plan !== 'free' && isAssistantActive(selectedTenant);
   // "Manage" opens the Stripe billing portal, which only exists once there is
   // a real Stripe subscription. A self-serve trial is active but has none, so
   // it must see "Upgrade / Plans" (→ checkout), not a portal button that would

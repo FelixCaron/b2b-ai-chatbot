@@ -7,8 +7,8 @@ import { useT } from '../i18n/LanguageContext';
  *
  * The tenant's plan used to be updated only by the Stripe webhook, arriving
  * whenever it arrived — so this page congratulated someone whose account still
- * said 'free', and the dashboard it hands them to went on refusing to give them
- * their install code until the webhook landed (or forever, if it never did).
+ * said 'free', and their assistant went on sitting dark on their website until
+ * the webhook landed (or forever, if it never did).
  * The first thing it does now is reconcile the account against Stripe itself,
  * which is true the moment checkout completes and does not depend on a delivery
  * we don't control.

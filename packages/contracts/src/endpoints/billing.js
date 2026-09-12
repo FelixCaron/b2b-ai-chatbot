@@ -14,9 +14,10 @@ import { f, optional } from '../schema.js';
  * the Stripe webhook, which made a delivery that never arrives (wrong endpoint
  * secret, test-vs-live mode, a handler that 500s, a subscription created by
  * hand in the Stripe dashboard with no tenant metadata) indistinguishable from
- * "this customer never paid" — and the dashboard then locks a paying customer
- * out of their own install code. Stripe is the source of truth; anything that
- * gates on a plan can now go and read it instead of waiting to be told.
+ * "this customer never paid" — which takes a paying customer's assistant off
+ * their website (resolveTenantPlan's widgetActive) and tells them in their own
+ * dashboard that they have no plan. Stripe is the source of truth; anything
+ * that gates on a plan can now go and read it instead of waiting to be told.
  *
  * Both actions live on this one route on purpose: bracket-segment routes do not
  * build in this project and a new file under /api counts against the Vercel

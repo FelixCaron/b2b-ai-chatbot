@@ -1,14 +1,16 @@
 import React from 'react';
-import { Lock, Sparkles, X } from 'lucide-react';
+import { Power, Sparkles, X } from 'lucide-react';
 import { useT } from '../../../../i18n/LanguageContext';
 
-/** 11. SUBSCRIPTION REQUIRED — INSTALL GATE
-    Installing puts the assistant on a real, live website — that's the one
-    action that actually requires a paid, active plan (everything else about
-    building and testing the assistant stays open, guest included). Same
-    upgrade-first shape as UpgradeRequiredModal: subscribing is the lead
-    action, going back is just a way out. */
-export default function SubscriptionRequiredModal({
+/** 11. ACTIVATION REQUIRED — THE PRODUCT'S ONE PAYWALL
+    Building an assistant, testing it, and taking its install code are all
+    free — this modal is not in the way of any of that. What a plan buys is
+    the assistant APPEARING on a real website for real visitors: without one
+    the snippet sits on the page and the widget renders nothing at all (see
+    resolveTenantPlan's widgetActive in contracts, enforced by api/chat/init.js
+    and api/chat/index.js). Same upgrade-first shape as UpgradeRequiredModal:
+    activating is the lead action, going back is just a way out. */
+export default function ActivationRequiredModal({
   show,
   activeSiteDomain,
   onShowPricing,
@@ -28,14 +30,14 @@ export default function SubscriptionRequiredModal({
         </button>
 
         <div className="w-14 h-14 rounded-2xl bg-brand-500/10 text-brand-700 border border-brand-500/20 flex items-center justify-center mx-auto mb-4">
-          <Lock className="w-7 h-7" />
+          <Power className="w-7 h-7" />
         </div>
 
         <h3 className="text-xl font-bold text-dark-900 mb-2">
-          {t('Subscribe to install {domain}', { domain: activeSiteDomain || t('your assistant') })}
+          {t('Activate your assistant on {domain}', { domain: activeSiteDomain || t('your website') })}
         </h3>
         <p className="text-sm text-gray-500 mb-6 leading-relaxed">
-          {t('You can build and test your assistant for free, but putting it live on your website needs an active plan. Choose a plan to get your install code.')}
+          {t('Building, testing and installing your assistant are free. An active plan is what makes it actually appear for your visitors — until then, the code you pasted stays invisible on your website.')}
         </p>
 
         <div className="flex flex-col gap-3">

@@ -1,14 +1,13 @@
 // Thin client-side wrapper around the plan config in @b2b-ai-chatbot/contracts
 // (the single source of truth — see packages/contracts/src/plans.js for why).
-// This file exists so call sites don't each import from contracts directly,
-// and so `hasActivePlan` (a UI-only concept, not part of the plan config)
-// still has a home.
+// This file exists so call sites don't each import from contracts directly.
 import {
   getMaxSitesForPlan as sharedGetMaxSitesForPlan,
   getMaxPagesForPlan as sharedGetMaxPagesForPlan,
   getMaxConversationsForPlan as sharedGetMaxConversationsForPlan,
   getPlanDisplayName as sharedGetPlanDisplayName,
   getNextPlan,
+  isWidgetActive,
 } from '@b2b-ai-chatbot/contracts';
 
 export function getMaxSitesForPlan(plan) {
@@ -32,29 +31,18 @@ export function getPlanDisplayName(plan) {
   return sharedGetPlanDisplayName(plan);
 }
 
-/** Whether a tenant has an actually-paid-for, currently-active (or trialing)
- *  subscription — the one gate that matters for anything that touches a
- *  real, live website (installing the widget chief among them). A tenant's
- *  `plan` column is always basic/pro/premium regardless of billing state;
- *  what decides "active" is Stripe's own status on `plan_status`. Trialing
- *  counts as active: a 14-day trial that can't actually use the product
- *  isn't a trial. Shared here so every place that needs this answer (the
- *  header's "Manage Subscription" vs. "Upgrade" switch, the Install gate)
- *  agrees on the same definition.
+/** Whether this tenant's assistant is actually live on its website — the one
+ *  thing a plan buys.
  *
- *  Trialing counts as active only while the trial is live: a self-serve
- *  Business trial (plan_status 'trialing' with no Stripe subscription) expires
- *  at `trial_ends_at`, after which the account is unpaid and the widget stops
- *  serving (resolveTenantPlan in contracts). A Stripe-managed trial always carries a
- *  stripe_subscription_id and stays active until Stripe itself moves it. */
-export function hasActivePlan(tenant) {
-  if (tenant?.plan_status === 'active') return true;
-  if (tenant?.plan_status === 'trialing') {
-    if (tenant?.stripe_subscription_id) return true;
-    const endsAt = tenant?.trial_ends_at ? new Date(tenant.trial_ends_at).getTime() : null;
-    return endsAt === null || Number.isNaN(endsAt) || endsAt > Date.now();
-  }
-  return false;
+ *  Building an assistant, testing it, and taking its install snippet are all
+ *  free; what an active plan pays for is the widget APPEARING for real
+ *  visitors. So this is not a dashboard-only notion: it re-exports the exact
+ *  predicate the widget's own init and the chat endpoint gate on
+ *  (`isWidgetActive` → `resolveTenantPlan().widgetActive` in contracts), so
+ *  the dashboard can never tell an owner they are live while the widget is
+ *  hiding itself, or the reverse. */
+export function isAssistantActive(tenant) {
+  return isWidgetActive(tenant);
 }
 
 /** Live self-serve-trial state for a tenant, mirroring the server's

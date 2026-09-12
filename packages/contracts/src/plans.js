@@ -149,7 +149,25 @@ export function getNextPlan(planId) {
 // trial_ends_at passes it is unpaid — the widget stops serving until the owner
 // subscribes. A Stripe-managed subscription always carries a subscription id
 // and is governed by the billing webhook, so this never touches it.
+//
+// The same function answers the question the whole product is actually gated
+// on: IS THIS TENANT'S ASSISTANT ALLOWED TO APPEAR ON ITS WEBSITE? Building an
+// assistant, testing it, and taking its install snippet are all free — what a
+// plan buys is the widget showing up for real visitors. That answer has to be
+// identical in three places (the widget's own init, the chat endpoint, and the
+// dashboard that tells the owner whether they are live), which is why it is
+// computed once here rather than re-derived from plan_status at each site.
 // ---------------------------------------------------------------------------
+
+/** Billing statuses under which the assistant keeps serving.
+ *
+ *  'past_due' is deliberately included: Stripe is still retrying the card and
+ *  the customer has not left. Taking a live assistant off someone's website
+ *  the hour a renewal charge bounces costs them visitors over something a
+ *  retry usually fixes by itself — the dashboard warns them instead, and
+ *  Stripe moves the subscription to 'canceled'/'unpaid' when it really gives
+ *  up, which does stop the widget. */
+const SERVING_STATUSES = new Set(['active', 'past_due']);
 
 /**
  * Resolve a tenant's live plan state from its billing columns.
@@ -158,7 +176,12 @@ export function getNextPlan(planId) {
  *   `trial_ends_at`, `stripe_subscription_id`; any may be missing on a partial
  *   read and is treated conservatively.
  * @returns {{ effectivePlan: string, trialActive: boolean,
- *   trialExpiredUnpaid: boolean, trialDaysLeft: number|null }}
+ *   trialExpiredUnpaid: boolean, trialDaysLeft: number|null,
+ *   widgetActive: boolean, inactiveReason: 'trial_ended'|'no_plan'|null }}
+ *   `widgetActive` is the gate: whether the assistant may appear on the
+ *   tenant's website at all. `inactiveReason` says why it may not, so the
+ *   widget, the chat endpoint and the dashboard can each phrase it their own
+ *   way without inventing their own rule.
  */
 export function resolveTenantPlan(tenant) {
   const plan = tenant?.plan || DEFAULT_PLAN_ID;
@@ -178,5 +201,27 @@ export function resolveTenantPlan(tenant) {
       ? Math.max(0, Math.ceil((trialEndsAt - now) / 86400000))
       : null;
 
-  return { effectivePlan, trialActive, trialExpiredUnpaid, trialDaysLeft };
+  // A Stripe-managed trial (status 'trialing' WITH a subscription) is a real
+  // subscription Stripe will move to 'active' itself; a self-serve trial is
+  // live until its end date. Everything else — 'free', 'canceled', 'unpaid',
+  // an incomplete checkout — means nobody is paying and the assistant stays
+  // off the customer's website.
+  const widgetActive = trialActive || (status === 'trialing' && hasStripeSub) || SERVING_STATUSES.has(status);
+  const inactiveReason = widgetActive ? null : trialExpiredUnpaid ? 'trial_ended' : 'no_plan';
+
+  return {
+    effectivePlan,
+    trialActive,
+    trialExpiredUnpaid,
+    trialDaysLeft,
+    widgetActive,
+    inactiveReason
+  };
+}
+
+/** Whether this tenant's assistant may appear on its website right now.
+ *  The one gate, shared by the widget's init, the chat endpoint, and the
+ *  dashboard — see resolveTenantPlan above. */
+export function isWidgetActive(tenant) {
+  return resolveTenantPlan(tenant).widgetActive;
 }

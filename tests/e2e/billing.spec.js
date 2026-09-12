@@ -47,20 +47,21 @@ test.describe('Billing — Manage Subscription (authenticated)', () => {
   });
 });
 
-// The bug this covers, as the customer experienced it: they subscribe to
-// Business, and every time they click "Install" the app sends them to the
-// pricing page to buy the plan they already pay for.
+// What a plan buys is the assistant APPEARING on the website — not the install
+// code, which is free to take and paste at any time. Two things follow, and
+// both used to be the other way round:
 //
-// The tenant row is what the gate reads, and the row is written by the Stripe
-// webhook — so a webhook that never lands (wrong endpoint secret, test-vs-live
-// mode, a handler that 500s, a subscription created by hand in the Stripe
-// dashboard) is indistinguishable from "never paid". The gate no longer takes
-// that row's word for it: before refusing, it reconciles with Stripe, which is
-// the only place the truth actually lives.
-test.describe('Dashboard — the install gate reconciles before it refuses', () => {
+//  1. "Install" never refuses. It hands over the snippet and, when the
+//     workspace is inactive, says plainly that the assistant stays invisible
+//     until it is activated.
+//  2. Before the dashboard tells an owner they are inactive, it reconciles
+//     with Stripe — the tenant row is written by a webhook, and a webhook that
+//     never lands looks exactly like "never paid" (the bug a Business customer
+//     hit: every click on Install sent them to the pricing page).
+test.describe('Dashboard — the paywall is activation, not installation', () => {
   const EXPIRED_TRIAL_ROW = {
-    // What the row looks like when the purchase never made it home: still on
-    // the self-serve trial it was created with, and that trial has now lapsed.
+    // What the row looks like when a purchase never made it home: still on the
+    // self-serve trial the workspace was created with, and that trial lapsed.
     plan: 'pro',
     plan_status: 'trialing',
     stripe_subscription_id: null,
@@ -77,22 +78,22 @@ test.describe('Dashboard — the install gate reconciles before it refuses', () 
       },
     });
 
-    test('Install opens the install code, not the pricing wall', async ({ page, mock }) => {
+    test('the stale row is corrected from Stripe, and nothing asks them to activate', async ({ page, mock }) => {
       await page.goto('/');
-      await page.getByRole('button', { name: /^Install$/i }).first().click();
 
       // It asked Stripe rather than trusting the stale row...
       await expect
         .poll(() => mock.state.calls.some((c) => c.path === 'billing/checkout' && c.body?.action === 'sync'))
         .toBe(true);
+      // ...and wrote the answer back, so the rest of the dashboard agrees too.
+      await expect.poll(() => mock.db.tenants[0].plan_status).toBe('active');
 
-      // ...and the paying customer gets what they paid for.
+      // A paying customer is never told their assistant is dark.
+      await expect(page.getByRole('button', { name: /Activate on my website/i })).toHaveCount(0);
+
+      await page.getByRole('button', { name: /^Install$/i }).first().click();
       await expect(page.getByRole('heading', { name: /Add your assistant to your website/i })).toBeVisible();
-      await expect(page.getByRole('heading', { name: /Subscribe to install/i })).toHaveCount(0);
-      // The corrected state is written back, so the rest of the dashboard
-      // (and the next click) stops disagreeing with Stripe too.
-      expect(mock.db.tenants[0].plan_status).toBe('active');
-      expect(mock.db.tenants[0].stripe_subscription_id).toBe('sub_test');
+      await expect(page.getByText(/Paste it now/i)).toHaveCount(0);
     });
   });
 
@@ -102,14 +103,28 @@ test.describe('Dashboard — the install gate reconciles before it refuses', () 
       mockOverrides: { tenantPatch: EXPIRED_TRIAL_ROW, stripeSubscription: null },
     });
 
-    test('Install still asks them to subscribe', async ({ page, mock }) => {
+    test('the install code is still handed over, with the activation truth attached', async ({ page, mock, context }) => {
+      await context.grantPermissions(['clipboard-read', 'clipboard-write']).catch(() => {});
       await page.goto('/');
-      await page.getByRole('button', { name: /^Install$/i }).first().click();
 
       await expect
         .poll(() => mock.state.calls.some((c) => c.path === 'billing/checkout' && c.body?.action === 'sync'))
         .toBe(true);
-      await expect(page.getByRole('heading', { name: /Subscribe to install/i })).toBeVisible();
+
+      // The install modal opens for an inactive workspace — no wall in front
+      // of it — and carries the real snippet.
+      await page.getByRole('button', { name: /^Install$/i }).first().click();
+      await expect(page.getByRole('heading', { name: /Add your assistant to your website/i })).toBeVisible();
+      await expect(page.locator('pre')).toContainText(mock.db.sites[0].public_key);
+      // ...and says what pasting it will (not) do yet.
+      await expect(page.getByText(/Paste it now/i)).toBeVisible();
+      await expect(page.getByRole('button', { name: /Activate my assistant/i })).toBeVisible();
+
+      // The dashboard itself is honest about the state, and offers the way out.
+      await page.getByRole('button', { name: /^Close$|^Done$/i }).first().click();
+      await expect(page.getByText(/does not appear on your website yet/i)).toBeVisible();
+      await page.getByRole('button', { name: /Activate on my website/i }).click();
+      await expect(page.getByRole('heading', { name: /Activate your assistant on/i })).toBeVisible();
     });
   });
 });

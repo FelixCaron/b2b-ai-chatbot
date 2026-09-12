@@ -34,6 +34,39 @@ export const config = {
   runtime: 'edge',
 };
 
+/**
+ * Whether this call is the owner testing their own assistant from the
+ * dashboard (LivePreviewModal → public/preview.html, which hands the widget
+ * the owner's bearer token as data-auth-token). Building and testing an
+ * assistant are free, so the plan gate below must not apply to them — but the
+ * claim has to be proven, not taken from a query param: an unverified "this is
+ * a preview" flag would be a way for anyone to un-hide a widget we are meant
+ * to be holding back. Same proof api/chat/index.js requires for a preview
+ * conversation.
+ */
+async function isOwnerPreview(req, tenantId) {
+  const authorization = typeof req.headers?.get === 'function'
+    ? req.headers.get('authorization')
+    : req.headers?.authorization;
+  const token = authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
+  if (!token) return false;
+
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    if (!user || error) return false;
+    const { data: ownerTenant } = await supabase
+      .from('tenants')
+      .select('id')
+      .eq('id', tenantId)
+      .eq('owner_user_id', user.id)
+      .maybeSingle();
+    return Boolean(ownerTenant);
+  } catch (e) {
+    console.warn('[chat/init] preview auth warning:', e.message);
+    return false;
+  }
+}
+
 // `validate: false` on purpose: the contract requires a tenant_public_key, but
 // this route must never answer a widget with a 400. A missing or malformed key
 // is just "show the English defaults", so the query payload arrives unvalidated
@@ -96,42 +129,53 @@ export default edgeRoute(contracts.chat.init, async (req, { data, json }) => {
     // on Pro/Premium — driven by the tenant's live plan, not the embed
     // snippet, so a plan change takes effect without re-pasting anything.
     const tenantRow = Array.isArray(site.tenants) ? site.tenants[0] : site.tenants;
-    const { effectivePlan, trialExpiredUnpaid } = resolveTenantPlan(tenantRow);
+    const { effectivePlan, widgetActive, inactiveReason } = resolveTenantPlan(tenantRow);
     const hideBranding = effectivePlan === 'pro' || effectivePlan === 'premium';
 
-    // Parked by a plan downgrade: the widget must not open as if it were ready
-    // to answer, and the reason has to be legible to the tenant looking at
-    // their own site. Still a 200 with the full label shape — the widget reads
-    // these keys unconditionally — but flagged, and the chat endpoint refuses
-    // the conversation itself (api/chat/index.js).
+    // The paywall of this product is right here: building an assistant,
+    // testing it and pasting its snippet are free — what a plan buys is the
+    // widget actually appearing for a website's visitors. So every "can't
+    // serve" state answers the same way: a 200 (the widget reads these keys
+    // unconditionally) carrying widget_hidden, and the widget renders nothing
+    // at all rather than a launcher that opens onto an apology. A visitor
+    // should never be shown our billing state; the owner learns about it in
+    // their own dashboard, which reads the same resolveTenantPlan().
+    const paused = (code, extra) => json({
+      ...FALLBACK,
+      ...extra,
+      code,
+      widget_hidden: true,
+      ui_status_online: 'Unavailable',
+      theme_primary_color: site.theme_primary_color || null,
+      hide_branding: hideBranding,
+    });
+
+    // Parked by a plan downgrade: this site is beyond what the workspace's
+    // plan covers (the chat endpoint refuses the conversation with the same
+    // code).
     if (site.is_active === false) {
-      const message = 'This assistant is paused because the workspace plan no longer covers this website.';
-      return json({
-        ...FALLBACK,
+      return paused('site_inactive', {
         site_inactive: true,
-        code: 'site_inactive',
-        welcome_message: message,
-        ui_status_online: 'Paused',
-        theme_primary_color: site.theme_primary_color || null,
-        hide_branding: hideBranding,
+        welcome_message: 'This assistant is paused because the workspace plan no longer covers this website.',
       });
     }
 
-    // A self-serve Business trial that lapsed without converting: the widget
-    // must not open as if ready to answer (api/chat/index.js refuses the
-    // conversation with the same code). Same paused shape as a parked site,
-    // with its own code so the message can be about subscribing rather than
-    // about a plan downgrade.
-    if (trialExpiredUnpaid) {
-      const message = 'This assistant\'s free trial has ended. It will be back once a plan is chosen.';
-      return json({
-        ...FALLBACK,
-        trial_ended: true,
-        code: 'trial_ended',
-        welcome_message: message,
-        ui_status_online: 'Unavailable',
-        theme_primary_color: site.theme_primary_color || null,
-        hide_branding: hideBranding,
+    // No plan covering this workspace: a self-serve trial that lapsed without
+    // converting, or a subscription that was cancelled or never started. Two
+    // codes rather than one so the dashboard can say "your trial ended" or
+    // "choose a plan" without guessing.
+    // `await` only on the unhappy path: a live workspace never pays for this
+    // extra auth round-trip.
+    if (!widgetActive && !(await isOwnerPreview(req, site.tenant_id))) {
+      if (inactiveReason === 'trial_ended') {
+        return paused('trial_ended', {
+          trial_ended: true,
+          welcome_message: 'This assistant\'s free trial has ended. It will be back once a plan is chosen.',
+        });
+      }
+      return paused('plan_inactive', {
+        plan_inactive: true,
+        welcome_message: 'This assistant is inactive. It will be back once a plan is active.',
       });
     }
 
@@ -151,15 +195,9 @@ export default edgeRoute(contracts.chat.init, async (req, { data, json }) => {
         if (quotaError) {
           console.warn('[chat/init] conversation_quota_reached warning:', quotaError.message);
         } else if (quotaReached === true) {
-          const message = "This assistant has reached its plan's monthly conversation limit. It will be back once the plan renews or is upgraded.";
-          return json({
-            ...FALLBACK,
+          return paused('conversation_limit_reached', {
             conversation_limit_reached: true,
-            code: 'conversation_limit_reached',
-            welcome_message: message,
-            ui_status_online: 'Unavailable',
-            theme_primary_color: site.theme_primary_color || null,
-            hide_branding: hideBranding,
+            welcome_message: "This assistant has reached its plan's monthly conversation limit. It will be back once the plan renews or is upgraded.",
           });
         }
       } catch (e) {

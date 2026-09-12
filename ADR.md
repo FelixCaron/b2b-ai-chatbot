@@ -2342,3 +2342,27 @@ La porte d'installation (`Dashboard.jsx` → `hasActivePlan`) lit les colonnes d
 - Le webhook reste le chemin normal, mais il n'est plus le seul : un client qui paie obtient son code d'installation même si aucune livraison n'arrive jamais.
 - La vérification de `STRIPE_WEBHOOK_SECRET` en mode live (`TODO.md`) reste à faire — la différence est qu'elle n'est plus bloquante pour un client.
 - `npm test`, `npm run build` et la suite E2E Playwright (116 tests) passent.
+
+## ADR : Le péage est l'activation du widget, pas l'accès au code d'installation
+**Date:** 12 Septembre 2026
+**Statut:** Accepté
+
+### Contexte
+L'ADR précédent a réparé la porte d'installation ; cet ADR la déplace. Le produit faisait payer la mauvaise chose : le bouton « Installer » refusait de donner le code (`SubscriptionRequiredModal`) tant qu'aucun forfait n'était actif, alors que côté service, à peu près tout continuait de tourner.
+
+Ce découpage était faux dans les deux sens :
+- **Trop restrictif là où ça ne coûte rien.** Copier un extrait de script et le coller dans un site ne consomme aucune ressource et n'a aucune valeur en soi. Bloquer ce geste ajoute une friction juste avant le moment où le client est le plus motivé, et lui cache ce qu'il achète.
+- **Pas assez là où c'est le vrai produit.** Le widget ne cessait de servir que dans deux cas : site « parqué » par un downgrade, et essai self-serve expiré. Un abonnement **annulé** (`plan_status: 'canceled'`), un tenant sans forfait (`'free'`) : `resolveTenantPlan` ne les signalait pas, donc l'assistant continuait de répondre indéfiniment sur le site du client. On refusait un bout de texte à des clients payants et on servait gratuitement des comptes résiliés.
+
+### Décision
+- **Un seul prédicat, partagé** : `resolveTenantPlan().widgetActive` (+ `inactiveReason`) dans `packages/contracts/src/plans.js`. Il répond à la seule question qui compte — *l'assistant de ce tenant a-t-il le droit d'apparaître sur son site ?* — et il est lu aux trois endroits qui doivent être d'accord : `api/chat/init.js`, `api/chat/index.js`, et le dashboard (`plan-limits.js` n'expose plus que `isAssistantActive`, qui délègue). Impossible désormais que le dashboard dise « en ligne » pendant que le widget se cache.
+- **Servir = actif** : forfait `active`, essai Stripe, essai self-serve encore en cours, et `past_due` (Stripe relance encore la carte — couper l'assistant d'un site dès le premier échec de prélèvement coûte des visiteurs au client pour un incident qui se répare souvent seul ; `canceled`/`unpaid` coupent, eux).
+- **Le widget ne s'affiche pas du tout** quand il ne peut pas répondre (`widget_hidden`) : forfait inactif, essai terminé, site parqué, quota mensuel épuisé. Pas de bulle « votre essai est terminé » sur le site d'un client — ses visiteurs n'ont pas à voir notre état de facturation ; c'est son dashboard à lui qui le lui dit.
+- **La prévisualisation du propriétaire reste gratuite** : `api/chat/index.js` vérifiait déjà le jeton du propriétaire pour autoriser un aperçu hors domaine ; le contrôle de forfait passe donc *après* ce contrôle d'origine, et `api/chat/init.js` accepte le même jeton (`data-auth-token`, posé uniquement par `preview.html`). Créer, tester et installer restent gratuits — un drapeau `preview=1` non vérifié aurait été une porte dérobée, la preuve d'appartenance est exigée.
+- **Le dashboard dit la vérité et propose la sortie** : plus aucune porte devant « Installer » ; à la place, un badge « Pas actif sur votre site web », un bouton « Activer sur mon site web » (→ `ActivationRequiredModal`, ex-`SubscriptionRequiredModal`, reformulé), et une bannière dans la modale d'installation : *collez-le maintenant, il restera invisible tant que l'espace de travail n'a pas de forfait actif*.
+- **Couverture** : `scripts/tests/test-billing-mapping.js` fige le prédicat (payé / essai vivant / essai expiré / `past_due` / résilié / sans forfait) ; deux tests E2E vérifient que le code d'installation est bien remis à un espace inactif, avec la vérité d'activation attachée, et qu'un client dont Stripe dit qu'il paie n'est jamais invité à « activer ».
+
+### Conséquences
+- Ce qui est vendu est désormais ce que le client veut : l'assistant présent devant ses visiteurs. Le reste (construire, tester, installer) est gratuit et sans friction.
+- Un compte résilié cesse effectivement d'être servi — ce qui n'était pas le cas avant cet ADR.
+- `npm test`, `npm run build` et les 116 tests E2E Playwright passent.

@@ -9,7 +9,11 @@ export default function GuidedRoadmap({
   isGuest,
   onRequireLogin,
   onOpenPreview,
-  onOpenIntegration
+  onOpenIntegration,
+  // Pasting the snippet is the whole of step 3 only while the workspace can
+  // actually serve the widget; otherwise "and you're live" would be a promise
+  // the product doesn't keep (see plan-limits.js's isAssistantActive).
+  isPlanActive = true
 }) {
   const { t } = useT();
   // The step-1 card used to render `loadedPagesCount || 1`, so a site with
@@ -75,7 +79,11 @@ export default function GuidedRoadmap({
           <div className="text-xs font-bold text-dark-900 flex items-center gap-1.5 group-hover:text-brand-700">
             {t('Install on your website')} <Code className="w-3.5 h-3.5 text-brand-600" />
           </div>
-          <div className="text-[11px] text-gray-500">{t("One line to paste, and you're live")}</div>
+          <div className="text-[11px] text-gray-500">
+            {isPlanActive
+              ? t("One line to paste, and you're live")
+              : t('One line to paste — then activate it to go live')}
+          </div>
         </div>
       </div>
     </div>

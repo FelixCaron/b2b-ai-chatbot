@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Sparkles, X } from 'lucide-react';
 import { useT } from '../../i18n/LanguageContext';
-import { getMaxSitesForPlan, getMaxConversationsForPlan, hasActivePlan, getTrialInfo } from './lib/plan-limits';
+import { getMaxSitesForPlan, getMaxConversationsForPlan, isAssistantActive, getTrialInfo } from './lib/plan-limits';
 import { domainFromUrl, hasProtocol } from './lib/page-url';
 import { executeTurnstileCaptcha } from './lib/turnstile';
 import { fetchBrandTheme } from './lib/brand-theme';
@@ -28,7 +28,7 @@ import ResetSiteModal from './components/modals/ResetSiteModal';
 import PageSelectionModal from './components/modals/PageSelectionModal';
 import UpgradeRequiredModal from './components/modals/UpgradeRequiredModal';
 import OverLimitModal from './components/modals/OverLimitModal';
-import SubscriptionRequiredModal from './components/modals/SubscriptionRequiredModal';
+import ActivationRequiredModal from './components/modals/ActivationRequiredModal';
 
 export default function Dashboard({
   selectedTenant,
@@ -71,10 +71,7 @@ export default function Dashboard({
   // View state shared by several sections
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
   const [showIntegrationModal, setShowIntegrationModal] = useState(false);
-  const [showSubscriptionRequiredModal, setShowSubscriptionRequiredModal] = useState(false);
-  // The install gate re-checks the plan with the server before it refuses —
-  // this keeps the button from firing that check twice on a double click.
-  const [isCheckingPlan, setIsCheckingPlan] = useState(false);
+  const [showActivationRequiredModal, setShowActivationRequiredModal] = useState(false);
   const [showResetSiteModal, setShowResetSiteModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedScriptKey, setCopiedScriptKey] = useState(null);
@@ -216,34 +213,34 @@ export default function Dashboard({
 
   const themeColor = activeSite?.theme_primary_color || '#293f68';
 
-  // Installing puts the assistant on a real, live website — the one action
-  // that actually requires a paid, active plan. Building and testing it
-  // stays open to everyone (guest included), so this gate sits only here,
-  // not behind the rest of the dashboard.
-  //
-  // A "no" here is the most expensive answer in the product: it tells someone
-  // who may well be paying that they have to go buy the thing again. So it is
-  // never given on the in-memory row alone — that copy is loaded once per
-  // tenant switch and goes stale the moment billing changes anywhere else (the
-  // Stripe webhook landing seconds after checkout, a plan bought in another
-  // tab, a subscription set up by hand in Stripe). Re-read the row, and if it
-  // still says no, ask Stripe itself (onSyncBilling) before locking the door.
-  const openIntegrationModal = async () => {
-    if (hasActivePlan(selectedTenant)) {
-      setShowIntegrationModal(true);
-      return;
-    }
+  // Telling an owner their assistant is dark is the most expensive thing this
+  // dashboard says, and the tenant row it reads is loaded once per tenant
+  // switch — stale the moment billing changes anywhere else (a Stripe webhook
+  // landing seconds after checkout, a plan bought in another tab, a
+  // subscription set up by hand in Stripe). So when the row says inactive,
+  // check with Stripe itself before believing it. Once per tenant: the ref
+  // keeps a re-render (or a sync that legitimately comes back inactive) from
+  // turning this into a loop.
+  const syncedTenantIdRef = useRef(null);
+  useEffect(() => {
+    const tenantId = selectedTenant?.id;
+    if (!tenantId || isGuest) return;
+    if (isAssistantActive(selectedTenant)) return;
+    if (syncedTenantIdRef.current === tenantId) return;
+    syncedTenantIdRef.current = tenantId;
+    onSyncBilling?.();
+  }, [selectedTenant?.id, selectedTenant?.plan_status, isGuest]);
 
-    if (isCheckingPlan) return;
-    setIsCheckingPlan(true);
-    try {
-      const tenant = (await onSyncBilling?.()) || selectedTenant;
-      if (hasActivePlan(tenant)) setShowIntegrationModal(true);
-      else setShowSubscriptionRequiredModal(true);
-    } finally {
-      setIsCheckingPlan(false);
-    }
-  };
+  // Nothing gates the install code: copying a snippet and pasting it into a
+  // website is free, and a snippet on a page does nothing by itself. The
+  // product's one paywall is whether the widget then APPEARS for visitors —
+  // enforced where it actually matters, on the serving side (api/chat/init.js
+  // and api/chat/index.js, both reading resolveTenantPlan().widgetActive). The
+  // dashboard's job is only to be honest about which of the two states the
+  // owner is in, and to offer the way out of the inactive one.
+  const openIntegrationModal = () => setShowIntegrationModal(true);
+  const openActivation = () => setShowActivationRequiredModal(true);
+  const planActive = isAssistantActive(selectedTenant);
   const openPreviewModal = () => preview.setShowPreviewModal(true);
   const openAdvancedSettings = () => {
     setShowAdvancedSettings(true);
@@ -304,7 +301,8 @@ export default function Dashboard({
             onRequireLogin={onRequireLogin}
             onOpenPreview={openPreviewModal}
             onOpenIntegration={openIntegrationModal}
-            isCheckingPlan={isCheckingPlan}
+            isPlanActive={planActive}
+            onActivate={openActivation}
             onOpenSettings={openAdvancedSettings}
           >
             {(trial.trialActive || trial.trialExpired) && (
@@ -371,6 +369,7 @@ export default function Dashboard({
                 onRequireLogin={onRequireLogin}
                 onOpenPreview={openPreviewModal}
                 onOpenIntegration={openIntegrationModal}
+                isPlanActive={planActive}
               />
             )}
           </SiteHeroCard>
@@ -464,13 +463,15 @@ export default function Dashboard({
           }, 200);
         }}
         onShowPricing={onShowPricing}
+        isPlanActive={planActive}
+        onActivate={openActivation}
       />
 
-      <SubscriptionRequiredModal
-        show={showSubscriptionRequiredModal}
+      <ActivationRequiredModal
+        show={showActivationRequiredModal}
         activeSiteDomain={activeSite?.domain}
         onShowPricing={onShowPricing}
-        onClose={() => setShowSubscriptionRequiredModal(false)}
+        onClose={() => setShowActivationRequiredModal(false)}
       />
 
       <EditPageModal

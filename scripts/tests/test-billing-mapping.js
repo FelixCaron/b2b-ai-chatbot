@@ -5,6 +5,7 @@
 // same symptom for the customer: they pay, their tenant row still reads
 // 'trialing'/'free', and the dashboard's install gate sends them back to the
 // pricing page they just bought on.
+import { resolveTenantPlan, isWidgetActive } from '../../packages/contracts/src/plans.js';
 import {
   planFromPriceId,
   pickLiveSubscription,
@@ -108,6 +109,49 @@ check('a cancellation clears the subscription, not just the status', () => {
   assert(columns.plan === 'basic', `plan was ${columns.plan}`);
   assert(columns.plan_status === 'canceled', `status was ${columns.plan_status}`);
   assert(columns.stripe_subscription_id === null, 'a dead subscription id was left on the row');
+});
+
+// ---------------------------------------------------------------------------
+// The product's one paywall: may this tenant's assistant APPEAR on its website?
+//
+// Building, testing and installing are free — this predicate is what the
+// widget's init (api/chat/init.js), the chat endpoint (api/chat/index.js) and
+// the dashboard all gate on, so they can never disagree about whether an owner
+// is live.
+// ---------------------------------------------------------------------------
+
+const inFuture = new Date(Date.now() + 5 * 86400000).toISOString();
+const inPast = new Date(Date.now() - 86400000).toISOString();
+
+check('a paid subscription serves', () => {
+  assert(isWidgetActive({ plan: 'pro', plan_status: 'active' }), 'an active plan was refused');
+  assert(
+    isWidgetActive({ plan: 'pro', plan_status: 'trialing', stripe_subscription_id: 'sub_1' }),
+    "a Stripe-managed trial is paid-for and must serve"
+  );
+});
+
+check('a live self-serve trial serves, a lapsed one does not', () => {
+  assert(isWidgetActive({ plan: 'pro', plan_status: 'trialing', trial_ends_at: inFuture }), 'a live trial was refused');
+  const lapsed = resolveTenantPlan({ plan: 'pro', plan_status: 'trialing', trial_ends_at: inPast });
+  assert(!lapsed.widgetActive, 'a lapsed trial kept serving');
+  assert(lapsed.inactiveReason === 'trial_ended', `reason was ${lapsed.inactiveReason}`);
+});
+
+check('a failed renewal does not take a live assistant down the same hour', () => {
+  // Stripe is still retrying the card; 'canceled'/'unpaid' is what it sends
+  // when it actually gives up, and those do stop the widget.
+  assert(isWidgetActive({ plan: 'pro', plan_status: 'past_due', stripe_subscription_id: 'sub_1' }), 'dunning went dark immediately');
+  assert(!isWidgetActive({ plan: 'pro', plan_status: 'unpaid' }), 'an unpaid subscription kept serving');
+});
+
+check('no plan means no assistant on the website', () => {
+  for (const status of ['free', 'canceled', 'incomplete', 'incomplete_expired']) {
+    const resolved = resolveTenantPlan({ plan: 'pro', plan_status: status });
+    assert(!resolved.widgetActive, `status ${status} kept serving`);
+    assert(resolved.inactiveReason === 'no_plan', `status ${status} reported ${resolved.inactiveReason}`);
+  }
+  assert(!isWidgetActive(null), 'an unknown tenant served anyway');
 });
 
 console.log(`\nBilling Mapping Test Results: ${passed} passed, ${failed} failed`);

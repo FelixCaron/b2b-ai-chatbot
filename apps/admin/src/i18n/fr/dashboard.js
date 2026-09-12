@@ -74,6 +74,11 @@ export default {
   'No readable text': 'Aucun texte lisible',
   'Not generated yet — regenerate your business summary above to have Dorafi draft these.': "Pas encore généré — régénérez le résumé de votre entreprise ci-dessus pour que Dorafi les rédige.",
   'Not installed yet': 'Pas encore installé',
+  'Not active on your website': 'Pas actif sur votre site web',
+  'Your assistant does not appear on your website yet — activate it to put it in front of visitors':
+    "Votre assistant n'apparaît pas encore sur votre site web — activez-le pour le mettre devant vos visiteurs",
+  'Activate on my website': 'Activer sur mon site web',
+  'One line to paste — then activate it to go live': "Une ligne à coller — puis activez-le pour le mettre en ligne",
   'Nothing is available to your assistant yet': "Rien n'est encore disponible pour votre assistant",
   'Nothing was deleted: everything your assistant learned, and every lead it captured, for {domain} is still here, exactly as you left it. Upgrade your plan and it comes straight back online.': "Rien n'a été supprimé : tout ce que votre assistant a appris, et tous les prospects qu'il a capturés, pour {domain} sont toujours là, exactement comme vous les avez laissés. Mettez votre forfait à niveau et il revient en ligne immédiatement.",
   'Nothing was deleted: everything your assistant learned, and every lead it captured, is still here. Choose a plan and it comes straight back online.': "Rien n'a été supprimé : tout ce que votre assistant a appris, et tous les prospects qu'il a capturés, sont toujours là. Choisissez un forfait et il revient en ligne immédiatement.",

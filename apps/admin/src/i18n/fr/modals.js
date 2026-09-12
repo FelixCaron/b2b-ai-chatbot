@@ -161,13 +161,19 @@ export default {
     "Ceci efface tout ce que votre assistant a appris de ce site Web — chaque page indexée et son résumé d'entreprise — ainsi que toutes les personnalisations : ton, objectif, capture de prospects, intégrations, couleur du widget et favicon. Le système redétecte ensuite votre marque et lance immédiatement une nouvelle analyse. Votre code d'installation, vos prospects et votre historique de conversations ne sont pas touchés.",
   'Reset & Re-scan': "Réinitialiser et relancer l'analyse",
 
-  // SubscriptionRequiredModal
-  'Subscribe to install {domain}': 'Abonnez-vous pour installer {domain}',
+  // ActivationRequiredModal
+  'Activate your assistant on {domain}': 'Activez votre assistant sur {domain}',
   'your assistant': 'votre assistant',
-  'You can build and test your assistant for free, but putting it live on your website needs an active plan. Choose a plan to get your install code.':
-    "Vous pouvez créer et tester votre assistant gratuitement, mais le mettre en ligne sur votre site Web nécessite un forfait actif. Choisissez un forfait pour obtenir votre code d'installation.",
+  'Building, testing and installing your assistant are free. An active plan is what makes it actually appear for your visitors — until then, the code you pasted stays invisible on your website.':
+    "Créer, tester et installer votre assistant est gratuit. C'est un forfait actif qui le fait réellement apparaître pour vos visiteurs — d'ici là, le code que vous avez collé reste invisible sur votre site Web.",
   'See Plans →': 'Voir les forfaits →',
   'Go back': 'Retour',
+
+  // IntegrationModal — activation banner
+  'Paste it now — activate when you are ready': 'Collez-le maintenant — activez quand vous voulez',
+  'This code is yours to install right away. Your assistant stays invisible to your visitors until your workspace has an active plan — nothing else to change once it does.':
+    "Ce code est à vous, installez-le tout de suite. Votre assistant reste invisible pour vos visiteurs tant que votre espace de travail n'a pas de forfait actif — et rien d'autre ne sera à changer une fois que ce sera fait.",
+  'Activate my assistant →': 'Activer mon assistant →',
 
   // UpgradeRequiredModal
   'Add {domain} with an upgrade': 'Ajoutez {domain} avec une mise à niveau',

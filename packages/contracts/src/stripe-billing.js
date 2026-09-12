@@ -4,9 +4,10 @@
 // One mapping, shared by both halves of the billing loop: the webhook (Stripe
 // tells us something changed) and the reconcile path in api/billing/checkout.js
 // (we ask Stripe what is true). They must agree — a tenant whose row says
-// `plan_status: 'trialing'` while Stripe says 'active' is a paying customer the
-// dashboard locks out of its own install code, which is exactly the failure
-// this file exists to stop repeating.
+// `plan_status: 'trialing'` while Stripe says 'active' is a paying customer
+// whose assistant stops appearing on their own website (resolveTenantPlan's
+// widgetActive reads these very columns), which is exactly the failure this
+// file exists to stop repeating.
 //
 // It lives in contracts rather than under /api for the same reason
 // resolveTenantPlan() does (see plans.js): a new file under /api counts against

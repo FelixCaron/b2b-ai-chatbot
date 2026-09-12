@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Globe, Eye, RefreshCw, Code, Settings2 } from 'lucide-react';
+import { Globe, Eye, RefreshCw, Code, Settings2, Power } from 'lucide-react';
 import useWidgetLiveStatus from '../hooks/useWidgetLiveStatus';
 import { useT } from '../../../i18n/LanguageContext';
 
@@ -14,10 +14,13 @@ export default function SiteHeroCard({
   onRequireLogin,
   onOpenPreview,
   onOpenIntegration,
-  // The install gate confirms the plan with the server before it can refuse
-  // (see Dashboard's openIntegrationModal), so the button says it is working
-  // rather than sitting there looking ignored.
-  isCheckingPlan = false,
+  // Whether the assistant is allowed to appear on the website at all — the
+  // product's one paywall (see plan-limits.js's isAssistantActive, which is
+  // the same predicate the widget itself is served under). Installed code on
+  // an inactive workspace renders nothing, so the card has to say so rather
+  // than let an owner believe a pasted snippet is enough.
+  isPlanActive = true,
+  onActivate,
   onOpenSettings,
   children
 }) {
@@ -78,6 +81,11 @@ export default function SiteHeroCard({
                   <span className="w-2 h-2 rounded-full bg-amber-500/80"></span>
                   {t('Assistant Paused')}
                 </span>
+              ) : !isPlanActive ? (
+                <span className="bg-amber-500/15 text-amber-700 text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5 border border-amber-500/20">
+                  <span className="w-2 h-2 rounded-full bg-amber-500/80"></span>
+                  {t('Not active on your website')}
+                </span>
               ) : isLive ? (
                 <span className="bg-emerald-500/15 text-emerald-700 text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5 border border-emerald-500/20">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -99,6 +107,8 @@ export default function SiteHeroCard({
                 ? t('Reading your website and learning what your business does...')
                 : !isActive
                 ? t('Paused — your assistant is not answering visitors')
+                : !isPlanActive
+                ? t('Your assistant does not appear on your website yet — activate it to put it in front of visitors')
                 : isLive
                 ? t('Installed and answering visitors on your website')
                 : t('Built and ready — paste the install code below to put it on your website')}
@@ -130,20 +140,28 @@ export default function SiteHeroCard({
             )}
           </button>
 
+          {!isPlanActive && isActive && (
+            <button
+              type="button"
+              onClick={() => {
+                if (isGuest) onRequireLogin();
+                else onActivate?.();
+              }}
+              className="w-full md:w-auto bg-gradient-to-r from-amber-500 to-brand-600 hover:from-amber-400 hover:to-brand-500 text-white font-semibold px-6 py-3 rounded-xl text-sm flex items-center justify-center gap-2 shadow-lg shadow-brand-900/20 transition-all hover:scale-[1.02] active:scale-98"
+            >
+              <Power className="w-4 h-4" /> {t('Activate on my website')}
+            </button>
+          )}
+
           <div className="grid grid-cols-2 gap-2.5 md:contents">
             <button
-              disabled={isCheckingPlan}
               onClick={() => {
                 if (isGuest) onRequireLogin();
                 else onOpenIntegration();
               }}
-              className="bg-white hover:bg-surface-200 border border-dark-900/10 text-gray-700 hover:text-dark-900 px-3 sm:px-4 py-3 rounded-xl text-xs sm:text-sm font-medium flex items-center justify-center gap-2 transition-all shadow-sm disabled:opacity-70 disabled:cursor-wait"
+              className="bg-white hover:bg-surface-200 border border-dark-900/10 text-gray-700 hover:text-dark-900 px-3 sm:px-4 py-3 rounded-xl text-xs sm:text-sm font-medium flex items-center justify-center gap-2 transition-all shadow-sm"
             >
-              {isCheckingPlan ? (
-                <RefreshCw className="w-4 h-4 text-brand-600 shrink-0 animate-spin" />
-              ) : (
-                <Code className="w-4 h-4 text-brand-600 shrink-0" />
-              )}
+              <Code className="w-4 h-4 text-brand-600 shrink-0" />
               <span className="truncate">{t('Install')}</span>
             </button>
 

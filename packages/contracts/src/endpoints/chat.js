@@ -69,7 +69,18 @@ export const chatInit = defineEndpoint({
     // TRUE when a self-serve Business trial has lapsed without converting to a
     // paid plan — the widget hides itself, same as a parked site, until the
     // owner subscribes (see api/chat/init.js and resolveTenantPlan in plans.js).
-    trial_ended: optional(f.boolean())
+    trial_ended: optional(f.boolean()),
+    // TRUE when the workspace has no plan covering this website — a
+    // subscription that was cancelled or never started. Building and
+    // installing the assistant are free; a plan is what makes it appear for
+    // real visitors (resolveTenantPlan's widgetActive in plans.js).
+    plan_inactive: optional(f.boolean()),
+    // The single flag the widget acts on: the assistant may not serve right
+    // now, whatever the reason, so don't render at all. `code` carries the
+    // specific reason for anyone debugging a site.
+    widget_hidden: optional(f.boolean()),
+    code: optional(f.string({ min: 0 })),
+    site_inactive: optional(f.boolean())
   }
 });
 

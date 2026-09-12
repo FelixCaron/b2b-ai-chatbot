@@ -130,9 +130,9 @@ export default function LoginModal({
         </form>
 
         {/* Quiet opt-out for the congratulations screen — the assistant they
-            just built keeps working as a guest draft; installing it on their
-            live website is what actually requires an account (see the
-            isGuest gates on Dashboard's Install button). */}
+            just built keeps working as a guest draft; putting it on their own
+            live website is what actually requires an account (see the isGuest
+            gates on the dashboard's Install and Activate buttons). */}
         {isGuestConversion && onNotNow && (
           <button
             type="button"

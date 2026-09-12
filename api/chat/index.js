@@ -142,20 +142,7 @@ export default edgeRoute(contracts.chat.send, async (req, { data, json }) => {
     // tenant's *current* plan is what decides whether the behavior actually
     // runs, checked fresh on every request.
     const tenantRow = Array.isArray(site.tenants) ? site.tenants[0] : site.tenants;
-    const { effectivePlan, trialExpiredUnpaid } = resolveTenantPlan(tenantRow);
-
-    // A self-serve Business trial that lapsed without converting is unpaid:
-    // stop serving, same posture as a plan-parked site, but with its own code
-    // so the widget and the tenant's dashboard can say "trial ended, subscribe"
-    // rather than "plan no longer covers this site". Checked before any LLM
-    // work so an expired trial costs nothing. Stripe-managed subscriptions are
-    // never flagged here (see resolveTenantPlan in @b2b-ai-chatbot/contracts).
-    if (trialExpiredUnpaid) {
-      return json({
-        error: 'This assistant\'s free trial has ended. Subscribe to a plan to bring it back online.',
-        code: 'trial_ended'
-      }, 403);
-    }
+    const { effectivePlan, widgetActive, inactiveReason } = resolveTenantPlan(tenantRow);
 
     const hasProPlan = effectivePlan === 'pro' || effectivePlan === 'premium';
 
@@ -166,6 +153,10 @@ export default edgeRoute(contracts.chat.send, async (req, { data, json }) => {
     const isDomainMatch = originHostname && (originHostname === siteDomainClean || originHostname.endsWith(`.${siteDomainClean}`));
 
     let isOriginAuthorized = isDomainMatch;
+    // Tracked separately from authorization: an owner testing their own
+    // assistant from the dashboard is not a visitor, and the plan gate below
+    // must not apply to them — building and testing stay free.
+    let isOwnerPreview = false;
 
     // If request does NOT come from the client's registered domain (e.g. preview from admin or dev),
     // require an authenticated session token belonging to the tenant owner.
@@ -186,6 +177,7 @@ export default edgeRoute(contracts.chat.send, async (req, { data, json }) => {
 
             if (ownerTenant) {
               isOriginAuthorized = true; // Authenticated owner preview authorized
+              isOwnerPreview = true;
             }
           }
         } catch (authErr) {
@@ -197,6 +189,33 @@ export default edgeRoute(contracts.chat.send, async (req, { data, json }) => {
     if (!isOriginAuthorized) {
       return json({ error: 'Origin not authorized for this site.' }, 403);
     }
+
+    // The product's actual paywall: no plan covering this workspace — a
+    // self-serve trial that lapsed, or a subscription cancelled or never
+    // started. Building an assistant, testing it and pasting its snippet are
+    // free; what a plan buys is the assistant answering real visitors. Checked
+    // before any LLM work, so an inactive workspace costs nothing, and AFTER
+    // the origin check so the owner's own preview (isOwnerPreview) keeps
+    // working — they must be able to see what they would be paying for.
+    // api/chat/init.js answers the same question the same way, and the widget
+    // hides itself rather than showing our billing state to someone else's
+    // visitors. Two codes so the owner's dashboard can say "trial ended" or
+    // "choose a plan" without guessing.
+    if (!widgetActive && !isOwnerPreview) {
+      return json(
+        inactiveReason === 'trial_ended'
+          ? {
+              error: 'This assistant\'s free trial has ended. Subscribe to a plan to bring it back online.',
+              code: 'trial_ended'
+            }
+          : {
+              error: 'This assistant is inactive. Activate a plan to bring it back online.',
+              code: 'plan_inactive'
+            },
+        403
+      );
+    }
+
     const isLeadCaptureEnabled = hasProPlan && (site.enable_lead_capture || false);
 
     // Conversation-quota gate. A session_id new to this tenant counts
