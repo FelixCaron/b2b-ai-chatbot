@@ -103,9 +103,9 @@ variable "preview_site_domain" {
 # ---------------------------------------------------------------------------
 
 variable "supabase_region" {
-  description = "Region for both Supabase projects."
+  description = "Region for both Supabase projects. The existing production project is in ca-central-1; putting preview elsewhere would give it different latency characteristics than the thing it is meant to rehearse."
   type        = string
-  default     = "us-east-1"
+  default     = "ca-central-1"
 }
 
 variable "supabase_db_passwords" {

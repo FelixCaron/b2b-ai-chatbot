@@ -23,8 +23,10 @@ la production.
       jeton d'API. Sans eux, laisser Terraform gérer les variables d'environnement
       **supprimerait** celles qu'il ne connaît pas et casserait la production.
       C'est le seul vrai blocage avant un `terraform apply` complet.
-- [ ] Un jeton GitHub (`repo`) pour que Terraform pose les secrets et variables
-      Actions.
+- [ ] Lancer `terraform apply` **depuis ta machine**, pas depuis une session
+      Claude Code : le proxy y bloque toutes les routes d'API GitHub Actions et
+      Environments, en lecture comme en écriture, quel que soit le jeton
+      (vérifié le 2026-09-13). Les parties Vercel et Supabase, elles, passent.
 - [ ] `terraform import` des projets existants (ids ci-dessous), puis
       `terraform plan` jusqu'à ce qu'il n'annonce **aucune** destruction :
       `dorafi-admin` = `prj_MI45o3kUhwE4RqRRcZUyVEhKSrWZ`,

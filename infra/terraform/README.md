@@ -23,6 +23,13 @@ Nothing is copied by hand from one dashboard to another, which is what makes a
 new environment reproducible rather than a checklist someone has to follow
 correctly.
 
+## Run this from your own machine
+
+Not from a Claude Code session: the agent proxy blocks every GitHub Actions and
+environments API path (read and write, whatever the token), so `github.tf` — the
+environments, the variables, the approval gate — cannot be applied from there.
+Confirmed on 2026-09-13. The Vercel and Supabase halves work fine from either.
+
 ## Before the first apply
 
 ```bash

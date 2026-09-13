@@ -6,11 +6,11 @@
 
 # --- Who Terraform acts as ---------------------------------------------------
 vercel_api_token = "your-vercel-api-token"
-vercel_team_id   = null                      # or "team_xxxx" / your team slug
-vercel_user_id   = "your-vercel-account-id"  # only used when vercel_team_id is null
+vercel_team_id   = null                             # personal account, no team
+vercel_user_id   = "Ul0JzYUY9LFDhZp11e8HHiNf"       # this account's id
 
 supabase_access_token    = "sbp_..."
-supabase_organization_id = "your-org-slug"
+supabase_organization_id = "frcollnxlzqgussqqsmi"   # "Felix's Org"
 
 github_token = "ghp_..."                     # needs the `repo` scope
 github_repo  = "FelixCaron/b2b-ai-chatbot"
@@ -20,6 +20,7 @@ github_repo  = "FelixCaron/b2b-ai-chatbot"
 # project ALREADY has: Terraform cannot read it back, and importing does not
 # discover it, so a different value here means a password change on your
 # production database.
+# The production project is "Chatbots", ref xuvueegdokgiyedwvmkm, in ca-central-1.
 supabase_db_passwords = {
   production = "the-existing-production-db-password"
   preview    = "a-new-strong-password"
